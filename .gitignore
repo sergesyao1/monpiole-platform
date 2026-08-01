@@ -1,0 +1,21 @@
+# Dependencies and build outputs
+node_modules/
+dist/
+build/
+coverage/
+.next/
+.turbo/
+
+# Runtime and secret material
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Tooling and operating-system files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
