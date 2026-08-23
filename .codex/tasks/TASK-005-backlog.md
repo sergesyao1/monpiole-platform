@@ -2,7 +2,7 @@
 
 ## Status
 
-Planned.
+Completed.
 
 ## Sprint
 
@@ -69,6 +69,26 @@ Define a durable backlog structure for MonPiole Platform so future work can be p
 - Vague entries can create hidden scope or conflicting interpretations.
 - Stale priorities can misrepresent current architectural or operational needs.
 
+## Completion verification
+
+Verified on 2026-08-23.
+
+Codex repository audit confirmed:
+
+- canonical backlog record created: PASS;
+- backlog entry format documented: PASS;
+- prioritisation and promotion rules documented: PASS;
+- ownership and traceability rules documented: PASS;
+- unscheduled work is distinguished from committed sprint work: PASS;
+- no unapproved product or technology work introduced: PASS;
+- repository-relative Markdown links: PASS;
+- sensitive-value scan: PASS;
+- Git diff check: PASS.
+
+Technical backlog enforcement remains PENDING until an applicable
+technology decision is approved under ADR-0002.
+
+Result: PASS.
 ## Next actions
 
 1. Define the canonical backlog file or directory.
