@@ -1,8 +1,8 @@
-﻿# TASK-010 — TD-003 Architecture Dependency Enforcement Decision
+# TASK-010 — TD-003 Architecture Dependency Enforcement Decision
 
 ## Status
 
-Planned.
+Completed.
 
 ## ADR
 

@@ -198,7 +198,7 @@ Approval should include these constraints:
    specialist runtime requires its own approved decision if evidence later demands it.
 7. A supported-runtime and security-update policy must be set at implementation time.
 
-This is a **PROPOSED** recommendation. It becomes neither accepted nor authorized
+This recommendation is **APPROVED** by the architecture owner. It becomes neither accepted nor authorized
 for installation until the architecture owner approves a compliant decision record.
 
 ## Compatibility implications
