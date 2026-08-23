@@ -1,8 +1,8 @@
-﻿# TASK-009 — TD-002 Monorepo, Package & Dependency Management Decision
+# TASK-009 — TD-002 Monorepo, Package & Dependency Management Decision
 
 ## Status
 
-Planned.
+Completed.
 
 ## ADR
 

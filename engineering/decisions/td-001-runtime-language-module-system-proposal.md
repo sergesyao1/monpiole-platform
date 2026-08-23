@@ -1,7 +1,7 @@
 # TD-001: Runtime, language, and module system
 
 - Decision ID: TD-001
-- Status: **PROPOSED**
+- Status: **APPROVED**
 - Date: 2026-08-23
 - Governing decision: [ADR-0002](../adr/0002-technology-selection-gate.md)
 - Decision owner: Architecture owner
@@ -373,3 +373,16 @@ source code, manifests, dependencies, and lockfiles remain blocked by ADR-0002.
 7. Kotlin, [Null safety](https://kotlinlang.org/docs/null-safety.html).
 8. Kotlin, [Coroutines guide](https://kotlinlang.org/docs/coroutines-guide.html).
 9. Oracle, [Java Language Specification, Java SE 26](https://docs.oracle.com/javase/specs/jls/se26/html/jls-7.html#jls-7.7).
+## Architecture owner approval
+
+Approved on 2026-08-23.
+
+The architecture owner explicitly approves this technology decision after
+coordinated review of TD-001 and TD-002.
+
+Approval authorizes this decision as an architectural baseline subject to the
+constraints, dependencies, security controls, migration strategy, rollback
+strategy, and implementation gates documented above.
+
+Approval does not by itself authorize uncontrolled repository initialization or
+bypass TD-003 architecture-enforcement requirements.

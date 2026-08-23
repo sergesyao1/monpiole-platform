@@ -2,7 +2,7 @@
 
 ## Status
 
-READY_FOR_ARCHITECTURE_REVIEW
+Completed.
 
 ## ADR
 
