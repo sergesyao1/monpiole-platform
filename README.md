@@ -63,7 +63,7 @@ Docker is not configured in Sprint 0: no Dockerfile or Compose definition exists
 
 ## Sprint workflow
 
-Sprint goals are captured in [.codex/CURRENT_SPRINT.md](.codex/CURRENT_SPRINT.md). Scoped work is recorded in [.codex/tasks/](.codex/tasks/). Each task defines its objective, constraints, acceptance criteria, verification, risks, and next action. Delivery proceeds through small reviewable pull requests with documented decisions and verification evidence.
+Unscheduled candidate work is recorded in [BACKLOG.md](BACKLOG.md). Sprint goals are captured in [.codex/CURRENT_SPRINT.md](.codex/CURRENT_SPRINT.md), and committed work is recorded in [.codex/tasks/](.codex/tasks/). Each task defines its objective, constraints, acceptance criteria, verification, risks, and next action. Backlog promotion requires explicit sprint-planning approval and links between the backlog item, sprint scope, task record, applicable ADRs, and delivery evidence. Delivery proceeds through small reviewable pull requests with documented decisions and verification evidence.
 
 ## Documentation structure
 

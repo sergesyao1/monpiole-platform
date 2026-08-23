@@ -1,0 +1,11 @@
+{
+  "extends": "../../../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false
+  },
+  "files": [],
+  "references": [
+    { "path": "./contract" },
+    { "path": "./consumer" }
+  ]
+}

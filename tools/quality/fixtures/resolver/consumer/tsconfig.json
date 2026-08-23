@@ -1,0 +1,13 @@
+{
+  "extends": "../../../../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "../.architecture-build/consumer",
+    "tsBuildInfoFile": "../.architecture-build/consumer.tsbuildinfo"
+  },
+  "references": [{ "path": "../contract" }],
+  "include": ["src/**/*.ts"]
+}
