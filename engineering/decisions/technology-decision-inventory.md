@@ -1,6 +1,6 @@
 # Technology decision inventory
 
-- Status: Discovery inventory; no technology selected
+- Status: Governed inventory; TD-004 approved, executable testing baseline not implemented
 - Date: 2026-08-23
 - Governing decision: [ADR-0002](../adr/0002-technology-selection-gate.md)
 - Accepted baseline reviewed: ADR-0001 through ADR-0006
@@ -53,7 +53,7 @@ must be made immediately.
 | TD-001 | Runtime, language, and module system | Define the executable and module semantics needed to parse a dependency graph, run deterministic checks, and later host application code. Language and module rules may be decided with the runtime when inseparable. | ADR-0002; ADR-0006 technology boundary; TASK-006-07 blocker; CURRENT_SPRINT.md | **Blocking now** for TASK-006-07 and all runtime implementation. | Accepted architecture baseline only. | Runtime/language/module-system ADR compliant with ADR-0002. | 1, in parallel with TD-002. |
 | TD-002 | Monorepo, package, and dependency management | Define workspace discovery, dependency declaration, reproducible installation, command execution, and boundary visibility while preserving `apps/`, `services/`, and `packages/` ownership. | ADR-0001; ADR-0002; ADR-0006; TOOL-012; CURRENT_SPRINT.md | **Blocking now** for installing or executing the checker and for later packages. A lockfile remains forbidden until approval. | TD-001 compatibility must be evaluated; neither decision presupposes the other. | Monorepo/package-management ADR compliant with ADR-0002. | 1, coordinated with TD-001. |
 | TD-003 | Architecture dependency checking and architecture testing | Make forbidden-edge, cross-context, cycle, and layer rules deterministic, locally runnable, and actionable. Decide whether checking and architecture tests are one capability or coordinated capabilities. | ADR-0005 architecture tests; ADR-0006 sections 27–28; TASK-006-07; TOOL-001 and TOOL-002; `tools/quality/README.md` | **Blocking now** for TASK-006-07; prerequisite to TASK-006-08. | TD-001 and TD-002; documented boundary rules from TASK-006-01 through TASK-006-06. | Architecture-enforcement ADR or scoped technology decision compliant with ADR-0002. | 2; implement locally before CI. |
-| TD-004 | Unit, integration, contract, tenant, and static testing | Define test execution and isolation by level, synthetic tenant fixtures, adapter dependencies, contract compatibility, and deterministic results. Separate tools may be justified only by distinct requirements. | ADR-0003; ADR-0004; ADR-0005; ADR-0006; TOOL-003 through TOOL-007; `tests/README.md` | **Non-blocking for TASK-006-07**; blocking before the first behavior/adaptor/contract implementation can meet Definition of Done. | TD-001 and TD-002; API/event-specific portions also depend on TD-006 and TD-007. | Testing strategy/tooling ADR (or explicitly scoped records) compliant with ADR-0002. | 3, before runtime behavior is introduced. |
+| TD-004 | Unit, integration, contract, and tenant testing | **APPROVED strategy:** exact-pinned Vitest `4.1.11` and `@vitest/coverage-v8` `4.1.11`; repository-owned controlled fixtures and provider/consumer compatibility tests; tenant isolation mandatory across applicable suites and fixtures. Testcontainers `12.0.4` remains conditional. Static analysis remains TD-003-owned. | ADR-0003; ADR-0004; ADR-0005; ADR-0006; TOOL-003 through TOOL-006; `tests/README.md`; [approved TD-004](td-004-testing-strategy-tooling-proposal.md) | **APPROVED — NOT IMPLEMENTED.** TOOL-003 through TOOL-006 have an approved technology strategy, but no executable baseline exists until a follow-up task installs only the approved exact pins and passes the smoke/verification gates. | TD-001 and TD-002 approved; concrete API/event representation depends on TD-006/TD-007; Testcontainers installation and baselining depend on TD-008 or another real-adapter decision plus its compatibility gate. | Later focused implementation task; Pact, E2E, performance, broker-specific, persistence-specific, and CI-provider tooling remain deferred. | 3, approved gate for the first product slice; implementation pending. |
 | TD-005 | Application framework | Provide interface/application composition without coupling domain logic to framework or infrastructure concerns. | ADR-0002; ADR-0005; ADR-0006 technology boundary | **Deferred**; required before framework installation or application bootstrap, not for a standalone local dependency check. | TD-001, TD-002; API implementation requirements in TD-006 where applicable. | Application-framework ADR compliant with ADR-0002. | 4, when the first approved application slice is scoped. |
 | TD-006 | API implementation and contract representation | Implement versioned APIs, authentication/authorisation boundaries, validation, errors, tenant/correlation propagation, lifecycle, and compatibility verification. ADR-0003 defines policy but not implementation technology or schema representation. | ADR-0003; ADR-0004; ADR-0005; AGENTS.md API-first rules | **Deferred**; required before a public API adapter or concrete schema/tool is introduced. | TD-001, TD-002, normally TD-005; TD-004 for contract tests. | API implementation/contract tooling ADR compliant with ADR-0002. | 4, before the first approved API adapter. |
 | TD-007 | Eventing and messaging infrastructure | Implement explicit versioned event contracts, tenant/correlation propagation, idempotent retry-safe consumers, delivery semantics, and operability without exposing persistence models. | ADR-0002; ADR-0003; ADR-0004; ADR-0005 | **Deferred**; required before a broker, event client, or consumer runtime is introduced. | TD-001, TD-002; TD-004 for contract/integration tests; TD-012 for telemetry requirements. | Eventing/messaging ADR compliant with ADR-0002. | 5, when the first approved asynchronous flow is scoped. |
@@ -83,13 +83,16 @@ CI selection into the minimum set would decide more than TASK-006-07 requires.
 3. Implement and verify TASK-006-07 locally without adding application runtime
    behavior.
 4. Decide TD-009 and complete TASK-006-08 using the proven local command.
-5. Decide TD-004 before the first behavior change, then evaluate TD-005 through
-   TD-012 only when an approved downstream scope makes each choice necessary.
+5. Implement the approved TD-004 strategy through a separately governed task
+   before the first behavior change, then evaluate TD-005 through TD-012 only
+   when an approved downstream scope makes each choice necessary.
 
 ## Audit conclusion
 
-All current task statuses and all six accepted ADRs were reviewed. The current
-baseline contains requirements for every area above but no accepted technology
-selection. Documentation and structural placeholders do not constitute
-technical enforcement; TASK-006-07 and TASK-006-08 therefore remain blocked or
-pending as recorded.
+All current task statuses and all six accepted ADRs were reviewed. TD-004 now
+approves the TOOL-003 through TOOL-006 technology strategy, including exact-pin
+authorization for Vitest and its V8 coverage provider in a later focused task.
+That documentation approval is not an executable testing baseline: installation,
+configuration, fixtures, tests, smoke verification, and baselining remain
+pending. Conditional and deferred technologies remain unselected for
+installation as recorded in TD-004.
