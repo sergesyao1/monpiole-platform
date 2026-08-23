@@ -2,7 +2,7 @@
 
 ## Status
 
-BLOCKED
+READY_FOR_IMPLEMENTATION
 
 ## ADR
 
@@ -93,23 +93,29 @@ Cette tÃ¢che ne sÃ©lectionne aucun outil.
 
 Si un outil d'analyse architecturale ou de dÃ©pendances est nÃ©cessaire,
 une nouvelle ADR doit Ãªtre crÃ©Ã©e conformÃ©ment Ã  ADR-0002 avant son adoption.
+## Unblock verification
 
-## Blocker
+Unblocked on 2026-08-23.
 
-Automated architectural enforcement is blocked pending an approved
-technology-selection decision compliant with ADR-0002.
+The technology prerequisites required by ADR-0002 are now approved:
 
-The documentation and structural baseline is verified, but the repository
-does not yet contain an approved runtime/module system, dependency-analysis
-mechanism, or architecture-check implementation.
+- TD-001: Node.js, strict TypeScript, native ESM;
+- TD-002: pnpm native workspaces, shared lockfile, frozen installation;
+- TD-003: dependency-cruiser plus repository-owned architecture verification.
 
-Unblock condition:
+TASK-006-07 may now implement deterministic local architecture enforcement.
 
-- required technology decisions are approved under ADR-0002;
-- architecture checking can be implemented without violating the technology gate.
+Implementation must include:
 
-## Related
+- exact-version assessment before dependency installation;
+- deterministic TypeScript/ESM resolver fixtures;
+- pnpm workspace and package-export verification;
+- forbidden dependency detection;
+- circular dependency detection;
+- architectural boundary diagnostics;
+- reproducible local execution.
 
-- ADR-0002
-- ADR-0005
-- ADR-0006
+TASK-006-08 remains blocked until this local enforcement is implemented and
+verified.
+
+Result: READY_FOR_IMPLEMENTATION.
