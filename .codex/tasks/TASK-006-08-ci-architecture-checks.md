@@ -2,7 +2,7 @@
 
 ## Status
 
-READY_FOR_IMPLEMENTATION
+BLOCKED
 
 ## ADR
 
@@ -113,3 +113,26 @@ Verified prerequisites:
 TASK-006-08 may now integrate the existing local architecture command into CI.
 
 Result: READY_FOR_IMPLEMENTATION.
+## CI platform blocker
+
+Blocked on 2026-08-23.
+
+TASK-006-07 local architecture enforcement is implemented and verified.
+
+CI integration remains blocked because no CI execution/platform technology has
+yet been approved under ADR-0002.
+
+Required decision:
+
+- TD-009 — CI Execution & Platform Selection.
+
+TASK-006-08 must not select GitHub Actions, Azure DevOps, GitLab CI, Jenkins,
+or another CI platform before TD-009 is reviewed and approved.
+
+The CI implementation must reuse the existing local commands without creating
+a competing architecture-check implementation:
+
+- corepack pnpm install --frozen-lockfile
+- corepack pnpm architecture:check
+
+Result: BLOCKED pending TD-009.
