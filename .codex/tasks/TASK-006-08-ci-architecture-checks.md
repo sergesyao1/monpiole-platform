@@ -2,7 +2,7 @@
 
 ## Status
 
-READY_FOR_REVIEW
+DONE
 
 ## ADR
 
@@ -191,3 +191,56 @@ Remaining verification:
 - concurrency behaviour.
 
 Result: READY_FOR_REVIEW.
+## GitHub-hosted verification
+
+Verified on 2026-08-23 through Pull Request #1.
+
+Workflow:
+
+- GitHub Actions;
+- ephemeral GitHub-hosted Ubuntu 24.04 runner;
+- Node.js 24.18.0;
+- pnpm 11.22.0 through Corepack;
+- immutable action SHA pins;
+- read-only repository permissions;
+- no CI secrets;
+- frozen dependency installation;
+- existing repository architecture command reused unchanged.
+
+Positive verification:
+
+- corepack pnpm install --frozen-lockfile: PASS;
+- corepack pnpm architecture:check: PASS;
+- GitHub pull-request workflow: PASS.
+
+Negative enforcement verification:
+
+An intentional Domain -> Infrastructure dependency was introduced on the
+validation branch.
+
+Expected result:
+
+- local architecture validation: FAIL;
+- GitHub Actions architecture validation: FAIL.
+
+Observed result:
+
+- local violation detection: PASS;
+- GitHub Actions rejected the architecture violation: PASS.
+
+Recovery verification:
+
+The intentional violation was reverted.
+
+Observed result:
+
+- local architecture validation returned to PASS;
+- GitHub Actions returned to PASS.
+
+This proves both successful execution and deterministic failure propagation.
+
+Residual controls such as runtime authorization, tenant isolation, dynamic
+network/database access, and semantic business ownership remain outside static
+dependency-graph enforcement and require their dedicated verification layers.
+
+Result: PASS.
