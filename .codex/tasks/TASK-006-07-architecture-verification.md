@@ -1,28 +1,28 @@
-# TASK-006-07 — Architecture Verification
+# TASK-006-07 â€” Architecture Verification
 
 ## Status
 
-TODO
+BLOCKED
 
 ## ADR
 
-ADR-0006 — Architecture applicative : Bounded Contexts, Services et Frontières
+ADR-0006 â€” Architecture applicative : Bounded Contexts, Services et FrontiÃ¨res
 
 ## Objective
 
-Définir les contrôles permettant de vérifier automatiquement les règles
+DÃ©finir les contrÃ´les permettant de vÃ©rifier automatiquement les rÃ¨gles
 architecturales d'ADR-006.
 
 ## Controls To Define
 
-Les contrôles devront permettre de détecter notamment :
+Les contrÃ´les devront permettre de dÃ©tecter notamment :
 
-- les dépendances interdites ;
-- les dépendances circulaires ;
-- les accès directs aux données d'un autre service ;
-- les dépendances de `packages/core` vers les services ;
-- les dépendances métier interdites dans `packages/shared` ;
-- les violations de frontière des applications.
+- les dÃ©pendances interdites ;
+- les dÃ©pendances circulaires ;
+- les accÃ¨s directs aux donnÃ©es d'un autre service ;
+- les dÃ©pendances de `packages/core` vers les services ;
+- les dÃ©pendances mÃ©tier interdites dans `packages/shared` ;
+- les violations de frontiÃ¨re des applications.
 
 
 ## Verification
@@ -68,7 +68,7 @@ The following controls therefore remain to be implemented:
 
 No architecture analysis or dependency checking tool has been selected.
 
-Any future tool selection must comply with ADR-0002 — Technology Selection Gate.
+Any future tool selection must comply with ADR-0002 â€” Technology Selection Gate.
 
 ### Result
 
@@ -80,19 +80,33 @@ RUNTIME / IMPLEMENTATION VERIFICATION: PENDING.
 
 ## Acceptance Criteria
 
-- [ ] Chaque règle vérifiable possède un contrôle identifié.
-- [ ] Les contrôles sont reproductibles.
-- [ ] Les contrôles produisent des résultats déterministes.
+- [ ] Chaque rÃ¨gle vÃ©rifiable possÃ¨de un contrÃ´le identifiÃ©.
+- [ ] Les contrÃ´les sont reproductibles.
+- [ ] Les contrÃ´les produisent des rÃ©sultats dÃ©terministes.
 - [ ] Les violations sont clairement identifiables.
-- [ ] Les contrôles peuvent être exécutés localement.
-- [ ] La stratégie d'intégration CI est définie.
+- [ ] Les contrÃ´les peuvent Ãªtre exÃ©cutÃ©s localement.
+- [ ] La stratÃ©gie d'intÃ©gration CI est dÃ©finie.
 
 ## Technology Gate
 
-Cette tâche ne sélectionne aucun outil.
+Cette tÃ¢che ne sÃ©lectionne aucun outil.
 
-Si un outil d'analyse architecturale ou de dépendances est nécessaire,
-une nouvelle ADR doit être créée conformément à ADR-0002 avant son adoption.
+Si un outil d'analyse architecturale ou de dÃ©pendances est nÃ©cessaire,
+une nouvelle ADR doit Ãªtre crÃ©Ã©e conformÃ©ment Ã  ADR-0002 avant son adoption.
+
+## Blocker
+
+Automated architectural enforcement is blocked pending an approved
+technology-selection decision compliant with ADR-0002.
+
+The documentation and structural baseline is verified, but the repository
+does not yet contain an approved runtime/module system, dependency-analysis
+mechanism, or architecture-check implementation.
+
+Unblock condition:
+
+- required technology decisions are approved under ADR-0002;
+- architecture checking can be implemented without violating the technology gate.
 
 ## Related
 

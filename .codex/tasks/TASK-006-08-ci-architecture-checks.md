@@ -1,28 +1,28 @@
-# TASK-006-08 — CI Architecture Checks
+# TASK-006-08 â€” CI Architecture Checks
 
 ## Status
 
-TODO
+BLOCKED
 
 ## ADR
 
-ADR-0006 — Architecture applicative : Bounded Contexts, Services et Frontières
+ADR-0006 â€” Architecture applicative : Bounded Contexts, Services et FrontiÃ¨res
 
 ## Objective
 
-Préparer l'intégration des contrôles architecturaux dans le processus de
-qualité et de CI.
+PrÃ©parer l'intÃ©gration des contrÃ´les architecturaux dans le processus de
+qualitÃ© et de CI.
 
 ## Scope
 
-Définir :
+DÃ©finir :
 
-- le moment d'exécution des contrôles ;
-- les conditions d'échec ;
+- le moment d'exÃ©cution des contrÃ´les ;
+- les conditions d'Ã©chec ;
 - les rapports ;
-- les règles de violation ;
-- la reproductibilité locale/CI ;
-- la stratégie de traitement des exceptions.
+- les rÃ¨gles de violation ;
+- la reproductibilitÃ© locale/CI ;
+- la stratÃ©gie de traitement des exceptions.
 
 
 ## Verification
@@ -66,7 +66,7 @@ The following implementation items therefore remain pending:
 
 No new CI or architecture-analysis technology is selected by this task.
 
-Any future technology selection must comply with ADR-0002 — Technology
+Any future technology selection must comply with ADR-0002 â€” Technology
 Selection Gate and must be approved before installation or integration.
 
 ### Result
@@ -79,19 +79,34 @@ AUTOMATED ENFORCEMENT: PENDING.
 
 ## Acceptance Criteria
 
-- [ ] Les contrôles architecturaux peuvent être exécutés en CI.
-- [ ] Une violation architecturale peut faire échouer le contrôle.
-- [ ] Les résultats sont déterministes.
+- [ ] Les contrÃ´les architecturaux peuvent Ãªtre exÃ©cutÃ©s en CI.
+- [ ] Une violation architecturale peut faire Ã©chouer le contrÃ´le.
+- [ ] Les rÃ©sultats sont dÃ©terministes.
 - [ ] Les diagnostics sont exploitables.
-- [ ] Les exceptions sont explicitement documentées.
-- [ ] Le mécanisme choisi respecte ADR-0002.
+- [ ] Les exceptions sont explicitement documentÃ©es.
+- [ ] Le mÃ©canisme choisi respecte ADR-0002.
 
 ## Constraints
 
-Ne pas installer ni sélectionner de nouvel outil dans cette tâche.
+Ne pas installer ni sÃ©lectionner de nouvel outil dans cette tÃ¢che.
 
-La sélection éventuelle d'un outil doit faire l'objet d'une ADR conforme
-à ADR-0002.
+La sÃ©lection Ã©ventuelle d'un outil doit faire l'objet d'une ADR conforme
+Ã  ADR-0002.
+
+## Blocker
+
+CI architecture-check implementation is blocked pending completion of the
+local architecture-verification mechanism and the required technology
+selection compliant with ADR-0002.
+
+CI must not integrate a checker that has not first been approved and made
+reproducible locally.
+
+Unblock condition:
+
+- TASK-006-07 automated enforcement is implementable;
+- required technology decisions are approved under ADR-0002;
+- a deterministic local architecture-check command exists.
 
 ## Related
 
