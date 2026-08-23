@@ -1,8 +1,8 @@
-﻿# TASK-012 — First Product Slice & Implementation Readiness
+# TASK-012 — First Product Slice & Implementation Readiness
 
 ## Status
 
-Planned.
+BLOCKED_PRODUCT_CLARIFICATION
 
 ## Objective
 
@@ -178,6 +178,41 @@ Discovery and implementation planning only.
 
 Implementation begins only after the required product and technology gates are
 satisfied.
+## Discovery result
+
+Reviewed on 2026-08-23.
+
+The implementation-readiness analysis is complete.
+
+Result:
+
+- architecture baseline: READY;
+- first approved business slice: NOT YET AVAILABLE;
+- leading clarification candidate: Tenant Onboarding;
+- owning bounded context: services/tenant-management;
+- product implementation: BLOCKED pending approved product behavior.
+
+The repository currently lacks approved evidence defining:
+
+- onboarding actor;
+- tenant creation inputs;
+- lifecycle states and transitions;
+- authorization rules;
+- bootstrap security context;
+- idempotency behavior;
+- failure/error semantics;
+- audit/event requirements;
+- application surface;
+- observable acceptance criteria.
+
+Technology decisions potentially required after product approval:
+
+- TD-004: testing strategy/tooling;
+- TD-005: application framework;
+- TD-006: API/runtime validation/contracts;
+- TD-008: persistence and migration tooling.
+
+Result: BLOCKED_PRODUCT_CLARIFICATION.
 
 ## Related
 
