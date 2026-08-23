@@ -94,4 +94,22 @@ backlog item -> sprint scope -> task record -> ADRs (when applicable) -> deliver
 
 ## Candidate register
 
-No candidate work is recorded. Add entries only from confirmed, owner-approved sources; this initial governance record intentionally introduces no product or implementation requirements.
+### BL-0001 — Tenant Onboarding
+
+- State: On hold
+- Priority: P1
+- Category: Product
+- Owner: Tenant Management
+- Source: [Approved Tenant Onboarding product contract](engineering/product/tenant-onboarding-product-contract.md)
+- Objective: Implement the first bounded Tenant Onboarding capability for administrator-driven creation and activation of an organization or real-estate agency tenant.
+- Rationale: Product scope was explicitly approved on 2026-08-23 and Tenant Onboarding is the selected first MonPiole business slice.
+- Scope: Administrator-driven tenant onboarding, minimum business inputs, generated tenant identifier, PENDING-to-ACTIVE lifecycle, mandatory bootstrap tenant administrator, explicit authorization boundary, idempotency, duplicate-conflict semantics, audit/correlation requirements, TenantCreated event, and backend API entry surface.
+- Out of scope: Public self-service onboarding, subscription purchase, billing, payment, property publication, property management, rental management, advertising, and dedicated frontend onboarding UI.
+- Dependencies: TD-004 testing decision; TD-005 application-framework decision; TD-006 API/validation/contracts decision; TD-008 persistence/migrations decision.
+- Risks: Premature implementation before technology decisions could violate ADR-0002; tenant bootstrap must preserve authorization and isolation boundaries; partial onboarding must not expose an ACTIVE tenant before bootstrap administrator creation succeeds.
+- Acceptance criteria: Approved product contract is preserved; required technology gates are approved; implementation task and sprint scope are created before promotion; successful onboarding returns tenant identifier, resulting lifecycle state, and bootstrap administrator identity/reference; duplicate, unauthorized, invalid, and idempotent-retry scenarios are verifiable.
+- ADR impact: ADR-0002 technology gates required before promotion
+- Task: Not promoted
+- Sprint: Unscheduled
+- Delivery evidence: Not delivered
+- Last reviewed: 2026-08-23

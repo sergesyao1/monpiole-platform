@@ -2,7 +2,7 @@
 
 ## Status
 
-BLOCKED_PRODUCT_CLARIFICATION
+DONE
 
 ## Objective
 
@@ -227,3 +227,23 @@ Result: BLOCKED_PRODUCT_CLARIFICATION.
 - TD-003
 - TD-009
 - BACKLOG.md
+## Product clarification resolution
+
+Resolved on 2026-08-23.
+
+Tenant Onboarding has been explicitly approved as the first MonPiole product
+slice.
+
+Owning bounded context:
+
+- services/tenant-management
+
+Approved product evidence:
+
+- engineering/product/tenant-onboarding-product-contract.md
+- BL-0001 in BACKLOG.md
+
+Implementation remains gated by ADR-0002 technology decisions TD-004, TD-005,
+TD-006, and TD-008.
+
+Result: DONE.

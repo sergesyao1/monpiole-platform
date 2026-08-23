@@ -1,8 +1,8 @@
-﻿# TASK-013 — Tenant Onboarding Product Discovery & Approval
+# TASK-013 — Tenant Onboarding Product Discovery & Approval
 
 ## Status
 
-Planned.
+DONE
 
 ## Objective
 
@@ -248,6 +248,34 @@ No implementation authorization is granted by this discovery task.
 
 The resulting product contract requires explicit product-owner approval before
 promotion into implementation work.
+## Product approval result
+
+Approved on 2026-08-23.
+
+The Tenant Onboarding product contract has received explicit product-owner
+approval.
+
+Approved initial scope:
+
+- administrator-driven onboarding;
+- organization / real-estate agency tenant;
+- explicit minimum business inputs;
+- generated tenant identifier;
+- PENDING to ACTIVE lifecycle;
+- mandatory bootstrap tenant administrator;
+- explicit authorization boundary;
+- idempotent onboarding;
+- duplicate conflict semantics;
+- audit and correlation requirements;
+- TenantCreated event;
+- backend API as the initial application surface.
+
+Implementation is not yet authorized.
+
+ADR-0002-governed technology decisions required for the first implementation
+slice must be approved before runtime product code is introduced.
+
+Result: DONE.
 
 ## Related
 
