@@ -1,8 +1,8 @@
-﻿# TASK-007 — Technology Decision Inventory
+# TASK-007 — Technology Decision Inventory
 
 ## Status
 
-Planned.
+Completed.
 
 ## ADR
 
@@ -108,6 +108,33 @@ Discovery only.
 Any concrete technology selection must occur through an approved decision
 record compliant with ADR-0002.
 
+## Completion verification
+
+Verified on 2026-08-23.
+
+Codex discovery audit confirmed:
+
+- ADR-0001 through ADR-0006 reviewed: PASS;
+- current task statuses reviewed: PASS;
+- TASK-006-07 blocker analysed: PASS;
+- TASK-006-08 blocker analysed: PASS;
+- tooling requirements and registry reviewed: PASS;
+- BACKLOG.md reviewed: PASS;
+- required technology decision areas identified: PASS;
+- blocking versus deferrable decisions distinguished: PASS;
+- decision dependencies documented: PASS;
+- minimum unblock set identified: PASS;
+- no technology selected or installed: PASS;
+- no runtime or dependency configuration introduced: PASS;
+- Git diff check: PASS.
+
+Minimum unblock set:
+
+1. TD-001 — Runtime, language, and module system;
+2. TD-002 — Monorepo, package, and dependency management;
+3. TD-003 — Architecture dependency checking and testing.
+
+Result: PASS.
 ## Related
 
 - ADR-0001
