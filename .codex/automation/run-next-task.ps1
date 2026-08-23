@@ -1,4 +1,7 @@
-﻿$ErrorActionPreference = "Stop"
+param(
+    [switch]$DryRun
+)
+$ErrorActionPreference = "Stop"
 
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 Set-Location $Root
@@ -44,7 +47,7 @@ $candidates | Format-Table -AutoSize
 
 $next = $candidates |
     Where-Object {
-        $_.Status -match '^(TODO|READY_FOR_IMPLEMENTATION|READY)$'
+        $_.Status -match '^(TODO|READY_FOR_IMPLEMENTATION|READY|Planned\.|In progress\.)$'
     } |
     Select-Object -First 1
 
@@ -65,6 +68,11 @@ $worktreeDirty = git status --porcelain
 if ($worktreeDirty) {
     Write-Host "`nWORKTREE IS NOT CLEAN. ABORTING." -ForegroundColor Red
     exit 1
+}
+
+if ($DryRun) {
+    Write-Host "`nDRY RUN: task selection only. No task will be executed." -ForegroundColor Cyan
+    exit 0
 }
 
 Write-Host "`n=== RUNNING NEXT TASK ===" -ForegroundColor Yellow
