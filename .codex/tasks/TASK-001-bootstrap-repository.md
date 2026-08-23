@@ -2,7 +2,7 @@
 
 ## Status
 
-In progress.
+Completed.
 
 ## Objective
 
@@ -57,6 +57,28 @@ Establish the MonPiole Platform repository foundation as an enterprise-grade, AP
 - Technology choices are intentionally deferred and must be recorded in ADRs before implementation.
 - Local runtime, Docker, CI, and deployment commands cannot be documented as executable until the stack is selected.
 - The bootstrap must be committed before subsequent sprint work to establish a stable baseline.
+
+## Completion verification
+
+Verified on 2026-08-23.
+
+Codex repository audit confirmed:
+
+- canonical monorepo directories: PASS;
+- directory ownership documentation: PASS;
+- required README sections: PASS;
+- root governance files: PASS;
+- local Markdown links: PASS;
+- no business/runtime implementation introduced: PASS;
+- common secret-pattern scan: PASS;
+- ADR repository baseline limited to ADR-0001 through ADR-0006: PASS;
+- clean worktree and Git diff: PASS.
+
+Automated architecture, tenant, contract, runtime, and CI enforcement remain
+outside TASK-001 and are governed by their respective follow-up tasks and
+ADR-0002.
+
+Result: PASS.
 
 ## Next actions
 

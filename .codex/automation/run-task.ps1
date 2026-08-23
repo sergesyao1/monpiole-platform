@@ -1,4 +1,4 @@
-﻿param(
+param(
     [Parameter(Mandatory = $true)]
     [string]$TaskFile
 )
@@ -48,6 +48,9 @@ Git safety:
 - Do not push.
 - Do not reset, clean, checkout, restore, rebase, or otherwise discard user changes.
 - Keep modifications limited to the requested task.
+- Treat .codex governance records as read-only.
+- Do not create, modify, rename, or delete files under .codex.
+- Report recommended task-status changes in the final report instead of editing task files.
 
 Verification rules:
 - Never report PASS for a check that was not actually executed.
@@ -63,8 +66,10 @@ Required workflow:
 5. Perform only justified changes.
 6. Run all relevant available verification.
 7. Inspect git diff.
-8. Update the task record only when evidence supports the change.
-9. Produce a final report.
+8. Do not modify files under .codex.
+9. Report the recommended task status and supporting evidence in the final report.
+10. Produce a final report.
+
 
 Final report must contain:
 - Outcome
