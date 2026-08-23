@@ -1,8 +1,8 @@
-﻿# TASK-011 — TD-009 CI Execution & Platform Decision
+# TASK-011 — TD-009 CI Execution & Platform Decision
 
 ## Status
 
-Planned.
+Completed.
 
 ## ADR
 

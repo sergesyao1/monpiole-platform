@@ -2,7 +2,7 @@
 
 ## Status
 
-BLOCKED
+READY_FOR_IMPLEMENTATION
 
 ## ADR
 
@@ -136,3 +136,18 @@ a competing architecture-check implementation:
 - corepack pnpm architecture:check
 
 Result: BLOCKED pending TD-009.
+## TD-009 approval
+
+TD-009 was approved on 2026-08-23.
+
+TASK-006-08 is authorized to implement the minimal GitHub Actions CI adapter
+using an ephemeral GitHub-hosted Linux runner.
+
+The implementation must reuse the existing commands unchanged:
+
+- corepack pnpm install --frozen-lockfile
+- corepack pnpm architecture:check
+
+The architecture validation job must remain unprivileged and require no secrets.
+
+Result: READY_FOR_IMPLEMENTATION.
