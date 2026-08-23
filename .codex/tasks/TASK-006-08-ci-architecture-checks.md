@@ -2,7 +2,7 @@
 
 ## Status
 
-BLOCKED
+READY_FOR_IMPLEMENTATION
 
 ## ADR
 
@@ -92,23 +92,24 @@ Ne pas installer ni sÃ©lectionner de nouvel outil dans cette tÃ¢che.
 
 La sÃ©lection Ã©ventuelle d'un outil doit faire l'objet d'une ADR conforme
 Ã  ADR-0002.
+## Unblock verification
 
-## Blocker
+Unblocked on 2026-08-23.
 
-CI architecture-check implementation is blocked pending completion of the
-local architecture-verification mechanism and the required technology
-selection compliant with ADR-0002.
+TASK-006-07 local architecture enforcement is now implemented and verified.
 
-CI must not integrate a checker that has not first been approved and made
-reproducible locally.
+Local deterministic controls are available through:
 
-Unblock condition:
+corepack pnpm architecture:check
 
-- TASK-006-07 automated enforcement is implementable;
-- required technology decisions are approved under ADR-0002;
-- a deterministic local architecture-check command exists.
+Verified prerequisites:
 
-## Related
+- frozen dependency installation: PASS;
+- shared lockfile present;
+- architecture dependency rules executable;
+- violation fixtures executable;
+- deterministic local result: PASS.
 
-- ADR-0002
-- ADR-0006
+TASK-006-08 may now integrate the existing local architecture command into CI.
+
+Result: READY_FOR_IMPLEMENTATION.

@@ -1,8 +1,11 @@
 # Dependencies and build outputs
 node_modules/
+.pnpm-store/
+.architecture-build/
 dist/
 build/
 coverage/
+/depcruise-*.json
 .next/
 .turbo/
 

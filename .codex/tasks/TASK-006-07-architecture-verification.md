@@ -2,7 +2,7 @@
 
 ## Status
 
-READY_FOR_IMPLEMENTATION
+DONE
 
 ## ADR
 
@@ -119,3 +119,45 @@ TASK-006-08 remains blocked until this local enforcement is implemented and
 verified.
 
 Result: READY_FOR_IMPLEMENTATION.
+## Technical verification
+
+Verified on 2026-08-23.
+
+Approved technical baseline:
+
+- Node.js >= 24;
+- pnpm 11.22.0;
+- TypeScript 6.0.3;
+- dependency-cruiser 18.2.0;
+- native ESM;
+- pnpm workspaces;
+- shared committed lockfile.
+
+Executed locally:
+
+- corepack pnpm install --frozen-lockfile: PASS;
+- corepack pnpm architecture:check: PASS;
+- Git diff check: PASS.
+
+Architecture verification confirms:
+
+- workspace discovery and package manifests;
+- package export boundaries;
+- TypeScript / ESM resolution;
+- dependency graph analysis;
+- forbidden dependency directions;
+- circular dependency detection;
+- service boundary violations;
+- package boundary violations;
+- application boundary violations;
+- deterministic violation fixtures and diagnostics.
+
+Residual controls requiring later review or integration testing include:
+
+- semantic business ownership;
+- dynamically constructed access;
+- runtime network/database behavior;
+- tenant isolation;
+- runtime authorization.
+
+Result: PASS.

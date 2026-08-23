@@ -1,0 +1,9 @@
+{
+  "name": "@monpiole/architecture-fixture-consumer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@monpiole/architecture-fixture-contract": "workspace:*"
+  }
+}

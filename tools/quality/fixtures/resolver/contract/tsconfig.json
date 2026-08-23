@@ -1,0 +1,12 @@
+{
+  "extends": "../../../../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "../.architecture-build/contract",
+    "tsBuildInfoFile": "../.architecture-build/contract.tsbuildinfo"
+  },
+  "include": ["src/**/*.ts"]
+}
