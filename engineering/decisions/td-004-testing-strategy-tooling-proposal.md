@@ -13,12 +13,12 @@ adapter needs it, and keep tenant isolation visible in every applicable suite.
 
 | Capability | Decision | Mechanism | Registry outcome |
 | --- | --- | --- | --- |
-| Unit testing | **SELECTED** | Vitest `4.1.11` | Approved strategy for TOOL-003; executable baseline not implemented |
-| Integration test execution | **SELECTED** | Vitest `4.1.11` | Approved runner strategy for TOOL-004; executable baseline not implemented |
+| Unit testing | **SELECTED** | Vitest `4.1.11` | TOOL-003 runner/configuration baseline implemented and smoke-verified by TASK-014 |
+| Integration test execution | **SELECTED** | Vitest `4.1.11` | TOOL-004 runner/configuration baseline implemented and infrastructure-free discovery smoke-verified; real adapters remain future scope |
 | Integration dependencies | **SELECTED CONDITIONALLY** | Repository-owned fixtures by default; Testcontainers `12.0.4` only for a selected real infrastructure adapter | Completes TOOL-004 when TD-008 or another adapter decision identifies the dependency |
-| API and event contract testing | **SELECTED** | Repository-owned schema examples and compatibility tests executed by Vitest | Approved strategy for TOOL-005; executable baseline not implemented |
+| API and event contract testing | **SELECTED** | Repository-owned schema examples and compatibility tests executed by Vitest | TOOL-005 runner/pattern baseline implemented and synthetic discovery smoke-verified; actual API/event contracts remain future scope |
 | Consumer-driven contracts | **DEFERRED** | Pact, assessed at `17.1.2` | Reconsider when independently released consumers/providers create a concrete coordination problem |
-| Tenant-isolation testing | **SELECTED AS A MANDATORY CROSS-CUTTING CONCERN** | Required assertions and synthetic multi-tenant fixtures across unit, integration, and contract suites | Approved strategy for TOOL-006; no separate framework; executable baseline not implemented |
+| Tenant-isolation testing | **SELECTED AS A MANDATORY CROSS-CUTTING CONCERN** | Required assertions and synthetic multi-tenant fixtures across unit, integration, and contract suites | TOOL-006 fixture/assertion pattern implemented and smoke-verified; no separate framework or product isolation claim |
 | Browser end-to-end testing | **DEFERRED** | Playwright preferred over Cypress when an approved UI journey exists | Not required for Tenant Onboarding |
 | Performance testing | **DEFERRED** | Re-evaluate k6 and Artillery against an approved workload and environment | Not required for Tenant Onboarding |
 
@@ -483,12 +483,17 @@ Quality Engineering, API and Integration Engineering, Security, and the Tenant
 Management owner approve the TOOL-003 through TOOL-006 mapping and the
 cross-cutting tenant policy recorded here on 2026-08-23.
 
-The technology strategy is approved, but the executable baseline is **NOT
-IMPLEMENTED**. This approval authorizes a later, separately reviewed
-implementation task to install exact pins for `vitest@4.1.11` and
-`@vitest/coverage-v8@4.1.11` and to add the repository configuration, stable
-commands, fixtures, and tests needed to pass the documented smoke and
-verification gates. It does not itself authorize or perform implementation.
+The technology strategy is approved and TASK-014 implemented its executable
+runner baseline with exact pins for `vitest@4.1.11` and
+`@vitest/coverage-v8@4.1.11`. Stable commands, level-isolated projects,
+TypeScript/ESM smoke tests, deterministic synthetic tenant fixtures, a
+cross-tenant denial example, and V8 coverage were verified on Node `24.18.0`,
+pnpm `11.22.0`, TypeScript `6.0.3`, strict ESM/NodeNext, and the pnpm workspace.
+
+This baseline proves the testing mechanism, not Tenant Onboarding behavior,
+real infrastructure adapter integration, API/event contract compatibility, or
+production tenant isolation. Those claims require their own implementation and
+tests at the applicable levels.
 
 Testcontainers remains conditional and is not approved for installation or
 baselining until a selected real infrastructure adapter requires it and its

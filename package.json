@@ -10,10 +10,18 @@
   "scripts": {
     "architecture:check": "node tools/quality/architecture-check.mjs",
     "architecture:graph": "depcruise --config tools/quality/dependency-cruiser.config.mjs apps services packages",
-    "typecheck:architecture-fixtures": "tsc --build tools/quality/fixtures/resolver/tsconfig.json"
+    "typecheck:architecture-fixtures": "tsc --build tools/quality/fixtures/resolver/tsconfig.json",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:contract": "vitest run --project contract",
+    "test": "vitest run",
+    "test:coverage": "vitest run --project unit --coverage",
+    "typecheck:tests": "tsc --project tsconfig.tests.json"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "4.1.11",
     "dependency-cruiser": "18.2.0",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "4.1.11"
   }
 }
