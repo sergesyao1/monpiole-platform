@@ -2,7 +2,7 @@
 
 ## Status
 
-READY_FOR_IMPLEMENTATION
+READY_FOR_REVIEW
 
 ## ADR
 
@@ -151,3 +151,43 @@ The implementation must reuse the existing commands unchanged:
 The architecture validation job must remain unprivileged and require no secrets.
 
 Result: READY_FOR_IMPLEMENTATION.
+## CI implementation verification
+
+Verified locally on 2026-08-23.
+
+Implemented CI adapter:
+
+- GitHub Actions;
+- ephemeral GitHub-hosted Ubuntu 24.04 runner;
+- Node.js 24.18.0;
+- pnpm 11.22.0 through Corepack;
+- immutable action SHA pins;
+- read-only repository permissions;
+- no secrets;
+- no persisted checkout credentials;
+- pull-request validation on main;
+- push validation on main;
+- manual workflow dispatch;
+- concurrency cancellation.
+
+The workflow reuses the existing repository commands unchanged:
+
+- corepack pnpm install --frozen-lockfile
+- corepack pnpm architecture:check
+
+Local verification:
+
+- frozen install: PASS;
+- architecture check: PASS;
+- workflow static policy checks: PASS;
+- Git diff check: PASS.
+
+Remaining verification:
+
+- actual GitHub-hosted execution;
+- pull-request trigger;
+- intentional architecture-violation failure;
+- GitHub logs and diagnostics;
+- concurrency behaviour.
+
+Result: READY_FOR_REVIEW.
