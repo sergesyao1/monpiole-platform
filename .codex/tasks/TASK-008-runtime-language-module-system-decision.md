@@ -1,8 +1,8 @@
-﻿# TASK-008 — TD-001 Runtime, Language & Module System Decision
+# TASK-008 — TD-001 Runtime, Language & Module System Decision
 
 ## Status
 
-Planned.
+READY_FOR_ARCHITECTURE_REVIEW
 
 ## ADR
 
@@ -149,6 +149,36 @@ Decision analysis only.
 
 No technology becomes approved through this task.
 
+## Decision verification
+
+Verified on 2026-08-23.
+
+Codex decision analysis confirmed:
+
+- multiple realistic candidates evaluated: PASS;
+- Node.js / strict TypeScript / native ESM analysed: PASS;
+- .NET / C# alternative analysed: PASS;
+- JVM / Kotlin alternative analysed: PASS;
+- architecture compatibility analysed: PASS;
+- security implications analysed: PASS;
+- operational implications analysed: PASS;
+- testing and tooling implications analysed: PASS;
+- migration strategy documented: PASS;
+- rollback strategy documented: PASS;
+- trade-offs documented: PASS;
+- dependencies on TD-002 and TD-003 documented: PASS;
+- no technology installed or configured: PASS;
+- no runtime code, manifest, dependency, or lockfile introduced: PASS.
+
+Recommendation:
+
+Node.js with strict TypeScript and native ESM.
+
+Decision status:
+
+PROPOSED — pending explicit Architecture Owner approval.
+
+Result: READY_FOR_ARCHITECTURE_REVIEW.
 ## Related
 
 - ADR-0001
