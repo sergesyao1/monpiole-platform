@@ -30,7 +30,9 @@ corepack pnpm test:coverage
 corepack pnpm typecheck:tests
 ```
 
-Vitest projects isolate discovery to `tests/unit`, `tests/integration`, and
-`tests/contract`. Coverage currently reports the applicable unit smoke fixture
-without an organization-wide threshold; it does not prove security or tenant
-isolation. Testcontainers and all TD-004-deferred tools remain uninstalled.
+Vitest projects isolate unit, HTTP integration, PostgreSQL persistence
+integration, and contract discovery. Coverage currently reports the applicable
+unit smoke fixture without an organization-wide threshold; it does not prove
+security or tenant isolation. Testcontainers is installed and used with the
+approved immutable PostgreSQL image for package and service-owned persistence
+tests. Other TD-004-deferred tools remain uninstalled.
