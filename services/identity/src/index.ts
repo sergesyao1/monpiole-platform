@@ -1,4 +1,8 @@
 export {
+  HasActiveTenantAdministrator,
+  type ActiveTenantAdministratorStore,
+} from "./application/has-active-tenant-administrator.js";
+export {
   ActivateTenantAdministrator,
   TenantAdministratorNotFoundError,
   type ActivateTenantAdministratorCommand,

@@ -18,7 +18,7 @@
     "app:api:contracts:check": "vitest run --project contract",
     "package:events:build": "corepack pnpm --filter @monpiole/events build",
     "package:events:typecheck": "corepack pnpm --filter @monpiole/events typecheck",
-    "package:events:contracts:check": "vitest run --project contract tests/contract/event-envelope.test.ts tests/contract/event-compatibility.test.ts tests/contract/event-serialization.test.ts tests/contract/tenant-created-event.test.ts",
+    "package:events:contracts:check": "vitest run --project contract tests/contract/event-envelope.test.ts tests/contract/event-compatibility.test.ts tests/contract/event-serialization.test.ts tests/contract/tenant-created-event.test.ts tests/contract/tenant-activated-event.test.ts",
     "package:persistence:build": "corepack pnpm --filter @monpiole/persistence build",
     "package:persistence:typecheck": "corepack pnpm --filter @monpiole/persistence typecheck",
     "package:persistence:test:integration": "corepack pnpm --filter @monpiole/persistence test:integration",

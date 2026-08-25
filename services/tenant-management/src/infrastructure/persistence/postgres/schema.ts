@@ -11,6 +11,7 @@ export const tenants = tenantManagement.table("tenants", {
   country: text("country").notNull(),
   lifecycleState: text("lifecycle_state").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+  activatedAt: timestamp("activated_at", { withTimezone: true, mode: "string" }),
   correlationId: uuid("correlation_id").notNull(),
   actorId: text("actor_id").notNull(),
   authorityId: text("authority_id").notNull(),

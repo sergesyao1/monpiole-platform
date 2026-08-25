@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ActivateTenantAdministrator,
   BootstrapTenantAdministrator,
+  HasActiveTenantAdministrator,
   InMemoryBootstrapAdministratorStore,
   TenantAdministratorNotFoundError,
 } from "../../services/identity/src/index.js";
@@ -65,5 +66,14 @@ describe("Activate Tenant Administrator", () => {
     await expect(activate.execute({
       tenantId: OTHER_TENANT_ID, administratorId: ADMINISTRATOR_ID, correlationId: CORRELATION_ID,
     })).rejects.toBeInstanceOf(TenantAdministratorNotFoundError);
+  });
+
+  it("reports readiness only after the tenant administrator is ACTIVE", async () => {
+    const { store, activate } = await fixture();
+    const query = new HasActiveTenantAdministrator(store);
+    await expect(query.execute(TENANT_ID)).resolves.toBe(false);
+    await activate.execute({ tenantId: TENANT_ID, administratorId: ADMINISTRATOR_ID, correlationId: CORRELATION_ID });
+    await expect(query.execute(TENANT_ID)).resolves.toBe(true);
+    await expect(query.execute(OTHER_TENANT_ID)).resolves.toBe(false);
   });
 });

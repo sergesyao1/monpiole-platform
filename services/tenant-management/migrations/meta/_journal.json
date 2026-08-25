@@ -8,6 +8,13 @@
       "when": 1787685297569,
       "tag": "0000_20260825_tenant_management_create_tenant",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787689490455,
+      "tag": "0001_20260825_tenant_management_activate_tenant",
+      "breakpoints": true
     }
   ]
 }

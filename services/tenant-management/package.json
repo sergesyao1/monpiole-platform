@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc --project tsconfig.json",
     "typecheck": "tsc --project tsconfig.json --noEmit",
-    "migration:generate": "drizzle-kit generate --config drizzle.config.ts --name 20260825_tenant_management_create_tenant",
+    "migration:generate": "drizzle-kit generate --config drizzle.config.ts --name 20260825_tenant_management_activate_tenant",
     "migration:check": "drizzle-kit check --config drizzle.config.ts"
   },
   "dependencies": {

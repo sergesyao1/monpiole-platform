@@ -5,7 +5,10 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool } from "pg";
 import { GenericContainer, Wait, type StartedTestContainer } from "testcontainers";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { CreateTenant, DuplicateTenantEmailError, IdempotencyConflictError, PostgresCreateTenantUnitOfWork } from "../src/index.js";
+import {
+  ActivateTenant, CreateTenant, DuplicateTenantEmailError, IdempotencyConflictError,
+  PostgresActivateTenantUnitOfWork, PostgresCreateTenantUnitOfWork, TenantAdministratorNotReadyError,
+} from "../src/index.js";
 
 const POSTGRES_IMAGE = "postgres@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687";
 const OWNER_PASSWORD = "synthetic-owner-password";
@@ -28,7 +31,7 @@ beforeAll(async () => {
   await ownerPool.query(`CREATE ROLE tenant_runtime LOGIN PASSWORD '${RUNTIME_PASSWORD}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS`);
   await migrate(drizzle(ownerPool), { migrationsFolder });
   await ownerPool.query("GRANT USAGE ON SCHEMA tenant_management TO tenant_runtime");
-  await ownerPool.query("GRANT SELECT, INSERT ON ALL TABLES IN SCHEMA tenant_management TO tenant_runtime");
+  await ownerPool.query("GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA tenant_management TO tenant_runtime");
   runtimePool = new Pool({ connectionString: connectionString("tenant_runtime", RUNTIME_PASSWORD), max: 4 });
 });
 
@@ -110,5 +113,67 @@ describe("Create Tenant PostgreSQL adapter", () => {
        lifecycle_state, created_at, correlation_id, actor_id, authority_id)
       VALUES ($1, 'Agency', 'Ada', 'blocked@example.invalid', '+2250102030405', 'CI', 'PENDING', now(), $2, 'actor', 'authority')`,
       [randomUUID(), randomUUID()])).rejects.toMatchObject({ code: "42501" });
+  });
+});
+
+describe("Activate Tenant PostgreSQL adapter", () => {
+  async function pendingTenant() {
+    return createUseCase().execute(command("activation-key", "activation@example.invalid"));
+  }
+
+  function activationUseCase(eventId = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", ready = true) {
+    return new ActivateTenant(
+      new PostgresActivateTenantUnitOfWork(runtimePool),
+      { hasActiveTenantAdministrator: async () => ready },
+      { generate: () => eventId }, { now: () => "2026-08-25T14:00:00.000Z" },
+    );
+  }
+
+  it("atomically updates lifecycle state and records TenantActivated once", async () => {
+    const created = await pendingTenant();
+    const activate = activationUseCase();
+    await expect(activate.execute({ tenantId: created.tenantId, correlationId: command("x").correlationId }))
+      .resolves.toEqual({ tenantId: created.tenantId, lifecycleState: "ACTIVE", activatedAt: "2026-08-25T14:00:00.000Z" });
+    await expect(activate.execute({ tenantId: created.tenantId, correlationId: command("x").correlationId }))
+      .resolves.toMatchObject({ lifecycleState: "ACTIVE", activatedAt: "2026-08-25T14:00:00.000Z" });
+    const tenant = await ownerPool.query("SELECT lifecycle_state, activated_at FROM tenant_management.tenants WHERE id = $1", [created.tenantId]);
+    expect(tenant.rows[0]).toMatchObject({ lifecycle_state: "ACTIVE" });
+    expect(new Date(tenant.rows[0].activated_at).toISOString()).toBe("2026-08-25T14:00:00.000Z");
+    const events = await ownerPool.query<{ event_type: string; envelope: Record<string, unknown> }>(
+      "SELECT event_type, envelope FROM tenant_management.outbox WHERE event_type = 'monpiole.tenant.tenant-activated'",
+    );
+    expect(events.rows).toHaveLength(1);
+    expect(events.rows[0]?.envelope).toMatchObject({
+      eventType: "monpiole.tenant.tenant-activated", tenantId: created.tenantId,
+      payload: { lifecycleState: "ACTIVE", activatedAt: "2026-08-25T14:00:00.000Z" },
+    });
+  });
+
+  it("rolls back ACTIVE and TenantActivated when event serialization fails", async () => {
+    const created = await pendingTenant();
+    await expect(activationUseCase("invalid-event-id").execute({
+      tenantId: created.tenantId, correlationId: command("x").correlationId,
+    })).rejects.toThrow();
+    const tenant = await ownerPool.query("SELECT lifecycle_state, activated_at FROM tenant_management.tenants WHERE id = $1", [created.tenantId]);
+    expect(tenant.rows[0]).toEqual({ lifecycle_state: "PENDING", activated_at: null });
+    const events = await ownerPool.query("SELECT * FROM tenant_management.outbox WHERE event_type = 'monpiole.tenant.tenant-activated'");
+    expect(events.rows).toHaveLength(0);
+  });
+
+  it("does not mutate a tenant while its administrator is not ready", async () => {
+    const created = await pendingTenant();
+    await expect(activationUseCase(undefined, false).execute({
+      tenantId: created.tenantId, correlationId: command("x").correlationId,
+    })).rejects.toBeInstanceOf(TenantAdministratorNotReadyError);
+    const tenant = await ownerPool.query("SELECT lifecycle_state FROM tenant_management.tenants WHERE id = $1", [created.tenantId]);
+    expect(tenant.rows[0]?.lifecycle_state).toBe("PENDING");
+  });
+
+  it("keeps the activation capability tenant-scoped", async () => {
+    const first = await pendingTenant();
+    const second = await createUseCase().execute(command("activation-key-2", "second-activation@example.invalid"));
+    await new PostgresActivateTenantUnitOfWork(runtimePool).execute(first.tenantId, async (transaction) => {
+      await expect(transaction.findTenantForUpdate(second.tenantId)).resolves.toBeUndefined();
+    });
   });
 });

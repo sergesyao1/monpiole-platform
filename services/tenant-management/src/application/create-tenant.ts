@@ -115,7 +115,7 @@ export class CreateTenant {
       }
       const createdAt = this.clock.now();
       const tenant = Tenant.create({ id: this.tenantIds.generate(), ...normalized, createdAt });
-      const result = Object.freeze({ tenantId: tenant.values.id, lifecycleState: tenant.lifecycleState, createdAt });
+      const result = Object.freeze({ tenantId: tenant.values.id, lifecycleState: "PENDING" as const, createdAt });
       const trace = { correlationId: command.correlationId, actorId: command.authority.actorId, authorityId: command.authority.authorityId };
       await transaction.insertTenant(tenant, trace);
       await transaction.insertIdempotency({

@@ -102,6 +102,14 @@ function businessProblem(exception: unknown) {
     status: 404, type: "https://api.monpiole.example/problems/tenant-administrator-not-found",
     title: "Tenant administrator not found", code: "TENANT_ADMINISTRATOR_NOT_FOUND",
   };
+  if (code === "ACTIVATE_TENANT_NOT_FOUND") return {
+    status: 404, type: "https://api.monpiole.example/problems/tenant-not-found",
+    title: "Tenant not found", code: "TENANT_NOT_FOUND",
+  };
+  if (code === "TENANT_ADMINISTRATOR_NOT_READY") return {
+    status: 409, type: "https://api.monpiole.example/problems/tenant-administrator-not-ready",
+    title: "Tenant administrator not ready", code: "TENANT_ADMINISTRATOR_NOT_READY",
+  };
   return undefined;
 }
 

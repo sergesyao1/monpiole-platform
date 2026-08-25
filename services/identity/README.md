@@ -40,3 +40,11 @@ resolved through an Application port supplied by API composition; Identity does
 not access Tenant Management persistence. This slice uses an atomic in-memory
 adapter and deliberately implements no authentication, credential, invitation,
 or broker behavior.
+
+## TASK-026 tenant activation readiness
+
+The public `HasActiveTenantAdministrator` Application query reports whether the
+shared TASK-024/025 store contains an `ACTIVE` `TENANT_ADMINISTRATOR` membership
+for a tenant. API composition adapts this capability to Tenant Management's
+neutral readiness port; neither bounded context imports the other's
+infrastructure.

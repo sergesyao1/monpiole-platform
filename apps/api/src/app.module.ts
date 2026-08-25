@@ -1,5 +1,5 @@
 import { type DynamicModule, Module } from "@nestjs/common";
-import type { CreateTenant } from "@monpiole/tenant-management";
+import type { ActivateTenant, CreateTenant } from "@monpiole/tenant-management";
 import type { ActivateTenantAdministrator, BootstrapTenantAdministrator } from "@monpiole/identity";
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core";
 import {
@@ -25,6 +25,7 @@ import {
   ACTIVATE_TENANT_ADMINISTRATOR,
   ActivateAdministratorController,
 } from "./http/tenants/activate-administrator.controller.js";
+import { ACTIVATE_TENANT_USE_CASE, ActivateTenantController } from "./http/tenants/activate-tenant.controller.js";
 
 const StrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
@@ -35,6 +36,7 @@ export interface ApiComposition {
   readonly platformAuthorityProvider?: PlatformAuthorityProvider;
   readonly bootstrapTenantAdministrator?: Pick<BootstrapTenantAdministrator, "execute">;
   readonly activateTenantAdministrator?: Pick<ActivateTenantAdministrator, "execute">;
+  readonly activateTenant?: Pick<ActivateTenant, "execute">;
 }
 
 const unavailableCreateTenant: Pick<CreateTenant, "execute"> = {
@@ -51,6 +53,9 @@ const unavailableBootstrapAdministrator: Pick<BootstrapTenantAdministrator, "exe
 const unavailableActivateAdministrator: Pick<ActivateTenantAdministrator, "execute"> = {
   async execute() { throw new Error("Activate Tenant Administrator composition is unavailable"); },
 };
+const unavailableActivateTenant: Pick<ActivateTenant, "execute"> = {
+  async execute() { throw new Error("Activate Tenant production composition is unavailable"); },
+};
 
 @Module({})
 export class AppModule {
@@ -61,6 +66,7 @@ export class AppModule {
         HealthController, ContractBaselineController, CreateTenantController,
         BootstrapAdministratorController,
         ActivateAdministratorController,
+        ActivateTenantController,
       ],
       providers: [
         { provide: APP_PIPE, useClass: StrictZodValidationPipe },
@@ -77,6 +83,7 @@ export class AppModule {
           provide: ACTIVATE_TENANT_ADMINISTRATOR,
           useValue: composition.activateTenantAdministrator ?? unavailableActivateAdministrator,
         },
+        { provide: ACTIVATE_TENANT_USE_CASE, useValue: composition.activateTenant ?? unavailableActivateTenant },
       ],
     };
   }

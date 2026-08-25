@@ -41,3 +41,14 @@ deferred. Tenant creation, its successful idempotency result, and the
 `monpiole.tenant.tenant-created` version 1 Outbox record share one PostgreSQL
 transaction. Broker dispatch, activation, bootstrap-administrator provisioning,
 full onboarding, and Audit bounded-context integration are outside this slice.
+
+## TASK-026 Activate Tenant slice
+
+An existing tenant transitions from `PENDING` to `ACTIVE` only after an
+Identity-owned Application capability confirms an `ACTIVE`
+`TENANT_ADMINISTRATOR`. Tenant Management consumes that fact through a neutral
+port. The PostgreSQL state update and
+`monpiole.tenant.tenant-activated` version 1 Outbox record share a tenant-scoped
+transaction; repeated activation returns the original `activatedAt` and emits
+no duplicate event. Identity persistence, broker dispatch, and complete
+onboarding remain outside this slice.

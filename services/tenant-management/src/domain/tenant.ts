@@ -2,7 +2,7 @@ const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f
 const E164 = /^\+[1-9][0-9]{1,14}$/;
 const COUNTRY = /^[A-Z]{2}$/;
 
-export type TenantLifecycleState = "PENDING";
+export type TenantLifecycleState = "PENDING" | "ACTIVE";
 
 export interface CreateTenantValues {
   readonly id: string;
@@ -12,6 +12,11 @@ export interface CreateTenantValues {
   readonly responsibleTelephone: string;
   readonly country: string;
   readonly createdAt: string;
+}
+
+export interface ReconstituteTenantValues extends CreateTenantValues {
+  readonly lifecycleState: TenantLifecycleState;
+  readonly activatedAt?: string;
 }
 
 export interface NormalizedTenantIntent {
@@ -24,7 +29,7 @@ export interface NormalizedTenantIntent {
 
 export class InvalidTenantInputError extends Error {
   readonly code = "INVALID_TENANT_INPUT";
-  constructor(readonly field: keyof NormalizedTenantIntent | "id" | "createdAt") {
+  constructor(readonly field: keyof NormalizedTenantIntent | "id" | "createdAt" | "activatedAt") {
     super(`Invalid tenant ${field}`);
     this.name = "InvalidTenantInputError";
   }
@@ -49,9 +54,11 @@ export function normalizeTenantIntent(input: NormalizedTenantIntent): Normalized
 }
 
 export class Tenant {
-  readonly lifecycleState = "PENDING" as const;
-
-  private constructor(readonly values: Readonly<CreateTenantValues>) {}
+  private constructor(
+    readonly values: Readonly<CreateTenantValues>,
+    readonly lifecycleState: TenantLifecycleState,
+    readonly activatedAt?: string,
+  ) {}
 
   static create(values: CreateTenantValues): Tenant {
     if (!UUID_V4.test(values.id)) throw new InvalidTenantInputError("id");
@@ -59,6 +66,25 @@ export class Tenant {
     if (!Number.isFinite(Date.parse(values.createdAt)) || !values.createdAt.endsWith("Z")) {
       throw new InvalidTenantInputError("createdAt");
     }
-    return new Tenant(Object.freeze({ ...normalized, id: values.id, createdAt: values.createdAt }));
+    return new Tenant(Object.freeze({ ...normalized, id: values.id, createdAt: values.createdAt }), "PENDING");
   }
+
+  static reconstitute(values: ReconstituteTenantValues): Tenant {
+    const tenant = Tenant.create(values);
+    if (values.lifecycleState === "PENDING") return tenant;
+    if (values.activatedAt === undefined || !validTimestamp(values.activatedAt)) {
+      throw new InvalidTenantInputError("activatedAt");
+    }
+    return new Tenant(tenant.values, "ACTIVE", values.activatedAt);
+  }
+
+  activate(activatedAt: string): Tenant {
+    if (this.lifecycleState === "ACTIVE") return this;
+    if (!validTimestamp(activatedAt)) throw new InvalidTenantInputError("activatedAt");
+    return new Tenant(this.values, "ACTIVE", activatedAt);
+  }
+}
+
+function validTimestamp(value: string): boolean {
+  return Number.isFinite(Date.parse(value)) && value.endsWith("Z");
 }

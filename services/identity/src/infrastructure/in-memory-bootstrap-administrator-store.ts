@@ -4,8 +4,10 @@ import {
 } from "../application/bootstrap-tenant-administrator.js";
 import type { Identity, TenantMembership } from "../domain/identity.js";
 import type { ActivateTenantAdministratorStore } from "../application/activate-tenant-administrator.js";
+import type { ActiveTenantAdministratorStore } from "../application/has-active-tenant-administrator.js";
 
-export class InMemoryBootstrapAdministratorStore implements BootstrapAdministratorStore, ActivateTenantAdministratorStore {
+export class InMemoryBootstrapAdministratorStore implements
+BootstrapAdministratorStore, ActivateTenantAdministratorStore, ActiveTenantAdministratorStore {
   readonly #identitiesByEmail = new Map<string, Identity>();
   readonly #identitiesById = new Map<string, Identity>();
   readonly #membershipsByTenant = new Map<string, TenantMembership>();
