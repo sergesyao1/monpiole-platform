@@ -1,6 +1,6 @@
 import { Controller, HttpCode, Inject, Param, Post, Req } from "@nestjs/common";
 import {
-  ApiExtraModels, ApiOkResponse, ApiOperation, ApiParam, ApiResponse, ApiTags, getSchemaPath,
+  ApiExtraModels, ApiOkResponse, ApiOperation, ApiParam, ApiResponse, ApiSecurity, ApiTags, getSchemaPath,
 } from "@nestjs/swagger";
 import type { ActivateTenantAdministrator } from "@monpiole/identity";
 import { ZodSerializerDto } from "nestjs-zod";
@@ -11,6 +11,12 @@ import {
   ActivateAdministratorPathDto, ActivateAdministratorProblemDetailsDto, ActivateAdministratorResponseDto,
 } from "./activate-administrator.dto.js";
 import { toActivateAdministratorCommand, toActivateAdministratorResponse } from "./activate-administrator.mapper.js";
+import {
+  AUTHENTICATED_ONBOARDING_AUTHORITY_PROVIDER,
+  requireAuthenticatedOnboardingAuthority,
+  toIdentityOnboardingAuthority,
+  type AuthenticatedOnboardingAuthorityProvider,
+} from "../authenticated-authority/authenticated-authority.js";
 
 export const ACTIVATE_TENANT_ADMINISTRATOR = Symbol("monpiole.activate-tenant-administrator");
 
@@ -21,12 +27,15 @@ export class ActivateAdministratorController {
   constructor(
     @Inject(ACTIVATE_TENANT_ADMINISTRATOR)
     private readonly activateAdministrator: Pick<ActivateTenantAdministrator, "execute">,
+    @Inject(AUTHENTICATED_ONBOARDING_AUTHORITY_PROVIDER)
+    private readonly authorityProvider: AuthenticatedOnboardingAuthorityProvider,
   ) {}
 
   @Post()
   @HttpCode(200)
   @TenantContext("not-applicable")
-  @ApiOperation({ operationId: "activateTenantAdministrator", summary: "Activate a tenant administrator", security: [] })
+  @ApiOperation({ operationId: "activateTenantAdministrator", summary: "Activate a tenant administrator" })
+  @ApiSecurity("bearer")
   @ApiParam({ name: "tenantId", required: true, schema: { type: "string", format: "uuid" } })
   @ApiParam({ name: "administratorId", required: true, schema: { type: "string", format: "uuid" } })
   @ApiOkResponse({
@@ -38,6 +47,8 @@ export class ActivateAdministratorController {
     },
   })
   @ApiResponse({ status: 400, description: "Invalid request", content: problemContent() })
+  @ApiResponse({ status: 401, description: "Authentication required", content: problemContent() })
+  @ApiResponse({ status: 403, description: "Forbidden tenant authority", content: problemContent() })
   @ApiResponse({ status: 404, description: "Tenant administrator not found", content: problemContent() })
   @ZodSerializerDto(ActivateAdministratorResponseDto)
   async execute(
@@ -46,8 +57,12 @@ export class ActivateAdministratorController {
   ): Promise<ActivateAdministratorResponse> {
     const context = httpRequest[REQUEST_CONTEXT];
     if (context === undefined) throw new Error("Request context was not established");
+    const authenticated = await requireAuthenticatedOnboardingAuthority(this.authorityProvider, httpRequest);
     return toActivateAdministratorResponse(await this.activateAdministrator.execute(
-      toActivateAdministratorCommand(path.tenantId, path.administratorId, context.correlationId),
+      toActivateAdministratorCommand(
+        path.tenantId, path.administratorId, context.correlationId,
+        toIdentityOnboardingAuthority(authenticated),
+      ),
     ));
   }
 }

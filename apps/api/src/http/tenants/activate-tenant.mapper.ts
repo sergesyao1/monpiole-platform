@@ -1,9 +1,13 @@
-import type { ActivateTenantCommand, ActivateTenantResult } from "@monpiole/tenant-management";
+import type { ActivateTenantCommand, ActivateTenantResult, PlatformAuthority } from "@monpiole/tenant-management";
 
 import type { ActivateTenantResponse } from "../../contracts/v1/tenants/activate-tenant.schema.js";
 
-export function toActivateTenantCommand(tenantId: string, correlationId: string): ActivateTenantCommand {
-  return { tenantId, correlationId };
+export function toActivateTenantCommand(
+  tenantId: string,
+  correlationId: string,
+  authority: PlatformAuthority,
+): ActivateTenantCommand {
+  return { tenantId, correlationId, authority };
 }
 
 export function toActivateTenantResponse(result: ActivateTenantResult): ActivateTenantResponse {

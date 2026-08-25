@@ -470,6 +470,16 @@
             },
             "description": "Invalid request"
           },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
           "403": {
             "content": {
               "application/problem+json": {
@@ -560,6 +570,26 @@
             },
             "description": "Invalid request"
           },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden tenant authority"
+          },
           "404": {
             "content": {
               "application/problem+json": {
@@ -591,7 +621,11 @@
             "description": "Safe internal failure"
           }
         },
-        "security": [],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
         "summary": "Activate a pending tenant",
         "tags": [
           "Tenants"
@@ -669,6 +703,26 @@
             },
             "description": "Invalid request"
           },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden tenant authority"
+          },
           "404": {
             "content": {
               "application/problem+json": {
@@ -680,7 +734,11 @@
             "description": "Tenant administrator not found"
           }
         },
-        "security": [],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
         "summary": "Activate a tenant administrator",
         "tags": [
           "Tenant administrators"
@@ -745,6 +803,26 @@
             },
             "description": "Invalid request"
           },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden tenant authority"
+          },
           "404": {
             "content": {
               "application/problem+json": {
@@ -766,7 +844,11 @@
             "description": "Administrator conflict"
           }
         },
-        "security": [],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
         "summary": "Bootstrap the initial tenant administrator",
         "tags": [
           "Tenant administrators"

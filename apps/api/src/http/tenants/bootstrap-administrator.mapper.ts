@@ -1,6 +1,7 @@
 import type {
   BootstrapTenantAdministratorCommand,
   BootstrapTenantAdministratorResult,
+  IdentityOnboardingAuthority,
 } from "@monpiole/identity";
 import type {
   BootstrapAdministratorRequest,
@@ -11,8 +12,9 @@ export function toBootstrapAdministratorCommand(
   tenantId: string,
   request: BootstrapAdministratorRequest,
   correlationId: string,
+  authority: IdentityOnboardingAuthority,
 ): BootstrapTenantAdministratorCommand {
-  return { tenantId, ...request, correlationId };
+  return { tenantId, ...request, correlationId, authority };
 }
 
 export function toBootstrapAdministratorResponse(

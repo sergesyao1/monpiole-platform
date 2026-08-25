@@ -60,3 +60,12 @@ Tenant existence for Identity bootstrap is exposed through the inward
 tenant-scoped `tenant:exists` RLS policy. Identity and Tenant Management do not
 import one another's persistence implementations; API composition adapts the
 public capabilities.
+
+## TASK-031 onboarding authority
+
+Create Tenant and Activate Tenant enforce technology-neutral Application
+authorization ports before opening persistence transactions. The authority
+contains an authenticated actor and authority identity plus explicit grants;
+tenant activation additionally requires the target tenant in authority scope.
+API composition owns authentication resolution. No actor or authority field is
+accepted from Tenant Onboarding request payloads.

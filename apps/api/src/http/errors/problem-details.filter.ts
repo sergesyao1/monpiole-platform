@@ -70,7 +70,16 @@ export class ProblemDetailsFilter implements ExceptionFilter {
 
 function businessProblem(exception: unknown) {
   const code = errorCode(exception);
-  if (code === "CREATE_TENANT_FORBIDDEN" || (exception instanceof HttpException && exception.getStatus() === 403)) return {
+  if (exception instanceof HttpException && exception.getStatus() === 401) return {
+    status: 401, type: "https://api.monpiole.example/problems/unauthorized",
+    title: "Authentication required", code: "UNAUTHORIZED",
+  };
+  if (
+    code === "CREATE_TENANT_FORBIDDEN"
+    || code === "IDENTITY_ONBOARDING_FORBIDDEN"
+    || code === "ACTIVATE_TENANT_FORBIDDEN"
+    || (exception instanceof HttpException && exception.getStatus() === 403)
+  ) return {
     status: 403, type: "https://api.monpiole.example/problems/forbidden",
     title: "Forbidden", code: "FORBIDDEN",
   };

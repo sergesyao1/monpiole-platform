@@ -8,22 +8,30 @@ import {
   BootstrapAdministratorResponseSchema,
 } from "../../apps/api/src/contracts/v1/tenants/bootstrap-administrator.schema.js";
 import { ProblemDetailsSchema } from "../../apps/api/src/contracts/v1/common/problem-details.schema.js";
+import { OnboardingAuthorityPolicy } from "../../apps/api/src/composition/onboarding-authority-policy.js";
 
 const TENANT_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const ADMINISTRATOR_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const AUTHORIZER = new OnboardingAuthorityPolicy();
 
 describe("Bootstrap Tenant Administrator HTTP adapter", () => {
   let application: Awaited<ReturnType<typeof createApiApplication>> | undefined;
   let baseUrl: string;
   let tenantExists = true;
 
-  async function start() {
+  async function start(authentication: "authorized" | "unauthorized" | "missing" = "authorized") {
     const useCase = new BootstrapTenantAdministrator(
       { exists: async (tenantId) => tenantExists && tenantId === TENANT_ID },
       new InMemoryBootstrapAdministratorStore(),
-      { generate: () => ADMINISTRATOR_ID },
+      { generate: () => ADMINISTRATOR_ID }, AUTHORIZER,
     );
-    application = await createApiApplication({ logger: false }, { bootstrapTenantAdministrator: useCase });
+    application = await createApiApplication({ logger: false }, {
+      bootstrapTenantAdministrator: useCase,
+      authenticatedAuthorityProvider: { resolve: async () => authentication === "missing" ? undefined : ({
+        actorId: "actor-1", authorityId: "authority-1",
+        grants: authentication === "authorized" ? ["BOOTSTRAP_TENANT_ADMINISTRATOR"] : [], tenantIds: [TENANT_ID],
+      }) },
+    });
     await application.listen(0, "127.0.0.1");
     const address = application.getHttpServer().address();
     if (address === null || typeof address === "string") throw new Error("API did not bind a port");
@@ -55,6 +63,15 @@ describe("Bootstrap Tenant Administrator HTTP adapter", () => {
     tenantExists = false; await start(); const response = await request();
     expect(response.status).toBe(404);
     expect(ProblemDetailsSchema.parse(await response.json()).code).toBe("TENANT_NOT_FOUND");
+  });
+
+  it.each([
+    ["missing", 401, "UNAUTHORIZED"],
+    ["unauthorized", 403, "FORBIDDEN"],
+  ] as const)("rejects %s authority before persistence", async (authentication, status, code) => {
+    await start(authentication); const response = await request();
+    expect(response.status).toBe(status);
+    expect(ProblemDetailsSchema.parse(await response.json()).code).toBe(code);
   });
 
   it("returns 409 for a duplicate administrator", async () => {

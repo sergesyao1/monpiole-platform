@@ -4,20 +4,23 @@ import {
   BootstrapTenantAdministrator,
   InMemoryBootstrapAdministratorStore,
   TenantNotFoundError,
+  IdentityOnboardingForbiddenError,
 } from "../../services/identity/src/index.js";
 
 const TENANT_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const ADMINISTRATOR_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const CORRELATION_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const AUTHORITY = { actorId: "actor-1", authorityId: "authority-1", grants: ["BOOTSTRAP_TENANT_ADMINISTRATOR"] as const, tenantIds: [TENANT_ID] };
 
 function command(email = " Admin@Example.com ") {
-  return { tenantId: TENANT_ID, email, firstName: " Alice ", lastName: " Admin ", correlationId: CORRELATION_ID };
+  return { tenantId: TENANT_ID, email, firstName: " Alice ", lastName: " Admin ", correlationId: CORRELATION_ID, authority: AUTHORITY };
 }
 
-function fixture(tenantExists = true) {
+function fixture(tenantExists = true, authorized = true) {
   const store = new InMemoryBootstrapAdministratorStore();
   const useCase = new BootstrapTenantAdministrator(
     { exists: async () => tenantExists }, store, { generate: () => ADMINISTRATOR_ID },
+    { authorize: async () => authorized },
   );
   return { store, useCase };
 }
@@ -36,6 +39,13 @@ describe("Bootstrap Tenant Administrator", () => {
   it("rejects an unknown tenant without persistence", async () => {
     const { store, useCase } = fixture(false);
     await expect(useCase.execute(command())).rejects.toBeInstanceOf(TenantNotFoundError);
+    expect(store.identityCount()).toBe(0);
+    expect(store.membershipCount()).toBe(0);
+  });
+
+  it("authorizes before tenant lookup or persistence", async () => {
+    const { store, useCase } = fixture(true, false);
+    await expect(useCase.execute(command())).rejects.toBeInstanceOf(IdentityOnboardingForbiddenError);
     expect(store.identityCount()).toBe(0);
     expect(store.membershipCount()).toBe(0);
   });

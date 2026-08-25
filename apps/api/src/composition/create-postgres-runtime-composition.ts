@@ -10,13 +10,16 @@ import { PostgresPool, postgresConfigurationFromEnvironment } from "@monpiole/pe
 import {
   ActivateTenant,
   CheckTenantExists,
+  CreateTenant,
   PostgresActivateTenantUnitOfWork,
+  PostgresCreateTenantUnitOfWork,
   PostgresTenantExistenceRepository,
 } from "@monpiole/tenant-management";
 
 import type { ApiComposition } from "../app.module.js";
 import { IdentityActiveTenantAdministratorAdapter } from "./identity-active-tenant-administrator.adapter.js";
 import { TenantExistenceAdapter } from "./tenant-existence.adapter.js";
+import { OnboardingAuthorityPolicy } from "./onboarding-authority-policy.js";
 
 export interface PostgresApiRuntime {
   readonly composition: ApiComposition;
@@ -30,16 +33,23 @@ export function createPostgresApiRuntime(environment: NodeJS.ProcessEnv): Postgr
   const identityStore = new PostgresIdentityStore(pool);
   const activeAdministrator = new HasActiveTenantAdministrator(identityStore);
   const tenantExists = new CheckTenantExists(new PostgresTenantExistenceRepository(pool));
+  const authorityPolicy = new OnboardingAuthorityPolicy();
 
   const composition: ApiComposition = {
-    bootstrapTenantAdministrator: new BootstrapTenantAdministrator(
-      new TenantExistenceAdapter(tenantExists), identityStore, { generate: randomUUID },
+    createTenant: new CreateTenant(
+      authorityPolicy,
+      new PostgresCreateTenantUnitOfWork(pool),
+      { generate: randomUUID }, { generate: randomUUID }, { now: () => new Date().toISOString() },
     ),
-    activateTenantAdministrator: new ActivateTenantAdministrator(identityStore),
+    bootstrapTenantAdministrator: new BootstrapTenantAdministrator(
+      new TenantExistenceAdapter(tenantExists), identityStore, { generate: randomUUID }, authorityPolicy,
+    ),
+    activateTenantAdministrator: new ActivateTenantAdministrator(identityStore, authorityPolicy),
     activateTenant: new ActivateTenant(
       new PostgresActivateTenantUnitOfWork(pool),
       new IdentityActiveTenantAdministratorAdapter(activeAdministrator),
       { generate: randomUUID }, { now: () => new Date().toISOString() },
+      authorityPolicy,
     ),
     runtimeShutdown: { onApplicationShutdown: () => database.close() },
   };

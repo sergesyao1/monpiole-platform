@@ -78,12 +78,14 @@ describe("deterministic OpenAPI 3.1 contract", () => {
     expect(operation?.operationId).toBe("createTenant");
     expect(operation?.responses["201"]).toBeDefined();
     expect(operation?.responses["400"]).toBeDefined();
+    expect(operation?.responses["401"]).toBeDefined();
     expect(operation?.responses["403"]).toBeDefined();
     expect(operation?.responses["409"]).toBeDefined();
     expect(operation?.responses["500"]).toBeDefined();
     const names = (operation?.parameters ?? []).map((parameter) => "$ref" in parameter ? parameter.$ref : parameter.name);
     expect(names).toEqual(expect.arrayContaining(["X-Correlation-Id", "Idempotency-Key"]));
     expect(names).not.toContain("X-Tenant-Id");
+    expect(operation?.security).toEqual([{ bearer: [] }]);
   });
 
   it("matches the committed OpenAPI review artifact", async () => {
@@ -99,12 +101,13 @@ describe("deterministic OpenAPI 3.1 contract", () => {
     const tenantParameter = (operation?.parameters ?? []).find((parameter) => !("$ref" in parameter) && parameter.name === "tenantId");
     expect(tenantParameter).toMatchObject({ in: "path", required: true });
     expect(operation?.responses["201"]).toBeDefined();
-    for (const status of ["400", "404", "409"]) {
+    for (const status of ["400", "401", "403", "404", "409"]) {
       const response = operation?.responses[status];
       expect(response).toBeDefined();
       if (response === undefined || "$ref" in response) throw new Error(`Expected inline ${status} response`);
       expect(response.content?.["application/problem+json"]?.schema).toEqual({ $ref: "#/components/schemas/ProblemDetails" });
     }
+    expect(operation?.security).toEqual([{ bearer: [] }]);
     const requestSchema = openapi.components?.schemas?.["BootstrapAdministratorRequest"];
     expect(requestSchema).toMatchObject({ required: ["email", "firstName", "lastName"] });
     const publicContract = JSON.stringify({ operation, requestSchema, response: openapi.components?.schemas?.["BootstrapAdministratorResponse"] });
@@ -117,12 +120,13 @@ describe("deterministic OpenAPI 3.1 contract", () => {
     expect(operation?.operationId).toBe("activateTenantAdministrator");
     expect(operation?.requestBody).toBeUndefined();
     expect(operation?.responses["200"]).toBeDefined();
-    for (const status of ["400", "404"]) {
+    for (const status of ["400", "401", "403", "404"]) {
       const response = operation?.responses[status];
       expect(response).toBeDefined();
       if (response === undefined || "$ref" in response) throw new Error(`Expected inline ${status} response`);
       expect(response.content?.["application/problem+json"]?.schema).toEqual({ $ref: "#/components/schemas/ProblemDetails" });
     }
+    expect(operation?.security).toEqual([{ bearer: [] }]);
     const parameters = (operation?.parameters ?? []).filter((parameter) => !("$ref" in parameter));
     expect(parameters).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: "tenantId", in: "path", required: true }),
@@ -136,12 +140,13 @@ describe("deterministic OpenAPI 3.1 contract", () => {
     expect(operation?.operationId).toBe("activateTenant");
     expect(operation?.requestBody).toBeUndefined();
     expect(operation?.responses["200"]).toBeDefined();
-    for (const status of ["400", "404", "409", "500"]) {
+    for (const status of ["400", "401", "403", "404", "409", "500"]) {
       const response = operation?.responses[status];
       expect(response).toBeDefined();
       if (response === undefined || "$ref" in response) throw new Error(`Expected inline ${status} response`);
       expect(response.content?.["application/problem+json"]?.schema).toEqual({ $ref: "#/components/schemas/ProblemDetails" });
     }
+    expect(operation?.security).toEqual([{ bearer: [] }]);
     const tenantParameter = (operation?.parameters ?? []).find(
       (parameter) => !("$ref" in parameter) && parameter.name === "tenantId",
     );

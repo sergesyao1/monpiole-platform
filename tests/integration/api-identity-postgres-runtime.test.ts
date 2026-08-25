@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -9,7 +8,6 @@ import { PostgresIdentityStore } from "../../services/identity/src/index.js";
 import {
   GenericContainer, Pool, Wait, drizzle, migrate, type StartedTestContainer,
 } from "../../services/identity/tests/postgres-runtime-test-harness.js";
-import { CreateTenant, PostgresCreateTenantUnitOfWork } from "../../services/tenant-management/src/index.js";
 
 const POSTGRES_IMAGE = "postgres@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687";
 const OWNER_PASSWORD = "synthetic-owner-password";
@@ -24,6 +22,7 @@ let runtimePool: Pool;
 let application: Awaited<ReturnType<typeof createApiApplication>> | undefined;
 let runtime: PostgresApiRuntime | undefined;
 let baseUrl: string;
+const authorizedTenantIds = new Set<string>();
 
 function connectionString(user: string, password: string): string {
   return `postgresql://${user}:${password}@${container.getHost()}:${container.getMappedPort(5432)}/runtime_test`;
@@ -51,6 +50,7 @@ afterEach(async () => {
   runtime = undefined;
   await ownerPool.query("TRUNCATE identity.tenant_memberships, identity.identities CASCADE");
   await ownerPool.query("TRUNCATE tenant_management.outbox, tenant_management.create_tenant_idempotency, tenant_management.tenants CASCADE");
+  authorizedTenantIds.clear();
 });
 
 afterAll(async () => {
@@ -65,14 +65,13 @@ async function start() {
     DATABASE_POOL_MAX: "4", DATABASE_CONNECTION_TIMEOUT_MS: "2500", DATABASE_IDLE_TIMEOUT_MS: "12000",
     DATABASE_TLS: "disabled", NODE_ENV: "test",
   });
-  const createTenant = new CreateTenant(
-    { authorizeCreateTenant: async () => true }, new PostgresCreateTenantUnitOfWork(runtimePool),
-    { generate: randomUUID }, { generate: randomUUID }, { now: () => new Date().toISOString() },
-  );
   application = await createApiApplication({ logger: false }, {
     ...runtime.composition,
-    createTenant,
-    platformAuthorityProvider: { resolve: async () => ({ actorId: "runtime-test", authorityId: "platform-test" }) },
+    authenticatedAuthorityProvider: { resolve: async () => ({
+      actorId: "runtime-test", authorityId: "platform-test",
+      grants: ["CREATE_TENANT", "BOOTSTRAP_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT"],
+      tenantIds: [...authorizedTenantIds],
+    }) },
   });
   await application.listen(0, "127.0.0.1");
   const address = application.getHttpServer().address();
@@ -90,7 +89,9 @@ async function createTenant(sequence: string) {
     }),
   });
   expect(response.status).toBe(201);
-  return (await response.json() as { tenantId: string }).tenantId;
+  const tenantId = (await response.json() as { tenantId: string }).tenantId;
+  authorizedTenantIds.add(tenantId);
+  return tenantId;
 }
 
 async function bootstrap(tenantId: string, email = "admin@example.com") {

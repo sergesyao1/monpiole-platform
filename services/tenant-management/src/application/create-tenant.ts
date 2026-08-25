@@ -3,7 +3,11 @@ import { InvalidTenantInputError, Tenant, normalizeTenantIntent, type Normalized
 export interface PlatformAuthority {
   readonly actorId: string;
   readonly authorityId: string;
+  readonly grants: readonly TenantOnboardingGrant[];
+  readonly tenantIds: readonly string[];
 }
+
+export type TenantOnboardingGrant = "CREATE_TENANT" | "ACTIVATE_TENANT";
 
 export interface CreateTenantCommand extends NormalizedTenantIntent {
   readonly authority: PlatformAuthority;

@@ -1,4 +1,9 @@
 import { Identity, TenantMembership, normalizeAdministratorEmail } from "../domain/identity.js";
+import {
+  IdentityOnboardingForbiddenError,
+  type IdentityOnboardingAuthority,
+  type IdentityOnboardingAuthorizer,
+} from "./tenant-onboarding-authority.js";
 
 export interface BootstrapTenantAdministratorCommand {
   readonly tenantId: string;
@@ -6,6 +11,7 @@ export interface BootstrapTenantAdministratorCommand {
   readonly firstName: string;
   readonly lastName: string;
   readonly correlationId: string;
+  readonly authority: IdentityOnboardingAuthority;
 }
 
 export interface BootstrapTenantAdministratorResult {
@@ -32,9 +38,13 @@ export class BootstrapTenantAdministrator {
     private readonly tenants: TenantExistencePort,
     private readonly store: BootstrapAdministratorStore,
     private readonly identifiers: IdentityIdentifierGenerator,
+    private readonly authorizer: IdentityOnboardingAuthorizer,
   ) {}
 
   async execute(command: BootstrapTenantAdministratorCommand): Promise<BootstrapTenantAdministratorResult> {
+    if (!await this.authorizer.authorize(command.authority, "BOOTSTRAP_TENANT_ADMINISTRATOR", command.tenantId)) {
+      throw new IdentityOnboardingForbiddenError();
+    }
     if (!await this.tenants.exists(command.tenantId)) throw new TenantNotFoundError();
     const email = normalizeAdministratorEmail(command.email);
     if (await this.store.findIdentityByEmail(email, command.tenantId) || await this.store.findMembership(command.tenantId)) {

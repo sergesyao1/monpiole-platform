@@ -1,6 +1,6 @@
 import { Body, Controller, HttpCode, Inject, Param, Post, Req } from "@nestjs/common";
 import {
-  ApiCreatedResponse, ApiExtraModels, ApiOperation, ApiParam, ApiResponse, ApiTags, getSchemaPath,
+  ApiCreatedResponse, ApiExtraModels, ApiOperation, ApiParam, ApiResponse, ApiSecurity, ApiTags, getSchemaPath,
 } from "@nestjs/swagger";
 import type { BootstrapTenantAdministrator } from "@monpiole/identity";
 import { ZodSerializerDto } from "nestjs-zod";
@@ -12,6 +12,12 @@ import {
   BootstrapAdministratorRequestDto, BootstrapAdministratorResponseDto,
 } from "./bootstrap-administrator.dto.js";
 import { toBootstrapAdministratorCommand, toBootstrapAdministratorResponse } from "./bootstrap-administrator.mapper.js";
+import {
+  AUTHENTICATED_ONBOARDING_AUTHORITY_PROVIDER,
+  requireAuthenticatedOnboardingAuthority,
+  toIdentityOnboardingAuthority,
+  type AuthenticatedOnboardingAuthorityProvider,
+} from "../authenticated-authority/authenticated-authority.js";
 
 export const BOOTSTRAP_TENANT_ADMINISTRATOR = Symbol("monpiole.bootstrap-tenant-administrator");
 
@@ -22,12 +28,15 @@ export class BootstrapAdministratorController {
   constructor(
     @Inject(BOOTSTRAP_TENANT_ADMINISTRATOR)
     private readonly bootstrapAdministrator: Pick<BootstrapTenantAdministrator, "execute">,
+    @Inject(AUTHENTICATED_ONBOARDING_AUTHORITY_PROVIDER)
+    private readonly authorityProvider: AuthenticatedOnboardingAuthorityProvider,
   ) {}
 
   @Post()
   @HttpCode(201)
   @TenantContext("not-applicable")
-  @ApiOperation({ operationId: "bootstrapTenantAdministrator", summary: "Bootstrap the initial tenant administrator", security: [] })
+  @ApiOperation({ operationId: "bootstrapTenantAdministrator", summary: "Bootstrap the initial tenant administrator" })
+  @ApiSecurity("bearer")
   @ApiParam({ name: "tenantId", required: true, schema: { type: "string", format: "uuid" } })
   @ApiCreatedResponse({
     description: "Tenant administrator bootstrapped",
@@ -38,6 +47,8 @@ export class BootstrapAdministratorController {
     },
   })
   @ApiResponse({ status: 400, description: "Invalid request", content: problemContent() })
+  @ApiResponse({ status: 401, description: "Authentication required", content: problemContent() })
+  @ApiResponse({ status: 403, description: "Forbidden tenant authority", content: problemContent() })
   @ApiResponse({ status: 404, description: "Tenant not found", content: problemContent() })
   @ApiResponse({ status: 409, description: "Administrator conflict", content: problemContent() })
   @ZodSerializerDto(BootstrapAdministratorResponseDto)
@@ -48,8 +59,11 @@ export class BootstrapAdministratorController {
   ): Promise<BootstrapAdministratorResponse> {
     const context = httpRequest[REQUEST_CONTEXT];
     if (context === undefined) throw new Error("Request context was not established");
+    const authenticated = await requireAuthenticatedOnboardingAuthority(this.authorityProvider, httpRequest);
     return toBootstrapAdministratorResponse(await this.bootstrapAdministrator.execute(
-      toBootstrapAdministratorCommand(path.tenantId, request, context.correlationId),
+      toBootstrapAdministratorCommand(
+        path.tenantId, request, context.correlationId, toIdentityOnboardingAuthority(authenticated),
+      ),
     ));
   }
 }

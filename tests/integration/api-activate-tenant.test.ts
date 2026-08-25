@@ -10,11 +10,14 @@ import { createApiApplication } from "../../apps/api/src/bootstrap.js";
 import { IdentityActiveTenantAdministratorAdapter } from "../../apps/api/src/composition/identity-active-tenant-administrator.adapter.js";
 import { ActivateTenantResponseSchema } from "../../apps/api/src/contracts/v1/tenants/activate-tenant.schema.js";
 import { ProblemDetailsSchema } from "../../apps/api/src/contracts/v1/common/problem-details.schema.js";
+import { OnboardingAuthorityPolicy } from "../../apps/api/src/composition/onboarding-authority-policy.js";
 
 const TENANT_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const UNKNOWN_TENANT_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const ADMINISTRATOR_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const ACTIVATED_AT = "2026-08-25T14:00:00.000Z";
+const AUTHORITY = { actorId: "actor-1", authorityId: "authority-1", grants: ["BOOTSTRAP_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT_ADMINISTRATOR"] as const, tenantIds: [TENANT_ID] };
+const AUTHORITY_POLICY = new OnboardingAuthorityPolicy();
 
 class MemoryTenantTransaction implements ActivateTenantTransaction {
   readonly events: TenantActivatedRecord[] = [];
@@ -30,14 +33,15 @@ describe("Activate Tenant HTTP adapter", () => {
   let bootstrap: BootstrapTenantAdministrator;
   let activateAdministrator: ActivateTenantAdministrator;
   let transaction: MemoryTenantTransaction;
+  let authentication: "authorized" | "unauthorized" | "missing" = "authorized";
 
   async function start() {
     const identityStore = new InMemoryBootstrapAdministratorStore();
     bootstrap = new BootstrapTenantAdministrator(
       { exists: async (tenantId) => tenantId === TENANT_ID }, identityStore,
-      { generate: () => ADMINISTRATOR_ID },
+      { generate: () => ADMINISTRATOR_ID }, AUTHORITY_POLICY,
     );
-    activateAdministrator = new ActivateTenantAdministrator(identityStore);
+    activateAdministrator = new ActivateTenantAdministrator(identityStore, AUTHORITY_POLICY);
     transaction = new MemoryTenantTransaction(new Map([[TENANT_ID, Tenant.create({
       id: TENANT_ID, organizationName: "Agency", responsiblePersonName: "Ada",
       responsibleEmail: "ada@example.invalid", responsibleTelephone: "+2250102030405",
@@ -47,11 +51,19 @@ describe("Activate Tenant HTTP adapter", () => {
       { execute: async (_tenantId, operation) => operation(transaction) },
       new IdentityActiveTenantAdministratorAdapter(new HasActiveTenantAdministrator(identityStore)),
       { generate: () => "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" }, { now: () => ACTIVATED_AT },
+      AUTHORITY_POLICY,
     );
     application = await createApiApplication({ logger: false }, {
       bootstrapTenantAdministrator: bootstrap,
       activateTenantAdministrator: activateAdministrator,
       activateTenant,
+      authenticatedAuthorityProvider: { resolve: async () => authentication === "missing" ? undefined : ({
+        actorId: "actor-1", authorityId: "authority-1",
+        grants: authentication === "authorized"
+          ? ["BOOTSTRAP_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT"]
+          : ["BOOTSTRAP_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT_ADMINISTRATOR"],
+        tenantIds: [TENANT_ID, UNKNOWN_TENANT_ID],
+      }) },
     });
     await application.listen(0, "127.0.0.1");
     const address = application.getHttpServer().address();
@@ -59,14 +71,14 @@ describe("Activate Tenant HTTP adapter", () => {
     baseUrl = `http://127.0.0.1:${address.port}`;
   }
 
-  afterEach(async () => { await application?.close(); application = undefined; });
+  afterEach(async () => { await application?.close(); application = undefined; authentication = "authorized"; });
 
   async function readyAdministrator() {
     await bootstrap.execute({
-      tenantId: TENANT_ID, email: "Admin@Example.com", firstName: "Alice", lastName: "Admin", correlationId: "c-1",
+      tenantId: TENANT_ID, email: "Admin@Example.com", firstName: "Alice", lastName: "Admin", correlationId: "c-1", authority: AUTHORITY,
     });
     await activateAdministrator.execute({
-      tenantId: TENANT_ID, administratorId: ADMINISTRATOR_ID, correlationId: "c-2",
+      tenantId: TENANT_ID, administratorId: ADMINISTRATOR_ID, correlationId: "c-2", authority: AUTHORITY,
     });
   }
 
@@ -110,10 +122,22 @@ describe("Activate Tenant HTTP adapter", () => {
     expect(ProblemDetailsSchema.parse(await response.json()).code).toBe("TENANT_NOT_FOUND");
   });
 
+  it.each([
+    ["missing", 401, "UNAUTHORIZED"],
+    ["unauthorized", 403, "FORBIDDEN"],
+  ] as const)("rejects %s authority before tenant mutation", async (state, status, code) => {
+    await start(); await readyAdministrator(); authentication = state;
+    const response = await activate(TENANT_ID);
+    expect(response.status).toBe(status);
+    expect(ProblemDetailsSchema.parse(await response.json()).code).toBe(code);
+    expect(transaction.tenants.get(TENANT_ID)?.lifecycleState).toBe("PENDING");
+    expect(transaction.events).toHaveLength(0);
+  });
+
   it("returns safe 409 while the tenant administrator is not ACTIVE", async () => {
     await start();
     await bootstrap.execute({
-      tenantId: TENANT_ID, email: "admin@example.com", firstName: "Alice", lastName: "Admin", correlationId: "c",
+      tenantId: TENANT_ID, email: "admin@example.com", firstName: "Alice", lastName: "Admin", correlationId: "c", authority: AUTHORITY,
     });
     const response = await activate(TENANT_ID);
     expect(response.status).toBe(409);

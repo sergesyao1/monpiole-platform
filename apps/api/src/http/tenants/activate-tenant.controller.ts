@@ -1,5 +1,5 @@
 import { Controller, HttpCode, Inject, Param, Post, Req } from "@nestjs/common";
-import { ApiExtraModels, ApiOkResponse, ApiOperation, ApiParam, ApiResponse, ApiTags, getSchemaPath } from "@nestjs/swagger";
+import { ApiExtraModels, ApiOkResponse, ApiOperation, ApiParam, ApiResponse, ApiSecurity, ApiTags, getSchemaPath } from "@nestjs/swagger";
 import type { ActivateTenant } from "@monpiole/tenant-management";
 import { ZodSerializerDto } from "nestjs-zod";
 
@@ -8,6 +8,12 @@ import { TenantContext } from "../request-context/request-context.decorator.js";
 import { REQUEST_CONTEXT, type RequestWithContext } from "../request-context/request-context.js";
 import { ActivateTenantPathDto, ActivateTenantProblemDetailsDto, ActivateTenantResponseDto } from "./activate-tenant.dto.js";
 import { toActivateTenantCommand, toActivateTenantResponse } from "./activate-tenant.mapper.js";
+import {
+  AUTHENTICATED_ONBOARDING_AUTHORITY_PROVIDER,
+  requireAuthenticatedOnboardingAuthority,
+  toTenantManagementAuthority,
+  type AuthenticatedOnboardingAuthorityProvider,
+} from "../authenticated-authority/authenticated-authority.js";
 
 export const ACTIVATE_TENANT_USE_CASE = Symbol("monpiole.activate-tenant-use-case");
 
@@ -15,12 +21,17 @@ export const ACTIVATE_TENANT_USE_CASE = Symbol("monpiole.activate-tenant-use-cas
 @ApiExtraModels(ActivateTenantProblemDetailsDto)
 @Controller("api/v1/tenants/:tenantId/activate")
 export class ActivateTenantController {
-  constructor(@Inject(ACTIVATE_TENANT_USE_CASE) private readonly activateTenant: Pick<ActivateTenant, "execute">) {}
+  constructor(
+    @Inject(ACTIVATE_TENANT_USE_CASE) private readonly activateTenant: Pick<ActivateTenant, "execute">,
+    @Inject(AUTHENTICATED_ONBOARDING_AUTHORITY_PROVIDER)
+    private readonly authorityProvider: AuthenticatedOnboardingAuthorityProvider,
+  ) {}
 
   @Post()
   @HttpCode(200)
   @TenantContext("not-applicable")
-  @ApiOperation({ operationId: "activateTenant", summary: "Activate a pending tenant", security: [] })
+  @ApiOperation({ operationId: "activateTenant", summary: "Activate a pending tenant" })
+  @ApiSecurity("bearer")
   @ApiParam({ name: "tenantId", required: true, schema: { type: "string", format: "uuid" } })
   @ApiOkResponse({
     description: "Tenant active",
@@ -31,6 +42,8 @@ export class ActivateTenantController {
     },
   })
   @ApiResponse({ status: 400, description: "Invalid request", content: problemContent() })
+  @ApiResponse({ status: 401, description: "Authentication required", content: problemContent() })
+  @ApiResponse({ status: 403, description: "Forbidden tenant authority", content: problemContent() })
   @ApiResponse({ status: 404, description: "Tenant not found", content: problemContent() })
   @ApiResponse({ status: 409, description: "Active administrator required", content: problemContent() })
   @ApiResponse({ status: 500, description: "Safe internal failure", content: problemContent() })
@@ -38,8 +51,9 @@ export class ActivateTenantController {
   async execute(@Param() path: ActivateTenantPathDto, @Req() request: RequestWithContext): Promise<ActivateTenantResponse> {
     const context = request[REQUEST_CONTEXT];
     if (context === undefined) throw new Error("Request context was not established");
+    const authenticated = await requireAuthenticatedOnboardingAuthority(this.authorityProvider, request);
     return toActivateTenantResponse(await this.activateTenant.execute(
-      toActivateTenantCommand(path.tenantId, context.correlationId),
+      toActivateTenantCommand(path.tenantId, context.correlationId, toTenantManagementAuthority(authenticated)),
     ));
   }
 }

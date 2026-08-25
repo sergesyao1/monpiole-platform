@@ -42,3 +42,14 @@ This technical fixture does not authenticate or authorize callers, implement
 Tenant Onboarding, create tenant authority, persist idempotency state, or add
 business behavior. Transport values are explicitly mapped to plain values;
 Domain and Application layers remain independent of Zod and NestJS tooling.
+
+## TASK-031 authenticated authority boundary
+
+All Tenant Onboarding mutation controllers resolve an authenticated authority
+through an injected API-boundary provider. Missing authentication is rejected
+with Problem Details 401 before a use case is called. The trusted authority is
+mapped separately from tenant path context and target administrator identity;
+service Application ports enforce operation grants and tenant scope before
+reads or side effects. Normal runtime deliberately has no implicit provider and
+therefore fails closed until an approved production authentication adapter is
+selected and injected.

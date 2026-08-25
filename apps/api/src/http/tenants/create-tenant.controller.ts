@@ -1,6 +1,6 @@
-import { Body, Controller, ForbiddenException, HttpCode, Inject, Post, Req } from "@nestjs/common";
+import { Body, Controller, HttpCode, Inject, Post, Req } from "@nestjs/common";
 import { ApiCreatedResponse, ApiExtraModels, ApiHeader, ApiOperation, ApiResponse, ApiSecurity, ApiTags, getSchemaPath } from "@nestjs/swagger";
-import type { CreateTenant, PlatformAuthority } from "@monpiole/tenant-management";
+import type { CreateTenant } from "@monpiole/tenant-management";
 import { ZodSerializerDto } from "nestjs-zod";
 
 import type { CreateTenantResponse } from "../../contracts/v1/tenants/create-tenant.schema.js";
@@ -8,21 +8,22 @@ import { Idempotency, TenantContext } from "../request-context/request-context.d
 import { REQUEST_CONTEXT, type RequestWithContext } from "../request-context/request-context.js";
 import { CreateTenantRequestDto, CreateTenantResponseDto, TenantProblemDetailsDto } from "./create-tenant.dto.js";
 import { toCreateTenantCommand, toCreateTenantResponse } from "./create-tenant.mapper.js";
+import {
+  AUTHENTICATED_ONBOARDING_AUTHORITY_PROVIDER,
+  requireAuthenticatedOnboardingAuthority,
+  toTenantManagementAuthority,
+  type AuthenticatedOnboardingAuthorityProvider,
+} from "../authenticated-authority/authenticated-authority.js";
 
 export const CREATE_TENANT_USE_CASE = Symbol("monpiole.create-tenant-use-case");
-export const PLATFORM_AUTHORITY_PROVIDER = Symbol("monpiole.platform-authority-provider");
-
-export interface PlatformAuthorityProvider {
-  resolve(): Promise<PlatformAuthority | undefined>;
-}
-
 @ApiTags("Tenants")
 @ApiExtraModels(TenantProblemDetailsDto)
 @Controller("api/v1/tenants")
 export class CreateTenantController {
   constructor(
     @Inject(CREATE_TENANT_USE_CASE) private readonly createTenant: Pick<CreateTenant, "execute">,
-    @Inject(PLATFORM_AUTHORITY_PROVIDER) private readonly authorityProvider: PlatformAuthorityProvider,
+    @Inject(AUTHENTICATED_ONBOARDING_AUTHORITY_PROVIDER)
+    private readonly authorityProvider: AuthenticatedOnboardingAuthorityProvider,
   ) {}
 
   @Post()
@@ -42,6 +43,7 @@ export class CreateTenantController {
     },
   })
   @ApiResponse({ status: 400, description: "Invalid request", content: problemContent() })
+  @ApiResponse({ status: 401, description: "Authentication required", content: problemContent() })
   @ApiResponse({ status: 403, description: "Forbidden platform authority", content: problemContent() })
   @ApiResponse({ status: 409, description: "Duplicate or idempotency conflict", content: problemContent() })
   @ApiResponse({ status: 500, description: "Safe internal failure", content: problemContent() })
@@ -49,8 +51,8 @@ export class CreateTenantController {
   async execute(@Body() request: CreateTenantRequestDto, @Req() httpRequest: RequestWithContext): Promise<CreateTenantResponse> {
     const context = httpRequest[REQUEST_CONTEXT];
     if (context?.idempotencyKey === undefined) throw new Error("Request context was not established");
-    const authority = await this.authorityProvider.resolve();
-    if (authority === undefined) throw new ForbiddenException("Forbidden");
+    const authenticated = await requireAuthenticatedOnboardingAuthority(this.authorityProvider, httpRequest);
+    const authority = toTenantManagementAuthority(authenticated);
     const result = await this.createTenant.execute(toCreateTenantCommand(request, {
       correlationId: context.correlationId,
       idempotencyKey: context.idempotencyKey,

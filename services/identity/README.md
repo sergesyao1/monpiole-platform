@@ -73,3 +73,12 @@ Normal API startup constructs one `PostgresIdentityStore` from the shared
 bootstrap, activation, and active-administrator readiness; there is no silent
 in-memory fallback. The pool is closed through the Nest application lifecycle.
 Tests may continue to inject the in-memory store explicitly.
+
+## TASK-031 onboarding authority
+
+Bootstrap and administrator activation commands carry a trusted authenticated
+authority distinct from the target tenant and administrator. Both use cases
+invoke the Identity-owned technology-neutral authorization port before tenant
+or Identity persistence access. API composition supplies the grant and tenant
+scope policy; Identity remains independent of NestJS and authentication
+transport technology.

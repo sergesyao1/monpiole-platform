@@ -43,7 +43,7 @@ afterAll(async () => { await runtimePool?.end(); await ownerPool?.end(); await c
 function command(key: string, email = "owner@example.invalid", organizationName = "Agency") {
   return { organizationName, responsiblePersonName: "Ada Example", responsibleEmail: email,
     responsibleTelephone: "+2250102030405", country: "CI",
-    authority: { actorId: "actor-1", authorityId: "platform-admin" },
+    authority: { actorId: "actor-1", authorityId: "platform-admin", grants: ["CREATE_TENANT", "ACTIVATE_TENANT"] as const, tenantIds: [] },
     correlationId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", idempotencyKey: key };
 }
 
@@ -126,15 +126,16 @@ describe("Activate Tenant PostgreSQL adapter", () => {
       new PostgresActivateTenantUnitOfWork(runtimePool),
       { hasActiveTenantAdministrator: async () => ready },
       { generate: () => eventId }, { now: () => "2026-08-25T14:00:00.000Z" },
+      { authorizeActivateTenant: async () => true },
     );
   }
 
   it("atomically updates lifecycle state and records TenantActivated once", async () => {
     const created = await pendingTenant();
     const activate = activationUseCase();
-    await expect(activate.execute({ tenantId: created.tenantId, correlationId: command("x").correlationId }))
+    await expect(activate.execute({ tenantId: created.tenantId, correlationId: command("x").correlationId, authority: { ...command("x").authority, tenantIds: [created.tenantId] } }))
       .resolves.toEqual({ tenantId: created.tenantId, lifecycleState: "ACTIVE", activatedAt: "2026-08-25T14:00:00.000Z" });
-    await expect(activate.execute({ tenantId: created.tenantId, correlationId: command("x").correlationId }))
+    await expect(activate.execute({ tenantId: created.tenantId, correlationId: command("x").correlationId, authority: { ...command("x").authority, tenantIds: [created.tenantId] } }))
       .resolves.toMatchObject({ lifecycleState: "ACTIVE", activatedAt: "2026-08-25T14:00:00.000Z" });
     const tenant = await ownerPool.query("SELECT lifecycle_state, activated_at FROM tenant_management.tenants WHERE id = $1", [created.tenantId]);
     expect(tenant.rows[0]).toMatchObject({ lifecycle_state: "ACTIVE" });
@@ -152,7 +153,7 @@ describe("Activate Tenant PostgreSQL adapter", () => {
   it("rolls back ACTIVE and TenantActivated when event serialization fails", async () => {
     const created = await pendingTenant();
     await expect(activationUseCase("invalid-event-id").execute({
-      tenantId: created.tenantId, correlationId: command("x").correlationId,
+      tenantId: created.tenantId, correlationId: command("x").correlationId, authority: { ...command("x").authority, tenantIds: [created.tenantId] },
     })).rejects.toThrow();
     const tenant = await ownerPool.query("SELECT lifecycle_state, activated_at FROM tenant_management.tenants WHERE id = $1", [created.tenantId]);
     expect(tenant.rows[0]).toEqual({ lifecycle_state: "PENDING", activated_at: null });
@@ -163,7 +164,7 @@ describe("Activate Tenant PostgreSQL adapter", () => {
   it("does not mutate a tenant while its administrator is not ready", async () => {
     const created = await pendingTenant();
     await expect(activationUseCase(undefined, false).execute({
-      tenantId: created.tenantId, correlationId: command("x").correlationId,
+      tenantId: created.tenantId, correlationId: command("x").correlationId, authority: { ...command("x").authority, tenantIds: [created.tenantId] },
     })).rejects.toBeInstanceOf(TenantAdministratorNotReadyError);
     const tenant = await ownerPool.query("SELECT lifecycle_state FROM tenant_management.tenants WHERE id = $1", [created.tenantId]);
     expect(tenant.rows[0]?.lifecycle_state).toBe("PENDING");

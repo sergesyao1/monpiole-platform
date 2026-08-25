@@ -4,12 +4,14 @@ export {
 } from "./application/tenant-existence.js";
 export {
   ActivateTenant,
+  ActivateTenantForbiddenError,
   TenantAdministratorNotReadyError,
   TenantNotFoundError,
   type ActivateTenantCommand,
   type ActivateTenantResult,
   type ActivateTenantTransaction,
   type ActivateTenantUnitOfWork,
+  type ActivateTenantAuthorizer,
   type ActiveTenantAdministratorPort,
   type TenantActivatedRecord,
 } from "./application/activate-tenant.js";
@@ -30,6 +32,7 @@ export {
   type IdempotencyRecord,
   type PlatformAuthority,
   type PlatformAuthorityAuthorizer,
+  type TenantOnboardingGrant,
   type TenantCreatedRecord,
 } from "./application/create-tenant.js";
 export { Tenant, type NormalizedTenantIntent, type TenantLifecycleState } from "./domain/tenant.js";

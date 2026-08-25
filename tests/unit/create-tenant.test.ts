@@ -47,7 +47,7 @@ function command(key = "create-tenant-1") {
   return {
     organizationName: "  MonPiole Agency  ", responsiblePersonName: "  Ada Example  ",
     responsibleEmail: "  ADA@EXAMPLE.INVALID ", responsibleTelephone: "+2250102030405",
-    country: "CI", authority: { actorId: "actor-platform-1", authorityId: "platform-admin" },
+    country: "CI", authority: { actorId: "actor-platform-1", authorityId: "platform-admin", grants: ["CREATE_TENANT"] as const, tenantIds: [] },
     correlationId: CORRELATION_ID, idempotencyKey: key,
   };
 }

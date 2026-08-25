@@ -19,6 +19,8 @@ const ADMIN_A = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const ADMIN_B = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 const CORRELATION_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const migrationsFolder = fileURLToPath(new URL("../migrations", import.meta.url));
+const AUTHORITY = { actorId: "actor-1", authorityId: "authority-1", grants: ["BOOTSTRAP_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT_ADMINISTRATOR"] as const, tenantIds: [TENANT_A, TENANT_B] };
+const AUTHORIZER = { authorize: async () => true };
 
 let container: StartedTestContainer;
 let ownerPool: Pool;
@@ -53,9 +55,9 @@ afterAll(async () => {
 
 function bootstrap(store: PostgresIdentityStore, tenantId = TENANT_A, administratorId = ADMIN_A) {
   return new BootstrapTenantAdministrator(
-    { exists: async () => true }, store, { generate: () => administratorId },
+    { exists: async () => true }, store, { generate: () => administratorId }, AUTHORIZER,
   ).execute({
-    tenantId, email: "Admin@Example.com", firstName: "Alice", lastName: "Admin", correlationId: CORRELATION_ID,
+    tenantId, email: "Admin@Example.com", firstName: "Alice", lastName: "Admin", correlationId: CORRELATION_ID, authority: AUTHORITY,
   });
 }
 
@@ -83,8 +85,8 @@ describe("Identity PostgreSQL persistence", () => {
 
   it("persists ACTIVE and reloads it through another store instance", async () => {
     await bootstrap(new PostgresIdentityStore(runtimePool));
-    await new ActivateTenantAdministrator(new PostgresIdentityStore(runtimePool)).execute({
-      tenantId: TENANT_A, administratorId: ADMIN_A, correlationId: CORRELATION_ID,
+    await new ActivateTenantAdministrator(new PostgresIdentityStore(runtimePool), AUTHORIZER).execute({
+      tenantId: TENANT_A, administratorId: ADMIN_A, correlationId: CORRELATION_ID, authority: AUTHORITY,
     });
     const reloaded = await new PostgresIdentityStore(runtimePool).findIdentityById(ADMIN_A, TENANT_A);
     expect(reloaded?.status).toBe("ACTIVE");
@@ -104,8 +106,8 @@ describe("Identity PostgreSQL persistence", () => {
     const store = new PostgresIdentityStore(runtimePool);
     await bootstrap(store);
     await expect(new PostgresIdentityStore(runtimePool).findIdentityById(ADMIN_A, TENANT_B)).resolves.toBeUndefined();
-    await expect(new ActivateTenantAdministrator(new PostgresIdentityStore(runtimePool)).execute({
-      tenantId: TENANT_B, administratorId: ADMIN_A, correlationId: CORRELATION_ID,
+    await expect(new ActivateTenantAdministrator(new PostgresIdentityStore(runtimePool), AUTHORIZER).execute({
+      tenantId: TENANT_B, administratorId: ADMIN_A, correlationId: CORRELATION_ID, authority: AUTHORITY,
     })).rejects.toBeInstanceOf(TenantAdministratorNotFoundError);
     expect((await ownerPool.query("SELECT status FROM identity.identities WHERE id = $1", [ADMIN_A])).rows[0]?.status)
       .toBe("PENDING_ACTIVATION");

@@ -25,7 +25,9 @@ describe("Create Tenant HTTP adapter", () => {
   async function start(authority = true) {
     application = await createApiApplication({ logger: false }, {
       createTenant: { execute: async (command) => { received = command; if (failure) throw failure; return result; } },
-      platformAuthorityProvider: { resolve: async () => authority ? { actorId: "actor-1", authorityId: "platform-admin" } : undefined },
+      authenticatedAuthorityProvider: { resolve: async () => authority ? {
+        actorId: "actor-1", authorityId: "platform-admin", grants: ["CREATE_TENANT"], tenantIds: [],
+      } : undefined },
     });
     await application.listen(0, "127.0.0.1");
     const address = application.getHttpServer().address();
@@ -73,11 +75,17 @@ describe("Create Tenant HTTP adapter", () => {
     expect(ProblemDetailsSchema.parse(await response.json()).code).toBe("INVALID_REQUEST");
   });
 
-  it("returns 403 when no platform authority is established", async () => {
+  it("returns 401 when no authenticated authority is established", async () => {
     await start(false); const response = await request();
+    expect(response.status).toBe(401);
+    expect(ProblemDetailsSchema.parse(await response.json()).code).toBe("UNAUTHORIZED");
+    expect(received).toBeUndefined();
+  });
+
+  it("maps an authenticated but forbidden authority to 403", async () => {
+    failure = new CreateTenantForbiddenError(); await start(); const response = await request();
     expect(response.status).toBe(403);
     expect(ProblemDetailsSchema.parse(await response.json()).code).toBe("FORBIDDEN");
-    expect(received).toBeUndefined();
   });
 
   it.each([

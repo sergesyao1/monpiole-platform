@@ -14,8 +14,6 @@ import { HealthController } from "./health/health.controller.js";
 import {
   CREATE_TENANT_USE_CASE,
   CreateTenantController,
-  PLATFORM_AUTHORITY_PROVIDER,
-  type PlatformAuthorityProvider,
 } from "./http/tenants/create-tenant.controller.js";
 import {
   BOOTSTRAP_TENANT_ADMINISTRATOR,
@@ -26,6 +24,10 @@ import {
   ActivateAdministratorController,
 } from "./http/tenants/activate-administrator.controller.js";
 import { ACTIVATE_TENANT_USE_CASE, ActivateTenantController } from "./http/tenants/activate-tenant.controller.js";
+import {
+  AUTHENTICATED_ONBOARDING_AUTHORITY_PROVIDER,
+  type AuthenticatedOnboardingAuthorityProvider,
+} from "./http/authenticated-authority/authenticated-authority.js";
 
 const StrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
@@ -33,7 +35,7 @@ const StrictZodValidationPipe = createZodValidationPipe({
 
 export interface ApiComposition {
   readonly createTenant?: Pick<CreateTenant, "execute">;
-  readonly platformAuthorityProvider?: PlatformAuthorityProvider;
+  readonly authenticatedAuthorityProvider?: AuthenticatedOnboardingAuthorityProvider;
   readonly bootstrapTenantAdministrator?: Pick<BootstrapTenantAdministrator, "execute">;
   readonly activateTenantAdministrator?: Pick<ActivateTenantAdministrator, "execute">;
   readonly activateTenant?: Pick<ActivateTenant, "execute">;
@@ -47,7 +49,7 @@ const unavailableCreateTenant: Pick<CreateTenant, "execute"> = {
   async execute() { throw new Error("Create Tenant production composition is unavailable"); },
 };
 
-const unavailableAuthority: PlatformAuthorityProvider = {
+const unavailableAuthority: AuthenticatedOnboardingAuthorityProvider = {
   async resolve() { return undefined; },
 };
 
@@ -78,7 +80,10 @@ export class AppModule {
         { provide: APP_INTERCEPTOR, useClass: ZodSerializerInterceptor },
         { provide: APP_FILTER, useClass: ProblemDetailsFilter },
         { provide: CREATE_TENANT_USE_CASE, useValue: composition.createTenant ?? unavailableCreateTenant },
-        { provide: PLATFORM_AUTHORITY_PROVIDER, useValue: composition.platformAuthorityProvider ?? unavailableAuthority },
+        {
+          provide: AUTHENTICATED_ONBOARDING_AUTHORITY_PROVIDER,
+          useValue: composition.authenticatedAuthorityProvider ?? unavailableAuthority,
+        },
         {
           provide: BOOTSTRAP_TENANT_ADMINISTRATOR,
           useValue: composition.bootstrapTenantAdministrator ?? unavailableBootstrapAdministrator,

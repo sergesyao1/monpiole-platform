@@ -19,6 +19,12 @@ export {
   type IdentityIdentifierGenerator,
   type TenantExistencePort,
 } from "./application/bootstrap-tenant-administrator.js";
+export {
+  IdentityOnboardingForbiddenError,
+  type IdentityOnboardingAuthority,
+  type IdentityOnboardingAuthorizer,
+  type IdentityOnboardingGrant,
+} from "./application/tenant-onboarding-authority.js";
 export { Identity, TenantMembership, type IdentityStatus, type TenantRole } from "./domain/identity.js";
 export { InMemoryBootstrapAdministratorStore } from "./infrastructure/in-memory-bootstrap-administrator-store.js";
 export { PostgresIdentityStore } from "./infrastructure/persistence/postgres/postgres-identity-store.js";

@@ -1,9 +1,10 @@
 import type { Tenant } from "../domain/tenant.js";
-import type { Clock, IdentifierGenerator } from "./create-tenant.js";
+import type { Clock, IdentifierGenerator, PlatformAuthority } from "./create-tenant.js";
 
 export interface ActivateTenantCommand {
   readonly tenantId: string;
   readonly correlationId: string;
+  readonly authority: PlatformAuthority;
 }
 
 export interface ActivateTenantResult {
@@ -32,8 +33,13 @@ export interface ActiveTenantAdministratorPort {
   hasActiveTenantAdministrator(tenantId: string): Promise<boolean>;
 }
 
+export interface ActivateTenantAuthorizer {
+  authorizeActivateTenant(authority: PlatformAuthority, tenantId: string): Promise<boolean>;
+}
+
 export class TenantNotFoundError extends Error { readonly code = "ACTIVATE_TENANT_NOT_FOUND"; }
 export class TenantAdministratorNotReadyError extends Error { readonly code = "TENANT_ADMINISTRATOR_NOT_READY"; }
+export class ActivateTenantForbiddenError extends Error { readonly code = "ACTIVATE_TENANT_FORBIDDEN"; }
 
 export class ActivateTenant {
   constructor(
@@ -41,9 +47,13 @@ export class ActivateTenant {
     private readonly activeAdministrator: ActiveTenantAdministratorPort,
     private readonly eventIds: IdentifierGenerator,
     private readonly clock: Clock,
+    private readonly authorizer: ActivateTenantAuthorizer,
   ) {}
 
-  execute(command: ActivateTenantCommand): Promise<ActivateTenantResult> {
+  async execute(command: ActivateTenantCommand): Promise<ActivateTenantResult> {
+    if (!await this.authorizer.authorizeActivateTenant(command.authority, command.tenantId)) {
+      throw new ActivateTenantForbiddenError();
+    }
     return this.unitOfWork.execute(command.tenantId, async (transaction) => {
       const tenant = await transaction.findTenantForUpdate(command.tenantId);
       if (tenant === undefined) throw new TenantNotFoundError();
