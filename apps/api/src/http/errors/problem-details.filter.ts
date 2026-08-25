@@ -86,6 +86,18 @@ function businessProblem(exception: unknown) {
     status: 400, type: "https://api.monpiole.example/problems/invalid-request",
     title: "Invalid request", code: "INVALID_REQUEST",
   };
+  if (code === "BOOTSTRAP_TENANT_NOT_FOUND") return {
+    status: 404, type: "https://api.monpiole.example/problems/tenant-not-found",
+    title: "Tenant not found", code: "TENANT_NOT_FOUND",
+  };
+  if (code === "BOOTSTRAP_ADMINISTRATOR_CONFLICT") return {
+    status: 409, type: "https://api.monpiole.example/problems/administrator-conflict",
+    title: "Administrator conflict", code: "ADMINISTRATOR_CONFLICT",
+  };
+  if (code === "INVALID_BOOTSTRAP_ADMINISTRATOR") return {
+    status: 400, type: "https://api.monpiole.example/problems/invalid-request",
+    title: "Invalid request", code: "INVALID_REQUEST",
+  };
   return undefined;
 }
 

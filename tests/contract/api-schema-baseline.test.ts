@@ -7,6 +7,11 @@ import {
 import { ProblemDetailsSchema } from "../../apps/api/src/contracts/v1/common/problem-details.schema.js";
 import { CreateTenantRequestSchema, CreateTenantResponseSchema } from "../../apps/api/src/contracts/v1/tenants/create-tenant.schema.js";
 import {
+  BootstrapAdministratorPathSchema,
+  BootstrapAdministratorRequestSchema,
+  BootstrapAdministratorResponseSchema,
+} from "../../apps/api/src/contracts/v1/tenants/bootstrap-administrator.schema.js";
+import {
   TENANT_CONTEXT_METADATA,
   TenantContext,
 } from "../../apps/api/src/http/request-context/request-context.decorator.js";
@@ -81,5 +86,17 @@ describe("canonical Zod transport contracts", () => {
       responsibleEmail: "ada@example.invalid", responsibleTelephone: "0102", country: "ci" }).success).toBe(false);
     expect(CreateTenantResponseSchema.safeParse({ tenantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", lifecycleState: "PENDING" }).success).toBe(true);
     expect(CreateTenantResponseSchema.safeParse({ tenantId: "tenant_demo", lifecycleState: "PENDING" }).success).toBe(false);
+  });
+
+  it("validates the strict Bootstrap Tenant Administrator transport contract", () => {
+    expect(BootstrapAdministratorPathSchema.safeParse({ tenantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }).success).toBe(true);
+    expect(BootstrapAdministratorRequestSchema.parse({
+      email: " Admin@Example.com ", firstName: " Alice ", lastName: " Admin ",
+    })).toEqual({ email: "admin@example.com", firstName: "Alice", lastName: "Admin" });
+    expect(BootstrapAdministratorResponseSchema.safeParse({
+      tenantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      administratorId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      email: "admin@example.com", role: "TENANT_ADMINISTRATOR", status: "PENDING_ACTIVATION",
+    }).success).toBe(true);
   });
 });

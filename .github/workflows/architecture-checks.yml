@@ -168,10 +168,14 @@ jobs:
         run: corepack pnpm package:persistence:typecheck
       - name: Typecheck Tenant Management
         run: corepack pnpm service:tenant-management:typecheck
+      - name: Typecheck Identity
+        run: corepack pnpm service:identity:typecheck
       - name: Build persistence
         run: corepack pnpm package:persistence:build
       - name: Build Tenant Management
         run: corepack pnpm service:tenant-management:build
+      - name: Build Identity
+        run: corepack pnpm service:identity:build
       - name: Validate persistence migrations
         run: corepack pnpm package:persistence:migration:check
       - name: Validate Tenant Management migrations

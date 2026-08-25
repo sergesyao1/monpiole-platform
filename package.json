@@ -26,6 +26,8 @@
     "service:tenant-management:build": "corepack pnpm --filter @monpiole/tenant-management build",
     "service:tenant-management:typecheck": "corepack pnpm --filter @monpiole/tenant-management typecheck",
     "service:tenant-management:migration:check": "corepack pnpm --filter @monpiole/tenant-management migration:check",
+    "service:identity:build": "corepack pnpm --filter @monpiole/identity build",
+    "service:identity:typecheck": "corepack pnpm --filter @monpiole/identity typecheck",
     "test:unit": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
     "test:contract": "vitest run --project contract",

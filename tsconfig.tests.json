@@ -13,6 +13,7 @@
     "packages/persistence/tests/**/*.ts",
     "services/tenant-management/src/**/*.ts",
     "services/tenant-management/tests/**/*.ts",
+    "services/identity/src/**/*.ts",
     "vitest.config.ts",
     "tests/**/*.ts"
   ]

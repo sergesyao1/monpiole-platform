@@ -91,4 +91,23 @@ describe("deterministic OpenAPI 3.1 contract", () => {
     const committed = await readFile("engineering/contracts/http/openapi.json", "utf8");
     expect(generated).toBe(committed);
   });
+
+  it("publishes the Bootstrap Tenant Administrator contract without credential fields", async () => {
+    const openapi = await document();
+    const operation = openapi.paths["/v1/tenants/{tenantId}/administrators/bootstrap"]?.post;
+    expect(operation?.operationId).toBe("bootstrapTenantAdministrator");
+    const tenantParameter = (operation?.parameters ?? []).find((parameter) => !("$ref" in parameter) && parameter.name === "tenantId");
+    expect(tenantParameter).toMatchObject({ in: "path", required: true });
+    expect(operation?.responses["201"]).toBeDefined();
+    for (const status of ["400", "404", "409"]) {
+      const response = operation?.responses[status];
+      expect(response).toBeDefined();
+      if (response === undefined || "$ref" in response) throw new Error(`Expected inline ${status} response`);
+      expect(response.content?.["application/problem+json"]?.schema).toEqual({ $ref: "#/components/schemas/ProblemDetails" });
+    }
+    const requestSchema = openapi.components?.schemas?.["BootstrapAdministratorRequest"];
+    expect(requestSchema).toMatchObject({ required: ["email", "firstName", "lastName"] });
+    const publicContract = JSON.stringify({ operation, requestSchema, response: openapi.components?.schemas?.["BootstrapAdministratorResponse"] });
+    expect(publicContract).not.toMatch(/password|passwordHash|temporaryPassword|secret|token/i);
+  });
 });

@@ -32,3 +32,11 @@ Make authentication and authorization decisions auditable; never share credentia
 
 Identity domain, application use cases, adapters, migrations, and tests.
 
+## TASK-024 bootstrap administrator slice
+
+Identity owns the initial administrator identity, its tenant membership,
+`TENANT_ADMINISTRATOR` role, and `PENDING_ACTIVATION` status. Tenant existence is
+resolved through an Application port supplied by API composition; Identity does
+not access Tenant Management persistence. This slice uses an atomic in-memory
+adapter and deliberately implements no authentication, credential, invitation,
+or broker behavior.

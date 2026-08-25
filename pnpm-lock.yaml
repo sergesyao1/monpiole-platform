@@ -26,6 +26,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@monpiole/identity':
+        specifier: workspace:*
+        version: link:../../services/identity
       '@monpiole/tenant-management':
         specifier: workspace:*
         version: link:../../services/tenant-management
@@ -78,6 +81,8 @@ importers:
       testcontainers:
         specifier: 12.1.0
         version: 12.1.0(supports-color@7.2.0)
+
+  services/identity: {}
 
   services/tenant-management:
     dependencies:

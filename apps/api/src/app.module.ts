@@ -1,5 +1,6 @@
 import { type DynamicModule, Module } from "@nestjs/common";
 import type { CreateTenant } from "@monpiole/tenant-management";
+import type { BootstrapTenantAdministrator } from "@monpiole/identity";
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core";
 import {
   ZodSerializerInterceptor,
@@ -16,6 +17,10 @@ import {
   PLATFORM_AUTHORITY_PROVIDER,
   type PlatformAuthorityProvider,
 } from "./http/tenants/create-tenant.controller.js";
+import {
+  BOOTSTRAP_TENANT_ADMINISTRATOR,
+  BootstrapAdministratorController,
+} from "./http/tenants/bootstrap-administrator.controller.js";
 
 const StrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
@@ -24,6 +29,7 @@ const StrictZodValidationPipe = createZodValidationPipe({
 export interface ApiComposition {
   readonly createTenant?: Pick<CreateTenant, "execute">;
   readonly platformAuthorityProvider?: PlatformAuthorityProvider;
+  readonly bootstrapTenantAdministrator?: Pick<BootstrapTenantAdministrator, "execute">;
 }
 
 const unavailableCreateTenant: Pick<CreateTenant, "execute"> = {
@@ -34,12 +40,19 @@ const unavailableAuthority: PlatformAuthorityProvider = {
   async resolve() { return undefined; },
 };
 
+const unavailableBootstrapAdministrator: Pick<BootstrapTenantAdministrator, "execute"> = {
+  async execute() { throw new Error("Bootstrap Tenant Administrator composition is unavailable"); },
+};
+
 @Module({})
 export class AppModule {
   static register(composition: ApiComposition = {}): DynamicModule {
     return {
       module: AppModule,
-      controllers: [HealthController, ContractBaselineController, CreateTenantController],
+      controllers: [
+        HealthController, ContractBaselineController, CreateTenantController,
+        BootstrapAdministratorController,
+      ],
       providers: [
         { provide: APP_PIPE, useClass: StrictZodValidationPipe },
         { provide: APP_INTERCEPTOR, useClass: RequestContextInterceptor },
@@ -47,6 +60,10 @@ export class AppModule {
         { provide: APP_FILTER, useClass: ProblemDetailsFilter },
         { provide: CREATE_TENANT_USE_CASE, useValue: composition.createTenant ?? unavailableCreateTenant },
         { provide: PLATFORM_AUTHORITY_PROVIDER, useValue: composition.platformAuthorityProvider ?? unavailableAuthority },
+        {
+          provide: BOOTSTRAP_TENANT_ADMINISTRATOR,
+          useValue: composition.bootstrapTenantAdministrator ?? unavailableBootstrapAdministrator,
+        },
       ],
     };
   }
