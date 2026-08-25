@@ -110,4 +110,23 @@ describe("deterministic OpenAPI 3.1 contract", () => {
     const publicContract = JSON.stringify({ operation, requestSchema, response: openapi.components?.schemas?.["BootstrapAdministratorResponse"] });
     expect(publicContract).not.toMatch(/password|passwordHash|temporaryPassword|secret|token/i);
   });
+
+  it("publishes bodyless idempotent administrator activation", async () => {
+    const openapi = await document();
+    const operation = openapi.paths["/v1/tenants/{tenantId}/administrators/{administratorId}/activate"]?.post;
+    expect(operation?.operationId).toBe("activateTenantAdministrator");
+    expect(operation?.requestBody).toBeUndefined();
+    expect(operation?.responses["200"]).toBeDefined();
+    for (const status of ["400", "404"]) {
+      const response = operation?.responses[status];
+      expect(response).toBeDefined();
+      if (response === undefined || "$ref" in response) throw new Error(`Expected inline ${status} response`);
+      expect(response.content?.["application/problem+json"]?.schema).toEqual({ $ref: "#/components/schemas/ProblemDetails" });
+    }
+    const parameters = (operation?.parameters ?? []).filter((parameter) => !("$ref" in parameter));
+    expect(parameters).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "tenantId", in: "path", required: true }),
+      expect.objectContaining({ name: "administratorId", in: "path", required: true }),
+    ]));
+  });
 });

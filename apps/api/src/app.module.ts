@@ -1,6 +1,6 @@
 import { type DynamicModule, Module } from "@nestjs/common";
 import type { CreateTenant } from "@monpiole/tenant-management";
-import type { BootstrapTenantAdministrator } from "@monpiole/identity";
+import type { ActivateTenantAdministrator, BootstrapTenantAdministrator } from "@monpiole/identity";
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core";
 import {
   ZodSerializerInterceptor,
@@ -21,6 +21,10 @@ import {
   BOOTSTRAP_TENANT_ADMINISTRATOR,
   BootstrapAdministratorController,
 } from "./http/tenants/bootstrap-administrator.controller.js";
+import {
+  ACTIVATE_TENANT_ADMINISTRATOR,
+  ActivateAdministratorController,
+} from "./http/tenants/activate-administrator.controller.js";
 
 const StrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
@@ -30,6 +34,7 @@ export interface ApiComposition {
   readonly createTenant?: Pick<CreateTenant, "execute">;
   readonly platformAuthorityProvider?: PlatformAuthorityProvider;
   readonly bootstrapTenantAdministrator?: Pick<BootstrapTenantAdministrator, "execute">;
+  readonly activateTenantAdministrator?: Pick<ActivateTenantAdministrator, "execute">;
 }
 
 const unavailableCreateTenant: Pick<CreateTenant, "execute"> = {
@@ -43,6 +48,9 @@ const unavailableAuthority: PlatformAuthorityProvider = {
 const unavailableBootstrapAdministrator: Pick<BootstrapTenantAdministrator, "execute"> = {
   async execute() { throw new Error("Bootstrap Tenant Administrator composition is unavailable"); },
 };
+const unavailableActivateAdministrator: Pick<ActivateTenantAdministrator, "execute"> = {
+  async execute() { throw new Error("Activate Tenant Administrator composition is unavailable"); },
+};
 
 @Module({})
 export class AppModule {
@@ -52,6 +60,7 @@ export class AppModule {
       controllers: [
         HealthController, ContractBaselineController, CreateTenantController,
         BootstrapAdministratorController,
+        ActivateAdministratorController,
       ],
       providers: [
         { provide: APP_PIPE, useClass: StrictZodValidationPipe },
@@ -63,6 +72,10 @@ export class AppModule {
         {
           provide: BOOTSTRAP_TENANT_ADMINISTRATOR,
           useValue: composition.bootstrapTenantAdministrator ?? unavailableBootstrapAdministrator,
+        },
+        {
+          provide: ACTIVATE_TENANT_ADMINISTRATOR,
+          useValue: composition.activateTenantAdministrator ?? unavailableActivateAdministrator,
         },
       ],
     };

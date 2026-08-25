@@ -12,6 +12,10 @@ import {
   BootstrapAdministratorResponseSchema,
 } from "../../apps/api/src/contracts/v1/tenants/bootstrap-administrator.schema.js";
 import {
+  ActivateAdministratorPathSchema,
+  ActivateAdministratorResponseSchema,
+} from "../../apps/api/src/contracts/v1/tenants/activate-administrator.schema.js";
+import {
   TENANT_CONTEXT_METADATA,
   TenantContext,
 } from "../../apps/api/src/http/request-context/request-context.decorator.js";
@@ -97,6 +101,18 @@ describe("canonical Zod transport contracts", () => {
       tenantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       administratorId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
       email: "admin@example.com", role: "TENANT_ADMINISTRATOR", status: "PENDING_ACTIVATION",
+    }).success).toBe(true);
+  });
+
+  it("validates the Activate Tenant Administrator path and ACTIVE response", () => {
+    expect(ActivateAdministratorPathSchema.safeParse({
+      tenantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      administratorId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    }).success).toBe(true);
+    expect(ActivateAdministratorResponseSchema.safeParse({
+      tenantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      administratorId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      email: "admin@example.com", role: "TENANT_ADMINISTRATOR", status: "ACTIVE",
     }).success).toBe(true);
   });
 });

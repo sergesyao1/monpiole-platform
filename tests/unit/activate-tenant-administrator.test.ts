@@ -1,0 +1,69 @@
+import { describe, expect, it } from "vitest";
+import {
+  ActivateTenantAdministrator,
+  BootstrapTenantAdministrator,
+  InMemoryBootstrapAdministratorStore,
+  TenantAdministratorNotFoundError,
+} from "../../services/identity/src/index.js";
+import { Identity } from "../../services/identity/src/domain/identity.js";
+
+const TENANT_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const OTHER_TENANT_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+const ADMINISTRATOR_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const CORRELATION_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+
+function pendingIdentity() {
+  return Identity.bootstrap({
+    id: ADMINISTRATOR_ID, email: "admin@example.com", firstName: "Alice", lastName: "Admin",
+  });
+}
+
+async function fixture() {
+  const store = new InMemoryBootstrapAdministratorStore();
+  const bootstrap = new BootstrapTenantAdministrator(
+    { exists: async () => true }, store, { generate: () => ADMINISTRATOR_ID },
+  );
+  await bootstrap.execute({
+    tenantId: TENANT_ID, email: "admin@example.com", firstName: "Alice", lastName: "Admin",
+    correlationId: CORRELATION_ID,
+  });
+  return { store, activate: new ActivateTenantAdministrator(store) };
+}
+
+describe("Activate Tenant Administrator", () => {
+  it("changes a PENDING_ACTIVATION identity to ACTIVE through Domain behavior", () => {
+    const pending = pendingIdentity();
+    expect(pending.status).toBe("PENDING_ACTIVATION");
+    expect(pending.activate().status).toBe("ACTIVE");
+  });
+
+  it("keeps activation idempotent in the Domain", () => {
+    const active = pendingIdentity().activate();
+    expect(active.activate()).toBe(active);
+    expect(active.status).toBe("ACTIVE");
+  });
+
+  it("activates the administrator belonging to the requested tenant and persists ACTIVE", async () => {
+    const { store, activate } = await fixture();
+    await expect(activate.execute({ tenantId: TENANT_ID, administratorId: ADMINISTRATOR_ID, correlationId: CORRELATION_ID }))
+      .resolves.toEqual({
+        tenantId: TENANT_ID, administratorId: ADMINISTRATOR_ID, email: "admin@example.com",
+        role: "TENANT_ADMINISTRATOR", status: "ACTIVE",
+      });
+    expect((await store.findIdentityById(ADMINISTRATOR_ID))?.status).toBe("ACTIVE");
+  });
+
+  it("rejects an unknown administrator with not-found semantics", async () => {
+    const { activate } = await fixture();
+    await expect(activate.execute({
+      tenantId: TENANT_ID, administratorId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", correlationId: CORRELATION_ID,
+    })).rejects.toBeInstanceOf(TenantAdministratorNotFoundError);
+  });
+
+  it("rejects a tenant/administrator mismatch without leaking identity existence", async () => {
+    const { activate } = await fixture();
+    await expect(activate.execute({
+      tenantId: OTHER_TENANT_ID, administratorId: ADMINISTRATOR_ID, correlationId: CORRELATION_ID,
+    })).rejects.toBeInstanceOf(TenantAdministratorNotFoundError);
+  });
+});

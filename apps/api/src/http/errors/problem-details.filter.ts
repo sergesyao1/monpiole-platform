@@ -98,6 +98,10 @@ function businessProblem(exception: unknown) {
     status: 400, type: "https://api.monpiole.example/problems/invalid-request",
     title: "Invalid request", code: "INVALID_REQUEST",
   };
+  if (code === "TENANT_ADMINISTRATOR_NOT_FOUND") return {
+    status: 404, type: "https://api.monpiole.example/problems/tenant-administrator-not-found",
+    title: "Tenant administrator not found", code: "TENANT_ADMINISTRATOR_NOT_FOUND",
+  };
   return undefined;
 }
 

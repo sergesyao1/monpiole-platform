@@ -1,4 +1,11 @@
 export {
+  ActivateTenantAdministrator,
+  TenantAdministratorNotFoundError,
+  type ActivateTenantAdministratorCommand,
+  type ActivateTenantAdministratorResult,
+  type ActivateTenantAdministratorStore,
+} from "./application/activate-tenant-administrator.js";
+export {
   BootstrapAdministratorConflictError,
   BootstrapTenantAdministrator,
   TenantNotFoundError,
