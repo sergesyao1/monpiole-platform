@@ -26,7 +26,10 @@ export default defineConfig({
     projects: [
       nodeProject("unit", ["tests/unit/**/*.test.ts"]),
       nodeProject("integration", ["tests/integration/**/*.test.ts"]),
-      nodeProject("persistence-integration", ["packages/persistence/tests/**/*.test.ts"], 60_000),
+      nodeProject("persistence-integration", [
+        "packages/persistence/tests/**/*.test.ts",
+        "services/tenant-management/tests/**/*.test.ts",
+      ], 60_000),
       nodeProject("contract", ["tests/contract/**/*.test.ts"]),
     ],
     coverage: {

@@ -5,6 +5,7 @@ import {
   ContractBaselineResponseSchema,
 } from "../../apps/api/src/contracts/v1/contract-baseline/contract-baseline.schema.js";
 import { ProblemDetailsSchema } from "../../apps/api/src/contracts/v1/common/problem-details.schema.js";
+import { CreateTenantRequestSchema, CreateTenantResponseSchema } from "../../apps/api/src/contracts/v1/tenants/create-tenant.schema.js";
 import {
   TENANT_CONTEXT_METADATA,
   TenantContext,
@@ -68,5 +69,17 @@ describe("canonical Zod transport contracts", () => {
         PreTenantFixture.prototype.execute,
       ),
     ).toBe("not-applicable");
+  });
+
+  it("validates and normalizes the strict Create Tenant v1 transport contract", () => {
+    expect(CreateTenantRequestSchema.parse({
+      organizationName: " Agency ", responsiblePersonName: " Ada ", responsibleEmail: " ADA@EXAMPLE.INVALID ",
+      responsibleTelephone: "+2250102030405", country: "CI",
+    })).toEqual({ organizationName: "Agency", responsiblePersonName: "Ada", responsibleEmail: "ada@example.invalid",
+      responsibleTelephone: "+2250102030405", country: "CI" });
+    expect(CreateTenantRequestSchema.safeParse({ organizationName: "Agency", responsiblePersonName: "Ada",
+      responsibleEmail: "ada@example.invalid", responsibleTelephone: "0102", country: "ci" }).success).toBe(false);
+    expect(CreateTenantResponseSchema.safeParse({ tenantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", lifecycleState: "PENDING" }).success).toBe(true);
+    expect(CreateTenantResponseSchema.safeParse({ tenantId: "tenant_demo", lifecycleState: "PENDING" }).success).toBe(false);
   });
 });

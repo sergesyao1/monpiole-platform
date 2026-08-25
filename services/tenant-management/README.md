@@ -32,3 +32,12 @@ Treat tenant context as mandatory and publish lifecycle events through versioned
 
 Tenant domain, provisioning workflows, adapters, and contract tests.
 
+## TASK-023 Create Tenant slice
+
+The first implemented slice creates only the tenant root in lifecycle state
+`PENDING`. `POST /api/v1/tenants` is a pre-tenant operation: authorization is
+represented by an Application port and production Identity integration remains
+deferred. Tenant creation, its successful idempotency result, and the
+`monpiole.tenant.tenant-created` version 1 Outbox record share one PostgreSQL
+transaction. Broker dispatch, activation, bootstrap-administrator provisioning,
+full onboarding, and Audit bounded-context integration are outside this slice.

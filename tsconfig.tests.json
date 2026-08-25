@@ -11,6 +11,8 @@
     "packages/events/src/**/*.ts",
     "packages/persistence/src/**/*.ts",
     "packages/persistence/tests/**/*.ts",
+    "services/tenant-management/src/**/*.ts",
+    "services/tenant-management/tests/**/*.ts",
     "vitest.config.ts",
     "tests/**/*.ts"
   ]

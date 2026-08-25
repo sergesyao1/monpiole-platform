@@ -166,10 +166,16 @@ jobs:
         run: docker version
       - name: Typecheck persistence
         run: corepack pnpm package:persistence:typecheck
+      - name: Typecheck Tenant Management
+        run: corepack pnpm service:tenant-management:typecheck
       - name: Build persistence
         run: corepack pnpm package:persistence:build
+      - name: Build Tenant Management
+        run: corepack pnpm service:tenant-management:build
       - name: Validate persistence migrations
         run: corepack pnpm package:persistence:migration:check
+      - name: Validate Tenant Management migrations
+        run: corepack pnpm service:tenant-management:migration:check
       - name: Test against Testcontainers PostgreSQL
         run: corepack pnpm package:persistence:test:integration
 

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { readFile } from "node:fs/promises";
 
 import { createApiApplication } from "../../apps/api/src/bootstrap.js";
 import { createOpenApiDocument } from "../../apps/api/src/openapi/create-openapi-document.js";
@@ -69,5 +70,25 @@ describe("deterministic OpenAPI 3.1 contract", () => {
     application = undefined;
     const second = serializeOpenApiDocument(await document());
     expect(second).toBe(first);
+  });
+
+  it("publishes the pre-tenant Create Tenant operation", async () => {
+    const openapi = await document();
+    const operation = openapi.paths["/api/v1/tenants"]?.post;
+    expect(operation?.operationId).toBe("createTenant");
+    expect(operation?.responses["201"]).toBeDefined();
+    expect(operation?.responses["400"]).toBeDefined();
+    expect(operation?.responses["403"]).toBeDefined();
+    expect(operation?.responses["409"]).toBeDefined();
+    expect(operation?.responses["500"]).toBeDefined();
+    const names = (operation?.parameters ?? []).map((parameter) => "$ref" in parameter ? parameter.$ref : parameter.name);
+    expect(names).toEqual(expect.arrayContaining(["X-Correlation-Id", "Idempotency-Key"]));
+    expect(names).not.toContain("X-Tenant-Id");
+  });
+
+  it("matches the committed OpenAPI review artifact", async () => {
+    const generated = serializeOpenApiDocument(await document());
+    const committed = await readFile("engineering/contracts/http/openapi.json", "utf8");
+    expect(generated).toBe(committed);
   });
 });

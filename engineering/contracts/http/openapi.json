@@ -59,6 +59,57 @@
         "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
         "type": "string"
       },
+      "CreateTenantRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "country": {
+            "pattern": "^[A-Z]{2}$",
+            "type": "string"
+          },
+          "organizationName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "responsibleEmail": {
+            "format": "email",
+            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "type": "string"
+          },
+          "responsiblePersonName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "responsibleTelephone": {
+            "pattern": "^\\+[1-9][0-9]{1,14}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "country",
+          "organizationName",
+          "responsibleEmail",
+          "responsiblePersonName",
+          "responsibleTelephone"
+        ],
+        "type": "object"
+      },
+      "CreateTenantResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "lifecycleState": {
+            "const": "PENDING",
+            "type": "string"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/ProductTenantId"
+          }
+        },
+        "required": [
+          "lifecycleState",
+          "tenantId"
+        ],
+        "type": "object"
+      },
       "IdempotencyKey": {
         "pattern": "^[A-Za-z0-9._~:+-]{1,255}$",
         "type": "string"
@@ -118,6 +169,11 @@
           "path"
         ],
         "type": "object"
+      },
+      "ProductTenantId": {
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+        "type": "string"
       },
       "RequestId": {
         "format": "uuid",
@@ -227,6 +283,117 @@
         "summary": "Prove the TD-006 transport technology baseline",
         "tags": [
           "Contract baseline"
+        ]
+      }
+    },
+    "/api/v1/tenants": {
+      "post": {
+        "operationId": "createTenant",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTenantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTenantResponse"
+                }
+              }
+            },
+            "description": "Pending tenant created",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden platform authority"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Duplicate or idempotency conflict"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Safe internal failure"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a pending tenant",
+        "tags": [
+          "Tenants"
         ]
       }
     },

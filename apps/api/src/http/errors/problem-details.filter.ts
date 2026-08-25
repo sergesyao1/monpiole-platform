@@ -40,9 +40,10 @@ export class ProblemDetailsFilter implements ExceptionFilter {
     const http = host.switchToHttp();
     const request = http.getRequest<RequestWithContext>();
     const response = http.getResponse<ProblemResponse>();
-    const status = exception instanceof HttpException
+    const mapped = businessProblem(exception);
+    const status = mapped?.status ?? (exception instanceof HttpException
       ? exception.getStatus()
-      : HttpStatus.INTERNAL_SERVER_ERROR;
+      : HttpStatus.INTERNAL_SERVER_ERROR);
     const isClientError = status >= 400 && status < 500;
     const errors = exception instanceof TransportValidationException
       ? [...exception.safeErrors]
@@ -54,17 +55,44 @@ export class ProblemDetailsFilter implements ExceptionFilter {
     response.setHeader("X-Correlation-Id", correlationId);
     response.setHeader("X-Request-Id", requestId);
     const problem = ProblemDetailsSchema.parse({
-      type: isClientError
+      type: mapped?.type ?? (isClientError
         ? "https://api.monpiole.example/problems/invalid-request"
-        : "https://api.monpiole.example/problems/internal-error",
-      title: isClientError ? "Invalid request" : "Internal server error",
+        : "https://api.monpiole.example/problems/internal-error"),
+      title: mapped?.title ?? (isClientError ? "Invalid request" : "Internal server error"),
       status,
-      code: isClientError ? "INVALID_REQUEST" : "INTERNAL_ERROR",
+      code: mapped?.code ?? (isClientError ? "INVALID_REQUEST" : "INTERNAL_ERROR"),
       correlationId,
       ...(errors === undefined ? {} : { errors }),
     });
     response.status(status).type("application/problem+json").json(problem);
   }
+}
+
+function businessProblem(exception: unknown) {
+  const code = errorCode(exception);
+  if (code === "CREATE_TENANT_FORBIDDEN" || (exception instanceof HttpException && exception.getStatus() === 403)) return {
+    status: 403, type: "https://api.monpiole.example/problems/forbidden",
+    title: "Forbidden", code: "FORBIDDEN",
+  };
+  if (code === "DUPLICATE_TENANT_EMAIL") return {
+    status: 409, type: "https://api.monpiole.example/problems/duplicate-tenant",
+    title: "Tenant conflict", code: "DUPLICATE_TENANT",
+  };
+  if (code === "CREATE_TENANT_IDEMPOTENCY_CONFLICT") return {
+    status: 409, type: "https://api.monpiole.example/problems/idempotency-conflict",
+    title: "Idempotency conflict", code: "IDEMPOTENCY_CONFLICT",
+  };
+  if (code === "INVALID_TENANT_INPUT") return {
+    status: 400, type: "https://api.monpiole.example/problems/invalid-request",
+    title: "Invalid request", code: "INVALID_REQUEST",
+  };
+  return undefined;
+}
+
+function errorCode(exception: unknown): string | undefined {
+  return exception !== null && typeof exception === "object" && "code" in exception && typeof exception.code === "string"
+    ? exception.code
+    : undefined;
 }
 
 function randomFallbackId(): string {

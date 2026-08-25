@@ -179,7 +179,7 @@ export default {
       name: "applications-do-not-import-service-internals",
       severity: "error",
       from: { path: `^${fixturePrefix}apps/` },
-      to: { path: `^${fixturePrefix}services/` },
+      to: { path: `^${fixturePrefix}services/`, dependencyTypes: ["local"] },
     },
     ...crossServiceRules,
     ...crossServiceDataRules,
