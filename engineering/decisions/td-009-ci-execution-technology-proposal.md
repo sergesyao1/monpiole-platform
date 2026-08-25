@@ -1,6 +1,6 @@
 # TD-009: CI Execution Technology Proposal
 
-- Status: **APPROVED — NOT IMPLEMENTED**
+- Status: **APPROVED — IMPLEMENTED BY TASK-022**
 - Date: 2026-08-25
 - Governing decision: [ADR-0002](../adr/0002-technology-selection-gate.md)
 - Decision owners: Platform Architecture, Platform Engineering, Security
@@ -129,12 +129,12 @@ without a demonstrated private-network or specialist-hardware need.
 ## 9. Decision
 
 **Approve GitHub Actions** for the expanded validation baseline, with repository
-commands retained as the portable source of truth and implementation reserved
-for a separately authorized TASK-022.
+commands retained as the portable source of truth. Implementation was reserved
+for and completed by the separately authorized TASK-022.
 
-This decision is **APPROVED — NOT IMPLEMENTED**. The existing architecture
-workflow remains historical implemented scope and unchanged; TASK-021 does not
-expand it.
+This decision is **APPROVED — IMPLEMENTED BY TASK-022**. TASK-022 retained the
+historical workflow path and superseded its architecture-only content with the
+expanded graph; architecture enforcement remains present exactly once.
 
 ## 10. Runner model
 
@@ -267,10 +267,11 @@ separate, later approved trusted workflow/job with a defined effect and audience
   immutable action reference.
 - Prefer GitHub-owned actions and repository shell commands; additional actions
   require owner, license, provenance, permissions and update review.
-- Current official evidence: `actions/checkout` v7 resolves to
-  `9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0`; `actions/setup-node` v7 resolves
-  to `820762786026740c76f36085b0efc47a31fe5020`. Both declare Node 24 action
-  runtimes. Reverify at TASK-022; do not copy blindly.
+- TASK-022 reverified official tag refs: `actions/checkout` v7 resolves to
+  `3d3c42e5aac5ba805825da76410c181273ba90b1`; `actions/setup-node` v7 resolves
+  to `820762786026740c76f36085b0efc47a31fe5020`; and `actions/cache` v5 resolves
+  to `caa296126883cff596d87d8935842f9db880ef25`. The workflow pins these full
+  SHAs rather than floating tags.
 - Pin `ubuntu-24.04`, Node and pnpm policies and log effective versions. Runner
   image patching remains provider-managed and visible in metadata.
 - Preserve lockfile, frozen installation and lifecycle-script policy.
@@ -420,8 +421,9 @@ TD-010 and TD-011 are unchanged.
 | GitHub-hosted Ubuntu | `ubuntu-24.04` x64 supported; standard image lists Docker Server | Selected policy; reverify in TASK-022 |
 | Node | Repository >=24; observed 24.18.0 | Provision/assert exact 24.18.0 initially |
 | Corepack/pnpm | `packageManager: pnpm@11.22.0`; frozen lockfile | Use unchanged in every job |
-| checkout | Official v7 tag SHA `9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0`; Node 24 runtime | Candidate immutable pin |
-| setup-node | Official v7 SHA `820762786026740c76f36085b0efc47a31fe5020`; Node 24 runtime | Candidate immutable pin |
+| checkout | Official v7 tag SHA `3d3c42e5aac5ba805825da76410c181273ba90b1` | Implemented immutable pin |
+| setup-node | Official v7 SHA `820762786026740c76f36085b0efc47a31fe5020`; Node 24 runtime | Implemented immutable pin |
+| cache | Official v5 SHA `caa296126883cff596d87d8935842f9db880ef25` | Implemented immutable pin; pnpm store only |
 | Docker/Testcontainers | Ubuntu x64 lists Docker; Testcontainers 12.1.0 passed locally | Hosted proof required before merge gating |
 | PostgreSQL | TASK-020 digest proved PostgreSQL 18.6 linux/amd64 | Testcontainers provisioning; digest retained |
 | Branch controls | Rulesets support checks, PR rules, stale approvals and bypass | Repository setting, not workflow scope |
@@ -434,22 +436,20 @@ or dependency was installed.
 
 ## 33. Implementation gate
 
-TD-009 is **APPROVED — NOT IMPLEMENTED**. Architecture and Engineering approved
+TD-009 is **APPROVED — IMPLEMENTED BY TASK-022**. Architecture and Engineering approved
 the platform, runner, repository-command model, Testcontainers provisioning,
 trigger and branch-protection positions, security and permissions, immutable
 action references, conservative caching, failure aggregation, diagnostics,
 artifact and coverage positions, exception governance and deferred concerns on
 2026-08-25.
 
-Only a separately authorized TASK-022 may create or change expanded CI. TASK-022
-has not started. It must recheck evidence;
-confirm visibility/plan/billing; implement the smallest adapter; review triggers,
-permissions, pins, cache and secrets; prove every mapped gate on hosted Ubuntu;
-prove intentional failures block; prove Docker failure is not skipped; verify
-forks, cancellation, timeouts and diagnostics; obtain reviews; and configure
-rules only under separate repository-setting authority.
-
-TASK-021 does not authorize TASK-022 or alter the existing workflow.
+TASK-022 rechecked repository evidence and immutable action refs, implemented the
+smallest adapter, and reviewed triggers, permissions, pins, caching and secret
+exposure. All mapped gates were proven locally. Hosted Ubuntu positive and
+intentional-negative runs, fork isolation, cancellation and provider diagnostics
+remain acceptance evidence to collect after owner review. Repository visibility,
+plan/billing and ruleset configuration also remain owner actions under separate
+repository-setting authority.
 
 ## 34. Verification commands
 
@@ -495,9 +495,9 @@ Primary upstream evidence:
 
 ## Decision gate
 
-**APPROVED — NOT IMPLEMENTED — TASK-022 NOT STARTED.**
+**APPROVED — IMPLEMENTED BY TASK-022.**
 
-Architecture and Engineering approved TD-009 on 2026-08-25. Approval confirms
-the baseline recorded in this document and does not authorize workflow changes,
-repository ruleset changes, dependency installation, deployment behavior or
-production credentials outside a separately governed implementation task.
+Architecture and Engineering approved TD-009 on 2026-08-25. TASK-022 subsequently
+implemented the validation workflow without changing the approved technology
+choice. Repository ruleset changes, deployment behavior and production
+credentials remain outside the implementation authority.
