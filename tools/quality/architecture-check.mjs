@@ -190,7 +190,9 @@ function verifyGraph() {
     "no-circular-dependencies",
     "domain-does-not-depend-on-outer-layers",
     "domain-does-not-depend-on-external-technology",
+    "domain-does-not-depend-on-api-contract-technology",
     "application-does-not-depend-on-adapters",
+    "application-does-not-depend-on-api-contract-technology",
     "core-does-not-depend-on-outer-boundaries",
     "packages-do-not-import-owned-boundaries",
     "applications-do-not-import-package-source",
@@ -209,6 +211,21 @@ function verifyGraph() {
     const observed = new Set((result.summary?.violations ?? []).map((violation) => violation.rule?.name));
     for (const rule of expectedRules) {
       if (!observed.has(rule)) fail("diagnostic-fixtures", `expected violation ${rule} was not reported`);
+    }
+    const violations = result.summary?.violations ?? [];
+    for (const dependency of ["zod", "nestjs-zod", "@nestjs/swagger"]) {
+      const applicationViolation = violations.some((violation) =>
+        violation.rule?.name === "application-does-not-depend-on-api-contract-technology" &&
+        violation.to === dependency);
+      if (!applicationViolation) {
+        fail("diagnostic-fixtures", `Application -> ${dependency} was not rejected`);
+      }
+      const domainViolation = violations.some((violation) =>
+        violation.rule?.name === "domain-does-not-depend-on-api-contract-technology" &&
+        violation.to === dependency);
+      if (!domainViolation) {
+        fail("diagnostic-fixtures", `Domain -> ${dependency} was not rejected`);
+      }
     }
   } catch (error) {
     fail("diagnostic-fixtures", error.stderr?.trim() || error.message);

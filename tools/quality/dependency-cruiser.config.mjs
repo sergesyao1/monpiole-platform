@@ -77,10 +77,24 @@ export default {
       to: { dependencyTypes: ["core", "npm", "npm-dev", "npm-optional", "npm-peer"] },
     },
     {
+      name: "domain-does-not-depend-on-api-contract-technology",
+      severity: "error",
+      from: { path: "(^|/)domain/" },
+      to: { path: "^(zod|nestjs-zod|@nestjs/swagger)(/|$)" },
+    },
+    {
       name: "application-does-not-depend-on-adapters",
       severity: "error",
       from: { path: "(^|/)application/" },
       to: { path: "(^|/)(infrastructure|interfaces|migrations)/" },
+    },
+    {
+      name: "application-does-not-depend-on-api-contract-technology",
+      severity: "error",
+      from: { path: "(^|/)application/" },
+      to: {
+        path: "^(zod|nestjs-zod|@nestjs/swagger)(/|$)",
+      },
     },
     {
       name: "core-does-not-depend-on-outer-boundaries",

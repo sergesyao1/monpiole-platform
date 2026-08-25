@@ -3,6 +3,8 @@ packages:
   - "services/*"
   - "packages/*"
   - "tools/quality/fixtures/resolver/*"
+allowBuilds:
+  "@scarf/scarf": false
 minimumReleaseAgeExclude:
   - '@nestjs/common@11.2.2'
   - '@nestjs/core@11.2.2'

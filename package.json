@@ -14,6 +14,8 @@
     "app:api:build": "corepack pnpm --filter @monpiole/api build",
     "app:api:start": "corepack pnpm --filter @monpiole/api start",
     "app:api:typecheck": "corepack pnpm --filter @monpiole/api typecheck",
+    "app:api:openapi": "corepack pnpm --filter @monpiole/api openapi",
+    "app:api:contracts:check": "vitest run --project contract",
     "test:unit": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
     "test:contract": "vitest run --project contract",
