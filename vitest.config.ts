@@ -3,6 +3,7 @@ import { defineConfig, type TestProjectConfiguration } from "vitest/config";
 function nodeProject(
   name: string,
   include: readonly string[],
+  hookTimeout = 10_000,
 ): TestProjectConfiguration {
   return {
     test: {
@@ -14,6 +15,7 @@ function nodeProject(
       sequence: {
         concurrent: false,
       },
+      hookTimeout,
     },
   };
 }
@@ -24,6 +26,7 @@ export default defineConfig({
     projects: [
       nodeProject("unit", ["tests/unit/**/*.test.ts"]),
       nodeProject("integration", ["tests/integration/**/*.test.ts"]),
+      nodeProject("persistence-integration", ["packages/persistence/tests/**/*.test.ts"], 60_000),
       nodeProject("contract", ["tests/contract/**/*.test.ts"]),
     ],
     coverage: {

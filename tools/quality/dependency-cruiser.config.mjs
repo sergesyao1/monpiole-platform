@@ -12,7 +12,7 @@ const fixturePrefix = "(?:tools/quality/fixtures/(?:allowed|violations)/)?";
 
 const packageNames = [
   "config", "core", "design-system", "design-tokens", "eslint-config", "events",
-  "sdk", "shared", "testing", "types", "typescript-config", "ui", "utils",
+  "persistence", "sdk", "shared", "testing", "types", "typescript-config", "ui", "utils",
 ];
 
 const crossPackageSourceRules = packageNames.map((packageName) => ({
@@ -113,12 +113,36 @@ export default {
       },
     },
     {
+      name: "domain-does-not-depend-on-persistence-technology",
+      severity: "error",
+      from: { path: "(^|/)domain/" },
+      to: { path: "^(?:@monpiole/persistence|pg|drizzle-orm|drizzle-kit)(/|$)|(^|/)packages/persistence/" },
+    },
+    {
+      name: "application-does-not-depend-on-persistence-technology",
+      severity: "error",
+      from: { path: "(^|/)application/" },
+      to: { path: "^(?:@monpiole/persistence|pg|drizzle-orm|drizzle-kit)(/|$)|(^|/)packages/persistence/" },
+    },
+    {
+      name: "service-database-technology-is-infrastructure-only",
+      severity: "error",
+      from: { path: `^${fixturePrefix}services/(?![^/]+/infrastructure/)[^/]+/` },
+      to: { path: "^(?:pg|drizzle-orm|drizzle-kit)(/|$)" },
+    },
+    {
       name: "events-package-does-not-depend-on-outer-technology",
       severity: "error",
       from: { path: `^${fixturePrefix}packages/events/` },
       to: {
-        path: "^(?:@nestjs/[^/]+|amqplib|kafkajs|nats|redis|typeorm|@prisma/[^/]+|prisma)(?:/|$)",
+        path: "^(?:@nestjs/[^/]+|amqplib|kafkajs|nats|redis|typeorm|pg|drizzle-orm|drizzle-kit|@monpiole/persistence|@prisma/[^/]+|prisma)(?:/|$)",
       },
+    },
+    {
+      name: "governed-contract-packages-do-not-depend-on-persistence-technology",
+      severity: "error",
+      from: { path: `^${fixturePrefix}packages/(?:core|events|types|sdk)/` },
+      to: { path: "^(?:@monpiole/persistence|pg|drizzle-orm|drizzle-kit)(/|$)|(^|/)packages/persistence/" },
     },
     {
       name: "core-does-not-depend-on-outer-boundaries",

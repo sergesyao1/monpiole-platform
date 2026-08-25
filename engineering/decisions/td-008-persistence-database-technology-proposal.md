@@ -1,18 +1,16 @@
 # TD-008: Persistence and Database Technology Baseline
 
-- Status: **APPROVED — NOT IMPLEMENTED**
+- Status: **APPROVED — IMPLEMENTED BY TASK-020**
 - Date: 2026-08-25
 - Governing decision: ADR-0002 — Technology Selection Gate
 - Decision owners: Architecture, Security, Platform Engineering, bounded-context owners
-- Implementation gate: **APPROVED DECISION — SEPARATE TASK-020 REQUIRED**
+- Implementation gate: **TASK-020 COMPLETE — PRODUCT PERSISTENCE REQUIRES SEPARATE APPROVAL**
 
 ## 1. Status
 
-TD-008 approves the persistence technology and architecture baseline. Approval
-does not itself authorize dependency installation, database startup, schema
-creation, migration execution, repository implementation or runtime
-configuration; those changes require a separately created and authorized
-TASK-020.
+TD-008 approves the persistence technology and architecture baseline. The
+infrastructure-only baseline was implemented and verified by TASK-020 on
+2026-08-25. Product persistence remains separately governed and unimplemented.
 
 ## 2. Date
 
@@ -515,17 +513,15 @@ is permitted.
 
 ## 35. Implementation gate
 
-TD-008 is **APPROVED — NOT IMPLEMENTED**. A separate TASK-020 must be created
-and authorized before implementation. TASK-020 must start with an audit-only
-compatibility/supply-chain phase and stop with
-`REVISION_REQUIRED` if any exact candidate fails Node 24, TypeScript 6,
-NodeNext, pnpm, PostgreSQL 18 or policy checks.
+TD-008 is **APPROVED — IMPLEMENTED BY TASK-020**. TASK-020 completed the
+audit-only compatibility/supply-chain phase before installation and verified
+the exact candidates with Node 24, TypeScript 6, NodeNext, pnpm and PostgreSQL
+18.
 
-Only a later approved implementation phase may install dependencies. Its
-smallest proof must be a synthetic, non-product, single-context adapter showing
+The implemented proof is a synthetic, non-product infrastructure baseline showing
 explicit mapping, tenant-scoped repository access, transaction-local RLS,
-migrations, constraints, rollback, pooling and real PostgreSQL tests. It must
-add architecture rules before product persistence. It must not implement
+migrations, constraints, rollback, pooling and real PostgreSQL tests. It adds
+architecture rules before product persistence. It does not implement
 Tenant Onboarding, cross-context access, Outbox/Inbox, production configuration
 or deployment.
 
@@ -539,7 +535,7 @@ git diff --stat
 git status --short
 ```
 
-Future TASK-020 gates must include existing repository checks plus exact
+TASK-020 gates included existing repository checks plus exact
 package metadata/audit, frozen installation, typecheck, build, architecture,
 unit/integration tests, migration drift/apply checks and repeated tenant/RLS
 isolation tests against PostgreSQL 18.
@@ -575,9 +571,9 @@ Primary upstream evidence:
 
 ## Decision gate
 
-**APPROVED — NOT IMPLEMENTED — TASK-020 NOT YET CREATED OR AUTHORIZED.**
+**APPROVED — IMPLEMENTED BY TASK-020 — PRODUCT PERSISTENCE NOT IMPLEMENTED.**
 
 Architecture review approved PostgreSQL 18, Drizzle plus `pg`, the RLS default,
 row-per-tenant model, migration governance, exact compatibility gate and
-TASK-020 non-goals on 2026-08-25. This documentation approval creates no
-runtime rollback obligation because no persistence implementation exists.
+TASK-020 non-goals on 2026-08-25. The baseline remains removable without
+changing Domain or Application code.

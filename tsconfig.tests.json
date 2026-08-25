@@ -9,6 +9,8 @@
   "include": [
     "apps/api/src/**/*.ts",
     "packages/events/src/**/*.ts",
+    "packages/persistence/src/**/*.ts",
+    "packages/persistence/tests/**/*.ts",
     "vitest.config.ts",
     "tests/**/*.ts"
   ]

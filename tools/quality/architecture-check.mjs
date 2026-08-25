@@ -195,6 +195,10 @@ function verifyGraph() {
     "application-does-not-depend-on-api-contract-technology",
     "domain-does-not-depend-on-eventing-technology",
     "application-does-not-depend-on-eventing-technology",
+    "domain-does-not-depend-on-persistence-technology",
+    "application-does-not-depend-on-persistence-technology",
+    "service-database-technology-is-infrastructure-only",
+    "governed-contract-packages-do-not-depend-on-persistence-technology",
     "events-package-does-not-depend-on-outer-technology",
     "core-does-not-depend-on-outer-boundaries",
     "packages-do-not-import-owned-boundaries",
@@ -246,6 +250,20 @@ function verifyGraph() {
         candidate.to === dependency);
       if (!violation) {
         fail("diagnostic-fixtures", `packages/events -> ${dependency} was not rejected`);
+      }
+    }
+    for (const dependency of ["@monpiole/persistence", "pg", "drizzle-orm", "drizzle-kit"]) {
+      for (const layer of ["application", "domain"]) {
+        const rule = `${layer}-does-not-depend-on-persistence-technology`;
+        const violation = violations.some((candidate) =>
+          candidate.rule?.name === rule && candidate.to === dependency);
+        if (!violation) fail("diagnostic-fixtures", `${layer} -> ${dependency} was not rejected by ${rule}`);
+      }
+      const contractViolation = violations.some((candidate) =>
+        candidate.rule?.name === "governed-contract-packages-do-not-depend-on-persistence-technology" &&
+        candidate.to === dependency);
+      if (!contractViolation) {
+        fail("diagnostic-fixtures", `governed contract package -> ${dependency} was not rejected`);
       }
     }
     for (const ownedBoundary of ["apps/api/src/index.ts", "services/billing/infrastructure/persistence/repository.ts"]) {
