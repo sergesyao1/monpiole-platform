@@ -29,6 +29,9 @@ importers:
       '@monpiole/identity':
         specifier: workspace:*
         version: link:../../services/identity
+      '@monpiole/persistence':
+        specifier: workspace:*
+        version: link:../../packages/persistence
       '@monpiole/tenant-management':
         specifier: workspace:*
         version: link:../../services/tenant-management
@@ -109,6 +112,9 @@ importers:
       '@monpiole/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@monpiole/persistence':
+        specifier: workspace:*
+        version: link:../../packages/persistence
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(@types/pg@8.23.1)(pg@8.23.0)

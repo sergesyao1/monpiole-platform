@@ -1,7 +1,14 @@
 import { createApiApplication } from "./bootstrap.js";
+import { createPostgresApiRuntime } from "./composition/create-postgres-runtime-composition.js";
 
 const port = Number.parseInt(process.env.PORT ?? "3000", 10);
-const application = await createApiApplication();
+const runtime = createPostgresApiRuntime(process.env);
+const application = await createApiApplication(undefined, runtime.composition);
 
 application.enableShutdownHooks();
-await application.listen(port);
+try {
+  await application.listen(port);
+} catch (error) {
+  await runtime.close();
+  throw error;
+}

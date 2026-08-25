@@ -37,7 +37,11 @@ export interface ApiComposition {
   readonly bootstrapTenantAdministrator?: Pick<BootstrapTenantAdministrator, "execute">;
   readonly activateTenantAdministrator?: Pick<ActivateTenantAdministrator, "execute">;
   readonly activateTenant?: Pick<ActivateTenant, "execute">;
+  readonly runtimeShutdown?: RuntimeShutdown;
 }
+
+export interface RuntimeShutdown { onApplicationShutdown(): Promise<void>; }
+export const RUNTIME_SHUTDOWN = Symbol("monpiole.runtime-shutdown");
 
 const unavailableCreateTenant: Pick<CreateTenant, "execute"> = {
   async execute() { throw new Error("Create Tenant production composition is unavailable"); },
@@ -84,6 +88,9 @@ export class AppModule {
           useValue: composition.activateTenantAdministrator ?? unavailableActivateAdministrator,
         },
         { provide: ACTIVATE_TENANT_USE_CASE, useValue: composition.activateTenant ?? unavailableActivateTenant },
+        ...(composition.runtimeShutdown === undefined
+          ? []
+          : [{ provide: RUNTIME_SHUTDOWN, useValue: composition.runtimeShutdown }]),
       ],
     };
   }

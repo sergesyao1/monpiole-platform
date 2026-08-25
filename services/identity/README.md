@@ -65,3 +65,11 @@ are translated to the existing bootstrap conflict outcome. The in-memory store
 remains available for isolated deterministic tests; runtime composition can
 construct the same use cases with the exported PostgreSQL store and the shared
 configured PostgreSQL pool.
+
+## TASK-029 runtime composition
+
+Normal API startup constructs one `PostgresIdentityStore` from the shared
+`@monpiole/persistence` environment configuration. That instance serves
+bootstrap, activation, and active-administrator readiness; there is no silent
+in-memory fallback. The pool is closed through the Nest application lifecycle.
+Tests may continue to inject the in-memory store explicitly.

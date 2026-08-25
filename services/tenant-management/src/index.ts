@@ -1,4 +1,8 @@
 export {
+  CheckTenantExists,
+  type TenantExistenceRepository,
+} from "./application/tenant-existence.js";
+export {
   ActivateTenant,
   TenantAdministratorNotReadyError,
   TenantNotFoundError,
@@ -45,3 +49,4 @@ export {
 } from "./infrastructure/events/tenant-created.js";
 export { PostgresCreateTenantUnitOfWork } from "./infrastructure/persistence/postgres/create-tenant-store.js";
 export { PostgresActivateTenantUnitOfWork } from "./infrastructure/persistence/postgres/activate-tenant-store.js";
+export { PostgresTenantExistenceRepository } from "./infrastructure/persistence/postgres/tenant-existence-repository.js";

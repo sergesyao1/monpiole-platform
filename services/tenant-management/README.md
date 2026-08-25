@@ -52,3 +52,11 @@ port. The PostgreSQL state update and
 transaction; repeated activation returns the original `activatedAt` and emits
 no duplicate event. Identity persistence, broker dispatch, and complete
 onboarding remain outside this slice.
+
+## Identity runtime composition support
+
+Tenant existence for Identity bootstrap is exposed through the inward
+`CheckTenantExists` application capability. Its PostgreSQL adapter uses the
+tenant-scoped `tenant:exists` RLS policy. Identity and Tenant Management do not
+import one another's persistence implementations; API composition adapts the
+public capabilities.
