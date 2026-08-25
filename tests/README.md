@@ -36,3 +36,10 @@ unit smoke fixture without an organization-wide threshold; it does not prove
 security or tenant isolation. Testcontainers is installed and used with the
 approved immutable PostgreSQL image for package and service-owned persistence
 tests. Other TD-004-deferred tools remain uninstalled.
+
+## Authentication security tests
+
+Authentication tests use locally generated asymmetric keys and an in-process
+JWKS resolver. The deterministic CI graph does not require Auth0 or Internet
+availability. Any future provider smoke test must be a separate opt-in
+deployment check using non-production credentials.

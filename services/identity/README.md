@@ -82,3 +82,11 @@ invoke the Identity-owned technology-neutral authorization port before tenant
 or Identity persistence access. API composition supplies the grant and tenant
 scope policy; Identity remains independent of NestJS and authentication
 transport technology.
+
+## TASK-033 external authentication ownership
+
+Managed OIDC authenticates an external subject, while Identity remains owner of
+the MonPiole identity, enabled state, tenant membership, and authority data.
+External linkage is keyed by `issuer + subject`, never email, and provider roles
+are not business grants. Durable external-link storage and controlled first
+platform-administrator provisioning remain production deployment gates.

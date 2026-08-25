@@ -53,3 +53,16 @@ service Application ports enforce operation grants and tenant scope before
 reads or side effects. Normal runtime deliberately has no implicit provider and
 therefore fails closed until an approved production authentication adapter is
 selected and injected.
+
+## TASK-033 authentication security baseline
+
+ADR-0007 selects managed OpenID Connect with Auth0 Public Cloud as the reference
+provider. The provider-neutral JOSE adapter requires an exact HTTPS issuer,
+audience and JWKS source, `RS256`, signature, expiration, issued-at, maximum age,
+and subject before producing `VerifiedAuthenticationContext`.
+
+Provider claims do not grant tenant scope or business authority. MonPiole maps
+`issuer + subject` to internal state and derives grants and tenant scopes there.
+Invalid or unresolved credentials use 401 Problem Details; authenticated
+authorities rejected by Application policy receive 403. Tokens and
+Authorization headers must never be logged.
