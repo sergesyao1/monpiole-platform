@@ -11,6 +11,9 @@
     "architecture:check": "node tools/quality/architecture-check.mjs",
     "architecture:graph": "depcruise --config tools/quality/dependency-cruiser.config.mjs apps services packages",
     "typecheck:architecture-fixtures": "tsc --build tools/quality/fixtures/resolver/tsconfig.json",
+    "app:api:build": "corepack pnpm --filter @monpiole/api build",
+    "app:api:start": "corepack pnpm --filter @monpiole/api start",
+    "app:api:typecheck": "corepack pnpm --filter @monpiole/api typecheck",
     "test:unit": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
     "test:contract": "vitest run --project contract",
@@ -19,6 +22,7 @@
     "typecheck:tests": "tsc --project tsconfig.tests.json"
   },
   "devDependencies": {
+    "@types/node": "26.3.0",
     "@vitest/coverage-v8": "4.1.11",
     "dependency-cruiser": "18.2.0",
     "typescript": "6.0.3",

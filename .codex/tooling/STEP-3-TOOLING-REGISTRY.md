@@ -10,8 +10,8 @@
 - Status: PARTIALLY_BASELINED
 - Source ADRs available: ADR-0005, ADR-0006
 - Project ADR scope: ADR-0001 → ADR-0006
-- Technology selection performed: YES — TD-004 scope only in this registry update
-- Technology installation performed: YES — Vitest baseline only through TASK-014
+- Technology selection performed: YES — TD-004 and TD-005 scopes only
+- Technology installation performed: YES — Vitest through TASK-014 and the minimal NestJS application baseline through TASK-015
 
 ## TOOL Registry
 
@@ -29,12 +29,13 @@
 | TOOL-010 | Orchestration Tooling | Provide tooling capability for service orchestration. | ADR-0006 | REQ-0037 | NOT_SELECTED | NOT_BASELINED | ADR-0002 |
 | TOOL-011 | Monitoring Tooling | Support monitoring and operational verification. | ADR-0006 | REQ-0038 | NOT_SELECTED | NOT_BASELINED | ADR-0002 |
 | TOOL-012 | Package and Dependency Management | Manage project packages and dependency boundaries. | ADR-0006 | REQ-0050, REQ-0057 | NOT_SELECTED | NOT_BASELINED | ADR-0002 |
+| TOOL-013 | Application Framework | Compose executable applications and external HTTP interfaces without coupling Domain or Application layers to the framework. | ADR-0005, ADR-0006 | TD-005 | NESTJS_11.2.2 | MINIMAL_API_COMPOSITION_AND_HEALTH_BASELINE_TASK-015 | TD-005 APPROVED |
 
 ## Tooling Decision Rules
 
 - Concrete technology may appear only after an ADR-0002-compliant decision and
   verified implementation; TD-004/TASK-014 provide that evidence for TOOL-003
-  through TOOL-006 only.
+  through TOOL-006; TD-005/TASK-015 provide evidence for TOOL-013 only.
 - Registry status does not authorize additional package installation.
 - Candidate technologies require evaluation against ADR-0002.
 - Selection requires problem definition, alternatives, compatibility analysis, operational impact, security analysis, and migration/rollback considerations.
@@ -50,3 +51,4 @@
 - [x] Current project ADR scope is explicitly ADR-0001 → ADR-0006.
 - [ ] Final tooling baseline is established.
 - [x] Recorded TD-004 technology selections have passed ADR-0002.
+- [x] Recorded TD-005 NestJS selection has passed ADR-0002 and remains limited to the application/composition boundary.
