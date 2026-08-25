@@ -39,6 +39,13 @@ export class Identity {
     ) as PendingIdentity;
   }
 
+  static rehydrate(values: {
+    id: string; email: string; firstName: string; lastName: string; status: IdentityStatus;
+  }): Identity {
+    const pending = Identity.bootstrap(values);
+    return values.status === "ACTIVE" ? pending.activate() : pending;
+  }
+
   activate(): ActiveIdentity {
     if (this.status === "ACTIVE") return this as ActiveIdentity;
     return new Identity(this.id, this.email, this.firstName, this.lastName, "ACTIVE") as ActiveIdentity;
@@ -52,5 +59,10 @@ export class TenantMembership {
     if (!UUID_V4.test(tenantId)) throw new InvalidBootstrapAdministratorError("tenantId");
     if (!UUID_V4.test(identityId)) throw new InvalidBootstrapAdministratorError("administratorId");
     return new TenantMembership(tenantId, identityId);
+  }
+
+
+  static rehydrate(tenantId: string, identityId: string): TenantMembership {
+    return TenantMembership.bootstrap(tenantId, identityId);
   }
 }

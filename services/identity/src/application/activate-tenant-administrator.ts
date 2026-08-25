@@ -16,8 +16,8 @@ export interface ActivateTenantAdministratorResult {
 
 export interface ActivateTenantAdministratorStore {
   findMembership(tenantId: string): Promise<TenantMembership | undefined>;
-  findIdentityById(administratorId: string): Promise<Identity | undefined>;
-  saveActivatedIdentity(identity: Identity, correlationId: string): Promise<void>;
+  findIdentityById(administratorId: string, tenantId: string): Promise<Identity | undefined>;
+  saveActivatedIdentity(identity: Identity, tenantId: string, correlationId: string): Promise<void>;
 }
 
 export class TenantAdministratorNotFoundError extends Error {
@@ -32,10 +32,10 @@ export class ActivateTenantAdministrator {
     if (membership === undefined || membership.identityId !== command.administratorId) {
       throw new TenantAdministratorNotFoundError();
     }
-    const identity = await this.store.findIdentityById(command.administratorId);
+    const identity = await this.store.findIdentityById(command.administratorId, command.tenantId);
     if (identity === undefined) throw new TenantAdministratorNotFoundError();
     const activeIdentity = identity.activate();
-    await this.store.saveActivatedIdentity(activeIdentity, command.correlationId);
+    await this.store.saveActivatedIdentity(activeIdentity, command.tenantId, command.correlationId);
     return Object.freeze({
       tenantId: membership.tenantId,
       administratorId: activeIdentity.id,

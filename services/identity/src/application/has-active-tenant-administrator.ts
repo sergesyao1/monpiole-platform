@@ -2,7 +2,7 @@ import type { Identity, TenantMembership } from "../domain/identity.js";
 
 export interface ActiveTenantAdministratorStore {
   findMembership(tenantId: string): Promise<TenantMembership | undefined>;
-  findIdentityById(administratorId: string): Promise<Identity | undefined>;
+  findIdentityById(administratorId: string, tenantId: string): Promise<Identity | undefined>;
 }
 
 export class HasActiveTenantAdministrator {
@@ -11,7 +11,7 @@ export class HasActiveTenantAdministrator {
   async execute(tenantId: string): Promise<boolean> {
     const membership = await this.store.findMembership(tenantId);
     if (membership === undefined || membership.role !== "TENANT_ADMINISTRATOR") return false;
-    const identity = await this.store.findIdentityById(membership.identityId);
+    const identity = await this.store.findIdentityById(membership.identityId, tenantId);
     return identity?.status === "ACTIVE";
   }
 }

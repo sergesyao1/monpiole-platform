@@ -19,7 +19,7 @@ export interface BootstrapTenantAdministratorResult {
 export interface TenantExistencePort { exists(tenantId: string): Promise<boolean>; }
 export interface IdentityIdentifierGenerator { generate(): string; }
 export interface BootstrapAdministratorStore {
-  findIdentityByEmail(normalizedEmail: string): Promise<Identity | undefined>;
+  findIdentityByEmail(normalizedEmail: string, tenantId: string): Promise<Identity | undefined>;
   findMembership(tenantId: string): Promise<TenantMembership | undefined>;
   saveAtomically(identity: Identity, membership: TenantMembership, correlationId: string): Promise<void>;
 }
@@ -37,7 +37,7 @@ export class BootstrapTenantAdministrator {
   async execute(command: BootstrapTenantAdministratorCommand): Promise<BootstrapTenantAdministratorResult> {
     if (!await this.tenants.exists(command.tenantId)) throw new TenantNotFoundError();
     const email = normalizeAdministratorEmail(command.email);
-    if (await this.store.findIdentityByEmail(email) || await this.store.findMembership(command.tenantId)) {
+    if (await this.store.findIdentityByEmail(email, command.tenantId) || await this.store.findMembership(command.tenantId)) {
       throw new BootstrapAdministratorConflictError();
     }
     const identity = Identity.bootstrap({

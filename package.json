@@ -28,6 +28,8 @@
     "service:tenant-management:migration:check": "corepack pnpm --filter @monpiole/tenant-management migration:check",
     "service:identity:build": "corepack pnpm --filter @monpiole/identity build",
     "service:identity:typecheck": "corepack pnpm --filter @monpiole/identity typecheck",
+    "service:identity:migration:check": "corepack pnpm --filter @monpiole/identity migration:check",
+    "service:identity:test:integration": "corepack pnpm --filter @monpiole/identity test:integration",
     "test:unit": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
     "test:contract": "vitest run --project contract",

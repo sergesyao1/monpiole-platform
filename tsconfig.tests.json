@@ -14,6 +14,7 @@
     "services/tenant-management/src/**/*.ts",
     "services/tenant-management/tests/**/*.ts",
     "services/identity/src/**/*.ts",
+    "services/identity/tests/**/*.ts",
     "vitest.config.ts",
     "tests/**/*.ts"
   ]

@@ -13,8 +13,11 @@ BootstrapAdministratorStore, ActivateTenantAdministratorStore, ActiveTenantAdmin
   readonly #membershipsByTenant = new Map<string, TenantMembership>();
   readonly #correlationsByIdentity = new Map<string, string>();
 
-  async findIdentityByEmail(email: string) { return this.#identitiesByEmail.get(email); }
-  async findIdentityById(administratorId: string) { return this.#identitiesById.get(administratorId); }
+  async findIdentityByEmail(email: string, _tenantId: string) { return this.#identitiesByEmail.get(email); }
+  async findIdentityById(administratorId: string, tenantId: string) {
+    const membership = this.#membershipsByTenant.get(tenantId);
+    return membership?.identityId === administratorId ? this.#identitiesById.get(administratorId) : undefined;
+  }
   async findMembership(tenantId: string) { return this.#membershipsByTenant.get(tenantId); }
 
   async saveAtomically(identity: Identity, membership: TenantMembership, correlationId: string): Promise<void> {
@@ -27,8 +30,8 @@ BootstrapAdministratorStore, ActivateTenantAdministratorStore, ActiveTenantAdmin
     this.#correlationsByIdentity.set(identity.id, correlationId);
   }
 
-  async saveActivatedIdentity(identity: Identity, correlationId: string): Promise<void> {
-    if (!this.#identitiesById.has(identity.id)) return;
+  async saveActivatedIdentity(identity: Identity, tenantId: string, correlationId: string): Promise<void> {
+    if (this.#membershipsByTenant.get(tenantId)?.identityId !== identity.id) return;
     this.#identitiesById.set(identity.id, identity);
     this.#identitiesByEmail.set(identity.email, identity);
     this.#correlationsByIdentity.set(identity.id, correlationId);

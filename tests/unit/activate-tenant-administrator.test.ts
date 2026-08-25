@@ -51,7 +51,7 @@ describe("Activate Tenant Administrator", () => {
         tenantId: TENANT_ID, administratorId: ADMINISTRATOR_ID, email: "admin@example.com",
         role: "TENANT_ADMINISTRATOR", status: "ACTIVE",
       });
-    expect((await store.findIdentityById(ADMINISTRATOR_ID))?.status).toBe("ACTIVE");
+    expect((await store.findIdentityById(ADMINISTRATOR_ID, TENANT_ID))?.status).toBe("ACTIVE");
   });
 
   it("rejects an unknown administrator with not-found semantics", async () => {
