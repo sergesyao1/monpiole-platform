@@ -51,6 +51,12 @@ importers:
         specifier: 4.4.3
         version: 4.4.3
 
+  packages/events:
+    dependencies:
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
   tools/quality/fixtures/resolver/consumer:
     dependencies:
       '@monpiole/architecture-fixture-contract':

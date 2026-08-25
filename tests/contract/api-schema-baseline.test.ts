@@ -21,7 +21,7 @@ describe("canonical Zod transport contracts", () => {
     [{ message: "" }],
     [{ message: "hello", unexpected: true }],
     [{}],
-  ])("rejects an invalid or unknown request shape", (payload) => {
+  ])("rejects an invalid or unknown request shape", (payload: unknown) => {
     expect(ContractBaselineRequestSchema.safeParse(payload).success).toBe(false);
   });
 

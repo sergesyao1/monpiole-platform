@@ -193,6 +193,9 @@ function verifyGraph() {
     "domain-does-not-depend-on-api-contract-technology",
     "application-does-not-depend-on-adapters",
     "application-does-not-depend-on-api-contract-technology",
+    "domain-does-not-depend-on-eventing-technology",
+    "application-does-not-depend-on-eventing-technology",
+    "events-package-does-not-depend-on-outer-technology",
     "core-does-not-depend-on-outer-boundaries",
     "packages-do-not-import-owned-boundaries",
     "applications-do-not-import-package-source",
@@ -225,6 +228,42 @@ function verifyGraph() {
         violation.to === dependency);
       if (!domainViolation) {
         fail("diagnostic-fixtures", `Domain -> ${dependency} was not rejected`);
+      }
+    }
+    for (const dependency of ["amqplib", "@nestjs/microservices", "kafkajs", "nats", "redis"]) {
+      for (const layer of ["application", "domain"]) {
+        const rule = `${layer}-does-not-depend-on-eventing-technology`;
+        const violation = violations.some((candidate) =>
+          candidate.rule?.name === rule && candidate.to === dependency);
+        if (!violation) {
+          fail("diagnostic-fixtures", `${layer} -> ${dependency} was not rejected by ${rule}`);
+        }
+      }
+    }
+    for (const dependency of ["@nestjs/common", "@nestjs/microservices", "amqplib", "kafkajs", "nats", "redis", "typeorm"]) {
+      const violation = violations.some((candidate) =>
+        candidate.rule?.name === "events-package-does-not-depend-on-outer-technology" &&
+        candidate.to === dependency);
+      if (!violation) {
+        fail("diagnostic-fixtures", `packages/events -> ${dependency} was not rejected`);
+      }
+    }
+    for (const ownedBoundary of ["apps/api/src/index.ts", "services/billing/infrastructure/persistence/repository.ts"]) {
+      const violation = violations.some((candidate) =>
+        candidate.rule?.name === "packages-do-not-import-owned-boundaries" &&
+        candidate.from.endsWith("packages/events/src/outer-technology.ts") &&
+        candidate.to.endsWith(ownedBoundary));
+      if (!violation) {
+        fail("diagnostic-fixtures", `packages/events -> ${ownedBoundary} was not rejected`);
+      }
+    }
+    for (const layer of ["application", "domain"]) {
+      const rule = `${layer}-does-not-depend-on-eventing-technology`;
+      const violation = violations.some((candidate) =>
+        candidate.rule?.name === rule &&
+        (candidate.to === "@monpiole/events" || candidate.to.endsWith("packages/events/src/index.ts")));
+      if (!violation) {
+        fail("diagnostic-fixtures", `${layer} -> @monpiole/events was not rejected by ${rule}`);
       }
     }
   } catch (error) {

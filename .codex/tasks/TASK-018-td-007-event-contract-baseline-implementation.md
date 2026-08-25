@@ -2,7 +2,7 @@
 
 ## Status
 
-TODO
+DONE
 
 ## Objective
 
@@ -109,25 +109,25 @@ TASK-018 must not implement, install, configure or select:
 
 ## Acceptance criteria
 
-- [ ] Pre-flight confirms TD-007 approval and no material repository drift.
-- [ ] `packages/events` is a valid private ESM workspace with explicit exports.
-- [ ] Any direct dependency is exact-pinned and passes compatibility,
+- [x] Pre-flight confirms TD-007 approval and no material repository drift.
+- [x] `packages/events` is a valid private ESM workspace with explicit exports.
+- [x] Any direct dependency is exact-pinned and passes compatibility,
       supply-chain, license, provenance and lockfile review.
-- [ ] Event envelope schemas implement every TD-007 required/optional field.
-- [ ] Tenant-scoped events require `tenantId`; platform-scoped events reject or
+- [x] Event envelope schemas implement every TD-007 required/optional field.
+- [x] Tenant-scoped events require `tenantId`; platform-scoped events reject or
       omit it according to the approved contract rather than using `null`.
-- [ ] Producer validation is strict and consumer parsing tolerates only approved
+- [x] Producer validation is strict and consumer parsing tolerates only approved
       additive evolution.
-- [ ] Unknown/incompatible event versions fail safely.
-- [ ] JSON serialization is deterministic UTF-8 and round-trip tested.
-- [ ] Synthetic fixtures contain no production, personal or secret data.
-- [ ] Provider and consumer compatibility tests use the TD-004 Vitest baseline.
-- [ ] Architecture fixtures prove Domain/Application and package boundaries.
-- [ ] No broker, client, network consumer/publisher, persistence or product
+- [x] Unknown/incompatible event versions fail safely.
+- [x] JSON serialization is deterministic UTF-8 and round-trip tested.
+- [x] Synthetic fixtures contain no production, personal or secret data.
+- [x] Provider and consumer compatibility tests use the TD-004 Vitest baseline.
+- [x] Architecture fixtures prove Domain/Application and package boundaries.
+- [x] No broker, client, network consumer/publisher, persistence or product
       behavior exists in the diff.
-- [ ] Existing typecheck, tests, architecture checks and API baseline remain
+- [x] Existing typecheck, tests, architecture checks and API baseline remain
       green.
-- [ ] Documentation and rollback evidence are complete.
+- [x] Documentation and rollback evidence are complete.
 
 ## Proposed verification commands
 
@@ -169,3 +169,45 @@ Status may become `DONE` only when every acceptance criterion passes. If exact
 Zod compatibility, supply chain, additive consumer semantics or architecture
 enforcement cannot be proven, use `BLOCKED` or `REVISION_REQUIRED`; do not
 weaken TD-007 and do not silently introduce a broker or replacement technology.
+
+## Implementation evidence
+
+- Implemented `@monpiole/events` as a private native-ESM workspace package with
+  a single `.` export and exact direct dependency `zod@4.4.3`.
+- Implemented UUID identifiers without ID generation, positive integer contract
+  versions, namespaced event types, stable producer identities, RFC 3339 UTC
+  timestamps and distinct tenant/platform envelope invariants.
+- Implemented strict producer schemas and additive-tolerant consumer schemas;
+  `eventType` and `eventVersion` remain exact compatibility gates.
+- Implemented pre-serialization validation, recursively ordered UTF-8 JSON,
+  bounded parsing, fatal UTF-8 decoding and safe errors without raw values or
+  Zod internals. Arrays retain their order. Duplicate JSON keys retain the
+  documented `JSON.parse` last-key behavior.
+- Added three Vitest contract files with 31 TASK-018 tests and fixed synthetic
+  values only. The full repository has 10 passing files/52 tests; the contract
+  project has 6 passing files/41 tests.
+- Added named dependency-cruiser rules and diagnostic fixtures for Domain,
+  Application and `packages/events`. Existing Zod rules remain enforced.
+- `pnpm-lock.yaml` adds only the `packages/events` importer pointing to the
+  existing `zod@4.4.3` resolution. No second Zod or broker dependency exists.
+
+## Verification evidence — 2026-08-25
+
+All commands exited `0` after implementation:
+
+```text
+corepack pnpm install
+corepack pnpm typecheck:tests
+corepack pnpm test                         # 10 files, 52 tests
+corepack pnpm test:contract                # 6 files, 41 tests
+corepack pnpm architecture:check
+corepack pnpm app:api:typecheck
+corepack pnpm app:api:build
+corepack pnpm package:events:typecheck
+corepack pnpm package:events:build
+corepack pnpm package:events:contracts:check # 3 files, 31 tests; passed twice
+```
+
+Final whitespace and Git-state evidence is recorded in the TASK-018 delivery
+report. No Domain/Application runtime source, product event, broker,
+persistence, telemetry or deployment implementation was added.

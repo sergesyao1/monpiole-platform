@@ -97,6 +97,30 @@ export default {
       },
     },
     {
+      name: "domain-does-not-depend-on-eventing-technology",
+      severity: "error",
+      from: { path: "(^|/)domain/" },
+      to: {
+        path: "^(?:@monpiole/events|amqplib|@nestjs/microservices|kafkajs|nats|redis)(/|$)|(^|/)packages/events/",
+      },
+    },
+    {
+      name: "application-does-not-depend-on-eventing-technology",
+      severity: "error",
+      from: { path: "(^|/)application/" },
+      to: {
+        path: "^(?:@monpiole/events|amqplib|@nestjs/microservices|kafkajs|nats|redis)(/|$)|(^|/)packages/events/",
+      },
+    },
+    {
+      name: "events-package-does-not-depend-on-outer-technology",
+      severity: "error",
+      from: { path: `^${fixturePrefix}packages/events/` },
+      to: {
+        path: "^(?:@nestjs/[^/]+|amqplib|kafkajs|nats|redis|typeorm|@prisma/[^/]+|prisma)(?:/|$)",
+      },
+    },
+    {
       name: "core-does-not-depend-on-outer-boundaries",
       severity: "error",
       from: { path: `^${fixturePrefix}packages/core/` },

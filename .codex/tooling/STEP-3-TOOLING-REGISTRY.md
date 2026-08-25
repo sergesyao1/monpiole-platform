@@ -31,16 +31,16 @@
 | TOOL-012 | Package and Dependency Management | Manage project packages and dependency boundaries. | ADR-0006 | REQ-0050, REQ-0057 | NOT_SELECTED | NOT_BASELINED | ADR-0002 |
 | TOOL-013 | Application Framework | Compose executable applications and external HTTP interfaces without coupling Domain or Application layers to the framework. | ADR-0005, ADR-0006 | TD-005 | NESTJS_11.2.2 | MINIMAL_API_COMPOSITION_AND_HEALTH_BASELINE_TASK-015 | TD-005 APPROVED |
 | TOOL-014 | API Contract Representation | Define executable transport schemas, runtime validation/serialization, Problem Details and deterministic OpenAPI publication without exposing Domain or Application models. | ADR-0003, ADR-0004, ADR-0005, ADR-0006 | TD-006 | ZOD_4.4.3_WITH_NESTJS-ZOD_5.5.0_AND_NESTJS-SWAGGER_11.4.7 | TECHNICAL_API_CONTRACT_BASELINE_TASK-017; PRODUCT_CONTRACTS_PENDING | TD-006 APPROVED |
-| TOOL-015 | Integration Event Contract Representation | Define executable versioned Integration Event envelopes, JSON serialization, tenant/correlation invariants and additive compatibility without selecting transport infrastructure. | ADR-0003, ADR-0004, ADR-0005, ADR-0006 | TD-007 | ZOD_4_WITH_JSON_UTF8; BROKER_NOT_SELECTED | NOT_BASELINED; TASK-018_PENDING; BROKER_TOOLING_NOT_SELECTED_NOT_BASELINED | TD-007 APPROVED CONTRACT BASELINE — BROKER DEFERRED |
+| TOOL-015 | Integration Event Contract Representation | Define executable versioned Integration Event envelopes, JSON serialization, tenant/correlation invariants and additive compatibility without selecting transport infrastructure. | ADR-0003, ADR-0004, ADR-0005, ADR-0006 | TD-007 | ZOD_4.4.3_WITH_JSON_UTF8; BROKER_NOT_SELECTED | BROKER_INDEPENDENT_EVENT_CONTRACT_BASELINE_TASK-018; PRODUCT_CONTRACTS_PENDING; BROKER_TOOLING_NOT_SELECTED_NOT_BASELINED | TD-007 APPROVED CONTRACT BASELINE — BROKER DEFERRED |
 
 ## Tooling Decision Rules
 
 - Concrete technology may appear only after an ADR-0002-compliant decision and
   verified implementation; TD-004/TASK-014 provide that evidence for TOOL-003
   through TOOL-006; TD-005/TASK-015 provide evidence for TOOL-013; and
-  TD-006/TASK-017 provide evidence for TOOL-005 and TOOL-014; TD-007 approves
-  TOOL-015 contract representation but TASK-018 has not baselined it and no
-  broker tooling is selected.
+  TD-006/TASK-017 provide evidence for TOOL-005 and TOOL-014; and
+  TD-007/TASK-018 provide evidence for TOOL-015 contract representation. No
+  broker tooling is selected or baselined.
 - Registry status does not authorize additional package installation.
 - Candidate technologies require evaluation against ADR-0002.
 - Selection requires problem definition, alternatives, compatibility analysis, operational impact, security analysis, and migration/rollback considerations.

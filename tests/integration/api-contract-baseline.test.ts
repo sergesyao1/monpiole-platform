@@ -105,7 +105,11 @@ describe("TD-006 NestJS HTTP contract baseline", () => {
       "headers.idempotency-key",
       "invalid",
     ],
-  ])("makes context header requirements explicit", async (headers, path, code) => {
+  ])("makes context header requirements explicit", async (
+    headers: Record<string, string>,
+    path: string,
+    code: string,
+  ) => {
     await start();
     const response = await fetch(`${baseUrl}/api/v1/contract-baseline`, {
       method: "POST",
