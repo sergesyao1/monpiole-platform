@@ -1,7 +1,7 @@
 import { type DynamicModule, Module } from "@nestjs/common";
 import type { ActivateTenant, CreateTenant } from "@monpiole/tenant-management";
 import type { ActivateTenantAdministrator, BootstrapTenantAdministrator } from "@monpiole/identity";
-import type { CreateProperty, RetrieveProperty } from "@monpiole/property-management";
+import type { CreateProperty, RetrieveProperty, UpdatePropertyDetails } from "@monpiole/property-management";
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core";
 import {
   ZodSerializerInterceptor,
@@ -31,6 +31,7 @@ import {
 } from "./http/authenticated-authority/authenticated-authority.js";
 import { CREATE_PROPERTY_USE_CASE, CreatePropertyController } from "./http/properties/create-property.controller.js";
 import { RETRIEVE_PROPERTY_USE_CASE, RetrievePropertyController } from "./http/properties/retrieve-property.controller.js";
+import { UPDATE_PROPERTY_DETAILS_USE_CASE, UpdatePropertyDetailsController } from "./http/properties/update-property-details.controller.js";
 
 const StrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
@@ -44,6 +45,7 @@ export interface ApiComposition {
   readonly activateTenant?: Pick<ActivateTenant, "execute">;
   readonly createProperty?: Pick<CreateProperty, "execute">;
   readonly retrieveProperty?: Pick<RetrieveProperty, "execute">;
+  readonly updatePropertyDetails?: Pick<UpdatePropertyDetails, "execute">;
   readonly runtimeShutdown?: RuntimeShutdown;
 }
 
@@ -69,6 +71,7 @@ const unavailableActivateTenant: Pick<ActivateTenant, "execute"> = {
 };
 const unavailableCreateProperty: Pick<CreateProperty, "execute"> = { async execute() { throw new Error("Create Property composition is unavailable"); } };
 const unavailableRetrieveProperty: Pick<RetrieveProperty, "execute"> = { async execute() { throw new Error("Retrieve Property composition is unavailable"); } };
+const unavailableUpdatePropertyDetails: Pick<UpdatePropertyDetails, "execute"> = { async execute() { throw new Error("Update Property Details composition is unavailable"); } };
 
 @Module({})
 export class AppModule {
@@ -81,6 +84,7 @@ export class AppModule {
         ActivateAdministratorController,
         ActivateTenantController,
         CreatePropertyController, RetrievePropertyController,
+        UpdatePropertyDetailsController,
       ],
       providers: [
         { provide: APP_PIPE, useClass: StrictZodValidationPipe },
@@ -103,6 +107,7 @@ export class AppModule {
         { provide: ACTIVATE_TENANT_USE_CASE, useValue: composition.activateTenant ?? unavailableActivateTenant },
         { provide: CREATE_PROPERTY_USE_CASE, useValue: composition.createProperty ?? unavailableCreateProperty },
         { provide: RETRIEVE_PROPERTY_USE_CASE, useValue: composition.retrieveProperty ?? unavailableRetrieveProperty },
+        { provide: UPDATE_PROPERTY_DETAILS_USE_CASE, useValue: composition.updatePropertyDetails ?? unavailableUpdatePropertyDetails },
         ...(composition.runtimeShutdown === undefined
           ? []
           : [{ provide: RUNTIME_SHUTDOWN, useValue: composition.runtimeShutdown }]),

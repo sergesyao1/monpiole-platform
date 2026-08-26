@@ -1,3 +1,12 @@
+import {
+  IncompatibleCommercialTermsError,
+  InvalidPropertyDetailsError,
+  validateCommercialTerms,
+  validatePropertyDetails,
+  type CommercialTerms,
+  type PropertyDetails,
+} from "./property-details.js";
+
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const COUNTRY = /^[A-Z]{2}$/u;
 
@@ -25,6 +34,8 @@ export interface PropertyValues {
   readonly location: PropertyLocation;
   readonly createdAt: string;
   readonly updatedAt: string;
+  readonly details?: PropertyDetails;
+  readonly commercialTerms?: CommercialTerms;
 }
 
 type PropertyField = keyof PropertyValues | keyof PropertyLocation;
@@ -45,7 +56,7 @@ export class InvalidPropertyServerValueError extends Error {
 }
 
 export class PersistedPropertyCorruptionError extends Error {
-  constructor(readonly field: PropertyField) { super(`Invalid persisted property ${field}`); }
+  constructor(readonly field: string) { super(`Invalid persisted property ${field}`); }
 }
 
 export class Property {
@@ -67,9 +78,22 @@ export class Property {
     try {
       return new Property(validate(input));
     } catch (error) {
-      if (error instanceof PropertyInvariantViolation) throw new PersistedPropertyCorruptionError(error.field);
+      if (error instanceof PropertyInvariantViolation || error instanceof InvalidPropertyDetailsError) {
+        throw new PersistedPropertyCorruptionError(error.field);
+      }
+      if (error instanceof IncompatibleCommercialTermsError) throw new PersistedPropertyCorruptionError("commercialTerms");
       throw error;
     }
+  }
+
+  defineDetails(details: PropertyDetails, commercialTerms: CommercialTerms, updatedAt: string): Property {
+    if (!validInstant(updatedAt)) throw new InvalidPropertyServerValueError("updatedAt");
+    return new Property(Object.freeze({
+      ...this.values,
+      details: validatePropertyDetails(details),
+      commercialTerms: validateCommercialTerms(this.values.transactionType, commercialTerms),
+      updatedAt,
+    }));
   }
 }
 
@@ -91,7 +115,12 @@ function validate(input: PropertyValues): Readonly<PropertyValues> {
   });
   if (!validInstant(input.createdAt)) throw new PropertyInvariantViolation("createdAt");
   if (!validInstant(input.updatedAt)) throw new PropertyInvariantViolation("updatedAt");
-  return Object.freeze({ ...input, title, description, location });
+  const details = input.details === undefined ? undefined : validatePropertyDetails(input.details);
+  const commercialTerms = input.commercialTerms === undefined
+    ? undefined
+    : validateCommercialTerms(input.transactionType, input.commercialTerms);
+  if ((details === undefined) !== (commercialTerms === undefined)) throw new PropertyInvariantViolation("details");
+  return Object.freeze({ ...input, title, description, location, details, commercialTerms });
 }
 
 function normalizedRequired(value: string, field: "title" | "city" | "district" | "addressLine", maximum: number) {

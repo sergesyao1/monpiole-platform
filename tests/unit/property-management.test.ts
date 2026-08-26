@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CreateProperty, InvalidPropertyInputError, InvalidPropertyServerValueError, PersistedPropertyCorruptionError,
   Property, PropertyForbiddenError, PropertyNotFoundError, RetrieveProperty, type PropertyRepository,
+  UpdatePropertyDetails, InvalidPropertyDetailsError, IncompatibleCommercialTermsError,
 } from "../../services/property-management/src/index.js";
 
 const TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -16,6 +17,10 @@ class MemoryRepository implements PropertyRepository {
   readonly values = new Map<string, Property>();
   async save(property: Property) { this.values.set(`${property.values.tenantId}:${property.values.propertyId}`, property); }
   async findById(tenantId: string, propertyId: string) { return this.values.get(`${tenantId}:${propertyId}`); }
+  async updateAtomically(tenantId: string, propertyId: string, update: (property: Property) => Property) {
+    const key = `${tenantId}:${propertyId}`; const property = this.values.get(key);
+    if (property === undefined) return undefined; const updated = update(property); this.values.set(key, updated); return updated;
+  }
 }
 
 describe("Property Domain and Application", () => {
@@ -54,5 +59,26 @@ describe("Property Domain and Application", () => {
     const { create, retrieve } = useCases(); await create.execute({ ...input, authority: AUTHORITY, correlationId: PROPERTY_ID });
     await expect(retrieve.execute({ authority: AUTHORITY, propertyId: PROPERTY_ID })).resolves.toMatchObject({ tenantId: TENANT_A });
     await expect(retrieve.execute({ authority: { ...AUTHORITY, tenantIds: [TENANT_B] }, propertyId: PROPERTY_ID })).rejects.toBeInstanceOf(PropertyNotFoundError);
+  });
+  it("validates details and each compatible commercial variant", () => {
+    const base = { propertyId: PROPERTY_ID, tenantId: TENANT_A, ...input, createdAt: "2026-08-25T12:00:00.000Z", updatedAt: "2026-08-25T12:00:00.000Z" };
+    const details = { usableSurfaceSquareMeters: 80.5, rooms: 4, bedrooms: 2, bathrooms: 1, furnished: true };
+    expect(Property.create(base).defineDetails(details, { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 250_000, rentPeriod: "MONTH", securityDepositAmountMinor: 500_000, chargesAmountMinor: 25_000 }, "2026-08-25T13:00:00.000Z").values.commercialTerms?.kind).toBe("LONG_TERM_RENTAL");
+    expect(Property.create({ ...base, transactionType: "SHORT_TERM_RENTAL" }).defineDetails(details, { kind: "SHORT_TERM_RENTAL", currency: "XOF", rateAmountMinor: 50_000, pricingUnit: "NIGHT" }, "2026-08-25T13:00:00.000Z").values.commercialTerms?.kind).toBe("SHORT_TERM_RENTAL");
+    expect(Property.create({ ...base, transactionType: "SALE" }).defineDetails(details, { kind: "SALE", currency: "XOF", salePriceAmountMinor: 75_000_000 }, "2026-08-25T13:00:00.000Z").values.commercialTerms?.kind).toBe("SALE");
+  });
+  it("rejects impossible details, negative money, and incompatible terms", () => {
+    const property = Property.create({ propertyId: PROPERTY_ID, tenantId: TENANT_A, ...input, createdAt: "2026-08-25T12:00:00.000Z", updatedAt: "2026-08-25T12:00:00.000Z" });
+    expect(() => property.defineDetails({ rooms: 1, bedrooms: 2 }, { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 1, rentPeriod: "MONTH" }, "2026-08-25T13:00:00.000Z")).toThrow(InvalidPropertyDetailsError);
+    expect(() => property.defineDetails({ usableSurfaceSquareMeters: -1 }, { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 1, rentPeriod: "MONTH" }, "2026-08-25T13:00:00.000Z")).toThrow(InvalidPropertyDetailsError);
+    expect(() => property.defineDetails({ rooms: 1 }, { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: -1, rentPeriod: "MONTH" }, "2026-08-25T13:00:00.000Z")).toThrow(InvalidPropertyDetailsError);
+    expect(() => property.defineDetails({ rooms: 1 }, { kind: "SALE", currency: "XOF", salePriceAmountMinor: 1 }, "2026-08-25T13:00:00.000Z")).toThrow(IncompatibleCommercialTermsError);
+  });
+  it("updates details through the tenant-scoped application operation", async () => {
+    const { create, repository } = useCases(); await create.execute({ ...input, authority: AUTHORITY, correlationId: PROPERTY_ID });
+    const update = new UpdatePropertyDetails(repository, { now: () => "2026-08-25T14:00:00.000Z" });
+    await expect(update.execute({ authority: { ...AUTHORITY, grants: [...AUTHORITY.grants, "UPDATE_PROPERTY_DETAILS"] }, correlationId: PROPERTY_ID, propertyId: PROPERTY_ID,
+      details: { rooms: 3, bedrooms: 2 }, commercialTerms: { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 300_000, rentPeriod: "MONTH" } }))
+      .resolves.toMatchObject({ details: { rooms: 3, bedrooms: 2 }, commercialTerms: { kind: "LONG_TERM_RENTAL" }, updatedAt: "2026-08-25T14:00:00.000Z" });
   });
 });

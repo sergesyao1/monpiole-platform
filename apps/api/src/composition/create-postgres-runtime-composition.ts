@@ -7,7 +7,7 @@ import {
   PostgresIdentityStore,
 } from "@monpiole/identity";
 import { PostgresPool, postgresConfigurationFromEnvironment } from "@monpiole/persistence";
-import { CreateProperty, PostgresPropertyRepository, RetrieveProperty } from "@monpiole/property-management";
+import { CreateProperty, PostgresPropertyRepository, RetrieveProperty, UpdatePropertyDetails } from "@monpiole/property-management";
 import {
   ActivateTenant,
   CheckTenantExists,
@@ -55,6 +55,7 @@ export function createPostgresApiRuntime(environment: NodeJS.ProcessEnv): Postgr
     ),
     createProperty: new CreateProperty(propertyRepository, { generate: randomUUID }, { now: () => new Date().toISOString() }),
     retrieveProperty: new RetrieveProperty(propertyRepository),
+    updatePropertyDetails: new UpdatePropertyDetails(propertyRepository, { now: () => new Date().toISOString() }),
     runtimeShutdown: { onApplicationShutdown: () => database.close() },
   };
 

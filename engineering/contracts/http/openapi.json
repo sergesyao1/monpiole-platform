@@ -368,6 +368,105 @@
       "PropertyResponse": {
         "additionalProperties": false,
         "properties": {
+          "commercialTerms": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "chargesAmountMinor": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "currency": {
+                    "pattern": "^[A-Z]{3}$",
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "LONG_TERM_RENTAL",
+                    "type": "string"
+                  },
+                  "rentAmountMinor": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "rentPeriod": {
+                    "const": "MONTH",
+                    "type": "string"
+                  },
+                  "securityDepositAmountMinor": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "currency",
+                  "kind",
+                  "rentAmountMinor",
+                  "rentPeriod"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "currency": {
+                    "pattern": "^[A-Z]{3}$",
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "SHORT_TERM_RENTAL",
+                    "type": "string"
+                  },
+                  "pricingUnit": {
+                    "enum": [
+                      "NIGHT",
+                      "WEEK"
+                    ],
+                    "type": "string"
+                  },
+                  "rateAmountMinor": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "currency",
+                  "kind",
+                  "pricingUnit",
+                  "rateAmountMinor"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "currency": {
+                    "pattern": "^[A-Z]{3}$",
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "SALE",
+                    "type": "string"
+                  },
+                  "salePriceAmountMinor": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "currency",
+                  "kind",
+                  "salePriceAmountMinor"
+                ],
+                "type": "object"
+              }
+            ]
+          },
           "createdAt": {
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
@@ -375,6 +474,34 @@
           },
           "description": {
             "type": "string"
+          },
+          "details": {
+            "additionalProperties": false,
+            "properties": {
+              "bathrooms": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "bedrooms": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "furnished": {
+                "type": "boolean"
+              },
+              "rooms": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "usableSurfaceSquareMeters": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              }
+            },
+            "type": "object"
           },
           "location": {
             "additionalProperties": false,
@@ -461,6 +588,143 @@
       "TenantId": {
         "pattern": "^[a-z0-9][a-z0-9_-]{2,63}$",
         "type": "string"
+      },
+      "UpdatePropertyDetailsRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "commercialTerms": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "chargesAmountMinor": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "currency": {
+                    "pattern": "^[A-Z]{3}$",
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "LONG_TERM_RENTAL",
+                    "type": "string"
+                  },
+                  "rentAmountMinor": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "rentPeriod": {
+                    "const": "MONTH",
+                    "type": "string"
+                  },
+                  "securityDepositAmountMinor": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "currency",
+                  "kind",
+                  "rentAmountMinor",
+                  "rentPeriod"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "currency": {
+                    "pattern": "^[A-Z]{3}$",
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "SHORT_TERM_RENTAL",
+                    "type": "string"
+                  },
+                  "pricingUnit": {
+                    "enum": [
+                      "NIGHT",
+                      "WEEK"
+                    ],
+                    "type": "string"
+                  },
+                  "rateAmountMinor": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "currency",
+                  "kind",
+                  "pricingUnit",
+                  "rateAmountMinor"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "currency": {
+                    "pattern": "^[A-Z]{3}$",
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "SALE",
+                    "type": "string"
+                  },
+                  "salePriceAmountMinor": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "currency",
+                  "kind",
+                  "salePriceAmountMinor"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "details": {
+            "additionalProperties": false,
+            "properties": {
+              "bathrooms": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "bedrooms": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "furnished": {
+                "type": "boolean"
+              },
+              "rooms": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "usableSurfaceSquareMeters": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "commercialTerms",
+          "details"
+        ],
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -995,6 +1259,116 @@
           }
         ],
         "summary": "Retrieve a tenant-owned property",
+        "tags": [
+          "Properties"
+        ]
+      }
+    },
+    "/v1/properties/{propertyId}/details": {
+      "put": {
+        "operationId": "updatePropertyDetails",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "propertyId",
+            "required": true,
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePropertyDetailsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertyResponse"
+                }
+              }
+            },
+            "description": "Property details updated",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid or incompatible details"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden property authority"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Property not found"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Safe internal failure"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Define property details and commercial terms",
         "tags": [
           "Properties"
         ]

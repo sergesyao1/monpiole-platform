@@ -131,6 +131,10 @@ function businessProblem(exception: unknown) {
     status: 400, type: "https://api.monpiole.example/problems/invalid-request",
     title: "Invalid request", code: "INVALID_REQUEST",
   };
+  if (code === "INVALID_PROPERTY_DETAILS" || code === "INCOMPATIBLE_COMMERCIAL_TERMS") return {
+    status: 400, type: "https://api.monpiole.example/problems/invalid-request",
+    title: "Invalid request", code: "INVALID_REQUEST",
+  };
   return undefined;
 }
 

@@ -8,6 +8,13 @@
       "when": 1787700717790,
       "tag": "0000_property_management_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787702885417,
+      "tag": "0001_property_management_baseline",
+      "breakpoints": true
     }
   ]
 }

@@ -73,7 +73,7 @@ async function start() {
     ...runtime.composition,
     authenticatedAuthorityProvider: { resolve: async () => ({
       actorId: "runtime-test", authorityId: "platform-test",
-      grants: ["CREATE_TENANT", "BOOTSTRAP_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT", "CREATE_PROPERTY", "RETRIEVE_PROPERTY"],
+      grants: ["CREATE_TENANT", "BOOTSTRAP_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT", "CREATE_PROPERTY", "RETRIEVE_PROPERTY", "UPDATE_PROPERTY_DETAILS"],
       tenantIds: [...authorizedTenantIds],
     }) },
   });
@@ -169,5 +169,14 @@ describe("API PostgreSQL Identity runtime composition", () => {
       .toEqual({ tenant_id: tenantId, status: "DRAFT" });
     const retrieved = await fetch(`${baseUrl}/v1/properties/${property.propertyId}`);
     expect(retrieved.status).toBe(200); expect(await retrieved.json()).toMatchObject({ propertyId: property.propertyId, status: "DRAFT" });
+    const updated = await fetch(`${baseUrl}/v1/properties/${property.propertyId}/details`, {
+      method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        details: { usableSurfaceSquareMeters: 72, rooms: 3, bedrooms: 2, bathrooms: 1 },
+        commercialTerms: { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 300_000, rentPeriod: "MONTH" },
+      }),
+    });
+    expect(updated.status).toBe(200);
+    expect((await ownerPool.query("SELECT commercial_kind, rent_amount_minor FROM property_management.properties WHERE property_id = $1", [property.propertyId])).rows[0])
+      .toEqual({ commercial_kind: "LONG_TERM_RENTAL", rent_amount_minor: "300000" });
   });
 });
