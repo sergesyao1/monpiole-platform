@@ -9,10 +9,10 @@ import { REQUEST_CONTEXT, type RequestWithContext } from "../request-context/req
 import { CreateTenantRequestDto, CreateTenantResponseDto, TenantProblemDetailsDto } from "./create-tenant.dto.js";
 import { toCreateTenantCommand, toCreateTenantResponse } from "./create-tenant.mapper.js";
 import {
-  AUTHENTICATED_ONBOARDING_AUTHORITY_PROVIDER,
-  requireAuthenticatedOnboardingAuthority,
+  AUTHENTICATED_AUTHORITY_PROVIDER,
+  requireAuthenticatedAuthority,
   toTenantManagementAuthority,
-  type AuthenticatedOnboardingAuthorityProvider,
+  type AuthenticatedAuthorityProvider,
 } from "../authenticated-authority/authenticated-authority.js";
 
 export const CREATE_TENANT_USE_CASE = Symbol("monpiole.create-tenant-use-case");
@@ -22,8 +22,8 @@ export const CREATE_TENANT_USE_CASE = Symbol("monpiole.create-tenant-use-case");
 export class CreateTenantController {
   constructor(
     @Inject(CREATE_TENANT_USE_CASE) private readonly createTenant: Pick<CreateTenant, "execute">,
-    @Inject(AUTHENTICATED_ONBOARDING_AUTHORITY_PROVIDER)
-    private readonly authorityProvider: AuthenticatedOnboardingAuthorityProvider,
+    @Inject(AUTHENTICATED_AUTHORITY_PROVIDER)
+    private readonly authorityProvider: AuthenticatedAuthorityProvider,
   ) {}
 
   @Post()
@@ -51,7 +51,7 @@ export class CreateTenantController {
   async execute(@Body() request: CreateTenantRequestDto, @Req() httpRequest: RequestWithContext): Promise<CreateTenantResponse> {
     const context = httpRequest[REQUEST_CONTEXT];
     if (context?.idempotencyKey === undefined) throw new Error("Request context was not established");
-    const authenticated = await requireAuthenticatedOnboardingAuthority(this.authorityProvider, httpRequest);
+    const authenticated = await requireAuthenticatedAuthority(this.authorityProvider, httpRequest);
     const authority = toTenantManagementAuthority(authenticated);
     const result = await this.createTenant.execute(toCreateTenantCommand(request, {
       correlationId: context.correlationId,

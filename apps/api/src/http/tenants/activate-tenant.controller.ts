@@ -9,10 +9,10 @@ import { REQUEST_CONTEXT, type RequestWithContext } from "../request-context/req
 import { ActivateTenantPathDto, ActivateTenantProblemDetailsDto, ActivateTenantResponseDto } from "./activate-tenant.dto.js";
 import { toActivateTenantCommand, toActivateTenantResponse } from "./activate-tenant.mapper.js";
 import {
-  AUTHENTICATED_ONBOARDING_AUTHORITY_PROVIDER,
-  requireAuthenticatedOnboardingAuthority,
+  AUTHENTICATED_AUTHORITY_PROVIDER,
+  requireAuthenticatedAuthority,
   toTenantManagementAuthority,
-  type AuthenticatedOnboardingAuthorityProvider,
+  type AuthenticatedAuthorityProvider,
 } from "../authenticated-authority/authenticated-authority.js";
 
 export const ACTIVATE_TENANT_USE_CASE = Symbol("monpiole.activate-tenant-use-case");
@@ -23,8 +23,8 @@ export const ACTIVATE_TENANT_USE_CASE = Symbol("monpiole.activate-tenant-use-cas
 export class ActivateTenantController {
   constructor(
     @Inject(ACTIVATE_TENANT_USE_CASE) private readonly activateTenant: Pick<ActivateTenant, "execute">,
-    @Inject(AUTHENTICATED_ONBOARDING_AUTHORITY_PROVIDER)
-    private readonly authorityProvider: AuthenticatedOnboardingAuthorityProvider,
+    @Inject(AUTHENTICATED_AUTHORITY_PROVIDER)
+    private readonly authorityProvider: AuthenticatedAuthorityProvider,
   ) {}
 
   @Post()
@@ -51,7 +51,7 @@ export class ActivateTenantController {
   async execute(@Param() path: ActivateTenantPathDto, @Req() request: RequestWithContext): Promise<ActivateTenantResponse> {
     const context = request[REQUEST_CONTEXT];
     if (context === undefined) throw new Error("Request context was not established");
-    const authenticated = await requireAuthenticatedOnboardingAuthority(this.authorityProvider, request);
+    const authenticated = await requireAuthenticatedAuthority(this.authorityProvider, request);
     return toActivateTenantResponse(await this.activateTenant.execute(
       toActivateTenantCommand(path.tenantId, context.correlationId, toTenantManagementAuthority(authenticated)),
     ));

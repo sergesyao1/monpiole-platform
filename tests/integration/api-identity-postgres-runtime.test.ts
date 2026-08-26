@@ -15,6 +15,7 @@ const RUNTIME_PASSWORD = "synthetic-runtime-password";
 const CORRELATION_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const tenantMigrations = fileURLToPath(new URL("../../services/tenant-management/migrations", import.meta.url));
 const identityMigrations = fileURLToPath(new URL("../../services/identity/migrations", import.meta.url));
+const propertyMigrations = fileURLToPath(new URL("../../services/property-management/migrations", import.meta.url));
 
 let container: StartedTestContainer;
 let ownerPool: Pool;
@@ -37,9 +38,11 @@ beforeAll(async () => {
   await ownerPool.query(`CREATE ROLE api_runtime LOGIN PASSWORD '${RUNTIME_PASSWORD}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS`);
   await migrate(drizzle(ownerPool), { migrationsFolder: tenantMigrations, migrationsTable: "tenant_management_migrations" });
   await migrate(drizzle(ownerPool), { migrationsFolder: identityMigrations, migrationsTable: "identity_migrations" });
-  await ownerPool.query("GRANT USAGE ON SCHEMA tenant_management, identity TO api_runtime");
+  await migrate(drizzle(ownerPool), { migrationsFolder: propertyMigrations, migrationsTable: "property_management_migrations" });
+  await ownerPool.query("GRANT USAGE ON SCHEMA tenant_management, identity, property_management TO api_runtime");
   await ownerPool.query("GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA tenant_management TO api_runtime");
   await ownerPool.query("GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA identity TO api_runtime");
+  await ownerPool.query("GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA property_management TO api_runtime");
   runtimePool = new Pool({ connectionString: connectionString("api_runtime", RUNTIME_PASSWORD), max: 4 });
 });
 
@@ -50,6 +53,7 @@ afterEach(async () => {
   runtime = undefined;
   await ownerPool.query("TRUNCATE identity.tenant_memberships, identity.identities CASCADE");
   await ownerPool.query("TRUNCATE tenant_management.outbox, tenant_management.create_tenant_idempotency, tenant_management.tenants CASCADE");
+  await ownerPool.query("TRUNCATE property_management.properties");
   authorizedTenantIds.clear();
 });
 
@@ -69,7 +73,7 @@ async function start() {
     ...runtime.composition,
     authenticatedAuthorityProvider: { resolve: async () => ({
       actorId: "runtime-test", authorityId: "platform-test",
-      grants: ["CREATE_TENANT", "BOOTSTRAP_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT"],
+      grants: ["CREATE_TENANT", "BOOTSTRAP_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT", "CREATE_PROPERTY", "RETRIEVE_PROPERTY"],
       tenantIds: [...authorizedTenantIds],
     }) },
   });
@@ -149,5 +153,21 @@ describe("API PostgreSQL Identity runtime composition", () => {
     expect(response.status).toBe(409);
     expect((await ownerPool.query("SELECT lifecycle_state FROM tenant_management.tenants WHERE id = $1", [tenantB]))
       .rows[0]?.lifecycle_state).toBe("PENDING");
+  });
+
+  it("persists and retrieves a Property through the real PostgreSQL API composition", async () => {
+    await start(); const tenantId = await createTenant("property");
+    const created = await fetch(`${baseUrl}/v1/properties`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        title: "Apartment", propertyType: "APARTMENT", transactionType: "LONG_TERM_RENTAL",
+        location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Riviera" },
+      }),
+    });
+    expect(created.status).toBe(201); const property = await created.json() as { propertyId: string; status: string };
+    expect(property.status).toBe("DRAFT");
+    expect((await ownerPool.query("SELECT tenant_id, status FROM property_management.properties WHERE property_id = $1", [property.propertyId])).rows[0])
+      .toEqual({ tenant_id: tenantId, status: "DRAFT" });
+    const retrieved = await fetch(`${baseUrl}/v1/properties/${property.propertyId}`);
+    expect(retrieved.status).toBe(200); expect(await retrieved.json()).toMatchObject({ propertyId: property.propertyId, status: "DRAFT" });
   });
 });

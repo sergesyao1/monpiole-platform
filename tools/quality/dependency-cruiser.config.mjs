@@ -3,6 +3,7 @@ const serviceNames = [
   "billing",
   "identity",
   "notifications",
+  "property-management",
   "reporting",
   "tenant-management",
   "workflow",

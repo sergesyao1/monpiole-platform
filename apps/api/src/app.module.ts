@@ -1,6 +1,7 @@
 import { type DynamicModule, Module } from "@nestjs/common";
 import type { ActivateTenant, CreateTenant } from "@monpiole/tenant-management";
 import type { ActivateTenantAdministrator, BootstrapTenantAdministrator } from "@monpiole/identity";
+import type { CreateProperty, RetrieveProperty } from "@monpiole/property-management";
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core";
 import {
   ZodSerializerInterceptor,
@@ -25,9 +26,11 @@ import {
 } from "./http/tenants/activate-administrator.controller.js";
 import { ACTIVATE_TENANT_USE_CASE, ActivateTenantController } from "./http/tenants/activate-tenant.controller.js";
 import {
-  AUTHENTICATED_ONBOARDING_AUTHORITY_PROVIDER,
-  type AuthenticatedOnboardingAuthorityProvider,
+  AUTHENTICATED_AUTHORITY_PROVIDER,
+  type AuthenticatedAuthorityProvider,
 } from "./http/authenticated-authority/authenticated-authority.js";
+import { CREATE_PROPERTY_USE_CASE, CreatePropertyController } from "./http/properties/create-property.controller.js";
+import { RETRIEVE_PROPERTY_USE_CASE, RetrievePropertyController } from "./http/properties/retrieve-property.controller.js";
 
 const StrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
@@ -35,10 +38,12 @@ const StrictZodValidationPipe = createZodValidationPipe({
 
 export interface ApiComposition {
   readonly createTenant?: Pick<CreateTenant, "execute">;
-  readonly authenticatedAuthorityProvider?: AuthenticatedOnboardingAuthorityProvider;
+  readonly authenticatedAuthorityProvider?: AuthenticatedAuthorityProvider;
   readonly bootstrapTenantAdministrator?: Pick<BootstrapTenantAdministrator, "execute">;
   readonly activateTenantAdministrator?: Pick<ActivateTenantAdministrator, "execute">;
   readonly activateTenant?: Pick<ActivateTenant, "execute">;
+  readonly createProperty?: Pick<CreateProperty, "execute">;
+  readonly retrieveProperty?: Pick<RetrieveProperty, "execute">;
   readonly runtimeShutdown?: RuntimeShutdown;
 }
 
@@ -49,7 +54,7 @@ const unavailableCreateTenant: Pick<CreateTenant, "execute"> = {
   async execute() { throw new Error("Create Tenant production composition is unavailable"); },
 };
 
-const unavailableAuthority: AuthenticatedOnboardingAuthorityProvider = {
+const unavailableAuthority: AuthenticatedAuthorityProvider = {
   async resolve() { return undefined; },
 };
 
@@ -62,6 +67,8 @@ const unavailableActivateAdministrator: Pick<ActivateTenantAdministrator, "execu
 const unavailableActivateTenant: Pick<ActivateTenant, "execute"> = {
   async execute() { throw new Error("Activate Tenant production composition is unavailable"); },
 };
+const unavailableCreateProperty: Pick<CreateProperty, "execute"> = { async execute() { throw new Error("Create Property composition is unavailable"); } };
+const unavailableRetrieveProperty: Pick<RetrieveProperty, "execute"> = { async execute() { throw new Error("Retrieve Property composition is unavailable"); } };
 
 @Module({})
 export class AppModule {
@@ -73,6 +80,7 @@ export class AppModule {
         BootstrapAdministratorController,
         ActivateAdministratorController,
         ActivateTenantController,
+        CreatePropertyController, RetrievePropertyController,
       ],
       providers: [
         { provide: APP_PIPE, useClass: StrictZodValidationPipe },
@@ -81,7 +89,7 @@ export class AppModule {
         { provide: APP_FILTER, useClass: ProblemDetailsFilter },
         { provide: CREATE_TENANT_USE_CASE, useValue: composition.createTenant ?? unavailableCreateTenant },
         {
-          provide: AUTHENTICATED_ONBOARDING_AUTHORITY_PROVIDER,
+          provide: AUTHENTICATED_AUTHORITY_PROVIDER,
           useValue: composition.authenticatedAuthorityProvider ?? unavailableAuthority,
         },
         {
@@ -93,6 +101,8 @@ export class AppModule {
           useValue: composition.activateTenantAdministrator ?? unavailableActivateAdministrator,
         },
         { provide: ACTIVATE_TENANT_USE_CASE, useValue: composition.activateTenant ?? unavailableActivateTenant },
+        { provide: CREATE_PROPERTY_USE_CASE, useValue: composition.createProperty ?? unavailableCreateProperty },
+        { provide: RETRIEVE_PROPERTY_USE_CASE, useValue: composition.retrieveProperty ?? unavailableRetrieveProperty },
         ...(composition.runtimeShutdown === undefined
           ? []
           : [{ provide: RUNTIME_SHUTDOWN, useValue: composition.runtimeShutdown }]),

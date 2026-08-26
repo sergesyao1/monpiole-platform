@@ -30,6 +30,7 @@ export default defineConfig({
         "packages/persistence/tests/**/*.test.ts",
         "services/tenant-management/tests/**/*.test.ts",
         "services/identity/tests/**/*.test.ts",
+        "services/property-management/tests/**/*.test.ts",
       ], 60_000),
       nodeProject("contract", ["tests/contract/**/*.test.ts"]),
     ],

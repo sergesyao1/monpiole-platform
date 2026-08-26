@@ -1,0 +1,105 @@
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const COUNTRY = /^[A-Z]{2}$/u;
+
+export const PROPERTY_TYPES = ["APARTMENT", "HOUSE", "LAND", "COMMERCIAL", "OTHER"] as const;
+export const TRANSACTION_TYPES = ["LONG_TERM_RENTAL", "SHORT_TERM_RENTAL", "SALE"] as const;
+export type PropertyType = typeof PROPERTY_TYPES[number];
+export type TransactionType = typeof TRANSACTION_TYPES[number];
+export type PropertyStatus = "DRAFT";
+
+export interface PropertyLocation {
+  readonly country: string;
+  readonly city: string;
+  readonly district: string;
+  readonly addressLine: string;
+}
+
+export interface PropertyValues {
+  readonly propertyId: string;
+  readonly tenantId: string;
+  readonly title: string;
+  readonly description?: string;
+  readonly propertyType: PropertyType;
+  readonly transactionType: TransactionType;
+  readonly status: PropertyStatus;
+  readonly location: PropertyLocation;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+type PropertyField = keyof PropertyValues | keyof PropertyLocation;
+
+class PropertyInvariantViolation extends Error {
+  constructor(readonly field: PropertyField) { super(`Invalid property ${field}`); }
+}
+
+export class InvalidPropertyInputError extends Error {
+  readonly code = "INVALID_PROPERTY_INPUT";
+  constructor(readonly field: PropertyField) {
+    super(`Invalid property ${field}`);
+  }
+}
+
+export class InvalidPropertyServerValueError extends Error {
+  constructor(readonly field: PropertyField) { super(`Invalid server property ${field}`); }
+}
+
+export class PersistedPropertyCorruptionError extends Error {
+  constructor(readonly field: PropertyField) { super(`Invalid persisted property ${field}`); }
+}
+
+export class Property {
+  private constructor(readonly values: Readonly<PropertyValues>) {}
+
+  static create(input: Omit<PropertyValues, "status">): Property {
+    try {
+      return new Property(validate({ ...input, status: "DRAFT" }));
+    } catch (error) {
+      if (!(error instanceof PropertyInvariantViolation)) throw error;
+      if (["propertyId", "tenantId", "status", "createdAt", "updatedAt"].includes(error.field)) {
+        throw new InvalidPropertyServerValueError(error.field);
+      }
+      throw new InvalidPropertyInputError(error.field);
+    }
+  }
+
+  static rehydrate(input: PropertyValues): Property {
+    try {
+      return new Property(validate(input));
+    } catch (error) {
+      if (error instanceof PropertyInvariantViolation) throw new PersistedPropertyCorruptionError(error.field);
+      throw error;
+    }
+  }
+}
+
+function validate(input: PropertyValues): Readonly<PropertyValues> {
+  if (!UUID_V4.test(input.propertyId)) throw new PropertyInvariantViolation("propertyId");
+  if (!UUID_V4.test(input.tenantId)) throw new PropertyInvariantViolation("tenantId");
+  const title = normalizedRequired(input.title, "title", 200);
+  const description = input.description === undefined ? undefined : input.description.trim();
+  if (description !== undefined && description.length > 5_000) throw new PropertyInvariantViolation("description");
+  if (!PROPERTY_TYPES.includes(input.propertyType)) throw new PropertyInvariantViolation("propertyType");
+  if (!TRANSACTION_TYPES.includes(input.transactionType)) throw new PropertyInvariantViolation("transactionType");
+  if (input.status !== "DRAFT") throw new PropertyInvariantViolation("status");
+  if (!COUNTRY.test(input.location.country)) throw new PropertyInvariantViolation("country");
+  const location = Object.freeze({
+    country: input.location.country,
+    city: normalizedRequired(input.location.city, "city", 200),
+    district: normalizedRequired(input.location.district, "district", 200),
+    addressLine: normalizedRequired(input.location.addressLine, "addressLine", 200),
+  });
+  if (!validInstant(input.createdAt)) throw new PropertyInvariantViolation("createdAt");
+  if (!validInstant(input.updatedAt)) throw new PropertyInvariantViolation("updatedAt");
+  return Object.freeze({ ...input, title, description, location });
+}
+
+function normalizedRequired(value: string, field: "title" | "city" | "district" | "addressLine", maximum: number) {
+  const normalized = value.trim();
+  if (normalized.length === 0 || normalized.length > maximum) throw new PropertyInvariantViolation(field);
+  return normalized;
+}
+
+function validInstant(value: string) {
+  return value.endsWith("Z") && Number.isFinite(Date.parse(value));
+}

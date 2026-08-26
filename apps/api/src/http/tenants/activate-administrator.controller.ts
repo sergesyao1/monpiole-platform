@@ -12,10 +12,10 @@ import {
 } from "./activate-administrator.dto.js";
 import { toActivateAdministratorCommand, toActivateAdministratorResponse } from "./activate-administrator.mapper.js";
 import {
-  AUTHENTICATED_ONBOARDING_AUTHORITY_PROVIDER,
-  requireAuthenticatedOnboardingAuthority,
+  AUTHENTICATED_AUTHORITY_PROVIDER,
+  requireAuthenticatedAuthority,
   toIdentityOnboardingAuthority,
-  type AuthenticatedOnboardingAuthorityProvider,
+  type AuthenticatedAuthorityProvider,
 } from "../authenticated-authority/authenticated-authority.js";
 
 export const ACTIVATE_TENANT_ADMINISTRATOR = Symbol("monpiole.activate-tenant-administrator");
@@ -27,8 +27,8 @@ export class ActivateAdministratorController {
   constructor(
     @Inject(ACTIVATE_TENANT_ADMINISTRATOR)
     private readonly activateAdministrator: Pick<ActivateTenantAdministrator, "execute">,
-    @Inject(AUTHENTICATED_ONBOARDING_AUTHORITY_PROVIDER)
-    private readonly authorityProvider: AuthenticatedOnboardingAuthorityProvider,
+    @Inject(AUTHENTICATED_AUTHORITY_PROVIDER)
+    private readonly authorityProvider: AuthenticatedAuthorityProvider,
   ) {}
 
   @Post()
@@ -57,7 +57,7 @@ export class ActivateAdministratorController {
   ): Promise<ActivateAdministratorResponse> {
     const context = httpRequest[REQUEST_CONTEXT];
     if (context === undefined) throw new Error("Request context was not established");
-    const authenticated = await requireAuthenticatedOnboardingAuthority(this.authorityProvider, httpRequest);
+    const authenticated = await requireAuthenticatedAuthority(this.authorityProvider, httpRequest);
     return toActivateAdministratorResponse(await this.activateAdministrator.execute(
       toActivateAdministratorCommand(
         path.tenantId, path.administratorId, context.correlationId,

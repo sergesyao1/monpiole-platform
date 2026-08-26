@@ -119,6 +119,18 @@ function businessProblem(exception: unknown) {
     status: 409, type: "https://api.monpiole.example/problems/tenant-administrator-not-ready",
     title: "Tenant administrator not ready", code: "TENANT_ADMINISTRATOR_NOT_READY",
   };
+  if (code === "PROPERTY_FORBIDDEN") return {
+    status: 403, type: "https://api.monpiole.example/problems/forbidden",
+    title: "Forbidden", code: "FORBIDDEN",
+  };
+  if (code === "PROPERTY_NOT_FOUND") return {
+    status: 404, type: "https://api.monpiole.example/problems/property-not-found",
+    title: "Property not found", code: "PROPERTY_NOT_FOUND",
+  };
+  if (code === "INVALID_PROPERTY_INPUT") return {
+    status: 400, type: "https://api.monpiole.example/problems/invalid-request",
+    title: "Invalid request", code: "INVALID_REQUEST",
+  };
   return undefined;
 }
 

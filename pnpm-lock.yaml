@@ -35,6 +35,9 @@ importers:
       '@monpiole/persistence':
         specifier: workspace:*
         version: link:../../packages/persistence
+      '@monpiole/property-management':
+        specifier: workspace:*
+        version: link:../../services/property-management
       '@monpiole/tenant-management':
         specifier: workspace:*
         version: link:../../services/tenant-management
@@ -92,6 +95,28 @@ importers:
         version: 12.1.0(supports-color@7.2.0)
 
   services/identity:
+    dependencies:
+      '@monpiole/persistence':
+        specifier: workspace:*
+        version: link:../../packages/persistence
+      drizzle-orm:
+        specifier: 0.45.2
+        version: 0.45.2(@types/pg@8.23.1)(pg@8.23.0)
+      pg:
+        specifier: 8.23.0
+        version: 8.23.0
+    devDependencies:
+      '@types/pg':
+        specifier: 8.23.1
+        version: 8.23.1
+      drizzle-kit:
+        specifier: 0.31.10
+        version: 0.31.10
+      testcontainers:
+        specifier: 12.1.0
+        version: 12.1.0(supports-color@7.2.0)
+
+  services/property-management:
     dependencies:
       '@monpiole/persistence':
         specifier: workspace:*

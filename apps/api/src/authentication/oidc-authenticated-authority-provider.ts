@@ -1,22 +1,22 @@
 import type {
-  AuthenticatedOnboardingAuthority,
-  AuthenticatedOnboardingAuthorityProvider,
+  AuthenticatedAuthority,
+  AuthenticatedAuthorityProvider,
 } from "../http/authenticated-authority/authenticated-authority.js";
 import type { RequestWithContext } from "../http/request-context/request-context.js";
 import type { OidcAccessTokenVerifier } from "./oidc-access-token-verifier.js";
 import type { VerifiedAuthenticationContext } from "./verified-authentication-context.js";
 
 export interface ExternalIdentityAuthorityResolver {
-  resolve(context: VerifiedAuthenticationContext): Promise<AuthenticatedOnboardingAuthority | undefined>;
+  resolve(context: VerifiedAuthenticationContext): Promise<AuthenticatedAuthority | undefined>;
 }
 
-export class OidcAuthenticatedAuthorityProvider implements AuthenticatedOnboardingAuthorityProvider {
+export class OidcAuthenticatedAuthorityProvider implements AuthenticatedAuthorityProvider {
   constructor(
     private readonly tokens: Pick<OidcAccessTokenVerifier, "verify">,
     private readonly identities: ExternalIdentityAuthorityResolver,
   ) {}
 
-  async resolve(request: RequestWithContext): Promise<AuthenticatedOnboardingAuthority | undefined> {
+  async resolve(request: RequestWithContext): Promise<AuthenticatedAuthority | undefined> {
     const token = bearerToken(request.headers.authorization);
     if (token === undefined) return undefined;
     try {

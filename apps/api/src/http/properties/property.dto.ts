@@ -1,0 +1,8 @@
+import { createZodDto } from "nestjs-zod";
+import { ProblemDetailsSchema } from "../../contracts/v1/common/problem-details.schema.js";
+import { CreatePropertyRequestSchema, PropertyResponseSchema, RetrievePropertyPathSchema } from "../../contracts/v1/properties/property.schema.js";
+
+export class CreatePropertyRequestDto extends createZodDto(CreatePropertyRequestSchema) {}
+export class PropertyResponseDto extends createZodDto(PropertyResponseSchema) {}
+export class RetrievePropertyPathDto extends createZodDto(RetrievePropertyPathSchema) {}
+export class PropertyProblemDetailsDto extends createZodDto(ProblemDetailsSchema) {}
