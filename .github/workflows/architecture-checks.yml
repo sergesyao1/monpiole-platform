@@ -131,6 +131,26 @@ jobs:
       - name: Build API
         run: corepack pnpm app:api:build
 
+  web:
+    name: web
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - *checkout
+      - *setup_node
+      - *verify_toolchain
+      - *locate_store
+      - *cache_store
+      - *install
+      - name: Typecheck Web
+        run: corepack pnpm app:web:typecheck
+      - name: Test Web
+        run: corepack pnpm app:web:test
+      - name: Build Web
+        run: corepack pnpm app:web:build
+
   events:
     name: events
     runs-on: ubuntu-24.04
@@ -192,6 +212,7 @@ jobs:
       - unit
       - integration-contract
       - api
+      - web
       - events
       - persistence
     runs-on: ubuntu-24.04
@@ -206,5 +227,6 @@ jobs:
           test "${{ needs.unit.result }}" = "success"
           test "${{ needs.integration-contract.result }}" = "success"
           test "${{ needs.api.result }}" = "success"
+          test "${{ needs.web.result }}" = "success"
           test "${{ needs.events.result }}" = "success"
           test "${{ needs.persistence.result }}" = "success"

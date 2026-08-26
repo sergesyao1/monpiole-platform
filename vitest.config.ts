@@ -20,6 +20,16 @@ function nodeProject(
   };
 }
 
+const webProject: TestProjectConfiguration = {
+  test: {
+    name: "web",
+    environment: "jsdom",
+    include: ["apps/web/src/**/*.test.ts", "apps/web/src/**/*.test.tsx"],
+    setupFiles: ["apps/web/src/test/setup.ts"],
+    isolate: true,
+  },
+};
+
 export default defineConfig({
   test: {
     passWithNoTests: false,
@@ -33,6 +43,7 @@ export default defineConfig({
         "services/property-management/tests/**/*.test.ts",
       ], 60_000),
       nodeProject("contract", ["tests/contract/**/*.test.ts"]),
+      webProject,
     ],
     coverage: {
       provider: "v8",

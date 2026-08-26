@@ -20,7 +20,7 @@ Validation, build, test, and release-support scripts.
 
 `.github/workflows/architecture-checks.yml` is the thin GitHub Actions adapter
 approved by TD-009. The historical path is retained, while its architecture-only
-content is superseded by the complete CI graph. Seven independent validation
+content is superseded by the complete CI graph. Eight independent validation
 jobs run repository-owned commands, and the stable `CI / required` job succeeds
 only when every validation job succeeds.
 
@@ -33,13 +33,15 @@ The architecture command is preserved in the single `architecture` job.
 ## Test execution equivalence
 
 The root `corepack pnpm test` command invokes `vitest run`. `vitest.config.ts`
-defines exactly four projects: `unit`, `integration`, `contract`, and
-`persistence-integration`. CI invokes those same projects once through:
+defines five projects: `unit`, `integration`, `contract`,
+`persistence-integration`, and `web`. CI invokes those same projects once
+through:
 
 - `corepack pnpm test:unit`;
 - `corepack pnpm test:integration`;
 - `corepack pnpm test:contract`;
-- `corepack pnpm package:persistence:test:integration`.
+- `corepack pnpm package:persistence:test:integration`;
+- `corepack pnpm app:web:test`.
 
 Consequently, CI omits the aggregate convenience command and the package-specific
 API/event contract aliases: their projects are already covered by

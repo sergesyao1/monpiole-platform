@@ -1,18 +1,30 @@
 # apps/web
 
-## Purpose
+Application web principale de MonPiole, construite avec React, Vite et React
+Router. Elle possède la composition des routes et consomme uniquement les
+contrats HTTP publics de la plateforme.
 
-Primary browser application.
+## Commandes
 
-## Ownership
+Depuis la racine du dépôt :
 
-Web Engineering owns this area and approves changes affecting its responsibilities.
+```text
+corepack pnpm --filter @monpiole/web dev
+corepack pnpm --filter @monpiole/web build
+corepack pnpm --filter @monpiole/web typecheck
+corepack pnpm --filter @monpiole/web test
+```
 
-## Conventions
+Copier `apps/web/.env.example` vers `apps/web/.env.local` pour personnaliser la
+configuration locale. Toutes les variables `VITE_*` sont publiques dans le
+navigateur : aucun secret ne doit y être placé.
 
-Use the design system and SDK; keep feature code isolated from transport and infrastructure details.
+## Frontières
 
-## Expected contents
-
-Web application source, route composition, UI tests, and deployment configuration.
-
+- `src/app` compose le shell et les routes.
+- `src/config` valide la configuration publique.
+- `src/infrastructure/http` contient l'adaptateur HTTP générique minimal.
+- Les futurs vertical slices restent isolés par feature et ne placent pas de
+  logique métier dans le shell.
+- L'intégration OIDC utilisateur est différée ; aucune authentification locale
+  ou simulée n'est fournie.
