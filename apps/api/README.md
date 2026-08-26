@@ -66,3 +66,17 @@ Provider claims do not grant tenant scope or business authority. MonPiole maps
 Invalid or unresolved credentials use 401 Problem Details; authenticated
 authorities rejected by Application policy receive 403. Tokens and
 Authorization headers must never be logged.
+
+### Development runtime gap
+
+The verifier and `OidcAuthenticatedAuthorityProvider` are covered by unit and
+integration tests, but the normal PostgreSQL runtime does not yet compose them:
+`createPostgresApiRuntime` supplies no `authenticatedAuthorityProvider`, and no
+durable `ExternalIdentityAuthorityResolver` implementation exists. Runtime
+requests therefore use the fail-closed unavailable provider and return 401.
+
+The API also has no configured browser CORS policy. A real Web/Auth0 smoke test
+must wait for an approved slice that composes the verifier, an Identity-owned
+`issuer + subject` resolver and an explicit allowed Web origin. Do not add a
+development fallback that promotes every external user or derives authority
+from email, OAuth scopes or provider roles.
