@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from "react-router";
+import { useSession } from "../../auth/session.js";
 
 const navigation = [
   { to: "/", label: "Tableau de bord", end: true },
@@ -7,6 +8,8 @@ const navigation = [
 ] as const;
 
 export function ApplicationShell() {
+  const session = useSession();
+  const identity = session.user?.name ?? session.user?.email ?? "Utilisateur MonPiole";
   return (
     <div className="app-shell">
       <a className="skip-link" href="#contenu-principal">Aller au contenu principal</a>
@@ -37,8 +40,8 @@ export function ApplicationShell() {
         <div className="sidebar-footer">
           <span className="status-dot" aria-hidden="true" />
           <span>
-            <strong>Accès visiteur</strong>
-            <small>Connexion bientôt disponible</small>
+            <strong>{identity}</strong>
+            <small>Session sécurisée</small>
           </span>
         </div>
       </aside>
@@ -49,7 +52,7 @@ export function ApplicationShell() {
             <p className="topbar-kicker">Votre espace MonPiole</p>
             <p className="topbar-context">Fondation de l'application</p>
           </div>
-          <span className="environment-badge">Environnement local</span>
+          <button className="secondary-action" type="button" onClick={() => void session.logout()}>Se déconnecter</button>
         </header>
         <main id="contenu-principal" className="main-content" tabIndex={-1}>
           <Outlet />

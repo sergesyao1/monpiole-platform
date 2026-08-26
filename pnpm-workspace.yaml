@@ -5,6 +5,7 @@ packages:
   - "tools/quality/fixtures/resolver/*"
 allowBuilds:
   "@scarf/scarf": false
+  browser-tabs-lock: false
   cpu-features: false
   esbuild: true
   protobufjs: false

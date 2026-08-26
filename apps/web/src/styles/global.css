@@ -20,6 +20,7 @@
 html { min-width: 320px; background: var(--cream); }
 body { margin: 0; min-width: 320px; min-height: 100vh; }
 button, a { font: inherit; }
+button { cursor: pointer; }
 a { color: inherit; }
 
 :focus-visible {
@@ -113,7 +114,8 @@ h1 { max-width: 17ch; margin: 0; font-family: Georgia, serif; font-size: clamp(2
 .empty-state > p:not(.eyebrow, .error-code), .standalone-state > p { max-width: 52ch; color: var(--muted); line-height: 1.65; }
 .empty-state-mark { display: grid; width: 3.2rem; height: 3.2rem; margin-bottom: 2rem; place-items: center; border-radius: 1rem; color: var(--green-900); background: var(--green-100); font-size: 1.5rem; }
 .error-code { margin: 0 0 1rem; color: var(--gold); font-family: Georgia, serif; font-size: 2rem; }
-.primary-action { margin-top: 1rem; padding: .75rem 1rem; border-radius: .55rem; color: white; background: var(--green-900); font-weight: 750; text-decoration: none; }
+.primary-action { margin-top: 1rem; padding: .75rem 1rem; border: 0; border-radius: .55rem; color: white; background: var(--green-900); font-weight: 750; text-decoration: none; }
+.secondary-action { padding: .55rem .8rem; border: 1px solid #cbd8ce; border-radius: .55rem; color: var(--green-700); background: white; font-weight: 750; }
 .loading-indicator { width: 2rem; height: 2rem; border: 3px solid var(--green-100); border-top-color: var(--green-700); border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }

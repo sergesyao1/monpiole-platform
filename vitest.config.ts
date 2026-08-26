@@ -26,6 +26,13 @@ const webProject: TestProjectConfiguration = {
     environment: "jsdom",
     include: ["apps/web/src/**/*.test.ts", "apps/web/src/**/*.test.tsx"],
     setupFiles: ["apps/web/src/test/setup.ts"],
+    env: {
+      VITE_OIDC_ISSUER: "https://tests.eu.auth0.com/",
+      VITE_OIDC_CLIENT_ID: "test-public-client",
+      VITE_OIDC_AUDIENCE: "https://api.tests.monpiole.example",
+      VITE_OIDC_REDIRECT_URI: "http://localhost:5173",
+      VITE_OIDC_LOGOUT_RETURN_URI: "http://localhost:5173/connexion",
+    },
     isolate: true,
   },
 };
