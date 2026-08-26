@@ -8,6 +8,8 @@ import {
   CreateProperty, CreatePropertyOwner, PostgresPropertyOwnerRepository, PostgresPropertyRepository,
   PropertyNotFoundError, PropertyOwnerNotFoundError, PropertyOwnerTypeChangeNotAllowedError,
   RetrieveProperty, RetrievePropertyOwner, UpdatePropertyDetails, UpdatePropertyOwner, type TransactionType,
+  AssignPropertyOwner, PostgresPropertyOwnershipRepository, PropertyOwnershipConflictError,
+  PropertyOwnershipShareExceededError, PropertyOwnershipNotFoundError, RemovePropertyOwner, RetrievePropertyOwnerships,
 } from "../src/index.js";
 
 const IMAGE = "postgres@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687";
@@ -24,15 +26,15 @@ beforeAll(async () => {
   await owner.query("CREATE ROLE property_runtime LOGIN PASSWORD 'synthetic-runtime' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS");
   await migrate(drizzle(owner), { migrationsFolder });
   await owner.query("GRANT USAGE ON SCHEMA property_management TO property_runtime");
-  await owner.query("GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA property_management TO property_runtime");
+  await owner.query("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA property_management TO property_runtime");
   runtime = new Pool({ connectionString: connection("property_runtime", "synthetic-runtime") });
 });
-afterEach(async () => owner.query("TRUNCATE property_management.properties, property_management.property_owners"));
+afterEach(async () => owner.query("TRUNCATE property_management.property_ownerships, property_management.properties, property_management.property_owners"));
 afterAll(async () => { await runtime?.end(); await owner?.end(); await container?.stop(); });
 
 function authority(tenantId: string) { return { actorId: "actor", authorityId: "authority", grants: ["CREATE_PROPERTY", "RETRIEVE_PROPERTY"] as const, tenantIds: [tenantId] }; }
-function create(repository = new PostgresPropertyRepository(runtime), tenantId = TENANT_A, transactionType: TransactionType = "SALE") {
-  return new CreateProperty(repository, { generate: () => PROPERTY_ID }, { now: () => "2026-08-25T12:00:00.000Z" }).execute({
+function create(repository = new PostgresPropertyRepository(runtime), tenantId = TENANT_A, transactionType: TransactionType = "SALE", propertyId = PROPERTY_ID) {
+  return new CreateProperty(repository, { generate: () => propertyId }, { now: () => "2026-08-25T12:00:00.000Z" }).execute({
     authority: authority(tenantId), correlationId: CORRELATION, title: "House", propertyType: "HOUSE", transactionType,
     location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Riviera" },
   });
@@ -163,5 +165,89 @@ describe("PropertyOwner PostgreSQL persistence", () => {
       (owner_id, tenant_id, owner_type, legal_name, email, created_at, updated_at, correlation_id, actor_id)
       VALUES ($1,$2,'LEGAL_ENTITY','Company','invalid',now(),now(),$3,'actor')`, [PROPERTY_ID, TENANT_A, CORRELATION]))
       .rejects.toMatchObject({ code: "23514" });
+  });
+});
+
+const OWNERSHIP_PROPERTY = "22222222-2222-4222-8222-222222222222";
+const OWNERSHIP_OWNER_A = "33333333-3333-4333-8333-333333333333";
+const OWNERSHIP_OWNER_B = "44444444-4444-4444-8444-444444444444";
+function ownershipAuthority(tenantId: string) {
+  return { actorId: "actor", authorityId: "authority", grants: ["ASSIGN_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNERSHIP", "REMOVE_PROPERTY_OWNER"] as const, tenantIds: [tenantId] };
+}
+async function ownershipFixture() {
+  await create(undefined, TENANT_A, "SALE", OWNERSHIP_PROPERTY);
+  await createOwner(undefined, TENANT_A, "INDIVIDUAL", OWNERSHIP_OWNER_A);
+  await createOwner(undefined, TENANT_A, "LEGAL_ENTITY", OWNERSHIP_OWNER_B);
+}
+
+describe("PropertyOwnership PostgreSQL persistence", () => {
+  it("persists, lists and removes multiple owners without deleting references", async () => {
+    await ownershipFixture(); const repository = new PostgresPropertyOwnershipRepository(runtime);
+    const assign = new AssignPropertyOwner(repository, { now: () => "2026-08-26T12:00:00.000Z" });
+    await assign.execute({ authority: ownershipAuthority(TENANT_A), correlationId: CORRELATION, propertyId: OWNERSHIP_PROPERTY, ownerId: OWNERSHIP_OWNER_A, ownershipShare: 60 });
+    await assign.execute({ authority: ownershipAuthority(TENANT_A), correlationId: CORRELATION, propertyId: OWNERSHIP_PROPERTY, ownerId: OWNERSHIP_OWNER_B, ownershipShare: 40 });
+    await expect(new RetrievePropertyOwnerships(repository).execute({ authority: ownershipAuthority(TENANT_A), propertyId: OWNERSHIP_PROPERTY }))
+      .resolves.toEqual([expect.objectContaining({ ownerId: OWNERSHIP_OWNER_A, ownershipShare: 60 }), expect.objectContaining({ ownerId: OWNERSHIP_OWNER_B, ownershipShare: 40 })]);
+    await new RemovePropertyOwner(repository).execute({ authority: ownershipAuthority(TENANT_A), propertyId: OWNERSHIP_PROPERTY, ownerId: OWNERSHIP_OWNER_A });
+    expect((await owner.query("SELECT count(*)::int AS count FROM property_management.property_ownerships")).rows[0]?.count).toBe(1);
+    expect((await owner.query("SELECT count(*)::int AS count FROM property_management.properties WHERE property_id = $1", [OWNERSHIP_PROPERTY])).rows[0]?.count).toBe(1);
+    expect((await owner.query("SELECT count(*)::int AS count FROM property_management.property_owners WHERE owner_id = $1", [OWNERSHIP_OWNER_A])).rows[0]?.count).toBe(1);
+  });
+
+  it("supports one owner assigned to multiple properties", async () => {
+    await ownershipFixture(); const secondProperty = "55555555-5555-4555-8555-555555555555"; await create(undefined, TENANT_A, "SALE", secondProperty);
+    const assign = new AssignPropertyOwner(new PostgresPropertyOwnershipRepository(runtime), { now: () => "2026-08-26T12:00:00.000Z" });
+    for (const propertyId of [OWNERSHIP_PROPERTY, secondProperty]) await assign.execute({
+      authority: ownershipAuthority(TENANT_A), correlationId: CORRELATION, propertyId, ownerId: OWNERSHIP_OWNER_A, ownershipShare: 50,
+    });
+    expect((await owner.query("SELECT count(*)::int AS count FROM property_management.property_ownerships WHERE owner_id = $1", [OWNERSHIP_OWNER_A])).rows[0]?.count).toBe(2);
+  });
+
+  it("rejects duplicate, exceeded total and missing relation removal", async () => {
+    await ownershipFixture(); const repository = new PostgresPropertyOwnershipRepository(runtime);
+    const assign = new AssignPropertyOwner(repository, { now: () => "2026-08-26T12:00:00.000Z" });
+    const command = { authority: ownershipAuthority(TENANT_A), correlationId: CORRELATION, propertyId: OWNERSHIP_PROPERTY, ownerId: OWNERSHIP_OWNER_A, ownershipShare: 60 };
+    await assign.execute(command);
+    await expect(assign.execute(command)).rejects.toBeInstanceOf(PropertyOwnershipConflictError);
+    await expect(assign.execute({ ...command, ownerId: OWNERSHIP_OWNER_B, ownershipShare: 40.01 })).rejects.toBeInstanceOf(PropertyOwnershipShareExceededError);
+    await expect(new RemovePropertyOwner(repository).execute({ authority: ownershipAuthority(TENANT_A), propertyId: OWNERSHIP_PROPERTY, ownerId: OWNERSHIP_OWNER_B }))
+      .rejects.toBeInstanceOf(PropertyOwnershipNotFoundError);
+  });
+
+  it("prevents missing and cross-tenant references", async () => {
+    await ownershipFixture(); const assign = new AssignPropertyOwner(new PostgresPropertyOwnershipRepository(runtime), { now: () => "2026-08-26T12:00:00.000Z" });
+    await expect(assign.execute({ authority: ownershipAuthority(TENANT_B), correlationId: CORRELATION, propertyId: OWNERSHIP_PROPERTY, ownerId: OWNERSHIP_OWNER_A, ownershipShare: 10 }))
+      .rejects.toBeInstanceOf(PropertyNotFoundError);
+    await expect(assign.execute({ authority: ownershipAuthority(TENANT_A), correlationId: CORRELATION, propertyId: OWNERSHIP_PROPERTY, ownerId: "66666666-6666-4666-8666-666666666666", ownershipShare: 10 }))
+      .rejects.toBeInstanceOf(PropertyOwnerNotFoundError);
+    await expect(owner.query(`INSERT INTO property_management.property_ownerships
+      (tenant_id, property_id, owner_id, ownership_share, created_at, correlation_id, actor_id)
+      VALUES ($1,$2,$3,10,now(),$4,'actor')`, [TENANT_B, OWNERSHIP_PROPERTY, OWNERSHIP_OWNER_A, CORRELATION]))
+      .rejects.toMatchObject({ code: "23503" });
+  });
+
+  it("enforces share constraints and forced RLS", async () => {
+    await ownershipFixture();
+    await expect(owner.query(`INSERT INTO property_management.property_ownerships
+      (tenant_id, property_id, owner_id, ownership_share, created_at, correlation_id, actor_id)
+      VALUES ($1,$2,$3,0,now(),$4,'actor')`, [TENANT_A, OWNERSHIP_PROPERTY, OWNERSHIP_OWNER_A, CORRELATION]))
+      .rejects.toMatchObject({ code: "23514" });
+    expect((await runtime.query("SELECT * FROM property_management.property_ownerships")).rows).toHaveLength(0);
+    await expect(runtime.query(`INSERT INTO property_management.property_ownerships
+      (tenant_id, property_id, owner_id, ownership_share, created_at, correlation_id, actor_id)
+      VALUES ($1,$2,$3,10,now(),$4,'actor')`, [TENANT_A, OWNERSHIP_PROPERTY, OWNERSHIP_OWNER_A, CORRELATION]))
+      .rejects.toMatchObject({ code: "42501" });
+  });
+
+  it("serializes concurrent assignments so the total cannot exceed 100", async () => {
+    await ownershipFixture(); const repository = new PostgresPropertyOwnershipRepository(runtime);
+    const assign = new AssignPropertyOwner(repository, { now: () => "2026-08-26T12:00:00.000Z" });
+    const results = await Promise.allSettled([OWNERSHIP_OWNER_A, OWNERSHIP_OWNER_B].map((ownerId) => assign.execute({
+      authority: ownershipAuthority(TENANT_A), correlationId: CORRELATION,
+      propertyId: OWNERSHIP_PROPERTY, ownerId, ownershipShare: 60,
+    })));
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+    expect((await owner.query("SELECT COALESCE(sum(ownership_share), 0)::numeric AS total FROM property_management.property_ownerships WHERE property_id = $1", [OWNERSHIP_PROPERTY])).rows[0]?.total).toBe("60.00");
   });
 });

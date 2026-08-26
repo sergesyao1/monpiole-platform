@@ -143,6 +143,18 @@ function businessProblem(exception: unknown) {
     status: 400, type: "https://api.monpiole.example/problems/invalid-request",
     title: "Invalid request", code,
   };
+  if (code === "INVALID_PROPERTY_OWNERSHIP_INPUT") return {
+    status: 400, type: "https://api.monpiole.example/problems/invalid-request",
+    title: "Invalid request", code: "INVALID_REQUEST",
+  };
+  if (code === "PROPERTY_OWNERSHIP_CONFLICT" || code === "PROPERTY_OWNERSHIP_SHARE_EXCEEDED") return {
+    status: 409, type: "https://api.monpiole.example/problems/property-ownership-conflict",
+    title: "Property ownership conflict", code,
+  };
+  if (code === "PROPERTY_OWNERSHIP_NOT_FOUND") return {
+    status: 404, type: "https://api.monpiole.example/problems/property-ownership-not-found",
+    title: "Property ownership not found", code: "PROPERTY_OWNERSHIP_NOT_FOUND",
+  };
   return undefined;
 }
 

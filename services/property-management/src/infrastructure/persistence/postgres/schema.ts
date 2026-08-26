@@ -1,4 +1,7 @@
-import { bigint, boolean, doublePrecision, integer, pgSchema, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  bigint, boolean, doublePrecision, foreignKey, index, integer, numeric, pgSchema,
+  primaryKey, text, timestamp, uniqueIndex, uuid,
+} from "drizzle-orm/pg-core";
 
 export const propertyManagement = pgSchema("property_management");
 export const properties = propertyManagement.table("properties", {
@@ -33,4 +36,22 @@ export const propertyOwners = propertyManagement.table("property_owners", {
   correlationId: uuid("correlation_id").notNull(), actorId: text("actor_id").notNull(),
 }, (table) => [
   uniqueIndex("property_owners_tenant_owner_unique").on(table.tenantId, table.ownerId),
+]);
+
+export const propertyOwnerships = propertyManagement.table("property_ownerships", {
+  tenantId: uuid("tenant_id").notNull(), propertyId: uuid("property_id").notNull(), ownerId: uuid("owner_id").notNull(),
+  ownershipShare: numeric("ownership_share", { precision: 5, scale: 2, mode: "number" }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+  correlationId: uuid("correlation_id").notNull(), actorId: text("actor_id").notNull(),
+}, (table) => [
+  primaryKey({ name: "property_ownerships_pkey", columns: [table.tenantId, table.propertyId, table.ownerId] }),
+  foreignKey({
+    name: "property_ownerships_property_tenant_fk",
+    columns: [table.tenantId, table.propertyId], foreignColumns: [properties.tenantId, properties.propertyId],
+  }),
+  foreignKey({
+    name: "property_ownerships_owner_tenant_fk",
+    columns: [table.tenantId, table.ownerId], foreignColumns: [propertyOwners.tenantId, propertyOwners.ownerId],
+  }),
+  index("property_ownerships_tenant_owner_idx").on(table.tenantId, table.ownerId),
 ]);

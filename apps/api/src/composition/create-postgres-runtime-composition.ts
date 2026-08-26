@@ -10,6 +10,7 @@ import { PostgresPool, postgresConfigurationFromEnvironment } from "@monpiole/pe
 import {
   CreateProperty, CreatePropertyOwner, PostgresPropertyOwnerRepository, PostgresPropertyRepository,
   RetrieveProperty, RetrievePropertyOwner, UpdatePropertyDetails, UpdatePropertyOwner,
+  AssignPropertyOwner, PostgresPropertyOwnershipRepository, RetrievePropertyOwnerships, RemovePropertyOwner,
 } from "@monpiole/property-management";
 import {
   ActivateTenant,
@@ -40,6 +41,7 @@ export function createPostgresApiRuntime(environment: NodeJS.ProcessEnv): Postgr
   const authorityPolicy = new OnboardingAuthorityPolicy();
   const propertyRepository = new PostgresPropertyRepository(pool);
   const propertyOwnerRepository = new PostgresPropertyOwnerRepository(pool);
+  const propertyOwnershipRepository = new PostgresPropertyOwnershipRepository(pool);
 
   const composition: ApiComposition = {
     createTenant: new CreateTenant(
@@ -63,6 +65,9 @@ export function createPostgresApiRuntime(environment: NodeJS.ProcessEnv): Postgr
     createPropertyOwner: new CreatePropertyOwner(propertyOwnerRepository, { generate: randomUUID }, { now: () => new Date().toISOString() }),
     retrievePropertyOwner: new RetrievePropertyOwner(propertyOwnerRepository),
     updatePropertyOwner: new UpdatePropertyOwner(propertyOwnerRepository, { now: () => new Date().toISOString() }),
+    assignPropertyOwner: new AssignPropertyOwner(propertyOwnershipRepository, { now: () => new Date().toISOString() }),
+    retrievePropertyOwnerships: new RetrievePropertyOwnerships(propertyOwnershipRepository),
+    removePropertyOwner: new RemovePropertyOwner(propertyOwnershipRepository),
     runtimeShutdown: { onApplicationShutdown: () => database.close() },
   };
 

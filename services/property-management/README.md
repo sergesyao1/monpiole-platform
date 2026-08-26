@@ -33,3 +33,16 @@ and identity details may be updated through a tenant-scoped, row-locked
 transaction. PostgreSQL forced RLS protects the service-owned
 `property_management.property_owners` table. Ownership assignment, shared
 ownership, building/unit composition, and publication remain outside this slice.
+
+## TASK-038 property ownership assignment
+
+`PropertyOwnership` is an explicit tenant-scoped relation between `Property` and
+`PropertyOwner`, identified naturally by `(tenantId, propertyId, ownerId)`. It
+supports multiple owners per property, one owner across multiple properties,
+and percentage shares from `0.01` through `100.00`; partial totals are valid but
+the total for one property cannot exceed 100. PostgreSQL composite foreign keys,
+a composite primary key, forced RLS, and a transaction-level lock on the target
+Property enforce reference, uniqueness, tenant, and concurrency guarantees.
+Assignment, listing by Property, and removal are supported. Share updates,
+inverse Owner-to-Property listing, history, building/unit composition, and
+publication remain outside this slice.

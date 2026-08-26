@@ -42,7 +42,7 @@ beforeAll(async () => {
   await ownerPool.query("GRANT USAGE ON SCHEMA tenant_management, identity, property_management TO api_runtime");
   await ownerPool.query("GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA tenant_management TO api_runtime");
   await ownerPool.query("GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA identity TO api_runtime");
-  await ownerPool.query("GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA property_management TO api_runtime");
+  await ownerPool.query("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA property_management TO api_runtime");
   runtimePool = new Pool({ connectionString: connectionString("api_runtime", RUNTIME_PASSWORD), max: 4 });
 });
 
@@ -53,7 +53,7 @@ afterEach(async () => {
   runtime = undefined;
   await ownerPool.query("TRUNCATE identity.tenant_memberships, identity.identities CASCADE");
   await ownerPool.query("TRUNCATE tenant_management.outbox, tenant_management.create_tenant_idempotency, tenant_management.tenants CASCADE");
-  await ownerPool.query("TRUNCATE property_management.properties, property_management.property_owners");
+  await ownerPool.query("TRUNCATE property_management.property_ownerships, property_management.properties, property_management.property_owners");
   authorizedTenantIds.clear();
 });
 
@@ -77,6 +77,7 @@ async function start() {
         "CREATE_TENANT", "BOOTSTRAP_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT",
         "CREATE_PROPERTY", "RETRIEVE_PROPERTY", "UPDATE_PROPERTY_DETAILS",
         "CREATE_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNER", "UPDATE_PROPERTY_OWNER",
+        "ASSIGN_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNERSHIP", "REMOVE_PROPERTY_OWNER",
       ],
       tenantIds: [...authorizedTenantIds],
     }) },
@@ -182,5 +183,35 @@ describe("API PostgreSQL Identity runtime composition", () => {
     expect(updated.status).toBe(200);
     expect((await ownerPool.query("SELECT commercial_kind, rent_amount_minor FROM property_management.properties WHERE property_id = $1", [property.propertyId])).rows[0])
       .toEqual({ commercial_kind: "LONG_TERM_RENTAL", rent_amount_minor: "300000" });
+  });
+
+  it("assigns, lists and removes PropertyOwnership through the real PostgreSQL API composition", async () => {
+    await start(); await createTenant("ownership");
+    const propertyResponse = await fetch(`${baseUrl}/v1/properties`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        title: "House", propertyType: "HOUSE", transactionType: "SALE",
+        location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Riviera" },
+      }),
+    });
+    expect(propertyResponse.status).toBe(201); const property = await propertyResponse.json() as { propertyId: string };
+    const ownerResponse = await fetch(`${baseUrl}/v1/property-owners`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        ownerType: "INDIVIDUAL", firstName: "Jean", lastName: "Kouassi", email: "jean@example.com",
+      }),
+    });
+    expect(ownerResponse.status).toBe(201); const propertyOwner = await ownerResponse.json() as { ownerId: string };
+    const assigned = await fetch(`${baseUrl}/v1/properties/${property.propertyId}/owners`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ownerId: propertyOwner.ownerId, ownershipShare: 75 }),
+    });
+    expect(assigned.status).toBe(201); expect(await assigned.json()).toMatchObject({
+      propertyId: property.propertyId, ownerId: propertyOwner.ownerId, ownershipShare: 75,
+    });
+    const listed = await fetch(`${baseUrl}/v1/properties/${property.propertyId}/owners`);
+    expect(listed.status).toBe(200); expect(await listed.json()).toEqual([expect.objectContaining({ ownerId: propertyOwner.ownerId })]);
+    expect((await ownerPool.query("SELECT ownership_share FROM property_management.property_ownerships WHERE property_id = $1", [property.propertyId])).rows[0]?.ownership_share).toBe("75.00");
+    const removed = await fetch(`${baseUrl}/v1/properties/${property.propertyId}/owners/${propertyOwner.ownerId}`, { method: "DELETE" });
+    expect(removed.status).toBe(204);
+    expect((await ownerPool.query("SELECT count(*)::int AS count FROM property_management.property_ownerships")).rows[0]?.count).toBe(0);
   });
 });
