@@ -47,23 +47,43 @@ describe("OIDC authentication HTTP boundary", () => {
   afterAll(async () => application.close());
 
   it("verifies a token, resolves internal authority, and reaches the protected endpoint", async () => {
-    const response = await request(await token(AUDIENCE));
+    const response = await request(await token());
     expect(response.status).toBe(201);
     expect(executed).toBe(1);
   });
 
   it("returns safe 401 and performs no use-case call for a wrong audience", async () => {
-    const response = await request(await token("another-api"));
+    const response = await request(await token({ audience: "another-api" }));
     expect(response.status).toBe(401);
     expect(ProblemDetailsSchema.parse(await response.json()).code).toBe("UNAUTHORIZED");
     expect(executed).toBe(1);
   });
 
-  async function token(audience: string) {
+  it.each([
+    ["unknown external identity", { subject: "auth0|unknown" }],
+    ["wrong issuer", { issuer: "https://other.example.test/" }],
+    ["expired token", { expirationTime: Math.floor(Date.now() / 1000) - 1 }],
+  ])("returns 401 for %s without invoking the protected operation", async (_name, override) => {
+    const before = executed;
+    const response = await request(await token(override));
+    expect(response.status).toBe(401);
+    expect(ProblemDetailsSchema.parse(await response.json()).code).toBe("UNAUTHORIZED");
+    expect(executed).toBe(before);
+  });
+
+  it("returns 401 for an invalid bearer token", async () => {
+    const before = executed;
+    const response = await request("not-a-jwt");
+    expect(response.status).toBe(401);
+    expect(executed).toBe(before);
+  });
+
+  async function token(override: { audience?: string; issuer?: string; subject?: string; expirationTime?: number } = {}) {
     const now = Math.floor(Date.now() / 1000);
     return new SignJWT({}).setProtectedHeader({ alg: "RS256", kid: "integration" })
-      .setIssuer(ISSUER).setAudience(audience).setSubject("auth0|platform-admin")
-      .setIssuedAt(now).setExpirationTime(now + 300).sign(privateKey);
+      .setIssuer(override.issuer ?? ISSUER).setAudience(override.audience ?? AUDIENCE)
+      .setSubject(override.subject ?? "auth0|platform-admin")
+      .setIssuedAt(now).setExpirationTime(override.expirationTime ?? now + 300).sign(privateKey);
   }
 
   function request(accessToken: string) {

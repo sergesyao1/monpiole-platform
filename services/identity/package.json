@@ -15,7 +15,7 @@
   "scripts": {
     "build": "tsc --project tsconfig.json",
     "typecheck": "tsc --project tsconfig.json --noEmit",
-    "migration:generate": "drizzle-kit generate --config drizzle.config.ts --name 20260825_identity_persistence_baseline",
+    "migration:generate": "drizzle-kit generate --config drizzle.config.ts --name external_identity_resolution",
     "migration:check": "drizzle-kit check --config drizzle.config.ts",
     "test:integration": "vitest run --root ../.. --config vitest.config.ts --project persistence-integration services/identity/tests"
   },

@@ -1,4 +1,4 @@
-import { foreignKey, pgSchema, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { foreignKey, pgSchema, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 export const identitySchema = pgSchema("identity");
 
@@ -25,6 +25,21 @@ export const tenantMemberships = identitySchema.table("tenant_memberships", {
   foreignKey({
     name: "tenant_memberships_identity_tenant_fk",
     columns: [table.identityId, table.tenantId],
+    foreignColumns: [identities.id, identities.tenantId],
+  }),
+]);
+
+export const externalIdentities = identitySchema.table("external_identities", {
+  issuer: text("issuer").notNull(),
+  subject: text("subject").notNull(),
+  internalIdentityId: uuid("internal_identity_id").notNull(),
+  tenantId: uuid("tenant_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+}, (table) => [
+  uniqueIndex("external_identities_issuer_subject_unique").on(table.issuer, table.subject),
+  foreignKey({
+    name: "external_identities_internal_identity_tenant_fk",
+    columns: [table.internalIdentityId, table.tenantId],
     foreignColumns: [identities.id, identities.tenantId],
   }),
 ]);

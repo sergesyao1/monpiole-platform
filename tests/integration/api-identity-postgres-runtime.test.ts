@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { createApiApplication } from "../../apps/api/src/bootstrap.js";
 import { createPostgresApiRuntime, type PostgresApiRuntime } from "../../apps/api/src/composition/create-postgres-runtime-composition.js";
-import { PostgresIdentityStore } from "../../services/identity/src/index.js";
+import { ExternalIdentity, PostgresIdentityStore } from "../../services/identity/src/index.js";
 import {
   GenericContainer, Pool, Wait, drizzle, migrate, type StartedTestContainer,
 } from "../../services/identity/tests/postgres-runtime-test-harness.js";
@@ -64,11 +64,7 @@ afterAll(async () => {
 });
 
 async function start() {
-  runtime = createPostgresApiRuntime({
-    DATABASE_URL: connectionString("api_runtime", RUNTIME_PASSWORD),
-    DATABASE_POOL_MAX: "4", DATABASE_CONNECTION_TIMEOUT_MS: "2500", DATABASE_IDLE_TIMEOUT_MS: "12000",
-    DATABASE_TLS: "disabled", NODE_ENV: "test",
-  });
+  runtime = createPostgresApiRuntime(runtimeEnvironment());
   application = await createApiApplication({ logger: false }, {
     ...runtime.composition,
     authenticatedAuthorityProvider: { resolve: async () => ({
@@ -82,6 +78,22 @@ async function start() {
       tenantIds: [...authorizedTenantIds],
     }) },
   });
+  await listen();
+}
+
+function runtimeEnvironment(): NodeJS.ProcessEnv {
+  return {
+    DATABASE_URL: connectionString("api_runtime", RUNTIME_PASSWORD),
+    DATABASE_POOL_MAX: "4", DATABASE_CONNECTION_TIMEOUT_MS: "2500", DATABASE_IDLE_TIMEOUT_MS: "12000",
+    DATABASE_TLS: "disabled", NODE_ENV: "test",
+    AUTHENTICATION_ISSUER: "https://login.runtime.test/",
+    AUTHENTICATION_AUDIENCE: "https://api.monpiole.test",
+    AUTHENTICATION_JWKS_URI: "https://login.runtime.test/.well-known/jwks.json",
+  };
+}
+
+async function listen() {
+  if (application === undefined) throw new Error("API application was not composed");
   await application.listen(0, "127.0.0.1");
   const address = application.getHttpServer().address();
   if (address === null || typeof address === "string") throw new Error("API did not bind a port");
@@ -158,6 +170,55 @@ describe("API PostgreSQL Identity runtime composition", () => {
     expect(response.status).toBe(409);
     expect((await ownerPool.query("SELECT lifecycle_state FROM tenant_management.tenants WHERE id = $1", [tenantB]))
       .rows[0]?.lifecycle_state).toBe("PENDING");
+  });
+
+  it("composes OIDC with durable external identity resolution across a runtime restart", async () => {
+    await ownerPool.query(`INSERT INTO identity.identities
+      (id, tenant_id, email, first_name, last_name, status, correlation_id)
+      VALUES ($1, $2, 'oidc@example.invalid', 'OIDC', 'Admin', 'ACTIVE', $3)`,
+    ["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CORRELATION_ID]);
+    await ownerPool.query(`INSERT INTO identity.tenant_memberships
+      (tenant_id, identity_id, role, correlation_id) VALUES ($1, $2, 'TENANT_ADMINISTRATOR', $3)`,
+    ["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", CORRELATION_ID]);
+
+    const accessTokenVerifier = { verify: async (token: string) => {
+      if (token !== "known-token") throw new Error("invalid token");
+      return { issuer: "https://login.runtime.test/", subject: "auth0|known", authenticationMethods: [] };
+    } };
+    runtime = createPostgresApiRuntime(runtimeEnvironment(), { accessTokenVerifier });
+    await runtime.externalIdentityStore.link(ExternalIdentity.create({
+      issuer: "https://login.runtime.test/", subject: "auth0|known",
+      internalIdentityId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      tenantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", createdAt: "2026-08-26T12:00:00Z",
+    }));
+    application = await createApiApplication({ logger: false }, runtime.composition);
+    await listen();
+    const propertyId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+    expect((await fetch(`${baseUrl}/v1/properties/${propertyId}`, {
+      headers: { authorization: "Bearer known-token" },
+    })).status).toBe(404);
+    expect((await fetch(`${baseUrl}/v1/properties/${propertyId}`, {
+      headers: { authorization: "Bearer unknown-token" },
+    })).status).toBe(401);
+    expect((await fetch(`${baseUrl}/api/v1/tenants`, {
+      method: "POST",
+      headers: {
+        authorization: "Bearer known-token", "content-type": "application/json", "idempotency-key": "forbidden-platform-create",
+      },
+      body: JSON.stringify({
+        organizationName: "Forbidden Agency", responsiblePersonName: "OIDC Admin",
+        responsibleEmail: "oidc@example.invalid", responsibleTelephone: "+2250102030405", country: "CI",
+      }),
+    })).status).toBe(403);
+
+    await application.close(); application = undefined;
+    await runtime.close(); runtime = undefined;
+    runtime = createPostgresApiRuntime(runtimeEnvironment(), { accessTokenVerifier });
+    application = await createApiApplication({ logger: false }, runtime.composition);
+    await listen();
+    expect((await fetch(`${baseUrl}/v1/properties/${propertyId}`, {
+      headers: { authorization: "Bearer known-token" },
+    })).status).toBe(404);
   });
 
   it("persists and retrieves a Property through the real PostgreSQL API composition", async () => {

@@ -25,6 +25,15 @@ export {
   type IdentityOnboardingAuthorizer,
   type IdentityOnboardingGrant,
 } from "./application/tenant-onboarding-authority.js";
-export { Identity, TenantMembership, type IdentityStatus, type TenantRole } from "./domain/identity.js";
+export {
+  ExternalIdentity, Identity, InvalidExternalIdentityError, TenantMembership,
+  type IdentityStatus, type TenantRole,
+} from "./domain/identity.js";
+export type {
+  ExternalIdentityLinkStore, ExternalIdentityResolver, ResolvedExternalIdentityAuthority,
+} from "./application/external-identity-resolution.js";
 export { InMemoryBootstrapAdministratorStore } from "./infrastructure/in-memory-bootstrap-administrator-store.js";
 export { PostgresIdentityStore } from "./infrastructure/persistence/postgres/postgres-identity-store.js";
+export {
+  ExternalIdentityAlreadyLinkedError, PostgresExternalIdentityStore,
+} from "./infrastructure/persistence/postgres/postgres-external-identity-store.js";

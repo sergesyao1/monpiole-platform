@@ -7,7 +7,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import {
   ActivateTenantAdministrator, BootstrapAdministratorConflictError,
-  BootstrapTenantAdministrator, PostgresIdentityStore, TenantAdministratorNotFoundError,
+  BootstrapTenantAdministrator, ExternalIdentity, ExternalIdentityAlreadyLinkedError,
+  PostgresExternalIdentityStore, PostgresIdentityStore, TenantAdministratorNotFoundError,
 } from "../src/index.js";
 
 const POSTGRES_IMAGE = "postgres@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687";
@@ -112,5 +113,52 @@ describe("Identity PostgreSQL persistence", () => {
     expect((await ownerPool.query("SELECT status FROM identity.identities WHERE id = $1", [ADMIN_A])).rows[0]?.status)
       .toBe("PENDING_ACTIVATION");
     expect((await runtimePool.query("SELECT * FROM identity.identities")).rows).toHaveLength(0);
+  });
+
+  it("persists and resolves an external identity through a fresh store", async () => {
+    await bootstrap(new PostgresIdentityStore(runtimePool));
+    await new ActivateTenantAdministrator(new PostgresIdentityStore(runtimePool), AUTHORIZER).execute({
+      tenantId: TENANT_A, administratorId: ADMIN_A, correlationId: CORRELATION_ID, authority: AUTHORITY,
+    });
+    await new PostgresExternalIdentityStore(runtimePool).link(ExternalIdentity.create({
+      issuer: "https://tenant.auth0.com/", subject: "auth0|administrator", internalIdentityId: ADMIN_A,
+      tenantId: TENANT_A, createdAt: "2026-08-26T12:00:00Z",
+    }));
+    await expect(new PostgresExternalIdentityStore(runtimePool).resolve(
+      "https://tenant.auth0.com/", "auth0|administrator",
+    )).resolves.toEqual({ identityId: ADMIN_A, role: "TENANT_ADMINISTRATOR", tenantIds: [TENANT_A] });
+  });
+
+  it("keeps unknown and inactive external identities unresolved", async () => {
+    const store = new PostgresExternalIdentityStore(runtimePool);
+    await expect(store.resolve("https://tenant.auth0.com/", "unknown")).resolves.toBeUndefined();
+    await bootstrap(new PostgresIdentityStore(runtimePool));
+    await store.link(ExternalIdentity.create({
+      issuer: "https://tenant.auth0.com/", subject: "auth0|pending", internalIdentityId: ADMIN_A,
+      tenantId: TENANT_A, createdAt: "2026-08-26T12:00:00Z",
+    }));
+    await expect(store.resolve("https://tenant.auth0.com/", "auth0|pending")).resolves.toBeUndefined();
+  });
+
+  it("enforces unique issuer and subject without using email", async () => {
+    await bootstrap(new PostgresIdentityStore(runtimePool));
+    const external = ExternalIdentity.create({
+      issuer: "https://tenant.auth0.com/", subject: "auth0|stable-subject", internalIdentityId: ADMIN_A,
+      tenantId: TENANT_A, createdAt: "2026-08-26T12:00:00Z",
+    });
+    await new PostgresExternalIdentityStore(runtimePool).link(external);
+    await expect(new PostgresExternalIdentityStore(runtimePool).link(external))
+      .rejects.toBeInstanceOf(ExternalIdentityAlreadyLinkedError);
+    expect((await ownerPool.query("SELECT issuer, subject, internal_identity_id FROM identity.external_identities")).rows)
+      .toEqual([{ issuer: "https://tenant.auth0.com/", subject: "auth0|stable-subject", internal_identity_id: ADMIN_A }]);
+    expect((await runtimePool.query("SELECT * FROM identity.external_identities")).rows).toHaveLength(0);
+  });
+
+  it("preserves the relation to an existing internal identity", async () => {
+    const error = await new PostgresExternalIdentityStore(runtimePool).link(ExternalIdentity.create({
+      issuer: "https://tenant.auth0.com/", subject: "auth0|orphan", internalIdentityId: ADMIN_A,
+      tenantId: TENANT_A, createdAt: "2026-08-26T12:00:00Z",
+    })).catch((caught: unknown) => caught) as { cause?: { constraint?: string } };
+    expect(error.cause?.constraint).toBe("external_identities_internal_identity_tenant_fk");
   });
 });

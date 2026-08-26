@@ -5,6 +5,7 @@ import {
   BootstrapTenantAdministrator,
   HasActiveTenantAdministrator,
   PostgresIdentityStore,
+  PostgresExternalIdentityStore,
 } from "@monpiole/identity";
 import { PostgresPool, postgresConfigurationFromEnvironment } from "@monpiole/persistence";
 import {
@@ -25,17 +26,35 @@ import type { ApiComposition } from "../app.module.js";
 import { IdentityActiveTenantAdministratorAdapter } from "./identity-active-tenant-administrator.adapter.js";
 import { TenantExistenceAdapter } from "./tenant-existence.adapter.js";
 import { OnboardingAuthorityPolicy } from "./onboarding-authority-policy.js";
+import { OidcAccessTokenVerifier, oidcAccessTokenConfigurationFromEnvironment } from "../authentication/oidc-access-token-verifier.js";
+import { OidcAuthenticatedAuthorityProvider } from "../authentication/oidc-authenticated-authority-provider.js";
+import { IdentityExternalAuthorityAdapter } from "./identity-external-authority.adapter.js";
 
 export interface PostgresApiRuntime {
   readonly composition: ApiComposition;
   readonly identityStore: PostgresIdentityStore;
+  readonly externalIdentityStore: PostgresExternalIdentityStore;
   close(): Promise<void>;
 }
 
-export function createPostgresApiRuntime(environment: NodeJS.ProcessEnv): PostgresApiRuntime {
+export interface PostgresApiRuntimeDependencies {
+  readonly accessTokenVerifier?: Pick<OidcAccessTokenVerifier, "verify">;
+}
+
+export function createPostgresApiRuntime(
+  environment: NodeJS.ProcessEnv,
+  dependencies: PostgresApiRuntimeDependencies = {},
+): PostgresApiRuntime {
+  const accessTokenVerifier = dependencies.accessTokenVerifier
+    ?? new OidcAccessTokenVerifier(oidcAccessTokenConfigurationFromEnvironment(environment));
   const database = new PostgresPool(postgresConfigurationFromEnvironment(environment));
   const pool = database.infrastructurePool();
   const identityStore = new PostgresIdentityStore(pool);
+  const externalIdentityStore = new PostgresExternalIdentityStore(pool);
+  const authenticatedAuthorityProvider = new OidcAuthenticatedAuthorityProvider(
+    accessTokenVerifier,
+    new IdentityExternalAuthorityAdapter(externalIdentityStore),
+  );
   const activeAdministrator = new HasActiveTenantAdministrator(identityStore);
   const tenantExists = new CheckTenantExists(new PostgresTenantExistenceRepository(pool));
   const authorityPolicy = new OnboardingAuthorityPolicy();
@@ -44,6 +63,7 @@ export function createPostgresApiRuntime(environment: NodeJS.ProcessEnv): Postgr
   const propertyOwnershipRepository = new PostgresPropertyOwnershipRepository(pool);
 
   const composition: ApiComposition = {
+    authenticatedAuthorityProvider,
     createTenant: new CreateTenant(
       authorityPolicy,
       new PostgresCreateTenantUnitOfWork(pool),
@@ -71,5 +91,5 @@ export function createPostgresApiRuntime(environment: NodeJS.ProcessEnv): Postgr
     runtimeShutdown: { onApplicationShutdown: () => database.close() },
   };
 
-  return { composition, identityStore, close: () => database.close() };
+  return { composition, identityStore, externalIdentityStore, close: () => database.close() };
 }

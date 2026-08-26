@@ -1,7 +1,7 @@
 # UI-002A — Auth0 Development Provisioning & End-to-End Authentication Smoke Test
 
 - Date: 2026-08-26
-- Status: **BLOCKED — API OIDC RUNTIME COMPOSITION AND MANUAL AUTH0 ACCESS REQUIRED**
+- Status: **READY FOR MANUAL AUTH0 PROVISIONING**
 
 ## État initial
 
@@ -21,13 +21,12 @@ Le smoke test réel ne peut pas être exécuté dans l’état actuel :
 
 1. aucun navigateur contrôlable n’est disponible dans cet environnement ;
 2. aucun accès/connector Auth0 Management n’est disponible ;
-3. `createPostgresApiRuntime` ne compose ni `OidcAccessTokenVerifier` ni
-   `OidcAuthenticatedAuthorityProvider` ; le provider fail-closed retourne 401 ;
-4. aucun `ExternalIdentityAuthorityResolver` durable ne mappe `issuer + subject` ;
-5. l’API n’active aucune politique CORS navigateur ;
-6. aucune page Web actuelle ne déclenche un appel métier protégé ;
-7. le dépôt ne fournit ni composition PostgreSQL locale ni commande d’application
+3. aucune page Web actuelle ne déclenche un appel métier protégé ;
+4. le dépôt ne fournit ni composition PostgreSQL locale ni commande d’application
    des migrations ; le runtime exige TLS hors tests.
+
+TASK-040 a depuis fermé les anciens blockers de composition : verifier/provider
+OIDC, resolver PostgreSQL durable et CORS restrictif sont désormais réels.
 
 Aucun fallback administrateur, mapping par e-mail/scope, ou affaiblissement JWT
 n’a été ajouté pour contourner ces gates.
@@ -43,7 +42,7 @@ Les exemples suivants ne désignent pas un tenant réellement provisionné.
 | Client SPA | `VITE_OIDC_CLIENT_ID=<public-client-id>` | Single Page Application | Non utilisé par la resource API |
 | Callback | `http://localhost:5173` | Allowed Callback URLs | Sans objet |
 | Logout | `http://localhost:5173/connexion` | Allowed Logout URLs | Sans objet |
-| Web Origin | `http://localhost:5173` | Allowed Web Origins | future allowlist CORS exacte |
+| Web Origin | `http://localhost:5173` | Allowed Web Origins | `API_ALLOWED_BROWSER_ORIGINS`, allowlist exacte |
 | JWKS | Sans objet | clés publiques | `https://<tenant-dev>.eu.auth0.com/.well-known/jwks.json` |
 | JWT | token de l’audience API | RS256 | allowlist RS256 ; `sub`, `iat`, `exp` requis |
 
@@ -101,20 +100,23 @@ AUTHENTICATION_CLOCK_TOLERANCE_SECONDS=30
 AUTHENTICATION_MAX_TOKEN_AGE_SECONDS=900
 ```
 
-Ces variables sont exemplifiées dans `.env.example`. Le runtime ne les consomme
-pas encore : la composition OIDC manque. Aucune validation ne doit être réduite.
+Ces variables sont exemplifiées dans `.env.example` et consommées par le runtime
+TASK-040. Aucune validation ne doit être réduite.
 
-## Prérequis repository avant smoke test
+## Prérequis repository livrés par TASK-040
 
-Une tâche backend approuvée doit :
+TASK-040 a livré :
 
 1. persister et résoudre dans Identity `issuer + subject` vers l’autorité interne ;
 2. fournir une procédure auditable de liaison du compte Auth0 de développement ;
 3. composer verifier, provider et resolver dans `createPostgresApiRuntime` ;
 4. autoriser par CORS uniquement `http://localhost:5173` avec les méthodes et
    headers requis, jamais `*` ;
-5. fournir un démarrage PostgreSQL/migrations local reproductible ;
-6. fournir un parcours Web protégé sans effet dangereux pour la preuve API.
+5. des tests Testcontainers reproductibles pour migrations et reconstruction.
+
+Restent avant le smoke : provisionner Auth0, lier explicitement le compte via
+`PostgresExternalIdentityStore.link`, disposer d’un PostgreSQL local migré et
+déclencher depuis le Web un appel vers une route protégée existante.
 
 La liaison doit affecter explicitement grants et tenant IDs internes. Un second
 utilisateur lié sans le grant ciblé est recommandé pour le 403. Auth0 ne doit
@@ -160,10 +162,10 @@ URL/log, aucun secret client dans le bundle. Ne pas capturer de token.
 | --- | --- |
 | Tenant/SPA/API Auth0 | NON EXÉCUTÉ — accès absent |
 | Login/callback/reload/logout | NON EXÉCUTÉ — navigateur absent |
-| Token/appel API/JWT | BLOQUÉ — composition OIDC runtime absente |
-| Mapping/grants/tenant scope | BLOQUÉ — resolver durable absent |
-| 403 | BLOQUÉ — autorité de développement non provisionnable |
-| 401 réel | BLOQUÉ — runtime fail-closed uniquement ; tests existants disponibles |
+| Token/appel API/JWT | NON EXÉCUTÉ — provisioning Auth0/browser absent |
+| Mapping/grants/tenant scope | AUTOMATISÉ par TASK-040 ; smoke réel non exécuté |
+| 403 | NON EXÉCUTÉ — comptes de développement non provisionnés |
+| 401 réel | AUTOMATISÉ par TASK-040 ; navigateur réel non exécuté |
 | Sécurité navigateur | NON EXÉCUTÉ ; garanties statiques UI-002 seulement |
 
 ## Corrections et contrôles
@@ -183,6 +185,6 @@ runtime et `.env.example` documente les coordonnées OIDC publiques de l’API.
 Fichiers créés : ce livrable. Fichiers modifiés : `.env.example` et
 `apps/api/README.md`. Fichiers supprimés : aucun.
 
-UI-002A reste **BLOCKED**. Elle pourra passer à **READY FOR MANUAL SMOKE TEST**
-après la tranche backend et le provisioning Auth0 ; `DONE` exige l’observation
-du parcours navigateur réel complet.
+UI-002A est **READY FOR MANUAL AUTH0 PROVISIONING**. Elle passera à
+**READY FOR MANUAL SMOKE TEST** après provisioning Auth0, liaison contrôlée et
+démarrage local ; `DONE` exige l’observation du parcours navigateur complet.

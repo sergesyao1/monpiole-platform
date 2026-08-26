@@ -66,3 +66,44 @@ export class TenantMembership {
     return TenantMembership.bootstrap(tenantId, identityId);
   }
 }
+
+export class InvalidExternalIdentityError extends Error {
+  readonly code = "INVALID_EXTERNAL_IDENTITY";
+  constructor(readonly field: "issuer" | "subject" | "internalIdentityId" | "tenantId" | "createdAt") {
+    super(`Invalid external identity ${field}`);
+    this.name = "InvalidExternalIdentityError";
+  }
+}
+
+export class ExternalIdentity {
+  private constructor(
+    readonly issuer: string,
+    readonly subject: string,
+    readonly internalIdentityId: string,
+    readonly tenantId: string,
+    readonly createdAt: string,
+  ) {}
+
+  static create(values: {
+    issuer: string; subject: string; internalIdentityId: string; tenantId: string; createdAt: string;
+  }): ExternalIdentity {
+    let issuer: URL;
+    try { issuer = new URL(values.issuer); } catch { throw new InvalidExternalIdentityError("issuer"); }
+    if (issuer.protocol !== "https:" || issuer.username !== "" || issuer.password !== "") {
+      throw new InvalidExternalIdentityError("issuer");
+    }
+    const subject = values.subject.trim();
+    if (subject.length === 0) throw new InvalidExternalIdentityError("subject");
+    if (!UUID_V4.test(values.internalIdentityId)) throw new InvalidExternalIdentityError("internalIdentityId");
+    if (!UUID_V4.test(values.tenantId)) throw new InvalidExternalIdentityError("tenantId");
+    const createdAt = new Date(values.createdAt);
+    if (Number.isNaN(createdAt.valueOf())) throw new InvalidExternalIdentityError("createdAt");
+    return new ExternalIdentity(
+      issuer.toString(), subject, values.internalIdentityId, values.tenantId, createdAt.toISOString(),
+    );
+  }
+
+  static rehydrate(values: {
+    issuer: string; subject: string; internalIdentityId: string; tenantId: string; createdAt: string;
+  }): ExternalIdentity { return ExternalIdentity.create(values); }
+}

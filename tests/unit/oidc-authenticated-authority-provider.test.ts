@@ -23,10 +23,12 @@ describe("OIDC authenticated authority provider", () => {
   });
 
   it("fails closed for an invalid token, unknown subject, or disabled mapping", async () => {
+    const invalidResolver = { resolve: vi.fn() };
     const invalid = new OidcAuthenticatedAuthorityProvider(
-      { verify: vi.fn().mockRejectedValue(new Error("invalid")) }, { resolve: vi.fn() },
+      { verify: vi.fn().mockRejectedValue(new Error("invalid")) }, invalidResolver,
     );
     await expect(invalid.resolve({ headers: { authorization: "Bearer invalid" } })).resolves.toBeUndefined();
+    expect(invalidResolver.resolve).not.toHaveBeenCalled();
     const unresolved = new OidcAuthenticatedAuthorityProvider(
       { verify: vi.fn().mockResolvedValue(CONTEXT) }, { resolve: vi.fn().mockResolvedValue(undefined) },
     );

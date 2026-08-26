@@ -90,3 +90,24 @@ the MonPiole identity, enabled state, tenant membership, and authority data.
 External linkage is keyed by `issuer + subject`, never email, and provider roles
 are not business grants. Durable external-link storage and controlled first
 platform-administrator provisioning remain production deployment gates.
+
+## TASK-040 durable external identity resolution
+
+Identity owns `identity.external_identities`. Each row links the exact OIDC
+`(issuer, subject)` pair to an existing internal identity and its tenant, records
+`created_at`, and is protected by a unique pair constraint, composite foreign
+key and forced RLS. Resolution first performs an exact controlled link lookup,
+then enters the linked tenant's RLS transaction to load the ACTIVE identity and
+its internal membership.
+
+`PostgresExternalIdentityStore` is both the provisioning persistence boundary
+and runtime resolver. A fresh instance resolves previously persisted links;
+there is no in-memory fallback. Unknown links, pending/disabled identities and
+unsupported memberships resolve to no authority. E-mail is never part of the
+lookup key.
+
+Provisioning remains an explicit trusted operation: construct a validated
+`ExternalIdentity` for an existing internal identity and call `link`. TASK-040
+does not expose a public endpoint, auto-link on first login or create privileged
+users. Tenant administrator grants are assigned from the internal membership by
+API composition, never from OIDC claims.

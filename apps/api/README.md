@@ -67,16 +67,40 @@ Invalid or unresolved credentials use 401 Problem Details; authenticated
 authorities rejected by Application policy receive 403. Tokens and
 Authorization headers must never be logged.
 
-### Development runtime gap
+### TASK-040 runtime composition and browser readiness
 
-The verifier and `OidcAuthenticatedAuthorityProvider` are covered by unit and
-integration tests, but the normal PostgreSQL runtime does not yet compose them:
-`createPostgresApiRuntime` supplies no `authenticatedAuthorityProvider`, and no
-durable `ExternalIdentityAuthorityResolver` implementation exists. Runtime
-requests therefore use the fail-closed unavailable provider and return 401.
+The normal PostgreSQL runtime now composes `OidcAccessTokenVerifier`,
+`OidcAuthenticatedAuthorityProvider` and Identity's durable
+`PostgresExternalIdentityStore`. Startup requires the following public
+configuration in addition to `DATABASE_*`:
 
-The API also has no configured browser CORS policy. A real Web/Auth0 smoke test
-must wait for an approved slice that composes the verifier, an Identity-owned
-`issuer + subject` resolver and an explicit allowed Web origin. Do not add a
-development fallback that promotes every external user or derives authority
-from email, OAuth scopes or provider roles.
+```text
+AUTHENTICATION_ISSUER=https://<tenant>.eu.auth0.com/
+AUTHENTICATION_AUDIENCE=https://api.monpiole.local
+AUTHENTICATION_JWKS_URI=https://<tenant>.eu.auth0.com/.well-known/jwks.json
+AUTHENTICATION_JWT_ALGORITHM=RS256
+AUTHENTICATION_CLOCK_TOLERANCE_SECONDS=30
+AUTHENTICATION_MAX_TOKEN_AGE_SECONDS=900
+API_ALLOWED_BROWSER_ORIGINS=http://localhost:5173
+```
+
+`API_ALLOWED_BROWSER_ORIGINS` is a comma-separated allowlist of exact HTTP(S)
+origins. Missing, path-bearing or wildcard values fail startup. The browser
+policy permits the required authorization, JSON, correlation, tenant and
+idempotency headers; it never uses a wildcard origin.
+
+A valid token whose `(issuer, subject)` is not linked, an inactive internal
+identity and an invalid token all receive the same safe 401 response. This
+prevents external identity enumeration; their internal verification/resolution
+paths remain distinct. An authenticated authority rejected by an internal
+grant or tenant-scope policy receives 403.
+
+External linking is a provisioning operation, not login behavior. An approved
+operations or future administration workflow must construct `ExternalIdentity`
+and call `PostgresExternalIdentityStore.link` for an existing internal identity.
+No public auto-provisioning endpoint exists. Never link by email or translate
+Auth0 roles/scopes into MonPiole grants.
+
+The frontend values `VITE_OIDC_ISSUER` and `VITE_OIDC_AUDIENCE` must exactly
+match the API issuer and audience. For local browser use, Auth0 must also allow
+the callback, logout and Web origin documented in `apps/web/README.md`.
