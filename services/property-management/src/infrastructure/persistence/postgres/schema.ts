@@ -21,3 +21,16 @@ export const properties = propertyManagement.table("properties", {
 }, (table) => [
   uniqueIndex("properties_tenant_property_unique").on(table.tenantId, table.propertyId),
 ]);
+
+export const propertyOwners = propertyManagement.table("property_owners", {
+  ownerId: uuid("owner_id").primaryKey(), tenantId: uuid("tenant_id").notNull(),
+  ownerType: text("owner_type").notNull(),
+  firstName: text("first_name"), lastName: text("last_name"),
+  legalName: text("legal_name"), registrationNumber: text("registration_number"),
+  phoneNumber: text("phone_number"), email: text("email"),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
+  correlationId: uuid("correlation_id").notNull(), actorId: text("actor_id").notNull(),
+}, (table) => [
+  uniqueIndex("property_owners_tenant_owner_unique").on(table.tenantId, table.ownerId),
+]);

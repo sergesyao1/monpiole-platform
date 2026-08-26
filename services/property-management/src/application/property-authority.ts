@@ -1,4 +1,5 @@
-export type PropertyGrant = "CREATE_PROPERTY" | "RETRIEVE_PROPERTY" | "UPDATE_PROPERTY_DETAILS";
+export type PropertyGrant = "CREATE_PROPERTY" | "RETRIEVE_PROPERTY" | "UPDATE_PROPERTY_DETAILS"
+  | "CREATE_PROPERTY_OWNER" | "RETRIEVE_PROPERTY_OWNER" | "UPDATE_PROPERTY_OWNER";
 
 export interface PropertyAuthority {
   readonly actorId: string;

@@ -135,6 +135,14 @@ function businessProblem(exception: unknown) {
     status: 400, type: "https://api.monpiole.example/problems/invalid-request",
     title: "Invalid request", code: "INVALID_REQUEST",
   };
+  if (code === "PROPERTY_OWNER_NOT_FOUND") return {
+    status: 404, type: "https://api.monpiole.example/problems/property-owner-not-found",
+    title: "Property owner not found", code: "PROPERTY_OWNER_NOT_FOUND",
+  };
+  if (code === "INVALID_PROPERTY_OWNER_INPUT" || code === "PROPERTY_OWNER_TYPE_CHANGE_NOT_ALLOWED") return {
+    status: 400, type: "https://api.monpiole.example/problems/invalid-request",
+    title: "Invalid request", code,
+  };
   return undefined;
 }
 

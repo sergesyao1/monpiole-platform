@@ -22,3 +22,14 @@ deposit and charges; short-term rental uses a nightly or weekly rate; sale uses
 a sale price. `UpdatePropertyDetails` executes through one tenant-scoped,
 row-locked PostgreSQL transaction. Existing properties without details remain
 readable.
+
+## TASK-037 property owner management
+
+`PropertyOwner` is a tenant-owned aggregate distinct from `Property`, the
+authenticated authority, and the tenant organization. It supports discriminated
+`INDIVIDUAL` and `LEGAL_ENTITY` identities with optional validated contact
+information. Owner identity type, owner ID, and tenant ID are immutable; contact
+and identity details may be updated through a tenant-scoped, row-locked
+transaction. PostgreSQL forced RLS protects the service-owned
+`property_management.property_owners` table. Ownership assignment, shared
+ownership, building/unit composition, and publication remain outside this slice.

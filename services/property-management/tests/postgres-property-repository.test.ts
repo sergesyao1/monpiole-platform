@@ -4,7 +4,11 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool } from "pg";
 import { GenericContainer, Wait, type StartedTestContainer } from "testcontainers";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { CreateProperty, PostgresPropertyRepository, RetrieveProperty, PropertyNotFoundError, UpdatePropertyDetails, type TransactionType } from "../src/index.js";
+import {
+  CreateProperty, CreatePropertyOwner, PostgresPropertyOwnerRepository, PostgresPropertyRepository,
+  PropertyNotFoundError, PropertyOwnerNotFoundError, PropertyOwnerTypeChangeNotAllowedError,
+  RetrieveProperty, RetrievePropertyOwner, UpdatePropertyDetails, UpdatePropertyOwner, type TransactionType,
+} from "../src/index.js";
 
 const IMAGE = "postgres@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687";
 const TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"; const TENANT_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -23,7 +27,7 @@ beforeAll(async () => {
   await owner.query("GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA property_management TO property_runtime");
   runtime = new Pool({ connectionString: connection("property_runtime", "synthetic-runtime") });
 });
-afterEach(async () => owner.query("TRUNCATE property_management.properties"));
+afterEach(async () => owner.query("TRUNCATE property_management.properties, property_management.property_owners"));
 afterAll(async () => { await runtime?.end(); await owner?.end(); await container?.stop(); });
 
 function authority(tenantId: string) { return { actorId: "actor", authorityId: "authority", grants: ["CREATE_PROPERTY", "RETRIEVE_PROPERTY"] as const, tenantIds: [tenantId] }; }
@@ -84,5 +88,80 @@ describe("Property PostgreSQL persistence", () => {
       .rejects.toBeDefined();
     expect((await owner.query("SELECT rent_amount_minor, commercial_kind FROM property_management.properties")).rows[0])
       .toEqual({ rent_amount_minor: "200", commercial_kind: "LONG_TERM_RENTAL" });
+  });
+});
+
+function ownerAuthority(tenantId: string) {
+  return { actorId: "actor", authorityId: "authority", grants: ["CREATE_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNER", "UPDATE_PROPERTY_OWNER"] as const, tenantIds: [tenantId] };
+}
+function createOwner(repository = new PostgresPropertyOwnerRepository(runtime), tenantId = TENANT_A, ownerType: "INDIVIDUAL" | "LEGAL_ENTITY" = "INDIVIDUAL", ownerId = PROPERTY_ID) {
+  return new CreatePropertyOwner(repository, { generate: () => ownerId }, { now: () => "2026-08-26T10:00:00.000Z" }).execute({
+    authority: ownerAuthority(tenantId), correlationId: CORRELATION,
+    identity: ownerType === "INDIVIDUAL"
+      ? { ownerType: "INDIVIDUAL", firstName: "Jean", lastName: "Kouassi" }
+      : { ownerType: "LEGAL_ENTITY", legalName: "Immobilière Plateau SA", registrationNumber: "CI-ABJ-2026-B-00000" },
+    contactInformation: { phoneNumber: "+2250700000000", email: "contact@example.com" },
+  });
+}
+
+describe("PropertyOwner PostgreSQL persistence", () => {
+  it.each(["INDIVIDUAL", "LEGAL_ENTITY"] as const)("persists and reconstructs %s", async (ownerType) => {
+    await createOwner(undefined, TENANT_A, ownerType);
+    const found = await new RetrievePropertyOwner(new PostgresPropertyOwnerRepository(runtime)).execute({
+      authority: ownerAuthority(TENANT_A), ownerId: PROPERTY_ID,
+    });
+    expect(found).toMatchObject({ ownerId: PROPERTY_ID, tenantId: TENANT_A, identity: { ownerType }, contactInformation: { email: "contact@example.com" } });
+  });
+
+  it("updates an owner atomically while preserving its identifiers and type", async () => {
+    const repository = new PostgresPropertyOwnerRepository(runtime); await createOwner(repository);
+    const update = new UpdatePropertyOwner(repository, { now: () => "2026-08-26T11:00:00.000Z" });
+    const updated = await update.execute({ authority: ownerAuthority(TENANT_A), correlationId: CORRELATION, ownerId: PROPERTY_ID,
+      identity: { ownerType: "INDIVIDUAL", firstName: "Jeannot", lastName: "Kouassi" }, contactInformation: { email: "new@example.com" } });
+    expect(updated).toMatchObject({ ownerId: PROPERTY_ID, tenantId: TENANT_A, identity: { ownerType: "INDIVIDUAL", firstName: "Jeannot" }, updatedAt: "2026-08-26T11:00:00.000Z" });
+    expect((await owner.query("SELECT owner_type, first_name, email FROM property_management.property_owners")).rows[0])
+      .toEqual({ owner_type: "INDIVIDUAL", first_name: "Jeannot", email: "new@example.com" });
+  });
+
+  it("rolls back a forbidden type change", async () => {
+    const repository = new PostgresPropertyOwnerRepository(runtime); await createOwner(repository);
+    await expect(new UpdatePropertyOwner(repository, { now: () => "2026-08-26T11:00:00.000Z" }).execute({
+      authority: ownerAuthority(TENANT_A), correlationId: CORRELATION, ownerId: PROPERTY_ID,
+      identity: { ownerType: "LEGAL_ENTITY", legalName: "Changed" }, contactInformation: {},
+    })).rejects.toBeInstanceOf(PropertyOwnerTypeChangeNotAllowedError);
+    expect((await owner.query("SELECT owner_type, first_name FROM property_management.property_owners")).rows[0])
+      .toEqual({ owner_type: "INDIVIDUAL", first_name: "Jean" });
+  });
+
+  it("returns not found for missing and cross-tenant access without mutation", async () => {
+    const repository = new PostgresPropertyOwnerRepository(runtime); await createOwner(repository);
+    const retrieve = new RetrievePropertyOwner(repository);
+    await expect(retrieve.execute({ authority: ownerAuthority(TENANT_B), ownerId: PROPERTY_ID })).rejects.toBeInstanceOf(PropertyOwnerNotFoundError);
+    await expect(new UpdatePropertyOwner(repository, { now: () => "2026-08-26T11:00:00.000Z" }).execute({
+      authority: ownerAuthority(TENANT_B), correlationId: CORRELATION, ownerId: PROPERTY_ID,
+      identity: { ownerType: "INDIVIDUAL", firstName: "Other", lastName: "Tenant" }, contactInformation: {},
+    })).rejects.toBeInstanceOf(PropertyOwnerNotFoundError);
+    expect((await owner.query("SELECT first_name FROM property_management.property_owners")).rows[0]?.first_name).toBe("Jean");
+  });
+
+  it("forces owner RLS outside a tenant transaction", async () => {
+    await createOwner();
+    expect((await runtime.query("SELECT * FROM property_management.property_owners")).rows).toHaveLength(0);
+    await expect(runtime.query(`INSERT INTO property_management.property_owners
+      (owner_id, tenant_id, owner_type, first_name, last_name, created_at, updated_at, correlation_id, actor_id)
+      VALUES ($1,$2,'INDIVIDUAL','Other','Owner',now(),now(),$3,'actor')`, ["eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", TENANT_B, CORRELATION]))
+      .rejects.toMatchObject({ code: "42501" });
+  });
+
+  it("enforces discriminated identity and contact constraints", async () => {
+    await owner.query("SET CONSTRAINTS ALL IMMEDIATE");
+    await expect(owner.query(`INSERT INTO property_management.property_owners
+      (owner_id, tenant_id, owner_type, first_name, last_name, legal_name, created_at, updated_at, correlation_id, actor_id)
+      VALUES ($1,$2,'INDIVIDUAL','Jean','Kouassi','Forbidden',now(),now(),$3,'actor')`, [PROPERTY_ID, TENANT_A, CORRELATION]))
+      .rejects.toMatchObject({ code: "23514" });
+    await expect(owner.query(`INSERT INTO property_management.property_owners
+      (owner_id, tenant_id, owner_type, legal_name, email, created_at, updated_at, correlation_id, actor_id)
+      VALUES ($1,$2,'LEGAL_ENTITY','Company','invalid',now(),now(),$3,'actor')`, [PROPERTY_ID, TENANT_A, CORRELATION]))
+      .rejects.toMatchObject({ code: "23514" });
   });
 });

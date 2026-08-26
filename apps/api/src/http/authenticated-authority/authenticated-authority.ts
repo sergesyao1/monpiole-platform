@@ -56,7 +56,8 @@ export function toPropertyAuthority(authority: AuthenticatedAuthority): Property
     actorId: authority.actorId,
     authorityId: authority.authorityId,
     grants: authority.grants.filter((grant): grant is PropertyGrant =>
-      grant === "CREATE_PROPERTY" || grant === "RETRIEVE_PROPERTY" || grant === "UPDATE_PROPERTY_DETAILS"),
+      grant === "CREATE_PROPERTY" || grant === "RETRIEVE_PROPERTY" || grant === "UPDATE_PROPERTY_DETAILS"
+      || grant === "CREATE_PROPERTY_OWNER" || grant === "RETRIEVE_PROPERTY_OWNER" || grant === "UPDATE_PROPERTY_OWNER"),
     tenantIds: authority.tenantIds,
   };
 }

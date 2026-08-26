@@ -61,7 +61,7 @@ describe("deterministic OpenAPI 3.1 contract", () => {
       ]),
     );
     const serialized = serializeOpenApiDocument(openapi);
-    expect(serialized).not.toMatch(/aggregate|entity|persistence|repository/i);
+    expect(serialized).not.toMatch(/aggregate|persistence|repository/i);
   });
 
   it("normalizes repeated generation byte-for-byte", async () => {

@@ -7,7 +7,10 @@ import {
   PostgresIdentityStore,
 } from "@monpiole/identity";
 import { PostgresPool, postgresConfigurationFromEnvironment } from "@monpiole/persistence";
-import { CreateProperty, PostgresPropertyRepository, RetrieveProperty, UpdatePropertyDetails } from "@monpiole/property-management";
+import {
+  CreateProperty, CreatePropertyOwner, PostgresPropertyOwnerRepository, PostgresPropertyRepository,
+  RetrieveProperty, RetrievePropertyOwner, UpdatePropertyDetails, UpdatePropertyOwner,
+} from "@monpiole/property-management";
 import {
   ActivateTenant,
   CheckTenantExists,
@@ -36,6 +39,7 @@ export function createPostgresApiRuntime(environment: NodeJS.ProcessEnv): Postgr
   const tenantExists = new CheckTenantExists(new PostgresTenantExistenceRepository(pool));
   const authorityPolicy = new OnboardingAuthorityPolicy();
   const propertyRepository = new PostgresPropertyRepository(pool);
+  const propertyOwnerRepository = new PostgresPropertyOwnerRepository(pool);
 
   const composition: ApiComposition = {
     createTenant: new CreateTenant(
@@ -56,6 +60,9 @@ export function createPostgresApiRuntime(environment: NodeJS.ProcessEnv): Postgr
     createProperty: new CreateProperty(propertyRepository, { generate: randomUUID }, { now: () => new Date().toISOString() }),
     retrieveProperty: new RetrieveProperty(propertyRepository),
     updatePropertyDetails: new UpdatePropertyDetails(propertyRepository, { now: () => new Date().toISOString() }),
+    createPropertyOwner: new CreatePropertyOwner(propertyOwnerRepository, { generate: randomUUID }, { now: () => new Date().toISOString() }),
+    retrievePropertyOwner: new RetrievePropertyOwner(propertyOwnerRepository),
+    updatePropertyOwner: new UpdatePropertyOwner(propertyOwnerRepository, { now: () => new Date().toISOString() }),
     runtimeShutdown: { onApplicationShutdown: () => database.close() },
   };
 

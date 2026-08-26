@@ -1,7 +1,10 @@
 import { type DynamicModule, Module } from "@nestjs/common";
 import type { ActivateTenant, CreateTenant } from "@monpiole/tenant-management";
 import type { ActivateTenantAdministrator, BootstrapTenantAdministrator } from "@monpiole/identity";
-import type { CreateProperty, RetrieveProperty, UpdatePropertyDetails } from "@monpiole/property-management";
+import type {
+  CreateProperty, CreatePropertyOwner, RetrieveProperty, RetrievePropertyOwner,
+  UpdatePropertyDetails, UpdatePropertyOwner,
+} from "@monpiole/property-management";
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core";
 import {
   ZodSerializerInterceptor,
@@ -32,6 +35,9 @@ import {
 import { CREATE_PROPERTY_USE_CASE, CreatePropertyController } from "./http/properties/create-property.controller.js";
 import { RETRIEVE_PROPERTY_USE_CASE, RetrievePropertyController } from "./http/properties/retrieve-property.controller.js";
 import { UPDATE_PROPERTY_DETAILS_USE_CASE, UpdatePropertyDetailsController } from "./http/properties/update-property-details.controller.js";
+import { CREATE_PROPERTY_OWNER_USE_CASE, CreatePropertyOwnerController } from "./http/properties/create-property-owner.controller.js";
+import { RETRIEVE_PROPERTY_OWNER_USE_CASE, RetrievePropertyOwnerController } from "./http/properties/retrieve-property-owner.controller.js";
+import { UPDATE_PROPERTY_OWNER_USE_CASE, UpdatePropertyOwnerController } from "./http/properties/update-property-owner.controller.js";
 
 const StrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
@@ -46,6 +52,9 @@ export interface ApiComposition {
   readonly createProperty?: Pick<CreateProperty, "execute">;
   readonly retrieveProperty?: Pick<RetrieveProperty, "execute">;
   readonly updatePropertyDetails?: Pick<UpdatePropertyDetails, "execute">;
+  readonly createPropertyOwner?: Pick<CreatePropertyOwner, "execute">;
+  readonly retrievePropertyOwner?: Pick<RetrievePropertyOwner, "execute">;
+  readonly updatePropertyOwner?: Pick<UpdatePropertyOwner, "execute">;
   readonly runtimeShutdown?: RuntimeShutdown;
 }
 
@@ -72,6 +81,9 @@ const unavailableActivateTenant: Pick<ActivateTenant, "execute"> = {
 const unavailableCreateProperty: Pick<CreateProperty, "execute"> = { async execute() { throw new Error("Create Property composition is unavailable"); } };
 const unavailableRetrieveProperty: Pick<RetrieveProperty, "execute"> = { async execute() { throw new Error("Retrieve Property composition is unavailable"); } };
 const unavailableUpdatePropertyDetails: Pick<UpdatePropertyDetails, "execute"> = { async execute() { throw new Error("Update Property Details composition is unavailable"); } };
+const unavailableCreatePropertyOwner: Pick<CreatePropertyOwner, "execute"> = { async execute() { throw new Error("Create Property Owner composition is unavailable"); } };
+const unavailableRetrievePropertyOwner: Pick<RetrievePropertyOwner, "execute"> = { async execute() { throw new Error("Retrieve Property Owner composition is unavailable"); } };
+const unavailableUpdatePropertyOwner: Pick<UpdatePropertyOwner, "execute"> = { async execute() { throw new Error("Update Property Owner composition is unavailable"); } };
 
 @Module({})
 export class AppModule {
@@ -85,6 +97,7 @@ export class AppModule {
         ActivateTenantController,
         CreatePropertyController, RetrievePropertyController,
         UpdatePropertyDetailsController,
+        CreatePropertyOwnerController, RetrievePropertyOwnerController, UpdatePropertyOwnerController,
       ],
       providers: [
         { provide: APP_PIPE, useClass: StrictZodValidationPipe },
@@ -108,6 +121,9 @@ export class AppModule {
         { provide: CREATE_PROPERTY_USE_CASE, useValue: composition.createProperty ?? unavailableCreateProperty },
         { provide: RETRIEVE_PROPERTY_USE_CASE, useValue: composition.retrieveProperty ?? unavailableRetrieveProperty },
         { provide: UPDATE_PROPERTY_DETAILS_USE_CASE, useValue: composition.updatePropertyDetails ?? unavailableUpdatePropertyDetails },
+        { provide: CREATE_PROPERTY_OWNER_USE_CASE, useValue: composition.createPropertyOwner ?? unavailableCreatePropertyOwner },
+        { provide: RETRIEVE_PROPERTY_OWNER_USE_CASE, useValue: composition.retrievePropertyOwner ?? unavailableRetrievePropertyOwner },
+        { provide: UPDATE_PROPERTY_OWNER_USE_CASE, useValue: composition.updatePropertyOwner ?? unavailableUpdatePropertyOwner },
         ...(composition.runtimeShutdown === undefined
           ? []
           : [{ provide: RUNTIME_SHUTDOWN, useValue: composition.runtimeShutdown }]),

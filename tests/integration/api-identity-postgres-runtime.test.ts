@@ -53,7 +53,7 @@ afterEach(async () => {
   runtime = undefined;
   await ownerPool.query("TRUNCATE identity.tenant_memberships, identity.identities CASCADE");
   await ownerPool.query("TRUNCATE tenant_management.outbox, tenant_management.create_tenant_idempotency, tenant_management.tenants CASCADE");
-  await ownerPool.query("TRUNCATE property_management.properties");
+  await ownerPool.query("TRUNCATE property_management.properties, property_management.property_owners");
   authorizedTenantIds.clear();
 });
 
@@ -73,7 +73,11 @@ async function start() {
     ...runtime.composition,
     authenticatedAuthorityProvider: { resolve: async () => ({
       actorId: "runtime-test", authorityId: "platform-test",
-      grants: ["CREATE_TENANT", "BOOTSTRAP_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT", "CREATE_PROPERTY", "RETRIEVE_PROPERTY", "UPDATE_PROPERTY_DETAILS"],
+      grants: [
+        "CREATE_TENANT", "BOOTSTRAP_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT",
+        "CREATE_PROPERTY", "RETRIEVE_PROPERTY", "UPDATE_PROPERTY_DETAILS",
+        "CREATE_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNER", "UPDATE_PROPERTY_OWNER",
+      ],
       tenantIds: [...authorizedTenantIds],
     }) },
   });
