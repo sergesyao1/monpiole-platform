@@ -37,3 +37,5 @@ export { PostgresIdentityStore } from "./infrastructure/persistence/postgres/pos
 export {
   ExternalIdentityAlreadyLinkedError, PostgresExternalIdentityStore,
 } from "./infrastructure/persistence/postgres/postgres-external-identity-store.js";
+export type { PlatformIdentityInitializationState } from "./application/platform-initialization-state.js";
+export { PostgresPlatformIdentityInitializationState } from "./infrastructure/persistence/postgres/postgres-platform-initialization-state.js";

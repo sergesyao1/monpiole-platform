@@ -104,3 +104,16 @@ Auth0 roles/scopes into MonPiole grants.
 The frontend values `VITE_OIDC_ISSUER` and `VITE_OIDC_AUDIENCE` must exactly
 match the API issuer and audience. For local browser use, Auth0 must also allow
 the callback, logout and Web origin documented in `apps/web/README.md`.
+
+For a completely empty installation only, run
+`corepack pnpm --filter @monpiole/api platform:bootstrap-initial-authority`.
+The command requires the explicit enable flag, exact confirmation phrase,
+operator/idempotency identifiers, tenant contact fields and administrator fields
+listed in `.env.example`. It validates inputs before effects, takes an advisory
+lock, and refuses if any tenant, identity or membership exists. Success creates
+one ACTIVE tenant and one ACTIVE TENANT_ADMINISTRATOR, then prints their UUIDs.
+
+This is a one-shot Operations trust boundary, not development authentication.
+It is not reachable through HTTP and does not process Auth0 data. A second run
+is refused. Because bounded contexts retain their own transactions, an
+interruption after a partial commit requires an approved recovery procedure.

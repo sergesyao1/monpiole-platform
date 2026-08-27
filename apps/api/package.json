@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.json",
+    "platform:bootstrap-initial-authority": "corepack pnpm --filter @monpiole/api... build && node dist/operations/bootstrap-initial-platform-authority.js",
     "openapi": "corepack pnpm run build && node dist/openapi/generate-openapi.js",
     "start": "node dist/main.js",
     "typecheck": "tsc --project tsconfig.json --noEmit"

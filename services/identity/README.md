@@ -111,3 +111,9 @@ Provisioning remains an explicit trusted operation: construct a validated
 does not expose a public endpoint, auto-link on first login or create privileged
 users. Tenant administrator grants are assigned from the internal membership by
 API composition, never from OIDC claims.
+
+TASK-041 adds the read-only `PlatformIdentityInitializationState` port and a
+narrow SELECT-only RLS policy for its PostgreSQL adapter. The one-shot operator
+CLI refuses if any identity or membership exists, then invokes the existing
+bootstrap and activation use cases. It never derives authority from Auth0 and
+does not combine external linking with internal provisioning.

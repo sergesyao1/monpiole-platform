@@ -69,3 +69,10 @@ contains an authenticated actor and authority identity plus explicit grants;
 tenant activation additionally requires the target tenant in authority scope.
 API composition owns authentication resolution. No actor or authority field is
 accepted from Tenant Onboarding request payloads.
+
+## TASK-041 initial platform bootstrap probe
+
+Tenant Management owns the read-only `PlatformTenantInitializationState` port
+and PostgreSQL adapter. The operator-only CLI uses it to prove that no tenant
+exists before invoking normal `CreateTenant` and `ActivateTenant` use cases. It
+does not expose a generic bypass or public bootstrap endpoint.

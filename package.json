@@ -11,7 +11,7 @@
     "architecture:check": "node tools/quality/architecture-check.mjs",
     "architecture:graph": "depcruise --config tools/quality/dependency-cruiser.config.mjs apps services packages",
     "typecheck:architecture-fixtures": "tsc --build tools/quality/fixtures/resolver/tsconfig.json",
-    "app:api:build": "corepack pnpm --filter @monpiole/api build",
+    "app:api:build": "corepack pnpm --filter @monpiole/api... build",
     "app:api:start": "corepack pnpm --filter @monpiole/api start",
     "app:api:typecheck": "corepack pnpm --filter @monpiole/api typecheck",
     "app:api:openapi": "corepack pnpm --filter @monpiole/api openapi",

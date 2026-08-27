@@ -4,7 +4,17 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { createApiApplication } from "../../apps/api/src/bootstrap.js";
 import { createPostgresApiRuntime, type PostgresApiRuntime } from "../../apps/api/src/composition/create-postgres-runtime-composition.js";
-import { ExternalIdentity, PostgresIdentityStore } from "../../services/identity/src/index.js";
+import {
+  ActivateTenantAdministrator, BootstrapTenantAdministrator, ExternalIdentity,
+  HasActiveTenantAdministrator, PostgresIdentityStore, PostgresPlatformIdentityInitializationState,
+} from "../../services/identity/src/index.js";
+import {
+  ActivateTenant, CheckTenantExists, CreateTenant, PostgresActivateTenantUnitOfWork,
+  PostgresCreateTenantUnitOfWork, PostgresPlatformTenantInitializationState, PostgresTenantExistenceRepository,
+} from "../../services/tenant-management/src/index.js";
+import { InitialPlatformBootstrap, PlatformAlreadyInitializedError } from "../../apps/api/src/operations/initial-platform-bootstrap.js";
+import { PostgresInitialPlatformBootstrapLock } from "../../apps/api/src/operations/postgres-initial-platform-bootstrap-lock.js";
+import { OnboardingAuthorityPolicy } from "../../apps/api/src/composition/onboarding-authority-policy.js";
 import {
   GenericContainer, Pool, Wait, drizzle, migrate, type StartedTestContainer,
 } from "../../services/identity/tests/postgres-runtime-test-harness.js";
@@ -133,6 +143,55 @@ async function activateTenant(tenantId: string) {
 }
 
 describe("API PostgreSQL Identity runtime composition", () => {
+  it("bootstraps the first active tenant authority once through approved use cases", async () => {
+    const tenantId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const identityId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const policy = new OnboardingAuthorityPolicy();
+    const identityStore = new PostgresIdentityStore(runtimePool);
+    const tenantExists = new CheckTenantExists(new PostgresTenantExistenceRepository(runtimePool));
+    const activeAdministrator = new HasActiveTenantAdministrator(identityStore);
+    const operation = new InitialPlatformBootstrap({
+      lock: new PostgresInitialPlatformBootstrapLock(runtimePool),
+      tenantState: new PostgresPlatformTenantInitializationState(runtimePool),
+      identityState: new PostgresPlatformIdentityInitializationState(runtimePool),
+      createTenant: new CreateTenant(
+        policy, new PostgresCreateTenantUnitOfWork(runtimePool), { generate: () => tenantId },
+        { generate: () => "dddddddd-dddd-4ddd-8ddd-dddddddddddd" },
+        { now: () => "2026-08-26T12:00:00.000Z" },
+      ),
+      bootstrapAdministrator: new BootstrapTenantAdministrator(
+        { exists: (candidate) => tenantExists.execute(candidate) }, identityStore,
+        { generate: () => identityId }, policy,
+      ),
+      activateAdministrator: new ActivateTenantAdministrator(identityStore, policy),
+      activateTenant: new ActivateTenant(
+        new PostgresActivateTenantUnitOfWork(runtimePool),
+        { hasActiveTenantAdministrator: (candidate) => activeAdministrator.execute(candidate) },
+        { generate: () => "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" },
+        { now: () => "2026-08-26T12:01:00.000Z" }, policy,
+      ),
+      correlationId: CORRELATION_ID, expectedTenantId: tenantId, expectedIdentityId: identityId,
+    });
+    const configuration = {
+      operatorId: "installation-operator", idempotencyKey: "initial-platform",
+      organizationName: "Initial Agency", responsiblePersonName: "Ada Operator",
+      responsibleEmail: "operator@example.invalid", responsibleTelephone: "+2250102030405", country: "CI",
+      administratorEmail: "admin@example.invalid", administratorFirstName: "Alice", administratorLastName: "Admin",
+    };
+
+    await expect(operation.execute(configuration)).resolves.toEqual({
+      tenantId, tenantLifecycleState: "ACTIVE", internalIdentityId: identityId,
+      identityStatus: "ACTIVE", role: "TENANT_ADMINISTRATOR",
+    });
+    expect((await ownerPool.query("SELECT lifecycle_state FROM tenant_management.tenants WHERE id = $1", [tenantId])).rows[0])
+      .toEqual({ lifecycle_state: "ACTIVE" });
+    expect((await ownerPool.query("SELECT status FROM identity.identities WHERE id = $1", [identityId])).rows[0])
+      .toEqual({ status: "ACTIVE" });
+    expect((await ownerPool.query("SELECT role FROM identity.tenant_memberships WHERE identity_id = $1", [identityId])).rows[0])
+      .toEqual({ role: "TENANT_ADMINISTRATOR" });
+    await expect(operation.execute(configuration)).rejects.toBeInstanceOf(PlatformAlreadyInitializedError);
+  });
+
   it("persists bootstrap and reloads it through a fresh store", async () => {
     await start(); const tenantId = await createTenant("bootstrap");
     const administrator = await bootstrap(tenantId);

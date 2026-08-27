@@ -53,3 +53,5 @@ export {
 export { PostgresCreateTenantUnitOfWork } from "./infrastructure/persistence/postgres/create-tenant-store.js";
 export { PostgresActivateTenantUnitOfWork } from "./infrastructure/persistence/postgres/activate-tenant-store.js";
 export { PostgresTenantExistenceRepository } from "./infrastructure/persistence/postgres/tenant-existence-repository.js";
+export type { PlatformTenantInitializationState } from "./application/platform-initialization-state.js";
+export { PostgresPlatformTenantInitializationState } from "./infrastructure/persistence/postgres/postgres-platform-initialization-state.js";
