@@ -87,10 +87,24 @@ le grant interne `CREATE_TENANT` côté API sans créer de tenant. Pour une auto
 TENANT_ADMINISTRATOR, le 403 attendu conserve la session et n’entraîne ni logout
 ni redirection Auth0.
 
+## Gestion des biens
+
+Le vertical slice Property est disponible sur `/properties`. Il utilise le
+client HTTP authentifié commun et les routes publiques existantes pour créer un
+bien, ouvrir sa fiche par identifiant, modifier ses détails et ses conditions
+commerciales, puis consulter, affecter ou retirer ses propriétaires.
+
+L’API ne fournit actuellement ni liste de biens ni liste de propriétaires. La
+page « Biens immobiliers » propose donc la création et l’ouverture d’un bien par
+son identifiant ; la fiche permet d’affecter un propriétaire existant par son
+identifiant. Aucune liste locale ou donnée fictive ne masque ces limites.
+
 ## Frontières
 
 - `src/app` compose le shell et les routes ;
 - `src/auth` adapte Auth0 vers la session frontend ;
 - `src/config` valide la configuration publique ;
 - `src/infrastructure/http` centralise transport, bearer et erreurs HTTP ;
+- `src/features/properties` contient le client, les modèles de transport, les
+  mappings français, les pages et composants du vertical slice Property ;
 - les vertical slices métier restent isolés par feature.

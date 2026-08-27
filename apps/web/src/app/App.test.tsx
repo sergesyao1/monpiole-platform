@@ -25,11 +25,11 @@ describe("application web MonPiole", () => {
     expect(screen.getByRole("link", { name: "Propriétaires" })).toBeInTheDocument();
   });
 
-  it("navigue vers un placeholder métier sans simuler la fonctionnalité", async () => {
+  it("navigue vers le parcours réel de gestion des biens", async () => {
     renderRoute();
     fireEvent.click(screen.getByRole("link", { name: "Biens immobiliers" }));
-    expect(await screen.findByRole("heading", { name: "Vos biens seront réunis ici" })).toBeInTheDocument();
-    expect(screen.getByText("Fonctionnalité à venir")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Gérez vos biens depuis leur fiche" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Créer un bien" })).toHaveAttribute("href", "/properties/new");
   });
 
   it("affiche une page 404 utile", () => {
@@ -41,7 +41,7 @@ describe("application web MonPiole", () => {
   it("protège une route lorsque la session est absente", async () => {
     renderRoute("/biens", { ...authenticatedSession, status: "unauthenticated" });
     expect(await screen.findByRole("heading", { name: "Connectez-vous à MonPiole" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Vos biens seront réunis ici" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Gérez vos biens depuis leur fiche" })).not.toBeInTheDocument();
   });
 
   it("attend la restauration de session sans afficher la connexion", () => {
