@@ -50,10 +50,16 @@ exactes de chaque environnement ; aucun credential réel n’est documenté ici.
 ## Comportement d’authentification
 
 Le SDK officiel Auth0 utilise Authorization Code avec PKCE, traite le callback
-et restaure la session. Son cache est en mémoire ; MonPiole ne persiste jamais
-manuellement de bearer token. Le refresh token rotatif, lorsqu’il est émis, est
-entièrement géré par le SDK. Après rechargement, le SDK peut utiliser la session
-Auth0 via son fallback silencieux pour repeupler le cache mémoire.
+et restaure la session. TD-015 configure son interface officielle de cache sur
+un namespace `sessionStorage` propre à Auth0 : le cache survit au rechargement
+dans le même onglet mais disparaît avec la session de cet onglet. MonPiole ne
+lit, ne journalise et ne manipule jamais les valeurs de token. Le refresh token
+rotatif, lorsqu’il est émis, reste entièrement géré par le SDK.
+
+Ce choix évite la persistance durable et multi-onglets de `localStorage`, mais
+une XSS same-origin pourrait lire Web Storage pendant la session. Cette
+exposition, les contrôles compensatoires et les alternatives sont documentés
+dans TD-015.
 
 Toutes les routes du shell sont protégées ; `/connexion` reste publique. Pendant
 l’initialisation, une page de chargement empêche les redirections et appels
@@ -74,6 +80,12 @@ API**. Elle obtient un access token via la session et appelle
 `GET /v1/authentication/session` via le client centralisé. Elle n’affiche ni
 token, ni grants, ni tenant scope. Un succès confirme la vérification OIDC et la
 résolution interne ; 401 et 403 conservent leurs messages français distincts.
+
+Le bouton **Tester le refus 403** appelle la sonde non mutante
+`GET /v1/authentication/authorization/platform-tenant-creation`. Elle vérifie
+le grant interne `CREATE_TENANT` côté API sans créer de tenant. Pour une autorité
+TENANT_ADMINISTRATOR, le 403 attendu conserve la session et n’entraîne ni logout
+ni redirection Auth0.
 
 ## Frontières
 

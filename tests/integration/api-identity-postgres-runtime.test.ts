@@ -256,6 +256,9 @@ describe("API PostgreSQL Identity runtime composition", () => {
     expect((await fetch(`${baseUrl}/v1/properties/${propertyId}`, {
       headers: { authorization: "Bearer known-token" },
     })).status).toBe(404);
+    expect((await fetch(`${baseUrl}/v1/authentication/authorization/platform-tenant-creation`, {
+      headers: { authorization: "Bearer known-token" },
+    })).status).toBe(403);
     expect((await fetch(`${baseUrl}/v1/properties/${propertyId}`, {
       headers: { authorization: "Bearer unknown-token" },
     })).status).toBe(401);

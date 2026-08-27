@@ -1,5 +1,5 @@
 import { type DynamicModule, Module } from "@nestjs/common";
-import type { ActivateTenant, CreateTenant } from "@monpiole/tenant-management";
+import type { ActivateTenant, CreateTenant, PlatformAuthorityAuthorizer } from "@monpiole/tenant-management";
 import type { ActivateTenantAdministrator, BootstrapTenantAdministrator } from "@monpiole/identity";
 import type {
   CreateProperty, CreatePropertyOwner, RetrieveProperty, RetrievePropertyOwner,
@@ -43,6 +43,10 @@ import { ASSIGN_PROPERTY_OWNER_USE_CASE, AssignPropertyOwnerController } from ".
 import { RETRIEVE_PROPERTY_OWNERSHIPS_USE_CASE, RetrievePropertyOwnershipsController } from "./http/properties/retrieve-property-ownerships.controller.js";
 import { REMOVE_PROPERTY_OWNER_USE_CASE, RemovePropertyOwnerController } from "./http/properties/remove-property-owner.controller.js";
 import { AuthenticationSessionController } from "./http/authentication/authentication-session.controller.js";
+import {
+  PLATFORM_AUTHORITY_AUTHORIZER,
+  PlatformTenantCreationAuthorizationProbeController,
+} from "./http/authentication/platform-tenant-creation-authorization-probe.controller.js";
 
 const StrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
@@ -51,6 +55,7 @@ const StrictZodValidationPipe = createZodValidationPipe({
 export interface ApiComposition {
   readonly createTenant?: Pick<CreateTenant, "execute">;
   readonly authenticatedAuthorityProvider?: AuthenticatedAuthorityProvider;
+  readonly platformAuthorityAuthorizer?: PlatformAuthorityAuthorizer;
   readonly bootstrapTenantAdministrator?: Pick<BootstrapTenantAdministrator, "execute">;
   readonly activateTenantAdministrator?: Pick<ActivateTenantAdministrator, "execute">;
   readonly activateTenant?: Pick<ActivateTenant, "execute">;
@@ -75,6 +80,9 @@ const unavailableCreateTenant: Pick<CreateTenant, "execute"> = {
 
 const unavailableAuthority: AuthenticatedAuthorityProvider = {
   async resolve() { return undefined; },
+};
+const denyPlatformAuthority: PlatformAuthorityAuthorizer = {
+  async authorizeCreateTenant() { return false; },
 };
 
 const unavailableBootstrapAdministrator: Pick<BootstrapTenantAdministrator, "execute"> = {
@@ -102,7 +110,8 @@ export class AppModule {
     return {
       module: AppModule,
       controllers: [
-        HealthController, ContractBaselineController, AuthenticationSessionController, CreateTenantController,
+        HealthController, ContractBaselineController, AuthenticationSessionController,
+        PlatformTenantCreationAuthorizationProbeController, CreateTenantController,
         BootstrapAdministratorController,
         ActivateAdministratorController,
         ActivateTenantController,
@@ -120,6 +129,10 @@ export class AppModule {
         {
           provide: AUTHENTICATED_AUTHORITY_PROVIDER,
           useValue: composition.authenticatedAuthorityProvider ?? unavailableAuthority,
+        },
+        {
+          provide: PLATFORM_AUTHORITY_AUTHORIZER,
+          useValue: composition.platformAuthorityAuthorizer ?? denyPlatformAuthority,
         },
         {
           provide: BOOTSTRAP_TENANT_ADMINISTRATOR,

@@ -1306,6 +1306,32 @@
         ]
       }
     },
+    "/v1/authentication/authorization/platform-tenant-creation": {
+      "get": {
+        "operationId": "probePlatformTenantCreationAuthorization",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "The internal authority may create tenants"
+          },
+          "401": {
+            "description": "Missing, invalid, or unresolved authentication"
+          },
+          "403": {
+            "description": "Authenticated authority lacks CREATE_TENANT"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Probe the existing Create Tenant authorization without side effects",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
     "/v1/authentication/session": {
       "get": {
         "operationId": "verifyAuthenticationSession",

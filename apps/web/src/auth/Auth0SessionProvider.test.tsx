@@ -53,13 +53,17 @@ describe("frontière de session Auth0", () => {
     expect(screen.getByText(expected)).toBeInTheDocument();
   });
 
-  it("configure Authorization Code + PKCE via le SDK, l’audience et le cache mémoire", () => {
+  it("configure Authorization Code + PKCE et un cache SDK restaurable dans l’onglet", () => {
     render(<Auth0SessionProvider config={config}><SessionProbe /></Auth0SessionProvider>);
     expect(auth0.providerProps).toMatchObject({
-      domain: config.domain, clientId: config.clientId, cacheLocation: "memory", useRefreshTokens: true,
+      domain: config.domain, clientId: config.clientId, useRefreshTokens: true,
       useRefreshTokensFallback: true,
       authorizationParams: { audience: config.audience, redirect_uri: config.redirectUri, scope: "openid profile email offline_access" },
     });
+    expect(auth0.providerProps.cache).toMatchObject({
+      get: expect.any(Function), set: expect.any(Function), remove: expect.any(Function), allKeys: expect.any(Function),
+    });
+    expect(auth0.providerProps).not.toHaveProperty("cacheLocation");
   });
 
   it("traite le callback et restaure uniquement un chemin local sûr", () => {

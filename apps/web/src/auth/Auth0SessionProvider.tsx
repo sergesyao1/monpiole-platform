@@ -3,8 +3,11 @@ import type { PropsWithChildren } from "react";
 
 import type { PublicWebConfig } from "../config/public-config.js";
 import { SessionContext, type Session } from "./session.js";
+import { Auth0SessionStorageCache } from "./Auth0SessionStorageCache.js";
 
 interface Auth0SessionProviderProps extends PropsWithChildren { readonly config: PublicWebConfig["oidc"]; }
+
+const auth0Cache = new Auth0SessionStorageCache();
 
 export function Auth0SessionProvider({ children, config }: Auth0SessionProviderProps) {
   const handleRedirect = (appState?: AppState) => {
@@ -14,7 +17,7 @@ export function Auth0SessionProvider({ children, config }: Auth0SessionProviderP
     <Auth0Provider
       domain={config.domain}
       clientId={config.clientId}
-      cacheLocation="memory"
+      cache={auth0Cache}
       useRefreshTokens
       useRefreshTokensFallback
       authorizationParams={{ audience: config.audience, redirect_uri: config.redirectUri, scope: "openid profile email offline_access" }}

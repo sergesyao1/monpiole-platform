@@ -49,11 +49,13 @@ vers l’interface interne `Session`; le routing et le shell ne dépendentent do
 pas du SDK.
 
 Le SDK traite automatiquement le callback `code/state` et restaure la session.
-`onRedirectCallback` ne restaure qu’un chemin local sûr. Le cache est `memory`,
-les refresh tokens rotatifs sont gérés uniquement par Auth0 SDK. Après
-rechargement, son fallback silencieux peut utiliser la session Auth0 pour
-repeupler le cache mémoire. MonPiole n’utilise ni localStorage, sessionStorage
-ni IndexedDB pour persister un bearer.
+`onRedirectCallback` ne restaure qu’un chemin local sûr. Après l’échec du cache
+`memory` observé pendant UI-002A, TD-015 le supersède par un `ICache` officiel
+Auth0 namespacé dans `sessionStorage`. Le SDK reste seul responsable des tokens
+et de leur rotation ; le code applicatif ne lit ni ne journalise leur valeur.
+Le cache survit au reload du même onglet, disparaît avec sa session et n’utilise
+jamais `localStorage` ou IndexedDB. La contrepartie XSS est documentée dans
+TD-015.
 
 `createAuthenticatedApiClient` demande le token à la session et ajoute le
 header. Après un 401, il force exactement une acquisition hors cache et rejoue
@@ -132,3 +134,13 @@ un smoke test d’environnement déployé reste nécessaire avant production.
 
 **DONE** — critères satisfaits, validations réussies et diff revu. La tâche est
 prête pour validation propriétaire ; aucun commit n’a été créé.
+
+> Addendum UI-002A : le smoke Auth0 réel a montré que la restauration basée sur
+> le cache mémoire et l’iframe silent n’était pas fiable dans le navigateur
+> cible. TD-015 supersède uniquement cette stratégie de cache par un `ICache`
+> SDK limité à `sessionStorage`; les autres décisions UI-002 restent inchangées.
+
+Le smoke final UI-002A confirme désormais en environnement réel le login PKCE,
+le callback, la restauration F5, l’appel API bearer HTTP 200, le logout, le 401
+sans redirection et le 403 sans déconnexion suivi d’une session HTTP 200. UI-002
+reste donc **DONE**, avec TD-015 comme stratégie de cache effective.

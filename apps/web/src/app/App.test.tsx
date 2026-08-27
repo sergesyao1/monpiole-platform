@@ -67,4 +67,15 @@ describe("application web MonPiole", () => {
     expect(headers.get("authorization")).toBe("Bearer test-token");
     expect(screen.queryByText("test-token")).not.toBeInTheDocument();
   });
+
+  it("distingue un refus métier sans invalider la session", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({}), { status: 403 })));
+    renderRoute("/diagnostic-authentification");
+    fireEvent.click(screen.getByRole("button", { name: "Tester le refus 403" }));
+    expect(await screen.findByText("Votre session reste authentifiée, mais cette opération est interdite.")).toBeInTheDocument();
+    expect(screen.getByText("Session sécurisée")).toBeInTheDocument();
+    const request = vi.mocked(fetch).mock.calls[0];
+    expect(request?.[0]).toBe("http://localhost:3000/v1/authentication/authorization/platform-tenant-creation");
+    expect((request?.[1]?.headers as Headers).get("authorization")).toBe("Bearer test-token");
+  });
 });

@@ -112,6 +112,14 @@ means that the bearer passed OIDC verification and its exact `(issuer, subject)`
 resolved to an active internal authority. Its response is only
 `{ "authenticated": true }`; grants and tenant scope stay server-side.
 
+`GET /v1/authentication/authorization/platform-tenant-creation` is the
+side-effect-free 403 probe. It resolves the same authenticated authority and
+invokes the existing `CREATE_TENANT` authorizer, but never calls the Create
+Tenant use case. A normal TENANT_ADMINISTRATOR receives 403 because its internal
+grants intentionally exclude platform tenant creation; an authorized platform
+authority receives 204. The route neither changes grants nor accepts claims as
+business authority.
+
 Use `infrastructure/local/postgres.compose.yaml` for isolated local PostgreSQL,
 then run `corepack pnpm --filter @monpiole/api migrations:apply`. This requires
 `DATABASE_MIGRATION_URL` and `DATABASE_MIGRATION_TLS`. TLS may be disabled only

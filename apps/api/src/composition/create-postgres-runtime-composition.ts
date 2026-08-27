@@ -64,6 +64,7 @@ export function createPostgresApiRuntime(
 
   const composition: ApiComposition = {
     authenticatedAuthorityProvider,
+    platformAuthorityAuthorizer: authorityPolicy,
     createTenant: new CreateTenant(
       authorityPolicy,
       new PostgresCreateTenantUnitOfWork(pool),
