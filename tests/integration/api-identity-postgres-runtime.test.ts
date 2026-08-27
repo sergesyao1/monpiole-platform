@@ -81,7 +81,7 @@ async function start() {
       actorId: "runtime-test", authorityId: "platform-test",
       grants: [
         "CREATE_TENANT", "BOOTSTRAP_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT",
-        "CREATE_PROPERTY", "RETRIEVE_PROPERTY", "UPDATE_PROPERTY_DETAILS",
+        "CREATE_PROPERTY", "RETRIEVE_PROPERTY", "LIST_PROPERTIES", "UPDATE_PROPERTY_DETAILS",
         "CREATE_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNER", "UPDATE_PROPERTY_OWNER",
         "ASSIGN_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNERSHIP", "REMOVE_PROPERTY_OWNER",
       ],
@@ -297,6 +297,11 @@ describe("API PostgreSQL Identity runtime composition", () => {
       .toEqual({ tenant_id: tenantId, status: "DRAFT" });
     const retrieved = await fetch(`${baseUrl}/v1/properties/${property.propertyId}`);
     expect(retrieved.status).toBe(200); expect(await retrieved.json()).toMatchObject({ propertyId: property.propertyId, status: "DRAFT" });
+    const portfolio = await fetch(`${baseUrl}/v1/properties?type=APARTMENT&search=Apartment&limit=1`);
+    expect(portfolio.status).toBe(200); expect(await portfolio.json()).toMatchObject({
+      items: [{ propertyId: property.propertyId, title: "Apartment" }],
+      pageInfo: { nextCursor: null, hasNextPage: false },
+    });
     const updated = await fetch(`${baseUrl}/v1/properties/${property.propertyId}/details`, {
       method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({
         details: { usableSurfaceSquareMeters: 72, rooms: 3, bedrooms: 2, bathrooms: 1 },

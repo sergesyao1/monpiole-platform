@@ -145,3 +145,13 @@ This is a one-shot Operations trust boundary, not development authentication.
 It is not reachable through HTTP and does not process Auth0 data. A second run
 is refused. Because bounded contexts retain their own transactions, an
 interruption after a partial commit requires an approved recovery procedure.
+
+## Private Property portfolio
+
+`GET /v1/properties` lists only the portfolio of the tenant derived from the
+authenticated internal authority. It requires `LIST_PROPERTIES`; no OIDC claim
+or query parameter selects a tenant. Optional `status`, `type` and `search`
+filters are validated, `limit` defaults to 20 and is capped at 100, and
+`cursor` is an opaque keyset cursor. Results are ordered deterministically by
+creation date then Property ID, descending. The endpoint is private portfolio
+discovery and does not provide publication or public catalogue behavior.

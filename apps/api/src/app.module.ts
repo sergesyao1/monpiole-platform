@@ -2,7 +2,7 @@ import { type DynamicModule, Module } from "@nestjs/common";
 import type { ActivateTenant, CreateTenant, PlatformAuthorityAuthorizer } from "@monpiole/tenant-management";
 import type { ActivateTenantAdministrator, BootstrapTenantAdministrator } from "@monpiole/identity";
 import type {
-  CreateProperty, CreatePropertyOwner, RetrieveProperty, RetrievePropertyOwner,
+  CreateProperty, CreatePropertyOwner, ListProperties, RetrieveProperty, RetrievePropertyOwner,
   UpdatePropertyDetails, UpdatePropertyOwner, AssignPropertyOwner,
   RetrievePropertyOwnerships, RemovePropertyOwner,
 } from "@monpiole/property-management";
@@ -35,6 +35,7 @@ import {
 } from "./http/authenticated-authority/authenticated-authority.js";
 import { CREATE_PROPERTY_USE_CASE, CreatePropertyController } from "./http/properties/create-property.controller.js";
 import { RETRIEVE_PROPERTY_USE_CASE, RetrievePropertyController } from "./http/properties/retrieve-property.controller.js";
+import { LIST_PROPERTIES_USE_CASE, ListPropertiesController } from "./http/properties/list-properties.controller.js";
 import { UPDATE_PROPERTY_DETAILS_USE_CASE, UpdatePropertyDetailsController } from "./http/properties/update-property-details.controller.js";
 import { CREATE_PROPERTY_OWNER_USE_CASE, CreatePropertyOwnerController } from "./http/properties/create-property-owner.controller.js";
 import { RETRIEVE_PROPERTY_OWNER_USE_CASE, RetrievePropertyOwnerController } from "./http/properties/retrieve-property-owner.controller.js";
@@ -61,6 +62,7 @@ export interface ApiComposition {
   readonly activateTenant?: Pick<ActivateTenant, "execute">;
   readonly createProperty?: Pick<CreateProperty, "execute">;
   readonly retrieveProperty?: Pick<RetrieveProperty, "execute">;
+  readonly listProperties?: Pick<ListProperties, "execute">;
   readonly updatePropertyDetails?: Pick<UpdatePropertyDetails, "execute">;
   readonly createPropertyOwner?: Pick<CreatePropertyOwner, "execute">;
   readonly retrievePropertyOwner?: Pick<RetrievePropertyOwner, "execute">;
@@ -96,6 +98,7 @@ const unavailableActivateTenant: Pick<ActivateTenant, "execute"> = {
 };
 const unavailableCreateProperty: Pick<CreateProperty, "execute"> = { async execute() { throw new Error("Create Property composition is unavailable"); } };
 const unavailableRetrieveProperty: Pick<RetrieveProperty, "execute"> = { async execute() { throw new Error("Retrieve Property composition is unavailable"); } };
+const unavailableListProperties: Pick<ListProperties, "execute"> = { async execute() { throw new Error("List Properties composition is unavailable"); } };
 const unavailableUpdatePropertyDetails: Pick<UpdatePropertyDetails, "execute"> = { async execute() { throw new Error("Update Property Details composition is unavailable"); } };
 const unavailableCreatePropertyOwner: Pick<CreatePropertyOwner, "execute"> = { async execute() { throw new Error("Create Property Owner composition is unavailable"); } };
 const unavailableRetrievePropertyOwner: Pick<RetrievePropertyOwner, "execute"> = { async execute() { throw new Error("Retrieve Property Owner composition is unavailable"); } };
@@ -115,7 +118,7 @@ export class AppModule {
         BootstrapAdministratorController,
         ActivateAdministratorController,
         ActivateTenantController,
-        CreatePropertyController, RetrievePropertyController,
+        CreatePropertyController, ListPropertiesController, RetrievePropertyController,
         UpdatePropertyDetailsController,
         CreatePropertyOwnerController, RetrievePropertyOwnerController, UpdatePropertyOwnerController,
         AssignPropertyOwnerController, RetrievePropertyOwnershipsController, RemovePropertyOwnerController,
@@ -145,6 +148,7 @@ export class AppModule {
         { provide: ACTIVATE_TENANT_USE_CASE, useValue: composition.activateTenant ?? unavailableActivateTenant },
         { provide: CREATE_PROPERTY_USE_CASE, useValue: composition.createProperty ?? unavailableCreateProperty },
         { provide: RETRIEVE_PROPERTY_USE_CASE, useValue: composition.retrieveProperty ?? unavailableRetrieveProperty },
+        { provide: LIST_PROPERTIES_USE_CASE, useValue: composition.listProperties ?? unavailableListProperties },
         { provide: UPDATE_PROPERTY_DETAILS_USE_CASE, useValue: composition.updatePropertyDetails ?? unavailableUpdatePropertyDetails },
         { provide: CREATE_PROPERTY_OWNER_USE_CASE, useValue: composition.createPropertyOwner ?? unavailableCreatePropertyOwner },
         { provide: RETRIEVE_PROPERTY_OWNER_USE_CASE, useValue: composition.retrievePropertyOwner ?? unavailableRetrievePropertyOwner },

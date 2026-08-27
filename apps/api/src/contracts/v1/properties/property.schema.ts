@@ -59,6 +59,27 @@ export const UpdatePropertyDetailsRequestSchema = z.object({
   details: PropertyDetailsSchema,
   commercialTerms: CommercialTermsSchema,
 }).strict().meta({ id: "UpdatePropertyDetailsRequest" });
+export const ListPropertiesQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  cursor: z.string().min(1).max(512).optional(),
+  status: z.literal("DRAFT").optional(),
+  type: PropertyTypeSchema.optional(),
+  search: z.string().trim().min(1).max(100).optional(),
+}).strict().meta({ id: "ListPropertiesQuery" });
+export const PropertyPortfolioItemSchema = z.object({
+  propertyId: PropertyIdSchema,
+  title: z.string(), description: z.string().optional(),
+  propertyType: PropertyTypeSchema, transactionType: TransactionTypeSchema,
+  status: z.literal("DRAFT"), location: PropertyLocationSchema,
+  createdAt: z.iso.datetime({ offset: false }).refine((value) => value.endsWith("Z")),
+  updatedAt: z.iso.datetime({ offset: false }).refine((value) => value.endsWith("Z")),
+}).strict().meta({ id: "PropertyPortfolioItem" });
+export const PropertyPortfolioResponseSchema = z.object({
+  items: z.array(PropertyPortfolioItemSchema),
+  pageInfo: z.object({ nextCursor: z.string().nullable(), hasNextPage: z.boolean() }).strict(),
+}).strict().meta({ id: "PropertyPortfolioResponse" });
 export type CreatePropertyRequest = z.output<typeof CreatePropertyRequestSchema>;
 export type PropertyResponse = z.output<typeof PropertyResponseSchema>;
 export type UpdatePropertyDetailsRequest = z.output<typeof UpdatePropertyDetailsRequestSchema>;
+export type ListPropertiesQuery = z.output<typeof ListPropertiesQuerySchema>;
+export type PropertyPortfolioResponse = z.output<typeof PropertyPortfolioResponseSchema>;

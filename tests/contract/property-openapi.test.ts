@@ -1,6 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
-import { UpdatePropertyDetailsRequestSchema } from "../../apps/api/src/contracts/v1/properties/property.schema.js";
+import {
+  ListPropertiesQuerySchema, PropertyPortfolioResponseSchema, UpdatePropertyDetailsRequestSchema,
+} from "../../apps/api/src/contracts/v1/properties/property.schema.js";
 
 const path = new URL("../../engineering/contracts/http/openapi.json", import.meta.url);
 describe("Property OpenAPI contract", () => {
@@ -37,5 +39,30 @@ describe("Property OpenAPI contract", () => {
     expect(UpdatePropertyDetailsRequestSchema.safeParse(base).success).toBe(true);
     expect(UpdatePropertyDetailsRequestSchema.safeParse({ ...base, commercialTerms: { ...base.commercialTerms, rentAmountMinor: 1 } }).success).toBe(false);
     expect(UpdatePropertyDetailsRequestSchema.safeParse({ ...base, tenantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }).success).toBe(false);
+  });
+
+  it("publishes the bounded private portfolio listing contract", async () => {
+    const document = JSON.parse(await readFile(path, "utf8"));
+    const listing = document.paths["/v1/properties"]?.get;
+    expect(listing).toBeDefined(); expect(listing.operationId).toBe("listProperties");
+    expect(listing.security).toEqual([{ bearer: [] }]);
+    expect(Object.keys(listing.responses)).toEqual(expect.arrayContaining(["200", "400", "401", "403", "500"]));
+    const parameters = Object.fromEntries(listing.parameters.map((parameter: { name: string }) => [parameter.name, parameter]));
+    expect(Object.keys(parameters)).toEqual(expect.arrayContaining(["limit", "cursor", "status", "type", "search"]));
+    expect(parameters).not.toHaveProperty("tenantId");
+    expect(parameters.limit.schema).toMatchObject({ minimum: 1, maximum: 100, default: 20 });
+    const responseRef = listing.responses["200"].content["application/json"].schema.$ref.split("/").at(-1);
+    const responseSchema = document.components.schemas[responseRef];
+    expect(responseSchema.required).toEqual(expect.arrayContaining(["items", "pageInfo"]));
+    expect(JSON.stringify(responseSchema)).not.toMatch(/commercialTerms|ownership|tenantId/);
+  });
+
+  it("validates portfolio query and response schemas strictly", () => {
+    expect(ListPropertiesQuerySchema.parse({})).toEqual({ limit: 20 });
+    expect(ListPropertiesQuerySchema.safeParse({ limit: 100, status: "DRAFT", type: "HOUSE", search: "Lagune" }).success).toBe(true);
+    for (const query of [{ limit: 0 }, { limit: 101 }, { status: "PUBLISHED" }, { type: "CASTLE" }, { tenantId: "x" }]) {
+      expect(ListPropertiesQuerySchema.safeParse(query).success).toBe(false);
+    }
+    expect(PropertyPortfolioResponseSchema.safeParse({ items: [], pageInfo: { nextCursor: null, hasNextPage: false } }).success).toBe(true);
   });
 });

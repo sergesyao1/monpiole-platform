@@ -46,3 +46,18 @@ Property enforce reference, uniqueness, tenant, and concurrency guarantees.
 Assignment, listing by Property, and removal are supported. Share updates,
 inverse Owner-to-Property listing, history, building/unit composition, and
 publication remain outside this slice.
+
+## Property portfolio listing
+
+`ListProperties` exposes a private tenant portfolio through a dedicated query
+port. It requires `LIST_PROPERTIES`, derives the single tenant from the internal
+authority, and never accepts a tenant identifier from the caller. The
+PostgreSQL adapter applies forced RLS, optional status/type filters, bounded
+text discovery and keyset pagination ordered by `createdAt DESC, propertyId
+DESC`. The projection deliberately excludes details, commercial terms and
+ownership relations.
+
+The default page size is 20 and the server maximum is 100. Search covers the
+existing title, description, city, district and address fields using a
+parameterized PostgreSQL `ILIKE`; it is a private bounded convenience search,
+not a public full-text engine.

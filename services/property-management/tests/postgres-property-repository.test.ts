@@ -5,7 +5,7 @@ import { Pool } from "pg";
 import { GenericContainer, Wait, type StartedTestContainer } from "testcontainers";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
-  CreateProperty, CreatePropertyOwner, PostgresPropertyOwnerRepository, PostgresPropertyRepository,
+  CreateProperty, CreatePropertyOwner, ListProperties, PostgresPropertyOwnerRepository, PostgresPropertyPortfolioQuery, PostgresPropertyRepository,
   PropertyNotFoundError, PropertyOwnerNotFoundError, PropertyOwnerTypeChangeNotAllowedError,
   RetrieveProperty, RetrievePropertyOwner, UpdatePropertyDetails, UpdatePropertyOwner, type TransactionType,
   AssignPropertyOwner, PostgresPropertyOwnershipRepository, PropertyOwnershipConflictError,
@@ -90,6 +90,40 @@ describe("Property PostgreSQL persistence", () => {
       .rejects.toBeDefined();
     expect((await owner.query("SELECT rent_amount_minor, commercial_kind FROM property_management.properties")).rows[0])
       .toEqual({ rent_amount_minor: "200", commercial_kind: "LONG_TERM_RENTAL" });
+  });
+
+  it("lists a stable tenant-scoped portfolio with filter, search and cursor pagination", async () => {
+    const repository = new PostgresPropertyRepository(runtime);
+    const fixtures = [
+      { tenantId: TENANT_A, propertyId: "11111111-1111-4111-8111-111111111111", title: "Maison Lagune Ouest", propertyType: "HOUSE" as const, createdAt: "2026-08-25T13:00:00.000Z" },
+      { tenantId: TENANT_A, propertyId: "22222222-2222-4222-8222-222222222222", title: "Maison Lagune Est", propertyType: "HOUSE" as const, createdAt: "2026-08-25T13:00:00.000Z" },
+      { tenantId: TENANT_A, propertyId: "33333333-3333-4333-8333-333333333333", title: "Terrain Lagune", propertyType: "LAND" as const, createdAt: "2026-08-25T14:00:00.000Z" },
+      { tenantId: TENANT_B, propertyId: "44444444-4444-4444-8444-444444444444", title: "Maison Lagune autre tenant", propertyType: "HOUSE" as const, createdAt: "2026-08-25T15:00:00.000Z" },
+    ];
+    for (const fixture of fixtures) await new CreateProperty(
+      repository, { generate: () => fixture.propertyId }, { now: () => fixture.createdAt },
+    ).execute({
+      authority: authority(fixture.tenantId), correlationId: CORRELATION, title: fixture.title,
+      propertyType: fixture.propertyType, transactionType: "SALE",
+      location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Bord de lagune" },
+    });
+
+    const list = new ListProperties(new PostgresPropertyPortfolioQuery(runtime));
+    const listAuthority = { ...authority(TENANT_A), grants: ["LIST_PROPERTIES"] as const };
+    const first = await list.execute({
+      authority: listAuthority, status: "DRAFT", propertyType: "HOUSE", search: "lagune", limit: 1,
+    });
+    expect(first.items.map((value) => value.propertyId)).toEqual(["22222222-2222-4222-8222-222222222222"]);
+    expect(first.nextCursor).toEqual({ createdAt: "2026-08-25T13:00:00.000Z", propertyId: "22222222-2222-4222-8222-222222222222" });
+    const second = await list.execute({
+      authority: listAuthority, status: "DRAFT", propertyType: "HOUSE", search: "lagune", limit: 1,
+      cursor: first.nextCursor,
+    });
+    expect(second.items.map((value) => value.propertyId)).toEqual(["11111111-1111-4111-8111-111111111111"]);
+    expect(second.nextCursor).toBeUndefined();
+    expect([...first.items, ...second.items]).toHaveLength(2);
+    expect((await owner.query("SELECT indexdef FROM pg_indexes WHERE schemaname = 'property_management' AND indexname = 'properties_tenant_created_property_idx'")).rows[0]?.indexdef)
+      .toContain("tenant_id, created_at DESC NULLS LAST, property_id DESC NULLS LAST");
   });
 });
 

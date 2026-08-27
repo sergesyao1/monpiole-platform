@@ -23,6 +23,7 @@ export const properties = propertyManagement.table("properties", {
   salePriceAmountMinor: bigint("sale_price_amount_minor", { mode: "number" }),
 }, (table) => [
   uniqueIndex("properties_tenant_property_unique").on(table.tenantId, table.propertyId),
+  index("properties_tenant_created_property_idx").on(table.tenantId, table.createdAt.desc(), table.propertyId.desc()),
 ]);
 
 export const propertyOwners = propertyManagement.table("property_owners", {
