@@ -5,6 +5,7 @@ const navigation = [
   { to: "/", label: "Tableau de bord", end: true },
   { to: "/biens", label: "Biens immobiliers", end: false },
   { to: "/proprietaires", label: "Propriétaires", end: false },
+  { to: "/diagnostic-authentification", label: "Diagnostic connexion", end: false },
 ] as const;
 
 export function ApplicationShell() {

@@ -42,6 +42,7 @@ import { UPDATE_PROPERTY_OWNER_USE_CASE, UpdatePropertyOwnerController } from ".
 import { ASSIGN_PROPERTY_OWNER_USE_CASE, AssignPropertyOwnerController } from "./http/properties/assign-property-owner.controller.js";
 import { RETRIEVE_PROPERTY_OWNERSHIPS_USE_CASE, RetrievePropertyOwnershipsController } from "./http/properties/retrieve-property-ownerships.controller.js";
 import { REMOVE_PROPERTY_OWNER_USE_CASE, RemovePropertyOwnerController } from "./http/properties/remove-property-owner.controller.js";
+import { AuthenticationSessionController } from "./http/authentication/authentication-session.controller.js";
 
 const StrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
@@ -101,7 +102,7 @@ export class AppModule {
     return {
       module: AppModule,
       controllers: [
-        HealthController, ContractBaselineController, CreateTenantController,
+        HealthController, ContractBaselineController, AuthenticationSessionController, CreateTenantController,
         BootstrapAdministratorController,
         ActivateAdministratorController,
         ActivateTenantController,

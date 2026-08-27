@@ -112,6 +112,12 @@ does not expose a public endpoint, auto-link on first login or create privileged
 users. Tenant administrator grants are assigned from the internal membership by
 API composition, never from OIDC claims.
 
+UI-002A exposes the operator command
+`corepack pnpm --filter @monpiole/api identity:link-external`. It links only an
+existing ACTIVE internal identity and requires exact issuer, subject, identity
+ID and tenant ID values. It is not a public endpoint, first-login mechanism or
+invitation workflow. Internal onboarding remains a distinct approved operation.
+
 TASK-041 adds the read-only `PlatformIdentityInitializationState` port and a
 narrow SELECT-only RLS policy for its PostgreSQL adapter. The one-shot operator
 CLI refuses if any identity or membership exists, then invokes the existing

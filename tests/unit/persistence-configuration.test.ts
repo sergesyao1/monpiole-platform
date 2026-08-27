@@ -7,10 +7,21 @@ describe("PostgreSQL connection configuration", () => {
       .toThrow("DATABASE_URL is required");
   });
 
-  it("requires verified TLS except in explicitly isolated tests", () => {
+  it("requires verified TLS except in isolated tests or loopback development", () => {
     expect(() => postgresConfigurationFromEnvironment({
       DATABASE_URL: "postgresql://sensitive-value", NODE_ENV: "production", DATABASE_TLS: "disabled",
-    })).toThrow("DATABASE_TLS must be required outside isolated tests");
+    })).toThrow("DATABASE_TLS may be disabled only for isolated tests or loopback development");
+  });
+
+  it("allows TLS-free development only on a loopback database", () => {
+    expect(postgresConfigurationFromEnvironment({
+      DATABASE_URL: "postgresql://monpiole@127.0.0.1:5432/monpiole",
+      DATABASE_TLS: "disabled", MONPIOLE_ENV: "development",
+    }).tls).toBe(false);
+    expect(() => postgresConfigurationFromEnvironment({
+      DATABASE_URL: "postgresql://database.internal/monpiole",
+      DATABASE_TLS: "disabled", MONPIOLE_ENV: "development",
+    })).toThrow("DATABASE_TLS may be disabled only");
   });
 
   it("parses bounded pool settings for isolated tests", () => {

@@ -47,7 +47,13 @@ describe("OIDC authentication HTTP boundary", () => {
   afterAll(async () => application.close());
 
   it("verifies a token, resolves internal authority, and reaches the protected endpoint", async () => {
-    const response = await request(await token());
+    const accessToken = await token();
+    const diagnostic = await fetch(`${baseUrl}/v1/authentication/session`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(diagnostic.status).toBe(200);
+    expect(await diagnostic.json()).toEqual({ authenticated: true });
+    const response = await request(accessToken);
     expect(response.status).toBe(201);
     expect(executed).toBe(1);
   });

@@ -105,13 +105,33 @@ The frontend values `VITE_OIDC_ISSUER` and `VITE_OIDC_AUDIENCE` must exactly
 match the API issuer and audience. For local browser use, Auth0 must also allow
 the callback, logout and Web origin documented in `apps/web/README.md`.
 
+### UI-002A local operations
+
+`GET /v1/authentication/session` is a side-effect-free smoke endpoint. A 200
+means that the bearer passed OIDC verification and its exact `(issuer, subject)`
+resolved to an active internal authority. Its response is only
+`{ "authenticated": true }`; grants and tenant scope stay server-side.
+
+Use `infrastructure/local/postgres.compose.yaml` for isolated local PostgreSQL,
+then run `corepack pnpm --filter @monpiole/api migrations:apply`. This requires
+`DATABASE_MIGRATION_URL` and `DATABASE_MIGRATION_TLS`. TLS may be disabled only
+for loopback development; remote databases still require verified TLS.
+
+Run `corepack pnpm --filter @monpiole/api identity:link-external` to link an
+existing ACTIVE internal identity. It requires `DATABASE_URL`, `DATABASE_TLS`,
+`EXTERNAL_IDENTITY_ISSUER`, `EXTERNAL_IDENTITY_SUBJECT`,
+`EXTERNAL_IDENTITY_INTERNAL_ID` and `EXTERNAL_IDENTITY_TENANT_ID`. The command
+does not create an identity, infer a link from e-mail, or assign Auth0 claims as
+grants. Never place a real subject in tracked configuration.
+
 For a completely empty installation only, run
-`corepack pnpm --filter @monpiole/api platform:bootstrap-initial-authority`.
-The command requires the explicit enable flag, exact confirmation phrase,
-operator/idempotency identifiers, tenant contact fields and administrator fields
-listed in `.env.example`. It validates inputs before effects, takes an advisory
-lock, and refuses if any tenant, identity or membership exists. Success creates
-one ACTIVE tenant and one ACTIVE TENANT_ADMINISTRATOR, then prints their UUIDs.
+`corepack pnpm --filter @monpiole/api platform:bootstrap-initial-authority`
+before external linking. The command requires the explicit enable flag, exact
+confirmation phrase, operator/idempotency identifiers, tenant contact fields
+and administrator fields listed in `.env.example`. It validates inputs before
+effects, takes an advisory lock, and refuses if any tenant, identity or
+membership exists. Success creates one ACTIVE tenant and one ACTIVE
+TENANT_ADMINISTRATOR, then prints their UUIDs.
 
 This is a one-shot Operations trust boundary, not development authentication.
 It is not reachable through HTTP and does not process Auth0 data. A second run

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { applicationRoutes } from "./routes.js";
 import { SessionContext, type Session } from "../auth/session.js";
@@ -16,6 +16,7 @@ function renderRoute(path = "/", session: Session = authenticatedSession) {
 }
 
 describe("application web MonPiole", () => {
+  afterEach(() => vi.unstubAllGlobals());
   it("affiche le shell et l'accueil en français", () => {
     renderRoute();
     expect(screen.getByRole("navigation", { name: "Navigation principale" })).toBeInTheDocument();
@@ -52,5 +53,18 @@ describe("application web MonPiole", () => {
   it("affiche une erreur de restauration explicite", () => {
     renderRoute("/", { ...authenticatedSession, status: "error", error: new Error("failure") });
     expect(screen.getByRole("heading", { name: "La session n’a pas pu être restaurée" })).toBeInTheDocument();
+  });
+
+  it("vérifie la chaîne authentifiée vers l’API sans afficher le token", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ authenticated: true }), {
+      status: 200, headers: { "content-type": "application/json" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    renderRoute("/diagnostic-authentification");
+    fireEvent.click(screen.getByRole("button", { name: "Vérifier ma session API" }));
+    expect(await screen.findByText("Connexion réussie : l’API reconnaît votre autorité MonPiole.")).toBeInTheDocument();
+    const headers = fetchMock.mock.calls[0]?.[1]?.headers as Headers;
+    expect(headers.get("authorization")).toBe("Bearer test-token");
+    expect(screen.queryByText("test-token")).not.toBeInTheDocument();
   });
 });

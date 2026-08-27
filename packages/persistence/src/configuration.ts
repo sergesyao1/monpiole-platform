@@ -14,10 +14,15 @@ export function postgresConfigurationFromEnvironment(
   const connectionString = environment["DATABASE_URL"];
   if (!connectionString) throw new Error("DATABASE_URL is required");
 
-  const localTest = environment["NODE_ENV"] === "test" &&
-    environment["DATABASE_TLS"] === "disabled";
-  if (!localTest && environment["DATABASE_TLS"] !== "required") {
-    throw new Error("DATABASE_TLS must be required outside isolated tests");
+  const tlsDisabled = environment["DATABASE_TLS"] === "disabled";
+  const isolatedTest = environment["NODE_ENV"] === "test";
+  const loopbackDevelopment = environment["MONPIOLE_ENV"] === "development"
+    && isLoopbackDatabase(connectionString);
+  if (tlsDisabled && !isolatedTest && !loopbackDevelopment) {
+    throw new Error("DATABASE_TLS may be disabled only for isolated tests or loopback development");
+  }
+  if (!tlsDisabled && environment["DATABASE_TLS"] !== "required") {
+    throw new Error("DATABASE_TLS must be required or explicitly disabled for loopback development");
   }
 
   return {
@@ -29,8 +34,17 @@ export function postgresConfigurationFromEnvironment(
     idleTimeoutMilliseconds: positiveInteger(
       environment["DATABASE_IDLE_TIMEOUT_MS"], 30_000, "DATABASE_IDLE_TIMEOUT_MS",
     ),
-    tls: !localTest,
+    tls: !tlsDisabled,
   };
+}
+
+function isLoopbackDatabase(connectionString: string): boolean {
+  try {
+    const hostname = new URL(connectionString).hostname.toLowerCase();
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+  } catch {
+    return false;
+  }
 }
 
 export function toPoolConfiguration(

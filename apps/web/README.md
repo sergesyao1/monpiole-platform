@@ -67,6 +67,14 @@ de login. Un 403 signale un refus d’autorisation distinct sans déconnecter.
 OIDC authentifie l’utilisateur. Les scopes et claims ne sont pas des grants
 métier : l’API reste l’unique autorité pour les permissions et l’isolation tenant.
 
+## Smoke test UI-002A
+
+La route protégée `/diagnostic-authentification` propose **Vérifier ma session
+API**. Elle obtient un access token via la session et appelle
+`GET /v1/authentication/session` via le client centralisé. Elle n’affiche ni
+token, ni grants, ni tenant scope. Un succès confirme la vérification OIDC et la
+résolution interne ; 401 et 403 conservent leurs messages français distincts.
+
 ## Frontières
 
 - `src/app` compose le shell et les routes ;

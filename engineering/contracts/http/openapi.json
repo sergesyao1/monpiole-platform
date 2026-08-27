@@ -1306,6 +1306,48 @@
         ]
       }
     },
+    "/v1/authentication/session": {
+      "get": {
+        "operationId": "verifyAuthenticationSession",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "authenticated": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "authenticated"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The external identity resolves to an active MonPiole authority"
+          },
+          "401": {
+            "description": "Missing, invalid, or unresolved authentication"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Verify OIDC authentication and internal authority resolution",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
     "/v1/properties": {
       "post": {
         "operationId": "createProperty",
