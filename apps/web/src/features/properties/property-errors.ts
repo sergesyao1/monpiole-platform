@@ -18,6 +18,9 @@ export function toPropertyUiError(error: unknown): PropertyUiError {
     return { kind: "validation", message: "Certaines informations sont invalides. Vérifiez le formulaire puis réessayez." };
   }
   if (error instanceof ApiProblem && error.problem.status === 409) {
+    if (error.problem.code === "PROPERTY_BUILDING_CODE_CONFLICT") return { kind: "conflict", message: "Ce code d’immeuble est déjà utilisé pour ce bien." };
+    if (error.problem.code === "PROPERTY_UNIT_CODE_CONFLICT") return { kind: "conflict", message: "Ce code d’unité est déjà utilisé dans cet immeuble." };
+    if (error.problem.code === "PROPERTY_COMPOSITION_ROLE_CONFLICT") return { kind: "conflict", message: "Une unité ne peut pas contenir d’immeuble." };
     return { kind: "conflict", message: "Cette affectation existe déjà ou la quote-part totale dépasserait 100 %." };
   }
   return { kind: "unexpected", message: "Une erreur inattendue est survenue. Réessayez dans quelques instants." };

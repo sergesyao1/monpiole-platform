@@ -3,6 +3,7 @@ import type {
   CreatePropertyInput, Property, PropertyOwner, PropertyOwnerDirectoryCriteria, PropertyOwnerDirectoryPage,
   PropertyOwnerInput, PropertyOwnership, PropertyPortfolioCriteria, PropertyPortfolioPage, UpdatePropertyDetailsInput,
   UpdatePropertyCoreInformationInput,
+  BuildingInput, CompositionPage, PropertyBuilding, PropertyUnit, UnitInput,
 } from "./property-model.js";
 
 export interface PropertyApi {
@@ -18,6 +19,12 @@ export interface PropertyApi {
   updatePropertyOwner(ownerId: string, input: PropertyOwnerInput): Promise<PropertyOwner>;
   assignPropertyOwner(propertyId: string, ownerId: string, ownershipShare: number): Promise<PropertyOwnership>;
   removePropertyOwner(propertyId: string, ownerId: string): Promise<void>;
+  listBuildings(propertyId: string, cursor?: string): Promise<CompositionPage<PropertyBuilding>>;
+  createBuilding(propertyId: string, input: BuildingInput): Promise<PropertyBuilding>;
+  updateBuilding(propertyId: string, buildingId: string, input: BuildingInput): Promise<PropertyBuilding>;
+  listUnits(propertyId: string, buildingId: string, cursor?: string): Promise<CompositionPage<PropertyUnit>>;
+  createUnit(propertyId: string, buildingId: string, input: UnitInput): Promise<PropertyUnit>;
+  updateUnitCode(propertyId: string, buildingId: string, unitPropertyId: string, unitCode: string): Promise<PropertyUnit>;
 }
 
 export function createPropertyApi(tokens: AccessTokenProvider): PropertyApi {
@@ -48,7 +55,17 @@ export function createPropertyApi(tokens: AccessTokenProvider): PropertyApi {
     removePropertyOwner: (propertyId, ownerId) => request<void>(
       `/v1/properties/${encodeURIComponent(propertyId)}/owners/${encodeURIComponent(ownerId)}`, { method: "DELETE" },
     ),
+    listBuildings: (propertyId, cursor) => request<CompositionPage<PropertyBuilding>>(compositionPath(propertyId, undefined, cursor)),
+    createBuilding: (propertyId, input) => request<PropertyBuilding>(compositionPath(propertyId), { method: "POST", body: input }),
+    updateBuilding: (propertyId, buildingId, input) => request<PropertyBuilding>(compositionPath(propertyId, buildingId), { method: "PUT", body: input }),
+    listUnits: (propertyId, buildingId, cursor) => request<CompositionPage<PropertyUnit>>(compositionPath(propertyId, buildingId, cursor, true)),
+    createUnit: (propertyId, buildingId, input) => request<PropertyUnit>(compositionPath(propertyId, buildingId, undefined, true), { method: "POST", body: input }),
+    updateUnitCode: (propertyId, buildingId, unitPropertyId, unitCode) => request<PropertyUnit>(`${compositionPath(propertyId, buildingId, undefined, true)}/${encodeURIComponent(unitPropertyId)}`, { method: "PUT", body: { unitCode } }),
   };
+}
+function compositionPath(propertyId: string, buildingId?: string, cursor?: string, units = false): `/v1/${string}` {
+  const base = `/v1/properties/${encodeURIComponent(propertyId)}/buildings${buildingId ? `/${encodeURIComponent(buildingId)}` : ""}${units ? "/units" : ""}` as `/v1/${string}`;
+  return cursor ? `${base}?limit=20&cursor=${encodeURIComponent(cursor)}` : base;
 }
 
 function ownerDirectoryPath(criteria: PropertyOwnerDirectoryCriteria): `/v1/${string}` {

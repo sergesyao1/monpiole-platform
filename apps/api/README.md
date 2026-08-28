@@ -165,3 +165,19 @@ Missing and cross-tenant identifiers share the same non-revealing 404 response.
 ## Private Property owner directory
 
 `GET /v1/property-owners` lists the owners of the tenant resolved from the authenticated internal authority. It accepts `limit`, an opaque `cursor`, and a bounded `search` over individual names, legal names, registration numbers, and email. Results use stable keyset ordering by creation date then Owner ID, descending. The endpoint requires `LIST_PROPERTY_OWNERS`; OIDC scopes are not business grants.
+
+## Private Property composition
+
+The six composition routes live below
+`/v1/properties/{propertyId}/buildings`. `POST` and `GET` create and list
+Buildings, `PUT /{buildingId}` updates a Building, and the nested `/units`
+collection provides the equivalent create, list, and Unit-code update routes.
+Lists accept `limit` and an opaque `cursor`; clients must return the cursor
+unchanged and must not infer its representation.
+
+The API derives tenant scope only from the authenticated internal authority.
+Composition operations require their dedicated create, retrieve, or update
+grant. Missing and cross-tenant parents, Buildings, and Units return the same
+non-revealing 404 contract; duplicate codes and structural-role violations use
+stable 409 problem codes. There are intentionally no delete, move, or reparent
+routes in this slice.

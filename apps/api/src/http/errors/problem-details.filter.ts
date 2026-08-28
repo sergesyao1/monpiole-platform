@@ -127,6 +127,16 @@ function businessProblem(exception: unknown) {
     status: 404, type: "https://api.monpiole.example/problems/property-not-found",
     title: "Property not found", code: "PROPERTY_NOT_FOUND",
   };
+  if (code === "PROPERTY_BUILDING_NOT_FOUND" || code === "PROPERTY_UNIT_NOT_FOUND") return {
+    status: 404, type: `https://api.monpiole.example/problems/${code === "PROPERTY_BUILDING_NOT_FOUND" ? "property-building" : "property-unit"}-not-found`,
+    title: code === "PROPERTY_BUILDING_NOT_FOUND" ? "Property building not found" : "Property unit not found", code,
+  };
+  if (code === "PROPERTY_COMPOSITION_ROLE_CONFLICT" || code === "PROPERTY_BUILDING_CODE_CONFLICT" || code === "PROPERTY_UNIT_CODE_CONFLICT") return {
+    status: 409, type: "https://api.monpiole.example/problems/property-composition-conflict", title: "Property composition conflict", code,
+  };
+  if (code === "INVALID_PROPERTY_COMPOSITION_INPUT") return {
+    status: 400, type: "https://api.monpiole.example/problems/invalid-request", title: "Invalid request", code: "INVALID_REQUEST",
+  };
   if (code === "INVALID_PROPERTY_INPUT") return {
     status: 400, type: "https://api.monpiole.example/problems/invalid-request",
     title: "Invalid request", code: "INVALID_REQUEST",

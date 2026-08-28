@@ -12,6 +12,7 @@ import {
   transactionTypeLabels, type CommercialTerms, type Property,
 } from "./property-model.js";
 import { PropertyOwnershipSection } from "./PropertyOwnershipSection.js";
+import { PropertyCompositionSection } from "./PropertyCompositionSection.js";
 
 function CommercialTermsSummary({ terms }: Readonly<{ terms: CommercialTerms }>) {
   if (terms.kind === "LONG_TERM_RENTAL") return <>{formatMinorAmount(terms.rentAmountMinor, terms.currency)} / mois</>;
@@ -90,6 +91,7 @@ export function PropertyDetailPage() {
       </section>
 
       <PropertyOwnershipSection propertyId={property.propertyId} api={api} />
+      <PropertyCompositionSection property={property} api={api} />
     </div>
   );
 }

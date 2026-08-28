@@ -9,6 +9,7 @@ export const properties = propertyManagement.table("properties", {
   title: text("title").notNull(), description: text("description"),
   propertyType: text("property_type").notNull(), transactionType: text("transaction_type").notNull(),
   status: text("status").notNull(), country: text("country").notNull(), city: text("city").notNull(),
+  structuralRole: text("structural_role").notNull().default("STANDALONE"),
   district: text("district").notNull(), addressLine: text("address_line").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
@@ -24,6 +25,34 @@ export const properties = propertyManagement.table("properties", {
 }, (table) => [
   uniqueIndex("properties_tenant_property_unique").on(table.tenantId, table.propertyId),
   index("properties_tenant_created_property_idx").on(table.tenantId, table.createdAt.desc(), table.propertyId.desc()),
+]);
+
+export const propertyBuildings = propertyManagement.table("property_buildings", {
+  buildingId: uuid("building_id").primaryKey(), tenantId: uuid("tenant_id").notNull(),
+  propertyId: uuid("property_id").notNull(), buildingCode: text("building_code").notNull(), name: text("name").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
+  correlationId: uuid("correlation_id").notNull(), actorId: text("actor_id").notNull(),
+}, (table) => [
+  uniqueIndex("property_buildings_tenant_building_unique").on(table.tenantId, table.buildingId),
+  uniqueIndex("property_buildings_tenant_property_code_unique").on(table.tenantId, table.propertyId, table.buildingCode),
+  foreignKey({ name: "property_buildings_property_tenant_fk", columns: [table.tenantId, table.propertyId], foreignColumns: [properties.tenantId, properties.propertyId] }),
+  index("property_buildings_tenant_property_code_idx").on(table.tenantId, table.propertyId, table.buildingCode, table.buildingId),
+]);
+
+export const propertyBuildingUnits = propertyManagement.table("property_building_units", {
+  tenantId: uuid("tenant_id").notNull(), buildingId: uuid("building_id").notNull(),
+  unitPropertyId: uuid("unit_property_id").notNull(), unitCode: text("unit_code").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
+  correlationId: uuid("correlation_id").notNull(), actorId: text("actor_id").notNull(),
+}, (table) => [
+  primaryKey({ name: "property_building_units_pkey", columns: [table.tenantId, table.buildingId, table.unitPropertyId] }),
+  foreignKey({ name: "property_building_units_building_tenant_fk", columns: [table.tenantId, table.buildingId], foreignColumns: [propertyBuildings.tenantId, propertyBuildings.buildingId] }),
+  foreignKey({ name: "property_building_units_property_tenant_fk", columns: [table.tenantId, table.unitPropertyId], foreignColumns: [properties.tenantId, properties.propertyId] }),
+  uniqueIndex("property_building_units_tenant_unit_unique").on(table.tenantId, table.unitPropertyId),
+  uniqueIndex("property_building_units_tenant_building_code_unique").on(table.tenantId, table.buildingId, table.unitCode),
+  index("property_building_units_tenant_building_code_idx").on(table.tenantId, table.buildingId, table.unitCode, table.unitPropertyId),
 ]);
 
 export const propertyOwners = propertyManagement.table("property_owners", {

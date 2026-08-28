@@ -110,6 +110,14 @@ physiques et morales. La fiche d’un bien utilise ce même annuaire pour
 sélectionner un propriétaire existant lors d’une affectation, sans saisie
 manuelle d’UUID.
 
+La section « Composition du bien » de la fiche permet de créer, consulter et
+modifier les immeubles, puis d’afficher leurs unités, d’en créer et d’en modifier
+le code. Les pages suivantes sont chargées explicitement avec les curseurs
+opaques fournis par l’API, dédupliquées côté interface et ajoutées aux résultats
+déjà visibles. Un échec de pagination conserve les données chargées et propose
+une nouvelle tentative. Les validations, confirmations et erreurs 401, 403, 404
+et 409 sont présentées en français.
+
 ## Frontières
 
 - `src/app` compose le shell et les routes ;

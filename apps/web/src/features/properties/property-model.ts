@@ -4,6 +4,7 @@ export type PropertyType = typeof propertyTypes[number];
 export const transactionTypes = ["LONG_TERM_RENTAL", "SHORT_TERM_RENTAL", "SALE"] as const;
 export type TransactionType = typeof transactionTypes[number];
 export type PropertyStatus = "DRAFT";
+export type PropertyStructuralRole = "STANDALONE" | "COMPOSITE" | "UNIT";
 export type PricingUnit = "NIGHT" | "WEEK";
 
 export const propertyTypeLabels: Readonly<Record<PropertyType, string>> = {
@@ -21,6 +22,7 @@ export const transactionTypeLabels: Readonly<Record<TransactionType, string>> = 
 };
 
 export const propertyStatusLabels: Readonly<Record<PropertyStatus, string>> = { DRAFT: "Brouillon" };
+export const propertyStructuralRoleLabels: Readonly<Record<PropertyStructuralRole, string>> = { STANDALONE: "Bien autonome", COMPOSITE: "Ensemble immobilier", UNIT: "Unité" };
 export const pricingUnitLabels: Readonly<Record<PricingUnit | "MONTH", string>> = {
   MONTH: "Mensuel",
   NIGHT: "Nuit",
@@ -54,6 +56,7 @@ export interface Property {
   readonly propertyType: PropertyType;
   readonly transactionType: TransactionType;
   readonly status: PropertyStatus;
+  readonly structuralRole: PropertyStructuralRole;
   readonly location: PropertyLocation;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -97,6 +100,11 @@ export interface UpdatePropertyCoreInformationInput {
   readonly description?: string;
   readonly location: PropertyLocation;
 }
+export interface PropertyBuilding { readonly buildingId: string; readonly propertyId: string; readonly buildingCode: string; readonly name: string; readonly createdAt: string; readonly updatedAt: string; }
+export interface PropertyUnit { readonly unitCode: string; readonly property: Property; }
+export interface CompositionPage<T> { readonly items: readonly T[]; readonly pageInfo: { readonly nextCursor: string | null; readonly hasNextPage: boolean } }
+export interface BuildingInput { readonly buildingCode: string; readonly name: string; }
+export interface UnitInput extends CreatePropertyInput { readonly unitCode: string; }
 
 export interface PropertyOwnership {
   readonly propertyId: string;

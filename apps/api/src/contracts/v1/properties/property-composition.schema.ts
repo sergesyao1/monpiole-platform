@@ -1,0 +1,13 @@
+import { z } from "zod";
+import { PropertyLocationSchema, PropertyResponseSchema, PropertyTypeSchema, TransactionTypeSchema } from "./property.schema.js";
+export const StructuralCodeSchema = z.string().trim().min(1).max(50).regex(/^[A-Za-z0-9][A-Za-z0-9._/ -]{0,49}$/);
+export const CompositionPathSchema = z.object({ propertyId: z.uuid(), buildingId: z.uuid().optional(), unitPropertyId: z.uuid().optional() }).strict();
+export const BuildingMutationSchema = z.object({ buildingCode: StructuralCodeSchema, name: z.string().trim().min(1).max(200) }).strict();
+export const UnitMutationSchema = z.object({ unitCode: StructuralCodeSchema }).strict();
+export const CreateUnitSchema = UnitMutationSchema.extend({ title: z.string().trim().min(1).max(200), description: z.string().trim().min(1).max(2000).optional(), propertyType: PropertyTypeSchema, transactionType: TransactionTypeSchema, location: PropertyLocationSchema }).strict();
+export const CompositionQuerySchema = z.object({ limit: z.coerce.number().int().min(1).max(100).default(20), cursor: z.string().max(512).optional() }).strict();
+export const BuildingResponseSchema = z.object({ buildingId: z.uuid(), propertyId: z.uuid(), buildingCode: StructuralCodeSchema, name: z.string(), createdAt: z.iso.datetime(), updatedAt: z.iso.datetime() }).strict();
+export const UnitResponseSchema = z.object({ unitCode: StructuralCodeSchema, property: PropertyResponseSchema }).strict();
+const PageInfo = z.object({ nextCursor: z.string().nullable(), hasNextPage: z.boolean() }).strict();
+export const BuildingPageSchema = z.object({ items: z.array(BuildingResponseSchema), pageInfo: PageInfo }).strict();
+export const UnitPageSchema = z.object({ items: z.array(UnitResponseSchema), pageInfo: PageInfo }).strict();

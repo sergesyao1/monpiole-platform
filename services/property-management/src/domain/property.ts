@@ -15,6 +15,8 @@ export const TRANSACTION_TYPES = ["LONG_TERM_RENTAL", "SHORT_TERM_RENTAL", "SALE
 export type PropertyType = typeof PROPERTY_TYPES[number];
 export type TransactionType = typeof TRANSACTION_TYPES[number];
 export type PropertyStatus = "DRAFT";
+export const PROPERTY_STRUCTURAL_ROLES = ["STANDALONE", "COMPOSITE", "UNIT"] as const;
+export type PropertyStructuralRole = typeof PROPERTY_STRUCTURAL_ROLES[number];
 
 export interface PropertyLocation {
   readonly country: string;
@@ -31,6 +33,7 @@ export interface PropertyValues {
   readonly propertyType: PropertyType;
   readonly transactionType: TransactionType;
   readonly status: PropertyStatus;
+  readonly structuralRole: PropertyStructuralRole;
   readonly location: PropertyLocation;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -68,9 +71,9 @@ export class PersistedPropertyCorruptionError extends Error {
 export class Property {
   private constructor(readonly values: Readonly<PropertyValues>) {}
 
-  static create(input: Omit<PropertyValues, "status">): Property {
+  static create(input: Omit<PropertyValues, "status" | "structuralRole"> & { readonly structuralRole?: PropertyStructuralRole }): Property {
     try {
-      return new Property(validate({ ...input, status: "DRAFT" }));
+      return new Property(validate({ ...input, structuralRole: input.structuralRole ?? "STANDALONE", status: "DRAFT" }));
     } catch (error) {
       if (!(error instanceof PropertyInvariantViolation)) throw error;
       if (["propertyId", "tenantId", "status", "createdAt", "updatedAt"].includes(error.field)) {
@@ -78,6 +81,14 @@ export class Property {
       }
       throw new InvalidPropertyInputError(error.field);
     }
+  }
+
+  static createStandalone(input: Omit<PropertyValues, "status" | "structuralRole">): Property {
+    return Property.create({ ...input, structuralRole: "STANDALONE" });
+  }
+
+  static createUnit(input: Omit<PropertyValues, "status" | "structuralRole">): Property {
+    return Property.create({ ...input, structuralRole: "UNIT" });
   }
 
   static rehydrate(input: PropertyValues): Property {
@@ -112,6 +123,18 @@ export class Property {
       throw new InvalidPropertyInputError(error.field);
     }
   }
+
+
+  becomeComposite(updatedAt: string): Property {
+    if (this.values.structuralRole === "UNIT") throw new PropertyStructuralRoleConflictError();
+    if (this.values.structuralRole === "COMPOSITE") return this;
+    if (!validInstant(updatedAt)) throw new InvalidPropertyServerValueError("updatedAt");
+    return new Property(Object.freeze({ ...this.values, structuralRole: "COMPOSITE", updatedAt }));
+  }
+}
+
+export class PropertyStructuralRoleConflictError extends Error {
+  readonly code = "PROPERTY_COMPOSITION_ROLE_CONFLICT";
 }
 
 function validate(input: PropertyValues): Readonly<PropertyValues> {
@@ -123,6 +146,7 @@ function validate(input: PropertyValues): Readonly<PropertyValues> {
   if (!PROPERTY_TYPES.includes(input.propertyType)) throw new PropertyInvariantViolation("propertyType");
   if (!TRANSACTION_TYPES.includes(input.transactionType)) throw new PropertyInvariantViolation("transactionType");
   if (input.status !== "DRAFT") throw new PropertyInvariantViolation("status");
+  if (!PROPERTY_STRUCTURAL_ROLES.includes(input.structuralRole)) throw new PropertyInvariantViolation("structuralRole");
   if (!COUNTRY.test(input.location.country)) throw new PropertyInvariantViolation("country");
   const location = Object.freeze({
     country: input.location.country,

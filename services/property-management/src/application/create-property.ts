@@ -20,7 +20,7 @@ export class CreateProperty {
   async execute(command: CreatePropertyCommand): Promise<PropertyView> {
     const tenantId = authorizedTenant(command.authority, "CREATE_PROPERTY");
     const now = this.clock.now();
-    const property = Property.create({
+    const property = Property.createStandalone({
       propertyId: this.identifiers.generate(), tenantId, title: command.title,
       ...(command.description === undefined ? {} : { description: command.description }),
       propertyType: command.propertyType, transactionType: command.transactionType,

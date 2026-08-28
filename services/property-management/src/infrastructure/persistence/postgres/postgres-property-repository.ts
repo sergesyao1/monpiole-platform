@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import type { Pool } from "pg";
 
 import type { PropertyRepository } from "../../../application/property-repository.js";
-import { Property, type PropertyStatus, type PropertyType, type TransactionType } from "../../../domain/property.js";
+import { Property, type PropertyStatus, type PropertyStructuralRole, type PropertyType, type TransactionType } from "../../../domain/property.js";
 import type { CommercialTerms, PropertyDetails } from "../../../domain/property-details.js";
 import { properties } from "./schema.js";
 
@@ -16,6 +16,7 @@ export class PostgresPropertyRepository implements PropertyRepository {
         propertyId: value.propertyId, tenantId: value.tenantId, title: value.title,
         description: value.description, propertyType: value.propertyType,
         transactionType: value.transactionType, status: value.status,
+        structuralRole: value.structuralRole,
         country: value.location.country, city: value.location.city, district: value.location.district,
         addressLine: value.location.addressLine, createdAt: value.createdAt, updatedAt: value.updatedAt,
         correlationId, actorId,
@@ -67,7 +68,7 @@ export class PostgresPropertyRepository implements PropertyRepository {
 }
 
 type PropertyRow = typeof properties.$inferSelect;
-function toProperty(row: PropertyRow): Property {
+export function toProperty(row: PropertyRow): Property {
   const details = toDetails(row);
   const commercialTerms = toCommercialTerms(row);
   return Property.rehydrate({
@@ -75,6 +76,7 @@ function toProperty(row: PropertyRow): Property {
     ...(row.description === null ? {} : { description: row.description }),
     propertyType: row.propertyType as PropertyType, transactionType: row.transactionType as TransactionType,
     status: row.status as PropertyStatus,
+    structuralRole: row.structuralRole as PropertyStructuralRole,
     location: { country: row.country, city: row.city, district: row.district, addressLine: row.addressLine },
     createdAt: new Date(row.createdAt).toISOString(), updatedAt: new Date(row.updatedAt).toISOString(),
     ...(details === undefined ? {} : { details }),

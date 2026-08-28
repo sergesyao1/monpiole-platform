@@ -3,6 +3,7 @@ import { z } from "zod";
 export const PropertyIdSchema = z.uuid().meta({ id: "PropertyId" });
 export const PropertyTypeSchema = z.enum(["APARTMENT", "HOUSE", "LAND", "COMMERCIAL", "OTHER"]);
 export const TransactionTypeSchema = z.enum(["LONG_TERM_RENTAL", "SHORT_TERM_RENTAL", "SALE"]);
+export const PropertyStructuralRoleSchema = z.enum(["STANDALONE", "COMPOSITE", "UNIT"]);
 export const PropertyLocationSchema = z.object({
   country: z.string().regex(/^[A-Z]{2}$/),
   city: z.string().trim().min(1).max(200),
@@ -54,6 +55,7 @@ export const PropertyResponseSchema = z.object({
   title: z.string(), description: z.string().optional(),
   propertyType: PropertyTypeSchema, transactionType: TransactionTypeSchema,
   status: z.literal("DRAFT"), location: PropertyLocationSchema,
+  structuralRole: PropertyStructuralRoleSchema,
   createdAt: z.iso.datetime({ offset: false }).refine((value) => value.endsWith("Z")),
   updatedAt: z.iso.datetime({ offset: false }).refine((value) => value.endsWith("Z")),
   details: PropertyDetailsSchema.optional(),
@@ -77,6 +79,7 @@ export const PropertyPortfolioItemSchema = z.object({
   title: z.string(), description: z.string().optional(),
   propertyType: PropertyTypeSchema, transactionType: TransactionTypeSchema,
   status: z.literal("DRAFT"), location: PropertyLocationSchema,
+  structuralRole: PropertyStructuralRoleSchema,
   createdAt: z.iso.datetime({ offset: false }).refine((value) => value.endsWith("Z")),
   updatedAt: z.iso.datetime({ offset: false }).refine((value) => value.endsWith("Z")),
 }).strict().meta({ id: "PropertyPortfolioItem" });

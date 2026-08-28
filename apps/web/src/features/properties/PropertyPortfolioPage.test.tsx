@@ -10,13 +10,13 @@ const PROPERTY_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const PROPERTY_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const firstProperty: PropertyPortfolioItem = {
   propertyId: PROPERTY_A, title: "Maison des Lagunes", description: "Une maison familiale.",
-  propertyType: "HOUSE", transactionType: "LONG_TERM_RENTAL", status: "DRAFT",
+  propertyType: "HOUSE", transactionType: "LONG_TERM_RENTAL", status: "DRAFT", structuralRole: "STANDALONE",
   location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue des Jardins" },
   createdAt: "2026-08-27T10:00:00.000Z", updatedAt: "2026-08-27T10:00:00.000Z",
 };
 const secondProperty: PropertyPortfolioItem = {
   propertyId: PROPERTY_B, title: "Appartement du Plateau", propertyType: "APARTMENT",
-  transactionType: "SALE", status: "DRAFT",
+  transactionType: "SALE", status: "DRAFT", structuralRole: "STANDALONE",
   location: { country: "CI", city: "Abidjan", district: "Plateau", addressLine: "Avenue Chardy" },
   createdAt: "2026-08-26T10:00:00.000Z", updatedAt: "2026-08-26T10:00:00.000Z",
 };

@@ -17,6 +17,8 @@ export { AssignPropertyOwner, PropertyOwnershipConflictError, type AssignPropert
 export { RetrievePropertyOwnerships, type RetrievePropertyOwnershipsQuery } from "./application/retrieve-property-ownerships.js";
 export { RemovePropertyOwner, PropertyOwnershipNotFoundError, type RemovePropertyOwnerCommand } from "./application/remove-property-owner.js";
 export { PropertyForbiddenError, type PropertyAuthority, type PropertyGrant } from "./application/property-authority.js";
+export { CreatePropertyBuilding, ListPropertyBuildings, UpdatePropertyBuilding, CreatePropertyUnit, ListPropertyUnits, UpdatePropertyUnitStructure, type CreateUnitFields } from "./application/property-composition.js";
+export { PropertyBuildingNotFoundError, PropertyUnitNotFoundError, PropertyBuildingCodeConflictError, PropertyUnitCodeConflictError, type PropertyCompositionRepository, type CompositionCursor, type CompositionPage, type PropertyUnitView } from "./application/property-composition-repository.js";
 export type { PropertyRepository } from "./application/property-repository.js";
 export type {
   PropertyPortfolioQuery, PropertyPortfolioCriteria, PropertyPortfolioCursor,
@@ -28,7 +30,8 @@ export type {
   PropertyOwnerDirectoryItem, PropertyOwnerDirectoryPage,
 } from "./application/property-owner-directory-query.js";
 export { PropertyOwnershipPersistenceFailureError, type PropertyOwnershipRepository } from "./application/property-ownership-repository.js";
-export { Property, InvalidPropertyInputError, InvalidPropertyServerValueError, PersistedPropertyCorruptionError, PROPERTY_TYPES, TRANSACTION_TYPES, type PropertyCoreInformation, type PropertyLocation, type PropertyType, type TransactionType } from "./domain/property.js";
+export { Property, InvalidPropertyInputError, InvalidPropertyServerValueError, PersistedPropertyCorruptionError, PropertyStructuralRoleConflictError, PROPERTY_TYPES, TRANSACTION_TYPES, PROPERTY_STRUCTURAL_ROLES, type PropertyCoreInformation, type PropertyLocation, type PropertyType, type TransactionType, type PropertyStructuralRole } from "./domain/property.js";
+export { PropertyBuilding, InvalidPropertyCompositionInputError, InvalidPropertyCompositionServerValueError, normalizeStructuralCode, type PropertyBuildingValues } from "./domain/property-building.js";
 export { InvalidPropertyDetailsError, IncompatibleCommercialTermsError, type PropertyDetails, type CommercialTerms, type LongTermRentalTerms, type ShortTermRentalTerms, type SaleTerms } from "./domain/property-details.js";
 export {
   PropertyOwner, InvalidPropertyOwnerInputError, InvalidPropertyOwnerServerValueError,
@@ -46,3 +49,4 @@ export { PostgresPropertyPortfolioQuery } from "./infrastructure/persistence/pos
 export { PostgresPropertyOwnerRepository } from "./infrastructure/persistence/postgres/postgres-property-owner-repository.js";
 export { PostgresPropertyOwnerDirectoryQuery } from "./infrastructure/persistence/postgres/postgres-property-owner-directory-query.js";
 export { PostgresPropertyOwnershipRepository } from "./infrastructure/persistence/postgres/postgres-property-ownership-repository.js";
+export { PostgresPropertyCompositionRepository } from "./infrastructure/persistence/postgres/postgres-property-composition-repository.js";

@@ -4,7 +4,8 @@ import type { ActivateTenantAdministrator, BootstrapTenantAdministrator } from "
 import type {
   CreateProperty, CreatePropertyOwner, ListProperties, ListPropertyOwners, RetrieveProperty, RetrievePropertyOwner,
   UpdatePropertyCoreInformation, UpdatePropertyDetails, UpdatePropertyOwner, AssignPropertyOwner,
-  RetrievePropertyOwnerships, RemovePropertyOwner,
+  RetrievePropertyOwnerships, RemovePropertyOwner, CreatePropertyBuilding, ListPropertyBuildings, UpdatePropertyBuilding,
+  CreatePropertyUnit, ListPropertyUnits, UpdatePropertyUnitStructure,
 } from "@monpiole/property-management";
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core";
 import {
@@ -50,6 +51,7 @@ import {
   PLATFORM_AUTHORITY_AUTHORIZER,
   PlatformTenantCreationAuthorizationProbeController,
 } from "./http/authentication/platform-tenant-creation-authorization-probe.controller.js";
+import { PropertyCompositionController, CREATE_PROPERTY_BUILDING, LIST_PROPERTY_BUILDINGS, UPDATE_PROPERTY_BUILDING, CREATE_PROPERTY_UNIT, LIST_PROPERTY_UNITS, UPDATE_PROPERTY_UNIT } from "./http/properties/property-composition.controller.js";
 
 const StrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
@@ -74,6 +76,9 @@ export interface ApiComposition {
   readonly assignPropertyOwner?: Pick<AssignPropertyOwner, "execute">;
   readonly retrievePropertyOwnerships?: Pick<RetrievePropertyOwnerships, "execute">;
   readonly removePropertyOwner?: Pick<RemovePropertyOwner, "execute">;
+  readonly createPropertyBuilding?: Pick<CreatePropertyBuilding, "execute">; readonly listPropertyBuildings?: Pick<ListPropertyBuildings, "execute">;
+  readonly updatePropertyBuilding?: Pick<UpdatePropertyBuilding, "execute">; readonly createPropertyUnit?: Pick<CreatePropertyUnit, "execute">;
+  readonly listPropertyUnits?: Pick<ListPropertyUnits, "execute">; readonly updatePropertyUnitStructure?: Pick<UpdatePropertyUnitStructure, "execute">;
   readonly runtimeShutdown?: RuntimeShutdown;
 }
 
@@ -112,6 +117,7 @@ const unavailableUpdatePropertyOwner: Pick<UpdatePropertyOwner, "execute"> = { a
 const unavailableAssignPropertyOwner: Pick<AssignPropertyOwner, "execute"> = { async execute() { throw new Error("Assign Property Owner composition is unavailable"); } };
 const unavailableRetrievePropertyOwnerships: Pick<RetrievePropertyOwnerships, "execute"> = { async execute() { throw new Error("Retrieve Property Ownerships composition is unavailable"); } };
 const unavailableRemovePropertyOwner: Pick<RemovePropertyOwner, "execute"> = { async execute() { throw new Error("Remove Property Owner composition is unavailable"); } };
+const unavailableComposition = { async execute(): Promise<never> { throw new Error("Property composition is unavailable"); } };
 
 @Module({})
 export class AppModule {
@@ -127,7 +133,7 @@ export class AppModule {
         CreatePropertyController, ListPropertiesController, RetrievePropertyController,
         UpdatePropertyCoreInformationController, UpdatePropertyDetailsController,
         CreatePropertyOwnerController, ListPropertyOwnersController, RetrievePropertyOwnerController, UpdatePropertyOwnerController,
-        AssignPropertyOwnerController, RetrievePropertyOwnershipsController, RemovePropertyOwnerController,
+        AssignPropertyOwnerController, RetrievePropertyOwnershipsController, RemovePropertyOwnerController, PropertyCompositionController,
       ],
       providers: [
         { provide: APP_PIPE, useClass: StrictZodValidationPipe },
@@ -164,6 +170,12 @@ export class AppModule {
         { provide: ASSIGN_PROPERTY_OWNER_USE_CASE, useValue: composition.assignPropertyOwner ?? unavailableAssignPropertyOwner },
         { provide: RETRIEVE_PROPERTY_OWNERSHIPS_USE_CASE, useValue: composition.retrievePropertyOwnerships ?? unavailableRetrievePropertyOwnerships },
         { provide: REMOVE_PROPERTY_OWNER_USE_CASE, useValue: composition.removePropertyOwner ?? unavailableRemovePropertyOwner },
+        { provide: CREATE_PROPERTY_BUILDING, useValue: composition.createPropertyBuilding ?? unavailableComposition },
+        { provide: LIST_PROPERTY_BUILDINGS, useValue: composition.listPropertyBuildings ?? unavailableComposition },
+        { provide: UPDATE_PROPERTY_BUILDING, useValue: composition.updatePropertyBuilding ?? unavailableComposition },
+        { provide: CREATE_PROPERTY_UNIT, useValue: composition.createPropertyUnit ?? unavailableComposition },
+        { provide: LIST_PROPERTY_UNITS, useValue: composition.listPropertyUnits ?? unavailableComposition },
+        { provide: UPDATE_PROPERTY_UNIT, useValue: composition.updatePropertyUnitStructure ?? unavailableComposition },
         ...(composition.runtimeShutdown === undefined
           ? []
           : [{ provide: RUNTIME_SHUTDOWN, useValue: composition.runtimeShutdown }]),

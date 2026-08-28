@@ -13,6 +13,7 @@ import {
   PostgresPropertyOwnerRepository, PostgresPropertyPortfolioQuery, PostgresPropertyRepository,
   RetrieveProperty, RetrievePropertyOwner, UpdatePropertyCoreInformation, UpdatePropertyDetails, UpdatePropertyOwner,
   AssignPropertyOwner, PostgresPropertyOwnershipRepository, RetrievePropertyOwnerships, RemovePropertyOwner,
+  CreatePropertyBuilding, ListPropertyBuildings, UpdatePropertyBuilding, CreatePropertyUnit, ListPropertyUnits, UpdatePropertyUnitStructure, PostgresPropertyCompositionRepository,
 } from "@monpiole/property-management";
 import {
   ActivateTenant,
@@ -62,6 +63,8 @@ export function createPostgresApiRuntime(
   const propertyRepository = new PostgresPropertyRepository(pool);
   const propertyOwnerRepository = new PostgresPropertyOwnerRepository(pool);
   const propertyOwnershipRepository = new PostgresPropertyOwnershipRepository(pool);
+  const propertyCompositionRepository = new PostgresPropertyCompositionRepository(pool);
+  const compositionClock = { now: () => new Date().toISOString() };
 
   const composition: ApiComposition = {
     authenticatedAuthorityProvider,
@@ -93,6 +96,10 @@ export function createPostgresApiRuntime(
     assignPropertyOwner: new AssignPropertyOwner(propertyOwnershipRepository, { now: () => new Date().toISOString() }),
     retrievePropertyOwnerships: new RetrievePropertyOwnerships(propertyOwnershipRepository),
     removePropertyOwner: new RemovePropertyOwner(propertyOwnershipRepository),
+    createPropertyBuilding: new CreatePropertyBuilding(propertyRepository, propertyCompositionRepository, { generate: randomUUID }, compositionClock),
+    listPropertyBuildings: new ListPropertyBuildings(propertyCompositionRepository), updatePropertyBuilding: new UpdatePropertyBuilding(propertyCompositionRepository, compositionClock),
+    createPropertyUnit: new CreatePropertyUnit(propertyCompositionRepository, { generate: randomUUID }, compositionClock),
+    listPropertyUnits: new ListPropertyUnits(propertyCompositionRepository), updatePropertyUnitStructure: new UpdatePropertyUnitStructure(propertyCompositionRepository, compositionClock),
     runtimeShutdown: { onApplicationShutdown: () => database.close() },
   };
 

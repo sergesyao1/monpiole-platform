@@ -47,7 +47,7 @@ describe("Property Domain and Application", () => {
   it("separates invalid server values and persisted corruption from client input", () => {
     const base = { propertyId: PROPERTY_ID, tenantId: TENANT_A, ...input, createdAt: "2026-08-25T12:00:00.000Z", updatedAt: "2026-08-25T12:00:00.000Z" };
     expect(() => Property.create({ ...base, propertyId: "invalid" })).toThrow(InvalidPropertyServerValueError);
-    expect(() => Property.rehydrate({ ...base, status: "PUBLISHED" as never })).toThrow(PersistedPropertyCorruptionError);
+    expect(() => Property.rehydrate({ ...base, status: "PUBLISHED" as never, structuralRole: "STANDALONE" })).toThrow(PersistedPropertyCorruptionError);
   });
   it("rejects missing grants and ambiguous multi-tenant authority before persistence", async () => {
     const { create, repository } = useCases();

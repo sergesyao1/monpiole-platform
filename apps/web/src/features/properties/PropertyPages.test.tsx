@@ -10,7 +10,7 @@ const PROPERTY_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const OWNER_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const property: Property = {
   propertyId: PROPERTY_ID, title: "Maison des Lagunes", description: "Une maison familiale.",
-  propertyType: "HOUSE", transactionType: "LONG_TERM_RENTAL", status: "DRAFT",
+  propertyType: "HOUSE", transactionType: "LONG_TERM_RENTAL", status: "DRAFT", structuralRole: "STANDALONE",
   location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue des Jardins" },
   createdAt: "2026-08-27T10:00:00.000Z", updatedAt: "2026-08-27T10:00:00.000Z",
 };
@@ -176,7 +176,7 @@ describe("vertical slice Web Property", () => {
     fireEvent.change(screen.getByLabelText("Quote-part (%)"), { target: { value: "60" } });
     fireEvent.click(screen.getByRole("button", { name: "Affecter le propriétaire" }));
     expect(await screen.findByText("Sélectionnez un propriétaire disponible.")).toBeInTheDocument();
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
   });
 
   it("affecte un propriétaire existant avec le bearer token", async () => {

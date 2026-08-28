@@ -10,6 +10,7 @@ export function toPropertyResponse(property: PropertyView): PropertyResponse {
     ...(property.description === undefined ? {} : { description: property.description }),
     propertyType: property.propertyType, transactionType: property.transactionType,
     status: property.status, location: property.location,
+    structuralRole: property.structuralRole,
     createdAt: property.createdAt, updatedAt: property.updatedAt,
     ...(property.details === undefined ? {} : { details: property.details }),
     ...(property.commercialTerms === undefined ? {} : { commercialTerms: property.commercialTerms }),

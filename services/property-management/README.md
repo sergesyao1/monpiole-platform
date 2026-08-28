@@ -77,3 +77,16 @@ not a public full-text engine.
 port and PostgreSQL keyset query. It requires `LIST_PROPERTY_OWNERS`, orders by
 `(createdAt DESC, ownerId DESC)`, supports bounded identity search, and returns
 the existing public Owner representation without tenant or persistence fields.
+
+## Property composition
+
+A standalone Property can become `COMPOSITE` when its first Building is created.
+Buildings are structural entities identified by a code unique inside the parent
+Property. Units remain full Properties with structural role `UNIT` and belong to
+exactly one Building through a tenant-scoped relation. The model is deliberately
+non-recursive and exposes no move, detach, deletion, or reverse transition.
+
+Creation and structural updates use tenant-scoped PostgreSQL transactions and
+parent row locks. Composite foreign keys, unique constraints, and forced RLS
+enforce tenant ownership and attachment invariants. Building and Unit lists use
+deterministic keyset pagination; their cursors are transport-opaque.

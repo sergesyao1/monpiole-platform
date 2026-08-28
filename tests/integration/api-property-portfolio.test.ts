@@ -11,7 +11,7 @@ const TENANT = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const PROPERTY = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const item = {
   propertyId: PROPERTY, title: "Maison Lagune", propertyType: "HOUSE" as const,
-  transactionType: "SALE" as const, status: "DRAFT" as const,
+  transactionType: "SALE" as const, status: "DRAFT" as const, structuralRole: "STANDALONE" as const,
   location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Riviera" },
   createdAt: "2026-08-27T12:00:00.000Z", updatedAt: "2026-08-27T12:00:00.000Z",
 };

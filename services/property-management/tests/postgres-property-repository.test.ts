@@ -11,6 +11,9 @@ import {
   RetrieveProperty, RetrievePropertyOwner, UpdatePropertyCoreInformation, UpdatePropertyDetails, UpdatePropertyOwner, type TransactionType,
   AssignPropertyOwner, PostgresPropertyOwnershipRepository, PropertyOwnershipConflictError,
   PropertyOwnershipShareExceededError, PropertyOwnershipNotFoundError, RemovePropertyOwner, RetrievePropertyOwnerships,
+  CreatePropertyBuilding, CreatePropertyUnit, ListPropertyBuildings, ListPropertyUnits, UpdatePropertyBuilding,
+  UpdatePropertyUnitStructure, PostgresPropertyCompositionRepository, PropertyBuildingCodeConflictError,
+  PropertyUnitCodeConflictError, PropertyStructuralRoleConflictError,
 } from "../src/index.js";
 
 const IMAGE = "postgres@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687";
@@ -30,7 +33,7 @@ beforeAll(async () => {
   await owner.query("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA property_management TO property_runtime");
   runtime = new Pool({ connectionString: connection("property_runtime", "synthetic-runtime") });
 });
-afterEach(async () => owner.query("TRUNCATE property_management.property_ownerships, property_management.properties, property_management.property_owners"));
+afterEach(async () => owner.query("TRUNCATE property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners"));
 afterAll(async () => { await runtime?.end(); await owner?.end(); await container?.stop(); });
 
 function authority(tenantId: string) { return { actorId: "actor", authorityId: "authority", grants: ["CREATE_PROPERTY", "RETRIEVE_PROPERTY"] as const, tenantIds: [tenantId] }; }
@@ -334,4 +337,43 @@ describe("PropertyOwnership PostgreSQL persistence", () => {
     expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
     expect((await owner.query("SELECT COALESCE(sum(ownership_share), 0)::numeric AS total FROM property_management.property_ownerships WHERE property_id = $1", [OWNERSHIP_PROPERTY])).rows[0]?.total).toBe("60.00");
   });
+});
+
+const BUILDING_ID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"; const UNIT_ID = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+function compositionAuthority(tenantId: string) { return { actorId: "actor", authorityId: "authority", grants: ["CREATE_PROPERTY_BUILDING", "RETRIEVE_PROPERTY_COMPOSITION", "UPDATE_PROPERTY_BUILDING", "CREATE_PROPERTY_UNIT", "UPDATE_PROPERTY_UNIT_STRUCTURE"] as const, tenantIds: [tenantId] }; }
+function compositionUseCases(repository = new PostgresPropertyCompositionRepository(runtime), buildingIds: readonly string[] = [BUILDING_ID], unitIds: readonly string[] = [UNIT_ID]) {
+  let buildingIndex = 0; let unitIndex = 0; const clock = { now: () => "2026-08-28T12:00:00.000Z" };
+  const nextBuildingId = () => buildingIds[buildingIndex++] ?? "77777777-7777-4777-8777-777777777777";
+  const nextUnitId = () => unitIds[unitIndex++] ?? "88888888-8888-4888-8888-888888888888";
+  return { repository, createBuilding: new CreatePropertyBuilding(new PostgresPropertyRepository(runtime), repository, { generate: nextBuildingId }, clock), listBuildings: new ListPropertyBuildings(repository), updateBuilding: new UpdatePropertyBuilding(repository, clock), createUnit: new CreatePropertyUnit(repository, { generate: nextUnitId }, clock), listUnits: new ListPropertyUnits(repository), updateUnit: new UpdatePropertyUnitStructure(repository, clock) };
+}
+async function createCompositionParent(tenantId = TENANT_A, propertyId = PROPERTY_ID) { await create(undefined, tenantId, "SALE", propertyId); }
+const unitFields = { unitCode: "A-101", title: "Appartement A-101", propertyType: "APARTMENT" as const, transactionType: "LONG_TERM_RENTAL" as const, location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue 1" } };
+
+describe("Property composition PostgreSQL persistence", () => {
+  it("crée, lit et modifie Building puis Unit avec les rôles normatifs", async () => { await createCompositionParent(); const useCases = compositionUseCases(); const authority = compositionAuthority(TENANT_A);
+    await useCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: " bat-a ", name: " Immeuble A " });
+    expect((await owner.query("SELECT structural_role FROM property_management.properties WHERE property_id=$1", [PROPERTY_ID])).rows[0]?.structural_role).toBe("COMPOSITE");
+    await useCases.updateBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: BUILDING_ID, buildingCode: "BAT-B", name: "Immeuble B" });
+    const createdUnit = await useCases.createUnit.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: BUILDING_ID, ...unitFields }); expect(createdUnit.property.structuralRole).toBe("UNIT");
+    await useCases.updateUnit.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: BUILDING_ID, unitPropertyId: UNIT_ID, unitCode: "B-102" });
+    expect((await useCases.listBuildings.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, limit: 20 })).items[0]).toMatchObject({ buildingCode: "BAT-B", name: "Immeuble B" });
+    expect((await useCases.listUnits.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: BUILDING_ID, limit: 20 })).items[0]).toMatchObject({ unitCode: "B-102", property: { propertyId: UNIT_ID, structuralRole: "UNIT" } });
+  });
+  it("refuse un Building sous une Unit et rollbacke une création Unit conflictuelle", async () => { await createCompositionParent(); const useCases = compositionUseCases(undefined, [BUILDING_ID], [UNIT_ID, "11111111-1111-4111-8111-111111111111"]); const authority = compositionAuthority(TENANT_A); await useCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: "BAT-A", name: "A" }); await useCases.createUnit.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: BUILDING_ID, ...unitFields });
+    await expect(useCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: UNIT_ID, buildingCode: "NEST", name: "Interdit" })).rejects.toBeInstanceOf(PropertyStructuralRoleConflictError);
+    await expect(useCases.createUnit.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: BUILDING_ID, ...unitFields })).rejects.toBeInstanceOf(PropertyUnitCodeConflictError);
+    expect((await owner.query("SELECT count(*)::int AS count FROM property_management.properties")).rows[0]?.count).toBe(2);
+  });
+  it("applique unicité, références tenant composites et RLS forcée", async () => { await createCompositionParent(); const useCases = compositionUseCases(undefined, [BUILDING_ID, "11111111-1111-4111-8111-111111111111"]); const authority = compositionAuthority(TENANT_A); await useCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: "BAT-A", name: "A" });
+    await expect(useCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: "bat-a", name: "Doublon" })).rejects.toBeInstanceOf(PropertyBuildingCodeConflictError);
+    expect((await runtime.query("SELECT * FROM property_management.property_buildings")).rows).toHaveLength(0);
+    await expect(owner.query(`INSERT INTO property_management.property_buildings (building_id,tenant_id,property_id,building_code,name,created_at,updated_at,correlation_id,actor_id) VALUES ($1,$2,$3,'BAD','Bad',now(),now(),$4,'actor')`, ["22222222-2222-4222-8222-222222222222", TENANT_B, PROPERTY_ID, CORRELATION])).rejects.toMatchObject({ code: "23503" });
+    await expect(runtime.query(`INSERT INTO property_management.property_buildings (building_id,tenant_id,property_id,building_code,name,created_at,updated_at,correlation_id,actor_id) VALUES ($1,$2,$3,'BAD','Bad',now(),now(),$4,'actor')`, ["33333333-3333-4333-8333-333333333333", TENANT_A, PROPERTY_ID, CORRELATION])).rejects.toMatchObject({ code: "42501" });
+  });
+  it("pagine Buildings et Units dans un ordre déterministe sans duplication", async () => { await createCompositionParent(); const buildingIds = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222", "33333333-3333-4333-8333-333333333333"]; const unitIds = ["44444444-4444-4444-8444-444444444444", "55555555-5555-4555-8555-555555555555", "66666666-6666-4666-8666-666666666666"]; const useCases = compositionUseCases(undefined, buildingIds, unitIds); const authority = compositionAuthority(TENANT_A);
+    for (const code of ["BAT-C", "BAT-A", "BAT-B"]) await useCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: code, name: code }); const first = await useCases.listBuildings.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, limit: 2 }); const second = await useCases.listBuildings.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, limit: 2, cursor: first.nextCursor }); expect([...first.items, ...second.items].map((item) => item.buildingCode)).toEqual(["BAT-A", "BAT-B", "BAT-C"]);
+    const target = first.items[0]!.buildingId; for (const code of ["A-103", "A-101", "A-102"]) await useCases.createUnit.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: target, ...unitFields, unitCode: code }); const unitFirst = await useCases.listUnits.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: target, limit: 2 }); const unitSecond = await useCases.listUnits.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: target, limit: 2, cursor: unitFirst.nextCursor }); expect([...unitFirst.items, ...unitSecond.items].map((item) => item.unitCode)).toEqual(["A-101", "A-102", "A-103"]);
+  });
+  it("sérialise les codes concurrents sous verrou parent", async () => { await createCompositionParent(); const ids = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"]; const useCases = compositionUseCases(undefined, ids); const authority = compositionAuthority(TENANT_A); const results = await Promise.allSettled(ids.map((_, index) => useCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: "BAT-X", name: `B${index}` }))); expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1); expect(results.filter((result) => result.status === "rejected")).toHaveLength(1); expect((await owner.query("SELECT count(*)::int AS count FROM property_management.property_buildings")).rows[0]?.count).toBe(1); });
 });
