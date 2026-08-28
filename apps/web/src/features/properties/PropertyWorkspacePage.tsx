@@ -1,22 +1,84 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+import { useSession } from "../../auth/session.js";
+import { createPropertyApi } from "./property-api.js";
+import { PropertyFeedback } from "./PropertyFeedback.js";
+import { toPropertyUiError, type PropertyUiError } from "./property-errors.js";
+import {
+  propertyStatusLabels, propertyTypeLabels, propertyTypes, transactionTypeLabels,
+  type PropertyPortfolioItem, type PropertyType,
+} from "./property-model.js";
+
+const PAGE_LIMIT = 20;
+
+interface PortfolioFilters {
+  readonly search?: string;
+  readonly type?: PropertyType;
+  readonly status?: "DRAFT";
+}
 
 export function PropertyWorkspacePage() {
-  const navigate = useNavigate();
-  const [propertyId, setPropertyId] = useState("");
-  const [error, setError] = useState("");
+  const session = useSession();
+  const api = useMemo(() => createPropertyApi(session), [session]);
+  const [items, setItems] = useState<readonly PropertyPortfolioItem[]>([]);
+  const [filters, setFilters] = useState<PortfolioFilters>({});
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [initialError, setInitialError] = useState<PropertyUiError>();
+  const [nextPageError, setNextPageError] = useState<PropertyUiError>();
 
-  function openProperty(event: FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setInitialError(undefined);
+    setNextPageError(undefined);
+    void api.listProperties({ limit: PAGE_LIMIT, ...filters }).then((page) => {
+      if (!active) return;
+      setItems(page.items);
+      setNextCursor(page.pageInfo.nextCursor);
+      setHasNextPage(page.pageInfo.hasNextPage);
+    }).catch((error: unknown) => {
+      if (!active) return;
+      setItems([]);
+      setNextCursor(null);
+      setHasNextPage(false);
+      setInitialError(toPropertyUiError(error));
+    }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [api, filters]);
+
+  function applyFilters(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const normalized = propertyId.trim();
-    if (!UUID_PATTERN.test(normalized)) {
-      setError("Saisissez un identifiant de bien valide.");
-      return;
+    if (loading || loadingMore) return;
+    const values = new FormData(event.currentTarget);
+    const search = String(values.get("search") ?? "").trim();
+    const type = String(values.get("type") ?? "") as PropertyType | "";
+    const status = String(values.get("status") ?? "") as "DRAFT" | "";
+    setFilters({
+      ...(search.length === 0 ? {} : { search }),
+      ...(type === "" ? {} : { type }),
+      ...(status === "" ? {} : { status }),
+    });
+  }
+
+  async function loadNextPage() {
+    if (loadingMore || !hasNextPage || nextCursor === null) return;
+    setLoadingMore(true);
+    setNextPageError(undefined);
+    try {
+      const page = await api.listProperties({ limit: PAGE_LIMIT, ...filters, cursor: nextCursor });
+      setItems((current) => appendUnique(current, page.items));
+      setNextCursor(page.pageInfo.nextCursor);
+      setHasNextPage(page.pageInfo.hasNextPage);
+    } catch (error) {
+      setNextPageError(toPropertyUiError(error));
+    } finally {
+      setLoadingMore(false);
     }
-    navigate(`/properties/${normalized}`);
   }
 
   return (
@@ -24,37 +86,70 @@ export function PropertyWorkspacePage() {
       <section className="hero property-hero">
         <div>
           <p className="eyebrow">Biens immobiliers</p>
-          <h1>Gérez vos biens depuis leur fiche</h1>
-          <p className="hero-copy">Créez un bien, renseignez ses caractéristiques et ses conditions commerciales, puis consultez ses propriétaires.</p>
+          <h1>Votre portefeuille immobilier</h1>
+          <p className="hero-copy">Retrouvez les biens de votre espace, consultez leur fiche et poursuivez leur gestion.</p>
           <Link className="primary-action inline-action" to="/properties/new">Créer un bien</Link>
         </div>
         <div className="hero-accent" aria-hidden="true"><span>⌂</span></div>
       </section>
 
-      <section className="content-panel" aria-labelledby="property-lookup-title">
+      <section className="content-panel" aria-labelledby="property-portfolio-title" aria-busy={loading || loadingMore}>
         <div className="section-heading">
-          <div>
-            <p className="eyebrow">Accès direct</p>
-            <h2 id="property-lookup-title">Retrouver un bien</h2>
-          </div>
+          <div><p className="eyebrow">Portefeuille privé</p><h2 id="property-portfolio-title">Vos biens</h2></div>
         </div>
-        <form className="compact-form" onSubmit={openProperty} noValidate>
-          <label htmlFor="property-id">Identifiant du bien</label>
-          <div className="inline-fields">
-            <input id="property-id" name="propertyId" value={propertyId} onChange={(event) => setPropertyId(event.target.value)} placeholder="00000000-0000-4000-8000-000000000000" aria-describedby={error ? "property-id-error" : undefined} />
-            <button className="secondary-action" type="submit">Ouvrir la fiche</button>
-          </div>
-          {error && <p className="field-error" id="property-id-error" role="alert">{error}</p>}
-        </form>
-      </section>
 
-      <aside className="foundation-note" aria-labelledby="property-list-gap-title">
-        <div className="note-icon" aria-hidden="true">i</div>
-        <div>
-          <h2 id="property-list-gap-title">Liste des biens indisponible</h2>
-          <p>L’API actuelle ne fournit pas encore de liste des biens. Conservez l’adresse de la fiche après création ou utilisez son identifiant pour la retrouver.</p>
-        </div>
-      </aside>
+        <form className="portfolio-filters" onSubmit={applyFilters} role="search">
+          <label>Rechercher<input name="search" maxLength={100} defaultValue={filters.search ?? ""} placeholder="Titre, ville, quartier ou adresse" /></label>
+          <label>Type de bien<select name="type" defaultValue={filters.type ?? ""}><option value="">Tous les types</option>{propertyTypes.map((type) => <option key={type} value={type}>{propertyTypeLabels[type]}</option>)}</select></label>
+          <label>Statut<select name="status" defaultValue={filters.status ?? ""}><option value="">Tous les statuts</option><option value="DRAFT">{propertyStatusLabels.DRAFT}</option></select></label>
+          <button className="secondary-action" type="submit" disabled={loading || loadingMore}>Appliquer les filtres</button>
+        </form>
+
+        {loading && <div className="portfolio-state" role="status"><span className="loading-indicator" aria-hidden="true" /><p>Chargement de votre portefeuille…</p></div>}
+        {!loading && initialError && <PropertyFeedback error={initialError} onReconnect={() => void session.login("/properties")} />}
+        {!loading && !initialError && items.length === 0 && (
+          <div className="portfolio-state portfolio-empty">
+            <h3>Aucun bien à afficher</h3>
+            <p>Créez votre premier bien ou modifiez vos critères de recherche.</p>
+            <Link className="primary-action inline-action" to="/properties/new">Créer un bien</Link>
+          </div>
+        )}
+        {!loading && !initialError && items.length > 0 && (
+          <>
+            <ul className="property-portfolio-list">
+              {items.map((property) => <PropertyPortfolioCard key={property.propertyId} property={property} />)}
+            </ul>
+            {nextPageError && <div className="form-message" role="alert"><strong>La page suivante n’a pas pu être chargée.</strong><p>{nextPageError.message} Les biens déjà affichés restent disponibles.</p></div>}
+            <div className="portfolio-pagination">
+              {hasNextPage && <button className="secondary-action" type="button" onClick={() => void loadNextPage()} disabled={loadingMore}>{loadingMore ? "Chargement…" : "Afficher plus de biens"}</button>}
+              {!hasNextPage && <p className="muted-status" role="status">Tous les biens disponibles sont affichés.</p>}
+            </div>
+          </>
+        )}
+      </section>
     </div>
   );
+}
+
+function PropertyPortfolioCard({ property }: Readonly<{ property: PropertyPortfolioItem }>) {
+  return (
+    <li className="property-portfolio-card">
+      <div className="portfolio-card-heading">
+        <div><span className="quiet-badge">{propertyStatusLabels[property.status]}</span><h3>{property.title}</h3></div>
+        <span className="property-type-mark" aria-hidden="true">{propertyTypeLabels[property.propertyType].slice(0, 1)}</span>
+      </div>
+      <p className="portfolio-location">{property.location.district}, {property.location.city} · {property.location.country}</p>
+      {property.description && <p className="portfolio-description">{property.description}</p>}
+      <dl className="portfolio-metadata">
+        <div><dt>Type</dt><dd>{propertyTypeLabels[property.propertyType]}</dd></div>
+        <div><dt>Projet</dt><dd>{transactionTypeLabels[property.transactionType]}</dd></div>
+      </dl>
+      <Link className="secondary-action inline-action" to={`/properties/${property.propertyId}`} aria-label={`Consulter ${property.title}`}>Consulter la fiche</Link>
+    </li>
+  );
+}
+
+function appendUnique(current: readonly PropertyPortfolioItem[], next: readonly PropertyPortfolioItem[]): readonly PropertyPortfolioItem[] {
+  const knownIds = new Set(current.map((property) => property.propertyId));
+  return [...current, ...next.filter((property) => !knownIds.has(property.propertyId))];
 }

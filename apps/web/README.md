@@ -94,10 +94,15 @@ client HTTP authentifié commun et les routes publiques existantes pour créer u
 bien, ouvrir sa fiche par identifiant, modifier ses détails et ses conditions
 commerciales, puis consulter, affecter ou retirer ses propriétaires.
 
-L’API ne fournit actuellement ni liste de biens ni liste de propriétaires. La
-page « Biens immobiliers » propose donc la création et l’ouverture d’un bien par
-son identifiant ; la fiche permet d’affecter un propriétaire existant par son
-identifiant. Aucune liste locale ou donnée fictive ne masque ces limites.
+La page « Biens immobiliers » consomme le portefeuille privé tenant-scoped de
+`GET /v1/properties`. Elle affiche les biens dans l’ordre fourni par l’API,
+permet la recherche et les filtres publiés, puis charge explicitement les pages
+suivantes avec le curseur opaque retourné par le serveur. Chaque résultat ouvre
+la fiche existante et la création reste directement accessible.
+
+L’API ne fournit toujours pas de liste de propriétaires. La fiche permet donc
+d’affecter un propriétaire existant par son identifiant, sans liste locale ni
+donnée fictive.
 
 ## Frontières
 

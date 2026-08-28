@@ -155,6 +155,24 @@ input:focus, select:focus, textarea:focus { border-color: var(--green-700); outl
 .ownership-list small { margin-top: .2rem; color: var(--muted); font-family: ui-monospace, monospace; overflow-wrap: anywhere; }
 .ownership-form { padding-top: 1.5rem; border-top: 1px solid var(--border); }
 .loading-indicator { width: 2rem; height: 2rem; border: 3px solid var(--green-100); border-top-color: var(--green-700); border-radius: 50%; animation: spin .8s linear infinite; }
+.portfolio-filters { display: grid; grid-template-columns: minmax(12rem, 2fr) repeat(2, minmax(10rem, 1fr)) auto; gap: .85rem; align-items: end; margin-bottom: 2rem; }
+.portfolio-filters label { display: grid; gap: .45rem; color: #34473d; font-size: .82rem; font-weight: 750; }
+.portfolio-state { display: grid; justify-items: center; gap: .75rem; padding: 3rem 1rem; color: var(--muted); text-align: center; }
+.portfolio-state p, .portfolio-state h3 { margin: 0; }
+.portfolio-empty h3 { font-family: Georgia, serif; font-size: 1.55rem; font-weight: 500; }
+.property-portfolio-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin: 0; padding: 0; list-style: none; }
+.property-portfolio-card { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; padding: 1.35rem; border: 1px solid var(--border); border-radius: .85rem; background: #fff; }
+.portfolio-card-heading { display: flex; width: 100%; justify-content: space-between; gap: 1rem; }
+.portfolio-card-heading h3 { margin: .7rem 0 0; font-family: Georgia, serif; font-size: 1.45rem; font-weight: 500; overflow-wrap: anywhere; }
+.property-type-mark { display: grid; flex: 0 0 auto; width: 2.4rem; height: 2.4rem; place-items: center; border-radius: .7rem; color: var(--green-900); background: var(--green-100); font-family: Georgia, serif; font-weight: 800; }
+.portfolio-location, .portfolio-description { color: var(--muted); line-height: 1.5; }
+.portfolio-location { margin: .65rem 0 0; font-size: .84rem; }
+.portfolio-description { display: -webkit-box; margin: 1rem 0; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.portfolio-metadata { display: grid; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: auto 0 1rem; padding-top: 1rem; }
+.portfolio-metadata div { min-width: 0; }
+.portfolio-metadata dt { color: var(--muted); font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.portfolio-metadata dd { margin: .3rem 0 0; overflow-wrap: anywhere; }
+.portfolio-pagination { display: flex; justify-content: center; padding-top: 1.5rem; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
 
@@ -176,4 +194,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--green-700); outl
   .inline-fields { grid-template-columns: 1fr; }
   .ownership-list li { grid-template-columns: 1fr auto; }
   .ownership-list .danger-action { grid-column: 1 / -1; }
+  .portfolio-filters, .property-portfolio-list { grid-template-columns: 1fr; }
+  .portfolio-filters .secondary-action { width: 100%; }
 }

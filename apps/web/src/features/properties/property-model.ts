@@ -61,6 +61,24 @@ export interface Property {
   readonly commercialTerms?: CommercialTerms;
 }
 
+export type PropertyPortfolioItem = Omit<Property, "details" | "commercialTerms">;
+
+export interface PropertyPortfolioPage {
+  readonly items: readonly PropertyPortfolioItem[];
+  readonly pageInfo: Readonly<{
+    readonly nextCursor: string | null;
+    readonly hasNextPage: boolean;
+  }>;
+}
+
+export interface PropertyPortfolioCriteria {
+  readonly limit?: number;
+  readonly cursor?: string;
+  readonly status?: PropertyStatus;
+  readonly type?: PropertyType;
+  readonly search?: string;
+}
+
 export interface CreatePropertyInput {
   readonly title: string;
   readonly description?: string;

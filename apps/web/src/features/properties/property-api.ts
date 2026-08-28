@@ -1,9 +1,11 @@
 import { createAuthenticatedApiClient, type AccessTokenProvider } from "../../infrastructure/http/api-client.js";
 import type {
-  CreatePropertyInput, Property, PropertyOwner, PropertyOwnership, UpdatePropertyDetailsInput,
+  CreatePropertyInput, Property, PropertyOwner, PropertyOwnership, PropertyPortfolioCriteria,
+  PropertyPortfolioPage, UpdatePropertyDetailsInput,
 } from "./property-model.js";
 
 export interface PropertyApi {
+  listProperties(criteria?: PropertyPortfolioCriteria): Promise<PropertyPortfolioPage>;
   createProperty(input: CreatePropertyInput): Promise<Property>;
   retrieveProperty(propertyId: string): Promise<Property>;
   updatePropertyDetails(propertyId: string, input: UpdatePropertyDetailsInput): Promise<Property>;
@@ -16,6 +18,7 @@ export interface PropertyApi {
 export function createPropertyApi(tokens: AccessTokenProvider): PropertyApi {
   const request = createAuthenticatedApiClient(tokens);
   return {
+    listProperties: (criteria = {}) => request<PropertyPortfolioPage>(portfolioPath(criteria)),
     createProperty: (input) => request<Property>("/v1/properties", { method: "POST", body: input }),
     retrieveProperty: (propertyId) => request<Property>(`/v1/properties/${encodeURIComponent(propertyId)}`),
     updatePropertyDetails: (propertyId, input) => request<Property>(
@@ -33,4 +36,15 @@ export function createPropertyApi(tokens: AccessTokenProvider): PropertyApi {
       `/v1/properties/${encodeURIComponent(propertyId)}/owners/${encodeURIComponent(ownerId)}`, { method: "DELETE" },
     ),
   };
+}
+
+function portfolioPath(criteria: PropertyPortfolioCriteria): `/v1/${string}` {
+  const query = new URLSearchParams();
+  if (criteria.limit !== undefined) query.set("limit", String(criteria.limit));
+  if (criteria.cursor !== undefined) query.set("cursor", criteria.cursor);
+  if (criteria.status !== undefined) query.set("status", criteria.status);
+  if (criteria.type !== undefined) query.set("type", criteria.type);
+  if (criteria.search !== undefined) query.set("search", criteria.search);
+  const encoded = query.toString();
+  return encoded.length === 0 ? "/v1/properties" : `/v1/properties?${encoded}`;
 }
