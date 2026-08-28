@@ -8,7 +8,7 @@ import {
   CreateProperty, CreatePropertyOwner, ListProperties, ListPropertyOwners, PostgresPropertyOwnerDirectoryQuery,
   PostgresPropertyOwnerRepository, PostgresPropertyPortfolioQuery, PostgresPropertyRepository,
   PropertyNotFoundError, PropertyOwnerNotFoundError, PropertyOwnerTypeChangeNotAllowedError,
-  RetrieveProperty, RetrievePropertyOwner, UpdatePropertyDetails, UpdatePropertyOwner, type TransactionType,
+  RetrieveProperty, RetrievePropertyOwner, UpdatePropertyCoreInformation, UpdatePropertyDetails, UpdatePropertyOwner, type TransactionType,
   AssignPropertyOwner, PostgresPropertyOwnershipRepository, PropertyOwnershipConflictError,
   PropertyOwnershipShareExceededError, PropertyOwnershipNotFoundError, RemovePropertyOwner, RetrievePropertyOwnerships,
 } from "../src/index.js";
@@ -52,6 +52,31 @@ describe("Property PostgreSQL persistence", () => {
     await create(); const retrieve = new RetrieveProperty(new PostgresPropertyRepository(runtime));
     await expect(retrieve.execute({ authority: authority(TENANT_B), propertyId: PROPERTY_ID })).rejects.toBeInstanceOf(PropertyNotFoundError);
     await expect(retrieve.execute({ authority: authority(TENANT_A), propertyId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" })).rejects.toBeInstanceOf(PropertyNotFoundError);
+  });
+  it("atomically persists core information and trace without changing immutable fields", async () => {
+    const repository = new PostgresPropertyRepository(runtime); await create(repository);
+    await new UpdatePropertyDetails(repository, { now: () => "2026-08-25T14:00:00.000Z" }).execute({
+      authority: { ...authority(TENANT_A), grants: ["UPDATE_PROPERTY_DETAILS"] }, correlationId: CORRELATION,
+      propertyId: PROPERTY_ID, details: { rooms: 4 }, commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 50_000_000 },
+    });
+    const update = new UpdatePropertyCoreInformation(repository, { now: () => "2026-08-25T15:00:00.000Z" });
+    await update.execute({ authority: { ...authority(TENANT_A), grants: ["UPDATE_PROPERTY_CORE_INFORMATION"] }, correlationId: CORRELATION,
+      propertyId: PROPERTY_ID, title: "Villa Lagune", description: "Rénovée",
+      location: { country: "CI", city: "Abidjan", district: "Marcory", addressLine: "Zone 4" } });
+    await expect(new RetrieveProperty(new PostgresPropertyRepository(runtime)).execute({ authority: authority(TENANT_A), propertyId: PROPERTY_ID }))
+      .resolves.toMatchObject({ title: "Villa Lagune", description: "Rénovée", propertyType: "HOUSE", transactionType: "SALE",
+        status: "DRAFT", location: { district: "Marcory", addressLine: "Zone 4" }, details: { rooms: 4 },
+        commercialTerms: { kind: "SALE", salePriceAmountMinor: 50_000_000 }, updatedAt: "2026-08-25T15:00:00.000Z" });
+    expect((await owner.query("SELECT correlation_id, actor_id FROM property_management.properties")).rows[0])
+      .toEqual({ correlation_id: CORRELATION, actor_id: "actor" });
+  });
+  it("does not update core information across tenants", async () => {
+    const repository = new PostgresPropertyRepository(runtime); await create(repository);
+    const update = new UpdatePropertyCoreInformation(repository, { now: () => "2026-08-25T15:00:00.000Z" });
+    await expect(update.execute({ authority: { ...authority(TENANT_B), grants: ["UPDATE_PROPERTY_CORE_INFORMATION"] }, correlationId: CORRELATION,
+      propertyId: PROPERTY_ID, title: "Invisible", location: { country: "CI", city: "Abidjan", district: "Marcory", addressLine: "Zone 4" } }))
+      .rejects.toBeInstanceOf(PropertyNotFoundError);
+    expect((await owner.query("SELECT title FROM property_management.properties")).rows[0]?.title).toBe("House");
   });
   it("forces RLS outside a tenant transaction", async () => {
     expect((await runtime.query("SELECT * FROM property_management.properties")).rows).toHaveLength(0);

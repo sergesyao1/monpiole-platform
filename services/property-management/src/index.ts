@@ -5,6 +5,7 @@ export {
   MAX_PROPERTY_PORTFOLIO_LIMIT, MAX_PROPERTY_PORTFOLIO_SEARCH_LENGTH, type ListPropertiesQuery,
 } from "./application/list-properties.js";
 export { UpdatePropertyDetails, type UpdatePropertyDetailsCommand } from "./application/update-property-details.js";
+export { UpdatePropertyCoreInformation, type UpdatePropertyCoreInformationCommand } from "./application/update-property-core-information.js";
 export { CreatePropertyOwner, type CreatePropertyOwnerCommand, type PropertyOwnerView } from "./application/create-property-owner.js";
 export { RetrievePropertyOwner, PropertyOwnerNotFoundError, type RetrievePropertyOwnerQuery } from "./application/retrieve-property-owner.js";
 export { UpdatePropertyOwner, type UpdatePropertyOwnerCommand } from "./application/update-property-owner.js";
@@ -27,7 +28,7 @@ export type {
   PropertyOwnerDirectoryItem, PropertyOwnerDirectoryPage,
 } from "./application/property-owner-directory-query.js";
 export { PropertyOwnershipPersistenceFailureError, type PropertyOwnershipRepository } from "./application/property-ownership-repository.js";
-export { Property, InvalidPropertyInputError, InvalidPropertyServerValueError, PersistedPropertyCorruptionError, PROPERTY_TYPES, TRANSACTION_TYPES, type PropertyLocation, type PropertyType, type TransactionType } from "./domain/property.js";
+export { Property, InvalidPropertyInputError, InvalidPropertyServerValueError, PersistedPropertyCorruptionError, PROPERTY_TYPES, TRANSACTION_TYPES, type PropertyCoreInformation, type PropertyLocation, type PropertyType, type TransactionType } from "./domain/property.js";
 export { InvalidPropertyDetailsError, IncompatibleCommercialTermsError, type PropertyDetails, type CommercialTerms, type LongTermRentalTerms, type ShortTermRentalTerms, type SaleTerms } from "./domain/property-details.js";
 export {
   PropertyOwner, InvalidPropertyOwnerInputError, InvalidPropertyOwnerServerValueError,

@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import {
   ListPropertiesQuerySchema, PropertyPortfolioResponseSchema, UpdatePropertyDetailsRequestSchema,
+  UpdatePropertyCoreInformationRequestSchema,
 } from "../../apps/api/src/contracts/v1/properties/property.schema.js";
 
 const path = new URL("../../engineering/contracts/http/openapi.json", import.meta.url);
@@ -33,6 +34,28 @@ describe("Property OpenAPI contract", () => {
     expect(terms.oneOf ?? terms.anyOf).toHaveLength(3);
     const serialized = JSON.stringify(terms);
     for (const kind of ["LONG_TERM_RENTAL", "SHORT_TERM_RENTAL", "SALE"]) expect(serialized).toContain(kind);
+  });
+  it("publishes a strict authenticated core information update contract", async () => {
+    const document = JSON.parse(await readFile(path, "utf8"));
+    const update = document.paths["/v1/properties/{propertyId}"]?.put;
+    expect(update).toBeDefined(); expect(update.operationId).toBe("updatePropertyCoreInformation");
+    expect(update.security).toEqual([{ bearer: [] }]);
+    expect(Object.keys(update.responses)).toEqual(expect.arrayContaining(["200", "400", "401", "403", "404", "500"]));
+    const requestRef = update.requestBody.content["application/json"].schema.$ref.split("/").at(-1);
+    const request = document.components.schemas[requestRef];
+    expect(request.required).toEqual(expect.arrayContaining(["title", "location"]));
+    expect(request.properties).not.toHaveProperty("tenantId");
+    expect(request.properties).not.toHaveProperty("propertyType");
+    expect(request.properties).not.toHaveProperty("transactionType");
+    expect(request.properties).not.toHaveProperty("status");
+    expect(request.additionalProperties).toBe(false);
+  });
+  it("validates core information input with creation-equivalent bounds", () => {
+    const valid = { title: "Villa", description: "Vue lagune", location: { country: "CI", city: "Abidjan", district: "Marcory", addressLine: "Zone 4" } };
+    expect(UpdatePropertyCoreInformationRequestSchema.safeParse(valid).success).toBe(true);
+    for (const invalid of [{ ...valid, title: " " }, { ...valid, title: "x".repeat(201) }, { ...valid, propertyType: "HOUSE" }, { ...valid, location: { ...valid.location, country: "CIV" } }]) {
+      expect(UpdatePropertyCoreInformationRequestSchema.safeParse(invalid).success).toBe(false);
+    }
   });
   it("rejects mixed commercial variants and authoritative transport fields", () => {
     const base = { details: { rooms: 2 }, commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 1 } };

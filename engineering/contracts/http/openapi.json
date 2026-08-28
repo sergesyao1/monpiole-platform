@@ -1095,6 +1095,56 @@
         "pattern": "^[a-z0-9][a-z0-9_-]{2,63}$",
         "type": "string"
       },
+      "UpdatePropertyCoreInformationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "location": {
+            "additionalProperties": false,
+            "properties": {
+              "addressLine": {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "city": {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "country": {
+                "pattern": "^[A-Z]{2}$",
+                "type": "string"
+              },
+              "district": {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "addressLine",
+              "city",
+              "country",
+              "district"
+            ],
+            "type": "object"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "location",
+          "title"
+        ],
+        "type": "object"
+      },
       "UpdatePropertyDetailsRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1970,6 +2020,114 @@
           }
         ],
         "summary": "Retrieve a tenant-owned property",
+        "tags": [
+          "Properties"
+        ]
+      },
+      "put": {
+        "operationId": "updatePropertyCoreInformation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "propertyId",
+            "required": true,
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePropertyCoreInformationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertyResponse"
+                }
+              }
+            },
+            "description": "Property core information updated",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid property core information"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden property authority"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Property not found"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Safe internal failure"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update property title, description and location",
         "tags": [
           "Properties"
         ]

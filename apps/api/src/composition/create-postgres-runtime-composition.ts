@@ -11,7 +11,7 @@ import { PostgresPool, postgresConfigurationFromEnvironment } from "@monpiole/pe
 import {
   CreateProperty, CreatePropertyOwner, ListProperties, ListPropertyOwners, PostgresPropertyOwnerDirectoryQuery,
   PostgresPropertyOwnerRepository, PostgresPropertyPortfolioQuery, PostgresPropertyRepository,
-  RetrieveProperty, RetrievePropertyOwner, UpdatePropertyDetails, UpdatePropertyOwner,
+  RetrieveProperty, RetrievePropertyOwner, UpdatePropertyCoreInformation, UpdatePropertyDetails, UpdatePropertyOwner,
   AssignPropertyOwner, PostgresPropertyOwnershipRepository, RetrievePropertyOwnerships, RemovePropertyOwner,
 } from "@monpiole/property-management";
 import {
@@ -85,6 +85,7 @@ export function createPostgresApiRuntime(
     retrieveProperty: new RetrieveProperty(propertyRepository),
     listProperties: new ListProperties(new PostgresPropertyPortfolioQuery(pool)),
     updatePropertyDetails: new UpdatePropertyDetails(propertyRepository, { now: () => new Date().toISOString() }),
+    updatePropertyCoreInformation: new UpdatePropertyCoreInformation(propertyRepository, { now: () => new Date().toISOString() }),
     createPropertyOwner: new CreatePropertyOwner(propertyOwnerRepository, { generate: randomUUID }, { now: () => new Date().toISOString() }),
     retrievePropertyOwner: new RetrievePropertyOwner(propertyOwnerRepository),
     listPropertyOwners: new ListPropertyOwners(new PostgresPropertyOwnerDirectoryQuery(pool)),

@@ -81,7 +81,7 @@ async function start() {
       actorId: "runtime-test", authorityId: "platform-test",
       grants: [
         "CREATE_TENANT", "BOOTSTRAP_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT",
-        "CREATE_PROPERTY", "RETRIEVE_PROPERTY", "LIST_PROPERTIES", "UPDATE_PROPERTY_DETAILS",
+        "CREATE_PROPERTY", "RETRIEVE_PROPERTY", "LIST_PROPERTIES", "UPDATE_PROPERTY_DETAILS", "UPDATE_PROPERTY_CORE_INFORMATION",
         "CREATE_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNER", "LIST_PROPERTY_OWNERS", "UPDATE_PROPERTY_OWNER",
         "ASSIGN_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNERSHIP", "REMOVE_PROPERTY_OWNER",
       ],
@@ -302,6 +302,18 @@ describe("API PostgreSQL Identity runtime composition", () => {
       items: [{ propertyId: property.propertyId, title: "Apartment" }],
       pageInfo: { nextCursor: null, hasNextPage: false },
     });
+    const coreUpdated = await fetch(`${baseUrl}/v1/properties/${property.propertyId}`, {
+      method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        title: "Villa Lagune", description: "Rénovée",
+        location: { country: "CI", city: "Abidjan", district: "Marcory", addressLine: "Zone 4" },
+      }),
+    });
+    expect(coreUpdated.status).toBe(200); expect(await coreUpdated.json()).toMatchObject({
+      title: "Villa Lagune", description: "Rénovée", propertyType: "APARTMENT",
+      transactionType: "LONG_TERM_RENTAL", status: "DRAFT", location: { district: "Marcory" },
+    });
+    expect((await ownerPool.query("SELECT title, district FROM property_management.properties WHERE property_id = $1", [property.propertyId])).rows[0])
+      .toEqual({ title: "Villa Lagune", district: "Marcory" });
     const updated = await fetch(`${baseUrl}/v1/properties/${property.propertyId}/details`, {
       method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({
         details: { usableSurfaceSquareMeters: 72, rooms: 3, bedrooms: 2, bathrooms: 1 },

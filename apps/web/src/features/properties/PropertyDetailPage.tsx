@@ -4,6 +4,7 @@ import { Link, useLocation, useParams } from "react-router";
 import { useSession } from "../../auth/session.js";
 import { createPropertyApi } from "./property-api.js";
 import { PropertyDetailsForm } from "./PropertyDetailsForm.js";
+import { PropertyCoreInformationForm } from "./PropertyCoreInformationForm.js";
 import { PropertyFeedback } from "./PropertyFeedback.js";
 import { toPropertyUiError, type PropertyUiError } from "./property-errors.js";
 import {
@@ -26,6 +27,7 @@ export function PropertyDetailPage() {
   const [property, setProperty] = useState<Property>();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingCoreInformation, setSavingCoreInformation] = useState(false);
   const [saved, setSaved] = useState(Boolean((location.state as { created?: boolean } | null)?.created));
   const [error, setError] = useState<PropertyUiError>();
 
@@ -43,6 +45,13 @@ export function PropertyDetailPage() {
     try { setProperty(await api.updatePropertyDetails(propertyId, input)); setSaved(true); }
     catch (caught) { setError(toPropertyUiError(caught)); }
     finally { setSaving(false); }
+  }
+
+  async function saveCoreInformation(input: Parameters<typeof api.updatePropertyCoreInformation>[1]) {
+    setSavingCoreInformation(true); setSaved(false); setError(undefined);
+    try { setProperty(await api.updatePropertyCoreInformation(propertyId, input)); setSaved(true); }
+    catch (caught) { setError(toPropertyUiError(caught)); }
+    finally { setSavingCoreInformation(false); }
   }
 
   if (loading) return <div className="standalone-state"><div className="loading-indicator" aria-hidden="true" /><p role="status">Chargement du bien…</p></div>;
@@ -68,6 +77,11 @@ export function PropertyDetailPage() {
           <div><dt>Conditions</dt><dd>{property.commercialTerms ? <CommercialTermsSummary terms={property.commercialTerms} /> : "Non renseignées"}</dd></div>
           <div><dt>Dernière mise à jour</dt><dd>{new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(property.updatedAt))}</dd></div>
         </dl>
+      </section>
+
+      <section className="content-panel" aria-labelledby="property-core-information-title">
+        <div className="section-heading"><div><p className="eyebrow">Informations fondamentales</p><h2 id="property-core-information-title">Modifier le bien</h2></div></div>
+        <PropertyCoreInformationForm property={property} saving={savingCoreInformation} onSave={saveCoreInformation} />
       </section>
 
       <section className="content-panel" aria-labelledby="property-details-title">

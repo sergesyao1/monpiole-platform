@@ -1,5 +1,5 @@
-import type { CreatePropertyCommand, PropertyAuthority, PropertyView, UpdatePropertyDetailsCommand } from "@monpiole/property-management";
-import type { CreatePropertyRequest, PropertyResponse, UpdatePropertyDetailsRequest } from "../../contracts/v1/properties/property.schema.js";
+import type { CreatePropertyCommand, PropertyAuthority, PropertyView, UpdatePropertyCoreInformationCommand, UpdatePropertyDetailsCommand } from "@monpiole/property-management";
+import type { CreatePropertyRequest, PropertyResponse, UpdatePropertyCoreInformationRequest, UpdatePropertyDetailsRequest } from "../../contracts/v1/properties/property.schema.js";
 
 export function toCreatePropertyCommand(request: CreatePropertyRequest, correlationId: string, authority: PropertyAuthority): CreatePropertyCommand {
   return { ...request, correlationId, authority };
@@ -22,5 +22,14 @@ export function toUpdatePropertyDetailsCommand(
   correlationId: string,
   authority: PropertyAuthority,
 ): UpdatePropertyDetailsCommand {
+  return { propertyId, ...request, correlationId, authority };
+}
+
+export function toUpdatePropertyCoreInformationCommand(
+  propertyId: string,
+  request: UpdatePropertyCoreInformationRequest,
+  correlationId: string,
+  authority: PropertyAuthority,
+): UpdatePropertyCoreInformationCommand {
   return { propertyId, ...request, correlationId, authority };
 }

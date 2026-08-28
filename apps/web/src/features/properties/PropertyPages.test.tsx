@@ -107,6 +107,47 @@ describe("vertical slice Web Property", () => {
     });
   });
 
+  it("modifie les informations fondamentales avec le bearer et actualise la fiche", async () => {
+    const updated = { ...property, title: "Villa Lagune", description: "Vue sur la lagune",
+      location: { country: "CI", city: "Abidjan", district: "Marcory", addressLine: "Zone 4" }, updatedAt: "2026-08-27T11:00:00.000Z" };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith(`/v1/properties/${PROPERTY_ID}`) && init?.method === "PUT") return json(updated);
+      if (url.endsWith("/owners")) return json([]);
+      if (url.includes("/v1/property-owners?")) return json(ownerPage());
+      return json(property);
+    });
+    vi.stubGlobal("fetch", fetchMock); renderPath(`/properties/${PROPERTY_ID}`);
+    await screen.findByRole("heading", { name: property.title });
+    fireEvent.change(screen.getByLabelText("Titre"), { target: { value: "Villa Lagune" } });
+    fireEvent.change(screen.getByLabelText("Quartier"), { target: { value: "Marcory" } });
+    fireEvent.change(screen.getByLabelText("Adresse"), { target: { value: "Zone 4" } });
+    fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Vue sur la lagune" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer les informations" }));
+    expect(await screen.findByRole("heading", { name: "Villa Lagune" })).toBeInTheDocument();
+    expect(screen.getByText("Vue sur la lagune", { selector: "dd" })).toBeInTheDocument();
+    const updateCall = fetchMock.mock.calls.find(([input, init]) => String(input).endsWith(`/v1/properties/${PROPERTY_ID}`) && init?.method === "PUT");
+    expect(new Headers(updateCall?.[1]?.headers).get("authorization")).toBe("Bearer property-test-token");
+    expect(JSON.parse(String(updateCall?.[1]?.body))).toEqual({ title: "Villa Lagune", description: "Vue sur la lagune",
+      location: { country: "CI", city: "Abidjan", district: "Marcory", addressLine: "Zone 4" } });
+  });
+
+  it("conserve les informations saisies si la mise à jour fondamentale échoue", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith(`/v1/properties/${PROPERTY_ID}`) && init?.method === "PUT") return problem(500, "REQUEST_FAILED");
+      if (url.endsWith("/owners")) return json([]);
+      if (url.includes("/v1/property-owners?")) return json(ownerPage());
+      return json(property);
+    });
+    vi.stubGlobal("fetch", fetchMock); renderPath(`/properties/${PROPERTY_ID}`);
+    const title = await screen.findByLabelText("Titre");
+    fireEvent.change(title, { target: { value: "Titre à conserver" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer les informations" }));
+    expect(await screen.findByText(/Une erreur inattendue est survenue/)).toBeInTheDocument();
+    expect(title).toHaveValue("Titre à conserver");
+  });
+
   it.each([
     [401, "Votre session n’est plus utilisable"],
     [403, "Vous ne disposez pas de l’autorisation nécessaire"],

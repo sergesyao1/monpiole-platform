@@ -89,6 +89,10 @@ ni redirection Auth0.
 
 ## Gestion des biens
 
+La fiche d’un bien permet aussi de corriger son titre, sa description et sa
+localisation avec `PUT /v1/properties/{propertyId}`. Le formulaire reste séparé
+des détails physiques et des conditions commerciales.
+
 Le vertical slice Property est disponible sur `/properties`. Il utilise le
 client HTTP authentifié commun et les routes publiques existantes pour créer un
 bien, ouvrir sa fiche par identifiant, modifier ses détails et ses conditions

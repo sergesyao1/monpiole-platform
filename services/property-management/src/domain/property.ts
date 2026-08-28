@@ -38,6 +38,12 @@ export interface PropertyValues {
   readonly commercialTerms?: CommercialTerms;
 }
 
+export interface PropertyCoreInformation {
+  readonly title: string;
+  readonly description?: string;
+  readonly location: PropertyLocation;
+}
+
 type PropertyField = keyof PropertyValues | keyof PropertyLocation;
 
 class PropertyInvariantViolation extends Error {
@@ -94,6 +100,17 @@ export class Property {
       commercialTerms: validateCommercialTerms(this.values.transactionType, commercialTerms),
       updatedAt,
     }));
+  }
+
+  updateCoreInformation(information: PropertyCoreInformation, updatedAt: string): Property {
+    if (!validInstant(updatedAt)) throw new InvalidPropertyServerValueError("updatedAt");
+    try {
+      const { description: _previousDescription, ...unchanged } = this.values;
+      return new Property(validate({ ...unchanged, ...information, updatedAt }));
+    } catch (error) {
+      if (!(error instanceof PropertyInvariantViolation)) throw error;
+      throw new InvalidPropertyInputError(error.field);
+    }
   }
 }
 

@@ -2,6 +2,7 @@ import { createAuthenticatedApiClient, type AccessTokenProvider } from "../../in
 import type {
   CreatePropertyInput, Property, PropertyOwner, PropertyOwnerDirectoryCriteria, PropertyOwnerDirectoryPage,
   PropertyOwnerInput, PropertyOwnership, PropertyPortfolioCriteria, PropertyPortfolioPage, UpdatePropertyDetailsInput,
+  UpdatePropertyCoreInformationInput,
 } from "./property-model.js";
 
 export interface PropertyApi {
@@ -9,6 +10,7 @@ export interface PropertyApi {
   createProperty(input: CreatePropertyInput): Promise<Property>;
   retrieveProperty(propertyId: string): Promise<Property>;
   updatePropertyDetails(propertyId: string, input: UpdatePropertyDetailsInput): Promise<Property>;
+  updatePropertyCoreInformation(propertyId: string, input: UpdatePropertyCoreInformationInput): Promise<Property>;
   retrieveOwnerships(propertyId: string): Promise<readonly PropertyOwnership[]>;
   retrievePropertyOwner(ownerId: string): Promise<PropertyOwner>;
   listPropertyOwners(criteria?: PropertyOwnerDirectoryCriteria): Promise<PropertyOwnerDirectoryPage>;
@@ -26,6 +28,9 @@ export function createPropertyApi(tokens: AccessTokenProvider): PropertyApi {
     retrieveProperty: (propertyId) => request<Property>(`/v1/properties/${encodeURIComponent(propertyId)}`),
     updatePropertyDetails: (propertyId, input) => request<Property>(
       `/v1/properties/${encodeURIComponent(propertyId)}/details`, { method: "PUT", body: input },
+    ),
+    updatePropertyCoreInformation: (propertyId, input) => request<Property>(
+      `/v1/properties/${encodeURIComponent(propertyId)}`, { method: "PUT", body: input },
     ),
     retrieveOwnerships: (propertyId) => request<readonly PropertyOwnership[]>(
       `/v1/properties/${encodeURIComponent(propertyId)}/owners`,

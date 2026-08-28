@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CreateProperty, InvalidPropertyInputError, InvalidPropertyServerValueError, PersistedPropertyCorruptionError,
   Property, PropertyForbiddenError, PropertyNotFoundError, RetrieveProperty, type PropertyRepository,
-  UpdatePropertyDetails, InvalidPropertyDetailsError, IncompatibleCommercialTermsError,
+  UpdatePropertyCoreInformation, UpdatePropertyDetails, InvalidPropertyDetailsError, IncompatibleCommercialTermsError,
 } from "../../services/property-management/src/index.js";
 
 const TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -80,5 +80,30 @@ describe("Property Domain and Application", () => {
     await expect(update.execute({ authority: { ...AUTHORITY, grants: [...AUTHORITY.grants, "UPDATE_PROPERTY_DETAILS"] }, correlationId: PROPERTY_ID, propertyId: PROPERTY_ID,
       details: { rooms: 3, bedrooms: 2 }, commercialTerms: { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 300_000, rentPeriod: "MONTH" } }))
       .resolves.toMatchObject({ details: { rooms: 3, bedrooms: 2 }, commercialTerms: { kind: "LONG_TERM_RENTAL" }, updatedAt: "2026-08-25T14:00:00.000Z" });
+  });
+  it("updates only normalized core information through the tenant-scoped operation", async () => {
+    const { create, repository } = useCases();
+    await create.execute({ ...input, authority: AUTHORITY, correlationId: PROPERTY_ID });
+    const update = new UpdatePropertyCoreInformation(repository, { now: () => "2026-08-25T15:00:00.000Z" });
+    await expect(update.execute({
+      authority: { ...AUTHORITY, grants: [...AUTHORITY.grants, "UPDATE_PROPERTY_CORE_INFORMATION"] },
+      correlationId: PROPERTY_ID, propertyId: PROPERTY_ID, title: "  Villa Lagune  ", description: "  Rénovée  ",
+      location: { country: "CI", city: " Abidjan ", district: " Marcory ", addressLine: " Zone 4 " },
+    })).resolves.toMatchObject({
+      title: "Villa Lagune", description: "Rénovée", propertyType: "APARTMENT",
+      transactionType: "LONG_TERM_RENTAL", status: "DRAFT",
+      location: { city: "Abidjan", district: "Marcory", addressLine: "Zone 4" },
+      updatedAt: "2026-08-25T15:00:00.000Z",
+    });
+  });
+  it("rejects invalid core information and unauthorized or cross-tenant updates", async () => {
+    const { create, repository } = useCases();
+    await create.execute({ ...input, authority: AUTHORITY, correlationId: PROPERTY_ID });
+    const update = new UpdatePropertyCoreInformation(repository, { now: () => "2026-08-25T15:00:00.000Z" });
+    const command = { authority: { ...AUTHORITY, grants: ["UPDATE_PROPERTY_CORE_INFORMATION"] as const }, correlationId: PROPERTY_ID,
+      propertyId: PROPERTY_ID, title: "Villa", location: input.location };
+    await expect(update.execute({ ...command, title: " " })).rejects.toBeInstanceOf(InvalidPropertyInputError);
+    await expect(update.execute({ ...command, authority: { ...command.authority, grants: [] } })).rejects.toBeInstanceOf(PropertyForbiddenError);
+    await expect(update.execute({ ...command, authority: { ...command.authority, tenantIds: [TENANT_B] } })).rejects.toBeInstanceOf(PropertyNotFoundError);
   });
 });

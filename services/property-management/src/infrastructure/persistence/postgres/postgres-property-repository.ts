@@ -45,6 +45,9 @@ export class PostgresPropertyRepository implements PropertyRepository {
       const details = property.values.details;
       const terms = property.values.commercialTerms;
       await scope.database().update(properties).set({
+        title: property.values.title, description: property.values.description ?? null,
+        country: property.values.location.country, city: property.values.location.city,
+        district: property.values.location.district, addressLine: property.values.location.addressLine,
         usableSurfaceSquareMeters: details?.usableSurfaceSquareMeters ?? null,
         rooms: details?.rooms ?? null, bedrooms: details?.bedrooms ?? null,
         bathrooms: details?.bathrooms ?? null, furnished: details?.furnished ?? null,

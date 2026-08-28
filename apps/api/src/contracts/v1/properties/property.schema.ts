@@ -43,6 +43,12 @@ export const CreatePropertyRequestSchema = z.object({
   location: PropertyLocationSchema,
 }).strict().meta({ id: "CreatePropertyRequest" });
 
+export const UpdatePropertyCoreInformationRequestSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(5_000).optional(),
+  location: PropertyLocationSchema,
+}).strict().meta({ id: "UpdatePropertyCoreInformationRequest" });
+
 export const PropertyResponseSchema = z.object({
   propertyId: PropertyIdSchema,
   title: z.string(), description: z.string().optional(),
@@ -79,6 +85,7 @@ export const PropertyPortfolioResponseSchema = z.object({
   pageInfo: z.object({ nextCursor: z.string().nullable(), hasNextPage: z.boolean() }).strict(),
 }).strict().meta({ id: "PropertyPortfolioResponse" });
 export type CreatePropertyRequest = z.output<typeof CreatePropertyRequestSchema>;
+export type UpdatePropertyCoreInformationRequest = z.output<typeof UpdatePropertyCoreInformationRequestSchema>;
 export type PropertyResponse = z.output<typeof PropertyResponseSchema>;
 export type UpdatePropertyDetailsRequest = z.output<typeof UpdatePropertyDetailsRequestSchema>;
 export type ListPropertiesQuery = z.output<typeof ListPropertiesQuerySchema>;

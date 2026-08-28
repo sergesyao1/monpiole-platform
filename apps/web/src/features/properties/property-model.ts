@@ -92,6 +92,12 @@ export interface UpdatePropertyDetailsInput {
   readonly commercialTerms: CommercialTerms;
 }
 
+export interface UpdatePropertyCoreInformationInput {
+  readonly title: string;
+  readonly description?: string;
+  readonly location: PropertyLocation;
+}
+
 export interface PropertyOwnership {
   readonly propertyId: string;
   readonly ownerId: string;

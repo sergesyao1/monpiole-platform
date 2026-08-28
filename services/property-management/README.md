@@ -47,6 +47,15 @@ Assignment, listing by Property, and removal are supported. Share updates,
 inverse Owner-to-Property listing, history, building/unit composition, and
 publication remain outside this slice.
 
+## Property core information update
+
+`UpdatePropertyCoreInformation` replaces title, optional description and
+location under the dedicated `UPDATE_PROPERTY_CORE_INFORMATION` grant. The
+aggregate reuses creation invariants, while the PostgreSQL repository performs
+the update atomically in the tenant-scoped transaction and preserves type,
+transaction type, status, details, commercial terms and ownerships. A missing
+or cross-tenant Property remains indistinguishable through `PropertyNotFoundError`.
+
 ## Property portfolio listing
 
 `ListProperties` exposes a private tenant portfolio through a dedicated query

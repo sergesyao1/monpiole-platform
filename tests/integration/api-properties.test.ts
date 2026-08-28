@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { CreateProperty, Property, RetrieveProperty, UpdatePropertyDetails, type PropertyRepository } from "../../services/property-management/src/index.js";
+import { CreateProperty, Property, RetrieveProperty, UpdatePropertyCoreInformation, UpdatePropertyDetails, type PropertyRepository } from "../../services/property-management/src/index.js";
 import { createApiApplication } from "../../apps/api/src/bootstrap.js";
 import { PropertyResponseSchema } from "../../apps/api/src/contracts/v1/properties/property.schema.js";
 import { ProblemDetailsSchema } from "../../apps/api/src/contracts/v1/common/problem-details.schema.js";
@@ -18,9 +18,10 @@ describe("Property HTTP vertical slice", () => {
   let application: Awaited<ReturnType<typeof createApiApplication>> | undefined; let baseUrl = ""; const repository = new MemoryRepository();
   async function start(tenantId: string | null = TENANT_A, allowUpdate = true) {
     application = await createApiApplication({ logger: false }, {
-      authenticatedAuthorityProvider: { resolve: async () => tenantId === null ? undefined : ({ actorId: "actor", authorityId: "authority", grants: ["CREATE_PROPERTY", "RETRIEVE_PROPERTY", ...(allowUpdate ? ["UPDATE_PROPERTY_DETAILS" as const] : [])], tenantIds: [tenantId] }) },
+      authenticatedAuthorityProvider: { resolve: async () => tenantId === null ? undefined : ({ actorId: "actor", authorityId: "authority", grants: ["CREATE_PROPERTY", "RETRIEVE_PROPERTY", ...(allowUpdate ? ["UPDATE_PROPERTY_DETAILS" as const, "UPDATE_PROPERTY_CORE_INFORMATION" as const] : [])], tenantIds: [tenantId] }) },
       createProperty: new CreateProperty(repository, { generate: () => PROPERTY_ID }, { now: () => "2026-08-25T12:00:00.000Z" }), retrieveProperty: new RetrieveProperty(repository),
       updatePropertyDetails: new UpdatePropertyDetails(repository, { now: () => "2026-08-25T14:00:00.000Z" }),
+      updatePropertyCoreInformation: new UpdatePropertyCoreInformation(repository, { now: () => "2026-08-25T15:00:00.000Z" }),
     }); await application.listen(0, "127.0.0.1"); const address = application.getHttpServer().address();
     if (address === null || typeof address === "string") throw new Error("API did not bind"); baseUrl = `http://127.0.0.1:${address.port}`;
   }
@@ -65,5 +66,29 @@ describe("Property HTTP vertical slice", () => {
     expect((await fetch(`${baseUrl}/v1/properties/${PROPERTY_ID}/details`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) })).status).toBe(401);
     await stop(); await start(TENANT_A, false);
     expect((await fetch(`${baseUrl}/v1/properties/${PROPERTY_ID}/details`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) })).status).toBe(403);
+  });
+  it("updates core information without changing authoritative property fields", async () => {
+    await start(); await post();
+    const response = await fetch(`${baseUrl}/v1/properties/${PROPERTY_ID}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({
+      title: "  Villa Lagune  ", description: "  Vue sur la lagune  ",
+      location: { country: "CI", city: "Abidjan", district: "Marcory", addressLine: "Zone 4" },
+    }) });
+    expect(response.status).toBe(200);
+    expect(PropertyResponseSchema.parse(await response.json())).toMatchObject({
+      title: "Villa Lagune", description: "Vue sur la lagune", propertyType: "APARTMENT",
+      transactionType: "LONG_TERM_RENTAL", status: "DRAFT", location: { district: "Marcory" },
+      updatedAt: "2026-08-25T15:00:00.000Z",
+    });
+  });
+  it("validates, authorizes and hides cross-tenant core information updates", async () => {
+    const payload = { title: "Villa", location: body.location };
+    await start(TENANT_A); await post();
+    expect((await fetch(`${baseUrl}/v1/properties/${PROPERTY_ID}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...payload, propertyType: "HOUSE" }) })).status).toBe(400);
+    await stop(); await start(TENANT_B);
+    expect((await fetch(`${baseUrl}/v1/properties/${PROPERTY_ID}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) })).status).toBe(404);
+    await stop(); await start(null);
+    expect((await fetch(`${baseUrl}/v1/properties/${PROPERTY_ID}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) })).status).toBe(401);
+    await stop(); await start(TENANT_A, false);
+    expect((await fetch(`${baseUrl}/v1/properties/${PROPERTY_ID}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) })).status).toBe(403);
   });
 });

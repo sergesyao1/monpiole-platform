@@ -56,7 +56,7 @@ export function toPropertyAuthority(authority: AuthenticatedAuthority): Property
     actorId: authority.actorId,
     authorityId: authority.authorityId,
     grants: authority.grants.filter((grant): grant is PropertyGrant =>
-      grant === "CREATE_PROPERTY" || grant === "RETRIEVE_PROPERTY" || grant === "LIST_PROPERTIES" || grant === "UPDATE_PROPERTY_DETAILS"
+      grant === "CREATE_PROPERTY" || grant === "RETRIEVE_PROPERTY" || grant === "LIST_PROPERTIES" || grant === "UPDATE_PROPERTY_DETAILS" || grant === "UPDATE_PROPERTY_CORE_INFORMATION"
       || grant === "CREATE_PROPERTY_OWNER" || grant === "RETRIEVE_PROPERTY_OWNER" || grant === "LIST_PROPERTY_OWNERS" || grant === "UPDATE_PROPERTY_OWNER"
       || grant === "ASSIGN_PROPERTY_OWNER" || grant === "RETRIEVE_PROPERTY_OWNERSHIP" || grant === "REMOVE_PROPERTY_OWNER"),
     tenantIds: authority.tenantIds,
