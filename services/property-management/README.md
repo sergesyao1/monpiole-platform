@@ -61,3 +61,10 @@ The default page size is 20 and the server maximum is 100. Search covers the
 existing title, description, city, district and address fields using a
 parameterized PostgreSQL `ILIKE`; it is a private bounded convenience search,
 not a public full-text engine.
+
+## Property owner directory
+
+`ListPropertyOwners` exposes a tenant-scoped directory through a dedicated read
+port and PostgreSQL keyset query. It requires `LIST_PROPERTY_OWNERS`, orders by
+`(createdAt DESC, ownerId DESC)`, supports bounded identity search, and returns
+the existing public Owner representation without tenant or persistence fields.

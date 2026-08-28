@@ -147,6 +147,10 @@ function businessProblem(exception: unknown) {
     status: 400, type: "https://api.monpiole.example/problems/invalid-request",
     title: "Invalid request", code,
   };
+  if (code === "INVALID_PROPERTY_OWNER_DIRECTORY_QUERY") return {
+    status: 400, type: "https://api.monpiole.example/problems/invalid-request",
+    title: "Invalid request", code: "INVALID_REQUEST",
+  };
   if (code === "INVALID_PROPERTY_OWNERSHIP_INPUT") return {
     status: 400, type: "https://api.monpiole.example/problems/invalid-request",
     title: "Invalid request", code: "INVALID_REQUEST",

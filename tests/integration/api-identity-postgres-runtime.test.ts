@@ -82,7 +82,7 @@ async function start() {
       grants: [
         "CREATE_TENANT", "BOOTSTRAP_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT",
         "CREATE_PROPERTY", "RETRIEVE_PROPERTY", "LIST_PROPERTIES", "UPDATE_PROPERTY_DETAILS",
-        "CREATE_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNER", "UPDATE_PROPERTY_OWNER",
+        "CREATE_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNER", "LIST_PROPERTY_OWNERS", "UPDATE_PROPERTY_OWNER",
         "ASSIGN_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNERSHIP", "REMOVE_PROPERTY_OWNER",
       ],
       tenantIds: [...authorizedTenantIds],
@@ -328,6 +328,11 @@ describe("API PostgreSQL Identity runtime composition", () => {
       }),
     });
     expect(ownerResponse.status).toBe(201); const propertyOwner = await ownerResponse.json() as { ownerId: string };
+    const ownerDirectory = await fetch(`${baseUrl}/v1/property-owners?search=Kouassi&limit=1`);
+    expect(ownerDirectory.status).toBe(200); expect(await ownerDirectory.json()).toMatchObject({
+      items: [{ ownerId: propertyOwner.ownerId, ownerType: "INDIVIDUAL", firstName: "Jean", lastName: "Kouassi" }],
+      pageInfo: { nextCursor: null, hasNextPage: false },
+    });
     const assigned = await fetch(`${baseUrl}/v1/properties/${property.propertyId}/owners`, {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ ownerId: propertyOwner.ownerId, ownershipShare: 75 }),

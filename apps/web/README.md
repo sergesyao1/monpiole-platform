@@ -100,9 +100,11 @@ permet la recherche et les filtres publiés, puis charge explicitement les pages
 suivantes avec le curseur opaque retourné par le serveur. Chaque résultat ouvre
 la fiche existante et la création reste directement accessible.
 
-L’API ne fournit toujours pas de liste de propriétaires. La fiche permet donc
-d’affecter un propriétaire existant par son identifiant, sans liste locale ni
-donnée fictive.
+L’espace `/proprietaires` consomme `GET /v1/property-owners` et expose l’annuaire,
+la recherche, la pagination, la création et la modification des personnes
+physiques et morales. La fiche d’un bien utilise ce même annuaire pour
+sélectionner un propriétaire existant lors d’une affectation, sans saisie
+manuelle d’UUID.
 
 ## Frontières
 

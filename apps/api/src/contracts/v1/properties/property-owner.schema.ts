@@ -58,7 +58,18 @@ export const PropertyOwnerResponseSchema = z.discriminatedUnion("ownerType", [
 ]).meta({ id: "PropertyOwnerResponse" });
 
 export const PropertyOwnerPathSchema = z.object({ ownerId: PropertyOwnerIdSchema }).strict().meta({ id: "PropertyOwnerPath" });
+export const ListPropertyOwnersQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  cursor: z.string().min(1).max(512).optional(),
+  search: z.string().trim().min(1).max(100).optional(),
+}).strict().meta({ id: "ListPropertyOwnersQuery" });
+export const PropertyOwnerDirectoryResponseSchema = z.object({
+  items: z.array(PropertyOwnerResponseSchema),
+  pageInfo: z.object({ nextCursor: z.string().nullable(), hasNextPage: z.boolean() }).strict(),
+}).strict().meta({ id: "PropertyOwnerDirectoryResponse" });
 
 export type CreatePropertyOwnerRequest = z.output<typeof CreatePropertyOwnerRequestSchema>;
 export type UpdatePropertyOwnerRequest = z.output<typeof UpdatePropertyOwnerRequestSchema>;
 export type PropertyOwnerResponse = z.output<typeof PropertyOwnerResponseSchema>;
+export type ListPropertyOwnersQuery = z.output<typeof ListPropertyOwnersQuerySchema>;
+export type PropertyOwnerDirectoryResponse = z.output<typeof PropertyOwnerDirectoryResponseSchema>;

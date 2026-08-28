@@ -1,5 +1,5 @@
 import type {
-  CreatePropertyOwnerCommand, PropertyAuthority, PropertyOwnerIdentity, PropertyOwnerView,
+  CreatePropertyOwnerCommand, PropertyAuthority, PropertyOwnerContactInformation, PropertyOwnerIdentity,
   UpdatePropertyOwnerCommand,
 } from "@monpiole/property-management";
 import type {
@@ -18,7 +18,15 @@ export function toUpdatePropertyOwnerCommand(
   return { ownerId, authority, correlationId, identity: toIdentity(request), contactInformation: toContact(request) };
 }
 
-export function toPropertyOwnerResponse(owner: PropertyOwnerView): PropertyOwnerResponse {
+interface PropertyOwnerPublicView {
+  readonly ownerId: string;
+  readonly identity: PropertyOwnerIdentity;
+  readonly contactInformation: PropertyOwnerContactInformation;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export function toPropertyOwnerResponse(owner: PropertyOwnerPublicView): PropertyOwnerResponse {
   return {
     ownerId: owner.ownerId, ...owner.identity, ...owner.contactInformation,
     createdAt: owner.createdAt, updatedAt: owner.updatedAt,

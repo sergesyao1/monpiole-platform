@@ -25,6 +25,7 @@ function json(value: unknown, status = 200) {
 function problem(status: number, code: string) {
   return json({ type: "https://api.monpiole.example/problems/test", title: "Erreur", status, code, correlationId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc" }, status);
 }
+function ownerPage(items: readonly unknown[] = []) { return { items, pageInfo: { nextCursor: null, hasNextPage: false } }; }
 function renderPath(path: string) {
   return render(<SessionContext value={session}><RouterProvider router={createMemoryRouter(applicationRoutes, { initialEntries: [path] })} /></SessionContext>);
 }
@@ -37,6 +38,10 @@ describe("vertical slice Web Property", () => {
       const url = String(input);
       if (url.endsWith("/v1/properties") && init?.method === "POST") return json(property, 201);
       if (url.endsWith(`/v1/properties/${PROPERTY_ID}/owners`)) return json([]);
+      if (url.includes("/v1/property-owners?")) return json(ownerPage([{
+        ownerType: "INDIVIDUAL", ownerId: OWNER_ID, firstName: "Awa", lastName: "Koné",
+        createdAt: property.createdAt, updatedAt: property.updatedAt,
+      }]));
       if (url.endsWith(`/v1/properties/${PROPERTY_ID}`)) return json(property);
       return problem(500, "UNEXPECTED");
     });
@@ -63,6 +68,10 @@ describe("vertical slice Web Property", () => {
       if (url.endsWith(`/v1/properties/${PROPERTY_ID}`)) return json(property);
       if (url.endsWith(`/v1/properties/${PROPERTY_ID}/owners`)) return json([{ propertyId: PROPERTY_ID, ownerId: OWNER_ID, ownershipShare: 60, createdAt: property.createdAt }]);
       if (url.endsWith(`/v1/property-owners/${OWNER_ID}`)) return json({ ownerType: "INDIVIDUAL", ownerId: OWNER_ID, firstName: "Awa", lastName: "Koné", createdAt: property.createdAt, updatedAt: property.updatedAt });
+      if (url.includes("/v1/property-owners?")) return json(ownerPage([{
+        ownerType: "INDIVIDUAL", ownerId: OWNER_ID, firstName: "Awa", lastName: "Koné",
+        createdAt: property.createdAt, updatedAt: property.updatedAt,
+      }]));
       return problem(500, "UNEXPECTED");
     }));
     renderPath(`/properties/${PROPERTY_ID}`);
@@ -70,6 +79,7 @@ describe("vertical slice Web Property", () => {
     expect(screen.getByText("Maison")).toBeInTheDocument();
     expect(await screen.findByText("Awa Koné")).toBeInTheDocument();
     expect(screen.getByText("60 %")).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Awa Koné — déjà affecté" })).toBeDisabled();
   });
 
   it("met à jour les détails et les conditions commerciales discriminées", async () => {
@@ -78,11 +88,13 @@ describe("vertical slice Web Property", () => {
       const url = String(input);
       if (init?.method === "PUT") return json(updated);
       if (url.endsWith("/owners")) return json([]);
+      if (url.includes("/v1/property-owners?")) return json(ownerPage());
       return json(property);
     });
     vi.stubGlobal("fetch", fetchMock);
     renderPath(`/properties/${PROPERTY_ID}`);
     await screen.findByRole("heading", { name: property.title });
+    expect(await screen.findByText("Aucun propriétaire n’est disponible. Créez-en un depuis l’annuaire.")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Pièces"), { target: { value: "4" } });
     fireEvent.change(screen.getByLabelText("Chambres"), { target: { value: "3" } });
     fireEvent.change(screen.getByLabelText("Loyer mensuel (unité mineure)"), { target: { value: "350000" } });
@@ -115,16 +127,15 @@ describe("vertical slice Web Property", () => {
     expect(await screen.findByRole("heading", { name: "Bien introuvable" })).toBeInTheDocument();
   });
 
-  it("valide l’identifiant propriétaire avant tout appel d’affectation", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => String(input).endsWith("/owners") ? json([]) : json(property));
+  it("exige la sélection d’un propriétaire avant toute affectation", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => String(input).includes("/v1/property-owners?") ? json(ownerPage()) : String(input).endsWith("/owners") ? json([]) : json(property));
     vi.stubGlobal("fetch", fetchMock);
     renderPath(`/properties/${PROPERTY_ID}`);
     await screen.findByRole("heading", { name: property.title });
-    fireEvent.change(screen.getByLabelText("Identifiant du propriétaire"), { target: { value: "identifiant-invalide" } });
     fireEvent.change(screen.getByLabelText("Quote-part (%)"), { target: { value: "60" } });
     fireEvent.click(screen.getByRole("button", { name: "Affecter le propriétaire" }));
-    expect(await screen.findByText("Saisissez un identifiant de propriétaire valide.")).toBeInTheDocument();
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("Sélectionnez un propriétaire disponible.")).toBeInTheDocument();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
   });
 
   it("affecte un propriétaire existant avec le bearer token", async () => {
@@ -140,17 +151,40 @@ describe("vertical slice Web Property", () => {
         ownerType: "INDIVIDUAL", ownerId: OWNER_ID, firstName: "Awa", lastName: "Koné",
         createdAt: property.createdAt, updatedAt: property.updatedAt,
       });
+      if (url.includes("/v1/property-owners?")) return json(ownerPage([{
+        ownerType: "INDIVIDUAL", ownerId: OWNER_ID, firstName: "Awa", lastName: "Koné",
+        createdAt: property.createdAt, updatedAt: property.updatedAt,
+      }]));
       return json(property);
     });
     vi.stubGlobal("fetch", fetchMock);
     renderPath(`/properties/${PROPERTY_ID}`);
     await screen.findByText("Aucun propriétaire n’est encore affecté à ce bien.");
-    fireEvent.change(screen.getByLabelText("Identifiant du propriétaire"), { target: { value: OWNER_ID } });
+    fireEvent.change(await screen.findByLabelText("Propriétaire"), { target: { value: OWNER_ID } });
     fireEvent.change(screen.getByLabelText("Quote-part (%)"), { target: { value: "60" } });
     fireEvent.click(screen.getByRole("button", { name: "Affecter le propriétaire" }));
     expect(await screen.findByText("Awa Koné")).toBeInTheDocument();
     const assignCall = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
     expect(new Headers(assignCall?.[1]?.headers).get("authorization")).toBe("Bearer property-test-token");
     expect(JSON.parse(String(assignCall?.[1]?.body))).toEqual({ ownerId: OWNER_ID, ownershipShare: 60 });
+  });
+
+  it("gère une recherche sans résultat dans le sélecteur", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => String(input).includes("/v1/property-owners?")
+      ? json(ownerPage()) : String(input).endsWith("/owners") ? json([]) : json(property));
+    vi.stubGlobal("fetch", fetchMock); renderPath(`/properties/${PROPERTY_ID}`);
+    await screen.findByRole("heading", { name: property.title });
+    fireEvent.change(screen.getByLabelText("Rechercher dans l’annuaire"), { target: { value: "Introuvable" } });
+    fireEvent.click(screen.getByRole("button", { name: "Rechercher" }));
+    expect(await screen.findByText("Aucun propriétaire ne correspond à cette recherche.")).toBeInTheDocument();
+    expect(String(fetchMock.mock.calls.at(-1)?.[0])).toContain("search=Introuvable");
+  });
+
+  it("affiche une erreur d’autorisation de l’annuaire sans masquer le bien", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => String(input).includes("/v1/property-owners?")
+      ? new Response(null, { status: 403 }) : String(input).endsWith("/owners") ? json([]) : json(property)));
+    renderPath(`/properties/${PROPERTY_ID}`);
+    expect(await screen.findByRole("heading", { name: property.title })).toBeInTheDocument();
+    expect(await screen.findByText("Vous ne disposez pas de l’autorisation nécessaire pour cette action.")).toBeInTheDocument();
   });
 });

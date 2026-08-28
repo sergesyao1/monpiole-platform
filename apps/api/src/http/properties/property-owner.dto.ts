@@ -2,6 +2,7 @@ import { createZodDto } from "nestjs-zod";
 import {
   IndividualPropertyOwnerInputSchema, IndividualPropertyOwnerResponseSchema,
   LegalEntityPropertyOwnerInputSchema, LegalEntityPropertyOwnerResponseSchema,
+  ListPropertyOwnersQuerySchema, PropertyOwnerDirectoryResponseSchema,
   PropertyOwnerPathSchema, PropertyOwnerTransportInputSchema,
 } from "../../contracts/v1/properties/property-owner.schema.js";
 import { ProblemDetailsSchema } from "../../contracts/v1/common/problem-details.schema.js";
@@ -13,3 +14,5 @@ export class IndividualPropertyOwnerResponseDto extends createZodDto(IndividualP
 export class LegalEntityPropertyOwnerResponseDto extends createZodDto(LegalEntityPropertyOwnerResponseSchema) {}
 export class PropertyOwnerPathDto extends createZodDto(PropertyOwnerPathSchema) {}
 export class PropertyOwnerProblemDetailsDto extends createZodDto(ProblemDetailsSchema) {}
+export class ListPropertyOwnersQueryDto extends createZodDto(ListPropertyOwnersQuerySchema) {}
+export class PropertyOwnerDirectoryResponseDto extends createZodDto(PropertyOwnerDirectoryResponseSchema) {}

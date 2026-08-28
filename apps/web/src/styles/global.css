@@ -173,6 +173,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--green-700); outl
 .portfolio-metadata dt { color: var(--muted); font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .portfolio-metadata dd { margin: .3rem 0 0; overflow-wrap: anywhere; }
 .portfolio-pagination { display: flex; justify-content: center; padding-top: 1.5rem; }
+.owner-directory-search, .owner-picker-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .85rem; align-items: end; margin-bottom: 2rem; }
+.owner-directory-search label, .owner-picker-search label { display: grid; gap: .45rem; color: #34473d; font-size: .82rem; font-weight: 750; }
+.owner-picker-search { margin-bottom: .5rem; }
+.owner-card .portfolio-metadata { margin-top: 1.25rem; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
 
@@ -194,6 +198,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--green-700); outl
   .inline-fields { grid-template-columns: 1fr; }
   .ownership-list li { grid-template-columns: 1fr auto; }
   .ownership-list .danger-action { grid-column: 1 / -1; }
-  .portfolio-filters, .property-portfolio-list { grid-template-columns: 1fr; }
+  .portfolio-filters, .property-portfolio-list, .owner-directory-search, .owner-picker-search { grid-template-columns: 1fr; }
   .portfolio-filters .secondary-action { width: 100%; }
 }

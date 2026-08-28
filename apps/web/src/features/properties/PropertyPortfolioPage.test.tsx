@@ -78,6 +78,7 @@ describe("portefeuille immobilier Web", () => {
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.endsWith(`/v1/properties/${PROPERTY_A}/owners`)) return json([]);
+      if (url.includes("/v1/property-owners?")) return json({ items: [], pageInfo: { nextCursor: null, hasNextPage: false } });
       if (url.endsWith(`/v1/properties/${PROPERTY_A}`)) return json(firstProperty);
       return json(page([firstProperty]));
     }));

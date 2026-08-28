@@ -9,7 +9,8 @@ import {
 } from "@monpiole/identity";
 import { PostgresPool, postgresConfigurationFromEnvironment } from "@monpiole/persistence";
 import {
-  CreateProperty, CreatePropertyOwner, ListProperties, PostgresPropertyOwnerRepository, PostgresPropertyPortfolioQuery, PostgresPropertyRepository,
+  CreateProperty, CreatePropertyOwner, ListProperties, ListPropertyOwners, PostgresPropertyOwnerDirectoryQuery,
+  PostgresPropertyOwnerRepository, PostgresPropertyPortfolioQuery, PostgresPropertyRepository,
   RetrieveProperty, RetrievePropertyOwner, UpdatePropertyDetails, UpdatePropertyOwner,
   AssignPropertyOwner, PostgresPropertyOwnershipRepository, RetrievePropertyOwnerships, RemovePropertyOwner,
 } from "@monpiole/property-management";
@@ -86,6 +87,7 @@ export function createPostgresApiRuntime(
     updatePropertyDetails: new UpdatePropertyDetails(propertyRepository, { now: () => new Date().toISOString() }),
     createPropertyOwner: new CreatePropertyOwner(propertyOwnerRepository, { generate: randomUUID }, { now: () => new Date().toISOString() }),
     retrievePropertyOwner: new RetrievePropertyOwner(propertyOwnerRepository),
+    listPropertyOwners: new ListPropertyOwners(new PostgresPropertyOwnerDirectoryQuery(pool)),
     updatePropertyOwner: new UpdatePropertyOwner(propertyOwnerRepository, { now: () => new Date().toISOString() }),
     assignPropertyOwner: new AssignPropertyOwner(propertyOwnershipRepository, { now: () => new Date().toISOString() }),
     retrievePropertyOwnerships: new RetrievePropertyOwnerships(propertyOwnershipRepository),

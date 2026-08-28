@@ -8,6 +8,10 @@ export { UpdatePropertyDetails, type UpdatePropertyDetailsCommand } from "./appl
 export { CreatePropertyOwner, type CreatePropertyOwnerCommand, type PropertyOwnerView } from "./application/create-property-owner.js";
 export { RetrievePropertyOwner, PropertyOwnerNotFoundError, type RetrievePropertyOwnerQuery } from "./application/retrieve-property-owner.js";
 export { UpdatePropertyOwner, type UpdatePropertyOwnerCommand } from "./application/update-property-owner.js";
+export {
+  ListPropertyOwners, InvalidPropertyOwnerDirectoryQueryError, DEFAULT_PROPERTY_OWNER_DIRECTORY_LIMIT,
+  MAX_PROPERTY_OWNER_DIRECTORY_LIMIT, MAX_PROPERTY_OWNER_DIRECTORY_SEARCH_LENGTH, type ListPropertyOwnersQuery,
+} from "./application/list-property-owners.js";
 export { AssignPropertyOwner, PropertyOwnershipConflictError, type AssignPropertyOwnerCommand, type PropertyOwnershipView } from "./application/assign-property-owner.js";
 export { RetrievePropertyOwnerships, type RetrievePropertyOwnershipsQuery } from "./application/retrieve-property-ownerships.js";
 export { RemovePropertyOwner, PropertyOwnershipNotFoundError, type RemovePropertyOwnerCommand } from "./application/remove-property-owner.js";
@@ -18,6 +22,10 @@ export type {
   PropertyPortfolioItem, PropertyPortfolioPage,
 } from "./application/property-portfolio-query.js";
 export { PropertyOwnerPersistenceFailureError, type PropertyOwnerRepository } from "./application/property-owner-repository.js";
+export type {
+  PropertyOwnerDirectoryQuery, PropertyOwnerDirectoryCriteria, PropertyOwnerDirectoryCursor,
+  PropertyOwnerDirectoryItem, PropertyOwnerDirectoryPage,
+} from "./application/property-owner-directory-query.js";
 export { PropertyOwnershipPersistenceFailureError, type PropertyOwnershipRepository } from "./application/property-ownership-repository.js";
 export { Property, InvalidPropertyInputError, InvalidPropertyServerValueError, PersistedPropertyCorruptionError, PROPERTY_TYPES, TRANSACTION_TYPES, type PropertyLocation, type PropertyType, type TransactionType } from "./domain/property.js";
 export { InvalidPropertyDetailsError, IncompatibleCommercialTermsError, type PropertyDetails, type CommercialTerms, type LongTermRentalTerms, type ShortTermRentalTerms, type SaleTerms } from "./domain/property-details.js";
@@ -35,4 +43,5 @@ export {
 export { PostgresPropertyRepository } from "./infrastructure/persistence/postgres/postgres-property-repository.js";
 export { PostgresPropertyPortfolioQuery } from "./infrastructure/persistence/postgres/postgres-property-portfolio-query.js";
 export { PostgresPropertyOwnerRepository } from "./infrastructure/persistence/postgres/postgres-property-owner-repository.js";
+export { PostgresPropertyOwnerDirectoryQuery } from "./infrastructure/persistence/postgres/postgres-property-owner-directory-query.js";
 export { PostgresPropertyOwnershipRepository } from "./infrastructure/persistence/postgres/postgres-property-ownership-repository.js";

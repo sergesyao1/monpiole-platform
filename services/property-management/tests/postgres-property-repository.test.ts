@@ -5,7 +5,8 @@ import { Pool } from "pg";
 import { GenericContainer, Wait, type StartedTestContainer } from "testcontainers";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
-  CreateProperty, CreatePropertyOwner, ListProperties, PostgresPropertyOwnerRepository, PostgresPropertyPortfolioQuery, PostgresPropertyRepository,
+  CreateProperty, CreatePropertyOwner, ListProperties, ListPropertyOwners, PostgresPropertyOwnerDirectoryQuery,
+  PostgresPropertyOwnerRepository, PostgresPropertyPortfolioQuery, PostgresPropertyRepository,
   PropertyNotFoundError, PropertyOwnerNotFoundError, PropertyOwnerTypeChangeNotAllowedError,
   RetrieveProperty, RetrievePropertyOwner, UpdatePropertyDetails, UpdatePropertyOwner, type TransactionType,
   AssignPropertyOwner, PostgresPropertyOwnershipRepository, PropertyOwnershipConflictError,
@@ -147,6 +148,30 @@ describe("PropertyOwner PostgreSQL persistence", () => {
       authority: ownerAuthority(TENANT_A), ownerId: PROPERTY_ID,
     });
     expect(found).toMatchObject({ ownerId: PROPERTY_ID, tenantId: TENANT_A, identity: { ownerType }, contactInformation: { email: "contact@example.com" } });
+  });
+
+  it("lists, searches and paginates owners without leaking another tenant", async () => {
+    const repository = new PostgresPropertyOwnerRepository(runtime);
+    const fixtures = [
+      { tenantId: TENANT_A, ownerId: "11111111-1111-4111-8111-111111111111", createdAt: "2026-08-26T13:00:00.000Z", identity: { ownerType: "INDIVIDUAL" as const, firstName: "Awa", lastName: "Kouassi" } },
+      { tenantId: TENANT_A, ownerId: "22222222-2222-4222-8222-222222222222", createdAt: "2026-08-26T13:00:00.000Z", identity: { ownerType: "LEGAL_ENTITY" as const, legalName: "Kouassi Immobilier", registrationNumber: "CI-ABJ-42" } },
+      { tenantId: TENANT_A, ownerId: "33333333-3333-4333-8333-333333333333", createdAt: "2026-08-26T14:00:00.000Z", identity: { ownerType: "INDIVIDUAL" as const, firstName: "Fatou", lastName: "Diop" } },
+      { tenantId: TENANT_B, ownerId: "44444444-4444-4444-8444-444444444444", createdAt: "2026-08-26T15:00:00.000Z", identity: { ownerType: "INDIVIDUAL" as const, firstName: "Awa", lastName: "Kouassi" } },
+    ];
+    for (const fixture of fixtures) await new CreatePropertyOwner(
+      repository, { generate: () => fixture.ownerId }, { now: () => fixture.createdAt },
+    ).execute({ authority: ownerAuthority(fixture.tenantId), correlationId: CORRELATION, identity: fixture.identity, contactInformation: {} });
+
+    const list = new ListPropertyOwners(new PostgresPropertyOwnerDirectoryQuery(runtime));
+    const listAuthority = { ...ownerAuthority(TENANT_A), grants: ["LIST_PROPERTY_OWNERS"] as const };
+    const first = await list.execute({ authority: listAuthority, search: "Kouassi", limit: 1 });
+    expect(first.items.map((value) => value.ownerId)).toEqual(["22222222-2222-4222-8222-222222222222"]);
+    expect(first.nextCursor).toEqual({ createdAt: "2026-08-26T13:00:00.000Z", ownerId: "22222222-2222-4222-8222-222222222222" });
+    const second = await list.execute({ authority: listAuthority, search: "Kouassi", limit: 1, cursor: first.nextCursor });
+    expect(second.items.map((value) => value.ownerId)).toEqual(["11111111-1111-4111-8111-111111111111"]);
+    expect(second.nextCursor).toBeUndefined();
+    expect((await owner.query("SELECT indexdef FROM pg_indexes WHERE schemaname = 'property_management' AND indexname = 'property_owners_tenant_created_owner_idx'")).rows[0]?.indexdef)
+      .toContain("tenant_id, created_at DESC NULLS LAST, owner_id DESC NULLS LAST");
   });
 
   it("updates an owner atomically while preserving its identifiers and type", async () => {

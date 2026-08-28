@@ -107,6 +107,21 @@ export function propertyOwnerName(owner: PropertyOwner): string {
   return owner.ownerType === "INDIVIDUAL" ? `${owner.firstName} ${owner.lastName}` : owner.legalName;
 }
 
+export type PropertyOwnerInput =
+  | Readonly<{ ownerType: "INDIVIDUAL"; firstName: string; lastName: string; phoneNumber?: string; email?: string }>
+  | Readonly<{ ownerType: "LEGAL_ENTITY"; legalName: string; registrationNumber?: string; phoneNumber?: string; email?: string }>;
+
+export interface PropertyOwnerDirectoryPage {
+  readonly items: readonly PropertyOwner[];
+  readonly pageInfo: Readonly<{ readonly nextCursor: string | null; readonly hasNextPage: boolean }>;
+}
+
+export interface PropertyOwnerDirectoryCriteria {
+  readonly limit?: number;
+  readonly cursor?: string;
+  readonly search?: string;
+}
+
 export function formatMinorAmount(amount: number, currency: string): string {
   return new Intl.NumberFormat("fr-FR", { style: "currency", currency }).format(amount / 100);
 }

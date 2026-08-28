@@ -1,7 +1,7 @@
 import { createAuthenticatedApiClient, type AccessTokenProvider } from "../../infrastructure/http/api-client.js";
 import type {
-  CreatePropertyInput, Property, PropertyOwner, PropertyOwnership, PropertyPortfolioCriteria,
-  PropertyPortfolioPage, UpdatePropertyDetailsInput,
+  CreatePropertyInput, Property, PropertyOwner, PropertyOwnerDirectoryCriteria, PropertyOwnerDirectoryPage,
+  PropertyOwnerInput, PropertyOwnership, PropertyPortfolioCriteria, PropertyPortfolioPage, UpdatePropertyDetailsInput,
 } from "./property-model.js";
 
 export interface PropertyApi {
@@ -11,6 +11,9 @@ export interface PropertyApi {
   updatePropertyDetails(propertyId: string, input: UpdatePropertyDetailsInput): Promise<Property>;
   retrieveOwnerships(propertyId: string): Promise<readonly PropertyOwnership[]>;
   retrievePropertyOwner(ownerId: string): Promise<PropertyOwner>;
+  listPropertyOwners(criteria?: PropertyOwnerDirectoryCriteria): Promise<PropertyOwnerDirectoryPage>;
+  createPropertyOwner(input: PropertyOwnerInput): Promise<PropertyOwner>;
+  updatePropertyOwner(ownerId: string, input: PropertyOwnerInput): Promise<PropertyOwner>;
   assignPropertyOwner(propertyId: string, ownerId: string, ownershipShare: number): Promise<PropertyOwnership>;
   removePropertyOwner(propertyId: string, ownerId: string): Promise<void>;
 }
@@ -28,6 +31,11 @@ export function createPropertyApi(tokens: AccessTokenProvider): PropertyApi {
       `/v1/properties/${encodeURIComponent(propertyId)}/owners`,
     ),
     retrievePropertyOwner: (ownerId) => request<PropertyOwner>(`/v1/property-owners/${encodeURIComponent(ownerId)}`),
+    listPropertyOwners: (criteria = {}) => request<PropertyOwnerDirectoryPage>(ownerDirectoryPath(criteria)),
+    createPropertyOwner: (input) => request<PropertyOwner>("/v1/property-owners", { method: "POST", body: input }),
+    updatePropertyOwner: (ownerId, input) => request<PropertyOwner>(
+      `/v1/property-owners/${encodeURIComponent(ownerId)}`, { method: "PUT", body: input },
+    ),
     assignPropertyOwner: (propertyId, ownerId, ownershipShare) => request<PropertyOwnership>(
       `/v1/properties/${encodeURIComponent(propertyId)}/owners`,
       { method: "POST", body: { ownerId, ownershipShare } },
@@ -36,6 +44,15 @@ export function createPropertyApi(tokens: AccessTokenProvider): PropertyApi {
       `/v1/properties/${encodeURIComponent(propertyId)}/owners/${encodeURIComponent(ownerId)}`, { method: "DELETE" },
     ),
   };
+}
+
+function ownerDirectoryPath(criteria: PropertyOwnerDirectoryCriteria): `/v1/${string}` {
+  const query = new URLSearchParams();
+  if (criteria.limit !== undefined) query.set("limit", String(criteria.limit));
+  if (criteria.cursor !== undefined) query.set("cursor", criteria.cursor);
+  if (criteria.search !== undefined) query.set("search", criteria.search);
+  const encoded = query.toString();
+  return encoded.length === 0 ? "/v1/property-owners" : `/v1/property-owners?${encoded}`;
 }
 
 function portfolioPath(criteria: PropertyPortfolioCriteria): `/v1/${string}` {

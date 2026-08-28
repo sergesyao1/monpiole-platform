@@ -155,3 +155,7 @@ filters are validated, `limit` defaults to 20 and is capped at 100, and
 `cursor` is an opaque keyset cursor. Results are ordered deterministically by
 creation date then Property ID, descending. The endpoint is private portfolio
 discovery and does not provide publication or public catalogue behavior.
+
+## Private Property owner directory
+
+`GET /v1/property-owners` lists the owners of the tenant resolved from the authenticated internal authority. It accepts `limit`, an opaque `cursor`, and a bounded `search` over individual names, legal names, registration numbers, and email. Results use stable keyset ordering by creation date then Owner ID, descending. The endpoint requires `LIST_PROPERTY_OWNERS`; OIDC scopes are not business grants.

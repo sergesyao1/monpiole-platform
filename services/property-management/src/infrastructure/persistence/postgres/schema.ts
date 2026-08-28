@@ -37,6 +37,7 @@ export const propertyOwners = propertyManagement.table("property_owners", {
   correlationId: uuid("correlation_id").notNull(), actorId: text("actor_id").notNull(),
 }, (table) => [
   uniqueIndex("property_owners_tenant_owner_unique").on(table.tenantId, table.ownerId),
+  index("property_owners_tenant_created_owner_idx").on(table.tenantId, table.createdAt.desc(), table.ownerId.desc()),
 ]);
 
 export const propertyOwnerships = propertyManagement.table("property_ownerships", {
