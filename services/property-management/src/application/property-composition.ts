@@ -1,5 +1,6 @@
 import { Property, type PropertyLocation, type PropertyType, type TransactionType } from "../domain/property.js";
 import { PropertyBuilding, normalizeStructuralCode } from "../domain/property-building.js";
+import { PropertyBuildingUnit } from "../domain/property-building-unit.js";
 import { authorizedTenant, type PropertyAuthority } from "./property-authority.js";
 import type { CompositionCursor, PropertyCompositionRepository } from "./property-composition-repository.js";
 import { PropertyBuildingNotFoundError, PropertyUnitNotFoundError } from "./property-composition-repository.js";
@@ -47,7 +48,15 @@ export class CreatePropertyUnit {
   async execute(command: CompositionContext & { readonly propertyId: string; readonly buildingId: string } & CreateUnitFields) {
     const tenantId = authorizedTenant(command.authority, "CREATE_PROPERTY_UNIT"); const now = this.clock.now();
     const unit = Property.createUnit({ propertyId: this.ids.generate(), tenantId, title: command.title, ...(command.description === undefined ? {} : { description: command.description }), propertyType: command.propertyType, transactionType: command.transactionType, location: command.location, createdAt: now, updatedAt: now });
-    const result = await this.composition.createUnit(tenantId, command.propertyId, command.buildingId, normalizeStructuralCode(command.unitCode, "unitCode"), unit, trace(command));
+    const relation = PropertyBuildingUnit.create({
+      tenantId,
+      buildingId: command.buildingId,
+      unitPropertyId: unit.values.propertyId,
+      unitCode: command.unitCode,
+      createdAt: now,
+      updatedAt: now,
+    }, unit);
+    const result = await this.composition.createUnit(tenantId, command.propertyId, relation, unit, trace(command));
     if (result === undefined) throw new PropertyBuildingNotFoundError(); return result;
   }
 }

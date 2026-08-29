@@ -1,3 +1,6 @@
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
@@ -13,7 +16,9 @@ import {
   PropertyOwnershipShareExceededError, PropertyOwnershipNotFoundError, RemovePropertyOwner, RetrievePropertyOwnerships,
   CreatePropertyBuilding, CreatePropertyUnit, ListPropertyBuildings, ListPropertyUnits, UpdatePropertyBuilding,
   UpdatePropertyUnitStructure, PostgresPropertyCompositionRepository, PropertyBuildingCodeConflictError,
-  PropertyUnitCodeConflictError, PropertyStructuralRoleConflictError,
+  PropertyUnitCodeConflictError, PropertyStructuralRoleConflictError, Property,
+  PersistedPropertyCorruptionError,
+  PropertyBuildingNotFoundError, PropertyUnitNotFoundError,
 } from "../src/index.js";
 
 const IMAGE = "postgres@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687";
@@ -22,10 +27,13 @@ const PROPERTY_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"; const CORRELATION = 
 let container: StartedTestContainer; let owner: Pool; let runtime: Pool;
 const migrationsFolder = fileURLToPath(new URL("../migrations", import.meta.url));
 
+function connection(user: string, password: string, database = "property_test") {
+  return `postgresql://${user}:${password}@${container.getHost()}:${container.getMappedPort(5432)}/${database}`;
+}
+
 beforeAll(async () => {
   container = await new GenericContainer(IMAGE).withEnvironment({ POSTGRES_DB: "property_test", POSTGRES_USER: "owner", POSTGRES_PASSWORD: "synthetic-owner" })
     .withExposedPorts(5432).withWaitStrategy(Wait.forLogMessage(/database system is ready to accept connections/, 2)).start();
-  const connection = (user: string, password: string) => `postgresql://${user}:${password}@${container.getHost()}:${container.getMappedPort(5432)}/property_test`;
   owner = new Pool({ connectionString: connection("owner", "synthetic-owner") });
   await owner.query("CREATE ROLE property_runtime LOGIN PASSWORD 'synthetic-runtime' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS");
   await migrate(drizzle(owner), { migrationsFolder });
@@ -45,6 +53,51 @@ function create(repository = new PostgresPropertyRepository(runtime), tenantId =
 }
 
 describe("Property PostgreSQL persistence", () => {
+  it("migre 0005 vers 0006 en préservant les Properties historiques et les garanties Composition", async () => {
+    const previousMigrations = await previousPropertyMigrations();
+    await owner.query("CREATE DATABASE property_upgrade_test");
+    const upgrade = new Pool({ connectionString: connection("owner", "synthetic-owner", "property_upgrade_test") });
+    try {
+      await migrate(drizzle(upgrade), { migrationsFolder: previousMigrations });
+      await upgrade.query(`INSERT INTO property_management.properties
+        (property_id, tenant_id, title, property_type, transaction_type, status, country, city, district, address_line, created_at, updated_at, correlation_id, actor_id)
+        VALUES ($1,$2,'Historical house','HOUSE','SALE','DRAFT','CI','Abidjan','Cocody','Riviera',now(),now(),$3,'migration-test')`, [PROPERTY_ID, TENANT_A, CORRELATION]);
+
+      await migrate(drizzle(upgrade), { migrationsFolder });
+
+      expect((await upgrade.query("SELECT title, structural_role FROM property_management.properties WHERE property_id = $1", [PROPERTY_ID])).rows[0])
+        .toEqual({ title: "Historical house", structural_role: "STANDALONE" });
+      const constraints = (await upgrade.query(`SELECT conname FROM pg_constraint
+        WHERE connamespace = 'property_management'::regnamespace ORDER BY conname`)).rows.map((row) => row.conname);
+      expect(constraints).toEqual(expect.arrayContaining([
+        "properties_structural_role_check", "property_buildings_property_tenant_fk",
+        "property_buildings_tenant_property_code_unique", "property_building_units_building_tenant_fk",
+        "property_building_units_property_tenant_fk", "property_building_units_tenant_unit_unique",
+        "property_building_units_tenant_building_code_unique",
+      ]));
+      const indexes = (await upgrade.query(`SELECT indexname FROM pg_indexes
+        WHERE schemaname = 'property_management' ORDER BY indexname`)).rows.map((row) => row.indexname);
+      expect(indexes).toEqual(expect.arrayContaining([
+        "property_buildings_tenant_property_code_idx", "property_building_units_tenant_building_code_idx",
+      ]));
+      expect((await upgrade.query(`SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class
+        WHERE relnamespace = 'property_management'::regnamespace AND relname IN ('property_buildings','property_building_units') ORDER BY relname`)).rows)
+        .toEqual([
+          { relname: "property_building_units", relrowsecurity: true, relforcerowsecurity: true },
+          { relname: "property_buildings", relrowsecurity: true, relforcerowsecurity: true },
+        ]);
+      expect((await upgrade.query(`SELECT tablename, policyname FROM pg_policies
+        WHERE schemaname = 'property_management' AND tablename IN ('property_buildings','property_building_units') ORDER BY tablename`)).rows)
+        .toEqual([
+          { tablename: "property_building_units", policyname: "property_building_units_tenant_isolation" },
+          { tablename: "property_buildings", policyname: "property_buildings_tenant_isolation" },
+        ]);
+    } finally {
+      await upgrade.end();
+      await rm(previousMigrations, { recursive: true, force: true });
+    }
+  });
+
   it("persists and rehydrates through a fresh repository", async () => {
     await create();
     const found = await new RetrieveProperty(new PostgresPropertyRepository(runtime)).execute({ authority: authority(TENANT_A), propertyId: PROPERTY_ID });
@@ -155,6 +208,24 @@ describe("Property PostgreSQL persistence", () => {
       .toContain("tenant_id, created_at DESC NULLS LAST, property_id DESC NULLS LAST");
   });
 });
+
+async function previousPropertyMigrations() {
+  const folder = await mkdtemp(join(tmpdir(), "monpiole-property-0005-"));
+  const meta = join(folder, "meta");
+  await mkdir(meta);
+  for (let index = 0; index <= 5; index += 1) {
+    const prefix = String(index).padStart(4, "0");
+    await copyFile(join(migrationsFolder, `${prefix}_property_management_baseline.sql`), join(folder, `${prefix}_property_management_baseline.sql`));
+    await copyFile(join(migrationsFolder, "meta", `${prefix}_snapshot.json`), join(meta, `${prefix}_snapshot.json`));
+  }
+  const journal = JSON.parse(await readFile(join(migrationsFolder, "meta", "_journal.json"), "utf8")) as {
+    readonly version: string;
+    readonly dialect: string;
+    readonly entries: readonly { readonly idx: number }[];
+  };
+  await writeFile(join(meta, "_journal.json"), `${JSON.stringify({ ...journal, entries: journal.entries.filter((entry) => entry.idx <= 5) }, null, 2)}\n`, "utf8");
+  return folder;
+}
 
 function ownerAuthority(tenantId: string) {
   return { actorId: "actor", authorityId: "authority", grants: ["CREATE_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNER", "UPDATE_PROPERTY_OWNER"] as const, tenantIds: [tenantId] };
@@ -351,6 +422,41 @@ async function createCompositionParent(tenantId = TENANT_A, propertyId = PROPERT
 const unitFields = { unitCode: "A-101", title: "Appartement A-101", propertyType: "APARTMENT" as const, transactionType: "LONG_TERM_RENTAL" as const, location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue 1" } };
 
 describe("Property composition PostgreSQL persistence", () => {
+  it("refuse de persister une Unit par le repository générique sans relation", async () => {
+    const unit = Property.createUnit({
+      propertyId: UNIT_ID, tenantId: TENANT_A, title: "Orpheline", propertyType: "APARTMENT", transactionType: "SALE",
+      location: unitFields.location, createdAt: "2026-08-28T12:00:00.000Z", updatedAt: "2026-08-28T12:00:00.000Z",
+    });
+    await expect(new PostgresPropertyRepository(runtime).saveStandalone(unit, CORRELATION, "actor"))
+      .rejects.toBeInstanceOf(PropertyStructuralRoleConflictError);
+    expect((await owner.query("SELECT count(*)::int AS count FROM property_management.properties")).rows[0]?.count).toBe(0);
+  });
+
+  it("refuse de charger une Unit persistée sans son unique relation Building", async () => {
+    await owner.query(`INSERT INTO property_management.properties
+      (property_id, tenant_id, title, property_type, transaction_type, status, structural_role,
+       country, city, district, address_line, created_at, updated_at, correlation_id, actor_id)
+      VALUES ($1,$2,'Unit orpheline','APARTMENT','SALE','DRAFT','UNIT',
+       'CI','Abidjan','Cocody','Rue 1',now(),now(),$3,'actor')`, [UNIT_ID, TENANT_A, CORRELATION]);
+
+    await expect(new PostgresPropertyRepository(runtime).findById(TENANT_A, UNIT_ID))
+      .rejects.toBeInstanceOf(PersistedPropertyCorruptionError);
+  });
+
+  it("refuse de modifier le rôle structurel par le repository générique", async () => {
+    const repository = new PostgresPropertyRepository(runtime);
+    await create(repository);
+
+    await expect(repository.updateAtomically(
+      TENANT_A,
+      PROPERTY_ID,
+      (property) => property.becomeComposite("2026-08-28T12:00:00.000Z"),
+      { correlationId: CORRELATION, actorId: "actor" },
+    )).rejects.toBeInstanceOf(PropertyStructuralRoleConflictError);
+    expect((await owner.query("SELECT structural_role FROM property_management.properties WHERE property_id=$1", [PROPERTY_ID])).rows[0]?.structural_role)
+      .toBe("STANDALONE");
+  });
+
   it("crée, lit et modifie Building puis Unit avec les rôles normatifs", async () => { await createCompositionParent(); const useCases = compositionUseCases(); const authority = compositionAuthority(TENANT_A);
     await useCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: " bat-a ", name: " Immeuble A " });
     expect((await owner.query("SELECT structural_role FROM property_management.properties WHERE property_id=$1", [PROPERTY_ID])).rows[0]?.structural_role).toBe("COMPOSITE");
@@ -371,9 +477,37 @@ describe("Property composition PostgreSQL persistence", () => {
     await expect(owner.query(`INSERT INTO property_management.property_buildings (building_id,tenant_id,property_id,building_code,name,created_at,updated_at,correlation_id,actor_id) VALUES ($1,$2,$3,'BAD','Bad',now(),now(),$4,'actor')`, ["22222222-2222-4222-8222-222222222222", TENANT_B, PROPERTY_ID, CORRELATION])).rejects.toMatchObject({ code: "23503" });
     await expect(runtime.query(`INSERT INTO property_management.property_buildings (building_id,tenant_id,property_id,building_code,name,created_at,updated_at,correlation_id,actor_id) VALUES ($1,$2,$3,'BAD','Bad',now(),now(),$4,'actor')`, ["33333333-3333-4333-8333-333333333333", TENANT_A, PROPERTY_ID, CORRELATION])).rejects.toMatchObject({ code: "42501" });
   });
+  it("isole aussi les relations Unit par tenant et par RLS", async () => {
+    await createCompositionParent(); const useCases = compositionUseCases(); const authority = compositionAuthority(TENANT_A);
+    await useCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: "BAT-A", name: "A" });
+    await useCases.createUnit.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: BUILDING_ID, ...unitFields });
+    await expect(useCases.listUnits.execute({ authority: compositionAuthority(TENANT_B), correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: BUILDING_ID, limit: 20 }))
+      .rejects.toBeInstanceOf(PropertyBuildingNotFoundError);
+    await expect(useCases.updateUnit.execute({ authority: compositionAuthority(TENANT_B), correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: BUILDING_ID, unitPropertyId: UNIT_ID, unitCode: "B-999" }))
+      .rejects.toBeInstanceOf(PropertyUnitNotFoundError);
+    expect((await runtime.query("SELECT * FROM property_management.property_building_units")).rows).toHaveLength(0);
+    await expect(runtime.query(`INSERT INTO property_management.property_building_units
+      (tenant_id,building_id,unit_property_id,unit_code,created_at,updated_at,correlation_id,actor_id)
+      VALUES ($1,$2,$3,'A-999',now(),now(),$4,'actor')`, [TENANT_A, BUILDING_ID, UNIT_ID, CORRELATION])).rejects.toMatchObject({ code: "42501" });
+    expect((await owner.query("SELECT unit_code FROM property_management.property_building_units WHERE unit_property_id=$1", [UNIT_ID])).rows[0]?.unit_code).toBe("A-101");
+  });
   it("pagine Buildings et Units dans un ordre déterministe sans duplication", async () => { await createCompositionParent(); const buildingIds = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222", "33333333-3333-4333-8333-333333333333"]; const unitIds = ["44444444-4444-4444-8444-444444444444", "55555555-5555-4555-8555-555555555555", "66666666-6666-4666-8666-666666666666"]; const useCases = compositionUseCases(undefined, buildingIds, unitIds); const authority = compositionAuthority(TENANT_A);
     for (const code of ["BAT-C", "BAT-A", "BAT-B"]) await useCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: code, name: code }); const first = await useCases.listBuildings.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, limit: 2 }); const second = await useCases.listBuildings.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, limit: 2, cursor: first.nextCursor }); expect([...first.items, ...second.items].map((item) => item.buildingCode)).toEqual(["BAT-A", "BAT-B", "BAT-C"]);
     const target = first.items[0]!.buildingId; for (const code of ["A-103", "A-101", "A-102"]) await useCases.createUnit.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: target, ...unitFields, unitCode: code }); const unitFirst = await useCases.listUnits.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: target, limit: 2 }); const unitSecond = await useCases.listUnits.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: target, limit: 2, cursor: unitFirst.nextCursor }); expect([...unitFirst.items, ...unitSecond.items].map((item) => item.unitCode)).toEqual(["A-101", "A-102", "A-103"]);
   });
   it("sérialise les codes concurrents sous verrou parent", async () => { await createCompositionParent(); const ids = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"]; const useCases = compositionUseCases(undefined, ids); const authority = compositionAuthority(TENANT_A); const results = await Promise.allSettled(ids.map((_, index) => useCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: "BAT-X", name: `B${index}` }))); expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1); expect(results.filter((result) => result.status === "rejected")).toHaveLength(1); expect((await owner.query("SELECT count(*)::int AS count FROM property_management.property_buildings")).rows[0]?.count).toBe(1); });
+  it("sérialise les codes Unit concurrents et ne masque pas une collision d’identifiant en conflit de code", async () => {
+    await createCompositionParent(); const authority = compositionAuthority(TENANT_A);
+    const buildingCases = compositionUseCases(undefined, [BUILDING_ID, BUILDING_ID]);
+    await buildingCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: "BAT-A", name: "A" });
+    await expect(buildingCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: "BAT-B", name: "B" }))
+      .rejects.not.toBeInstanceOf(PropertyBuildingCodeConflictError);
+
+    const unitIds = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"];
+    const unitCases = compositionUseCases(undefined, [], unitIds);
+    const results = await Promise.allSettled(unitIds.map(() => unitCases.createUnit.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: BUILDING_ID, ...unitFields, unitCode: "A-X" })));
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+    expect((await owner.query("SELECT count(*)::int AS count FROM property_management.property_building_units WHERE unit_code='A-X'")).rows[0]?.count).toBe(1);
+  });
 });

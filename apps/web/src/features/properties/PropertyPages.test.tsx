@@ -33,6 +33,24 @@ function renderPath(path: string) {
 afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
 describe("vertical slice Web Property", () => {
+  it.each([
+    ["STANDALONE", "Bien autonome"],
+    ["COMPOSITE", "Ensemble immobilier"],
+    ["UNIT", "Unité"],
+  ] as const)("affiche le rôle structurel %s en français", async (structuralRole, label) => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith(`/v1/properties/${PROPERTY_ID}`)) return json({ ...property, structuralRole });
+      if (url.endsWith("/owners")) return json([]);
+      if (url.includes("/v1/property-owners?")) return json(ownerPage());
+      if (url.endsWith("/buildings")) return json({ items: [], pageInfo: { nextCursor: null, hasNextPage: false } });
+      return problem(500, "UNEXPECTED");
+    }));
+    renderPath(`/properties/${PROPERTY_ID}`);
+    await screen.findByRole("heading", { name: property.title });
+    expect(screen.getByText(label, { selector: "dd" })).toBeVisible();
+  });
+
   it("crée un bien avec le bearer réel puis ouvre sa fiche", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);

@@ -181,3 +181,13 @@ grant. Missing and cross-tenant parents, Buildings, and Units return the same
 non-revealing 404 contract; duplicate codes and structural-role violations use
 stable 409 problem codes. There are intentionally no delete, move, or reparent
 routes in this slice.
+
+Each operation publishes only the path parameters present in its URL, all marked
+required. Mutation requests are strict, Unit descriptions accept up to 5,000
+characters, response codes and cursor code components are canonical uppercase,
+and tenant or persistence trace fields are never exposed. Success responses and
+Problem Details responses declare the tracing headers. The OpenAPI contract
+documents applicable `400`, `401`, `403`, `404`, `409`, and safe `500`
+responses with `application/problem+json`; the two read operations omit `409`.
+Dedicated contract tests lock these paths, schemas, headers, statuses, and
+cursor representations to the runtime DTOs.

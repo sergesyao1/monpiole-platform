@@ -71,9 +71,24 @@ export class PersistedPropertyCorruptionError extends Error {
 export class Property {
   private constructor(readonly values: Readonly<PropertyValues>) {}
 
-  static create(input: Omit<PropertyValues, "status" | "structuralRole"> & { readonly structuralRole?: PropertyStructuralRole }): Property {
+  static create(input: Omit<PropertyValues, "status" | "structuralRole">): Property {
+    return Property.createStandalone(input);
+  }
+
+  static createStandalone(input: Omit<PropertyValues, "status" | "structuralRole">): Property {
+    return Property.createWithStructuralRole(input, "STANDALONE");
+  }
+
+  static createUnit(input: Omit<PropertyValues, "status" | "structuralRole">): Property {
+    return Property.createWithStructuralRole(input, "UNIT");
+  }
+
+  private static createWithStructuralRole(
+    input: Omit<PropertyValues, "status" | "structuralRole">,
+    structuralRole: "STANDALONE" | "UNIT",
+  ): Property {
     try {
-      return new Property(validate({ ...input, structuralRole: input.structuralRole ?? "STANDALONE", status: "DRAFT" }));
+      return new Property(validate({ ...input, structuralRole, status: "DRAFT" }));
     } catch (error) {
       if (!(error instanceof PropertyInvariantViolation)) throw error;
       if (["propertyId", "tenantId", "status", "createdAt", "updatedAt"].includes(error.field)) {
@@ -81,14 +96,6 @@ export class Property {
       }
       throw new InvalidPropertyInputError(error.field);
     }
-  }
-
-  static createStandalone(input: Omit<PropertyValues, "status" | "structuralRole">): Property {
-    return Property.create({ ...input, structuralRole: "STANDALONE" });
-  }
-
-  static createUnit(input: Omit<PropertyValues, "status" | "structuralRole">): Property {
-    return Property.create({ ...input, structuralRole: "UNIT" });
   }
 
   static rehydrate(input: PropertyValues): Property {

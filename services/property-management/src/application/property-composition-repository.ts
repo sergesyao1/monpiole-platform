@@ -1,5 +1,6 @@
 import type { Property } from "../domain/property.js";
 import type { PropertyBuilding } from "../domain/property-building.js";
+import type { PropertyBuildingUnit } from "../domain/property-building-unit.js";
 
 export interface CompositionCursor { readonly code: string; readonly id: string; }
 export interface CompositionPage<T> { readonly items: readonly T[]; readonly nextCursor?: CompositionCursor; }
@@ -12,7 +13,7 @@ export interface PropertyCompositionRepository {
   createBuilding(tenantId: string, propertyId: string, building: PropertyBuilding, trace: Trace): Promise<PropertyBuilding | undefined>;
   listBuildings(tenantId: string, propertyId: string, limit: number, cursor?: CompositionCursor): Promise<CompositionPage<Readonly<PropertyBuilding["values"]>> | undefined>;
   updateBuilding(tenantId: string, propertyId: string, buildingId: string, update: (building: PropertyBuilding) => PropertyBuilding, trace: Trace): Promise<PropertyBuilding | undefined>;
-  createUnit(tenantId: string, propertyId: string, buildingId: string, unitCode: string, unit: Property, trace: Trace): Promise<PropertyUnitView | undefined>;
+  createUnit(tenantId: string, propertyId: string, relation: PropertyBuildingUnit, unit: Property, trace: Trace): Promise<PropertyUnitView | undefined>;
   listUnits(tenantId: string, propertyId: string, buildingId: string, limit: number, cursor?: CompositionCursor): Promise<CompositionPage<PropertyUnitView> | undefined>;
   updateUnitCode(tenantId: string, propertyId: string, buildingId: string, unitPropertyId: string, unitCode: string, updatedAt: string, trace: Trace): Promise<PropertyUnitView | undefined>;
 }

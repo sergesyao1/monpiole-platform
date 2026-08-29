@@ -90,3 +90,20 @@ Creation and structural updates use tenant-scoped PostgreSQL transactions and
 parent row locks. Composite foreign keys, unique constraints, and forced RLS
 enforce tenant ownership and attachment invariants. Building and Unit lists use
 deterministic keyset pagination; their cursors are transport-opaque.
+
+The generic Property creation and persistence boundary accepts only
+`STANDALONE` Properties. A Unit can be created only by the composition use case,
+which builds a `PropertyBuildingUnit` domain relation and persists the Unit and
+its parent relation atomically. Loading or modifying a Unit through the generic
+repository rehydrates and validates its unique relation; an orphan or ambiguous
+persisted Unit is reported as corruption, and generic updates cannot mutate a
+structural role. The first Building remains the sole supported transition to
+`COMPOSITE`.
+
+Migration `0006_property_composition.sql` is paired with its Drizzle snapshot.
+The PostgreSQL integration suite exercises the explicit `0005` to `0006`
+upgrade with historical data and verifies the resulting role, constraints,
+indexes, and forced-RLS policies. No trigger is used: supported write and load
+boundaries enforce the cross-table role/relation invariant under the existing
+tenant-scoped locks, while foreign keys and unique constraints provide the SQL
+defence for relation identity and cardinality.

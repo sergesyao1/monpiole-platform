@@ -32,6 +32,7 @@ export type {
 export { PropertyOwnershipPersistenceFailureError, type PropertyOwnershipRepository } from "./application/property-ownership-repository.js";
 export { Property, InvalidPropertyInputError, InvalidPropertyServerValueError, PersistedPropertyCorruptionError, PropertyStructuralRoleConflictError, PROPERTY_TYPES, TRANSACTION_TYPES, PROPERTY_STRUCTURAL_ROLES, type PropertyCoreInformation, type PropertyLocation, type PropertyType, type TransactionType, type PropertyStructuralRole } from "./domain/property.js";
 export { PropertyBuilding, InvalidPropertyCompositionInputError, InvalidPropertyCompositionServerValueError, normalizeStructuralCode, type PropertyBuildingValues } from "./domain/property-building.js";
+export { PropertyBuildingUnit, type PropertyBuildingUnitValues } from "./domain/property-building-unit.js";
 export { InvalidPropertyDetailsError, IncompatibleCommercialTermsError, type PropertyDetails, type CommercialTerms, type LongTermRentalTerms, type ShortTermRentalTerms, type SaleTerms } from "./domain/property-details.js";
 export {
   PropertyOwner, InvalidPropertyOwnerInputError, InvalidPropertyOwnerServerValueError,

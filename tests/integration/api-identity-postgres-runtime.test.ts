@@ -84,6 +84,8 @@ async function start() {
         "CREATE_PROPERTY", "RETRIEVE_PROPERTY", "LIST_PROPERTIES", "UPDATE_PROPERTY_DETAILS", "UPDATE_PROPERTY_CORE_INFORMATION",
         "CREATE_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNER", "LIST_PROPERTY_OWNERS", "UPDATE_PROPERTY_OWNER",
         "ASSIGN_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNERSHIP", "REMOVE_PROPERTY_OWNER",
+        "CREATE_PROPERTY_BUILDING", "RETRIEVE_PROPERTY_COMPOSITION", "UPDATE_PROPERTY_BUILDING",
+        "CREATE_PROPERTY_UNIT", "UPDATE_PROPERTY_UNIT_STRUCTURE",
       ],
       tenantIds: [...authorizedTenantIds],
     }) },
@@ -273,6 +275,26 @@ describe("API PostgreSQL Identity runtime composition", () => {
       }),
     })).status).toBe(403);
 
+    const authenticatedHeaders = { authorization: "Bearer known-token", "content-type": "application/json" };
+    const rootResponse = await fetch(`${baseUrl}/v1/properties`, {
+      method: "POST", headers: authenticatedHeaders, body: JSON.stringify({
+        title: "Résidence OIDC", propertyType: "HOUSE", transactionType: "SALE",
+        location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue OIDC" },
+      }),
+    });
+    expect(rootResponse.status).toBe(201); const root = await rootResponse.json() as { propertyId: string };
+    const buildingResponse = await fetch(`${baseUrl}/v1/properties/${root.propertyId}/buildings`, {
+      method: "POST", headers: authenticatedHeaders, body: JSON.stringify({ buildingCode: "OIDC-A", name: "Immeuble OIDC" }),
+    });
+    expect(buildingResponse.status).toBe(201); const building = await buildingResponse.json() as { buildingId: string };
+    const unitResponse = await fetch(`${baseUrl}/v1/properties/${root.propertyId}/buildings/${building.buildingId}/units`, {
+      method: "POST", headers: authenticatedHeaders, body: JSON.stringify({
+        unitCode: "OIDC-101", title: "Unité OIDC", propertyType: "APARTMENT", transactionType: "SALE",
+        location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue OIDC, 101" },
+      }),
+    });
+    expect(unitResponse.status).toBe(201); const oidcUnit = await unitResponse.json() as { property: { propertyId: string } };
+
     await application.close(); application = undefined;
     await runtime.close(); runtime = undefined;
     runtime = createPostgresApiRuntime(runtimeEnvironment(), { accessTokenVerifier });
@@ -281,6 +303,10 @@ describe("API PostgreSQL Identity runtime composition", () => {
     expect((await fetch(`${baseUrl}/v1/properties/${propertyId}`, {
       headers: { authorization: "Bearer known-token" },
     })).status).toBe(404);
+    const persistedUnit = await fetch(`${baseUrl}/v1/properties/${oidcUnit.property.propertyId}`, {
+      headers: { authorization: "Bearer known-token" },
+    });
+    expect(persistedUnit.status).toBe(200); expect(await persistedUnit.json()).toMatchObject({ structuralRole: "UNIT" });
   });
 
   it("persists and retrieves a Property through the real PostgreSQL API composition", async () => {
@@ -323,6 +349,63 @@ describe("API PostgreSQL Identity runtime composition", () => {
     expect(updated.status).toBe(200);
     expect((await ownerPool.query("SELECT commercial_kind, rent_amount_minor FROM property_management.properties WHERE property_id = $1", [property.propertyId])).rows[0])
       .toEqual({ commercial_kind: "LONG_TERM_RENTAL", rent_amount_minor: "300000" });
+  });
+
+  it("exécute le parcours Property vers Building puis Unit avec détails et ownership sur le runtime réel", async () => {
+    await start(); const tenantId = await createTenant("composition");
+    const rootResponse = await fetch(`${baseUrl}/v1/properties`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        title: "Résidence Lagune", propertyType: "HOUSE", transactionType: "SALE",
+        location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue des Jardins" },
+      }),
+    });
+    expect(rootResponse.status).toBe(201); const root = await rootResponse.json() as { propertyId: string; structuralRole: string };
+    expect(root.structuralRole).toBe("STANDALONE");
+
+    const buildingResponse = await fetch(`${baseUrl}/v1/properties/${root.propertyId}/buildings`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ buildingCode: "bat-a", name: "Immeuble A" }),
+    });
+    expect(buildingResponse.status).toBe(201); const building = await buildingResponse.json() as { buildingId: string; buildingCode: string };
+    expect(building.buildingCode).toBe("BAT-A");
+    expect(await (await fetch(`${baseUrl}/v1/properties/${root.propertyId}`)).json()).toMatchObject({ structuralRole: "COMPOSITE" });
+
+    const unitResponse = await fetch(`${baseUrl}/v1/properties/${root.propertyId}/buildings/${building.buildingId}/units`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        unitCode: "a-101", title: "Appartement A-101", description: "Premier étage",
+        propertyType: "APARTMENT", transactionType: "LONG_TERM_RENTAL",
+        location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue des Jardins, A-101" },
+      }),
+    });
+    expect(unitResponse.status).toBe(201); const unit = await unitResponse.json() as { unitCode: string; property: { propertyId: string; structuralRole: string } };
+    expect(unit).toMatchObject({ unitCode: "A-101", property: { structuralRole: "UNIT" } });
+    expect((await ownerPool.query("SELECT tenant_id FROM property_management.property_building_units WHERE unit_property_id=$1", [unit.property.propertyId])).rows[0]?.tenant_id).toBe(tenantId);
+
+    const list = await fetch(`${baseUrl}/v1/properties/${root.propertyId}/buildings/${building.buildingId}/units?limit=1`);
+    expect(list.status).toBe(200); expect(await list.json()).toMatchObject({ items: [{ unitCode: "A-101", property: { propertyId: unit.property.propertyId } }] });
+    const codeUpdate = await fetch(`${baseUrl}/v1/properties/${root.propertyId}/buildings/${building.buildingId}/units/${unit.property.propertyId}`, {
+      method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ unitCode: "A-102" }),
+    });
+    expect(codeUpdate.status).toBe(200); expect(await codeUpdate.json()).toMatchObject({ unitCode: "A-102" });
+
+    const details = await fetch(`${baseUrl}/v1/properties/${unit.property.propertyId}/details`, {
+      method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        details: { rooms: 3, bedrooms: 2 },
+        commercialTerms: { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 250_000, rentPeriod: "MONTH" },
+      }),
+    });
+    expect(details.status).toBe(200); expect(await details.json()).toMatchObject({ structuralRole: "UNIT", details: { rooms: 3 } });
+
+    const ownerResponse = await fetch(`${baseUrl}/v1/property-owners`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerType: "INDIVIDUAL", firstName: "Awa", lastName: "Koné" }),
+    });
+    expect(ownerResponse.status).toBe(201); const propertyOwner = await ownerResponse.json() as { ownerId: string };
+    const assignment = await fetch(`${baseUrl}/v1/properties/${unit.property.propertyId}/owners`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerId: propertyOwner.ownerId, ownershipShare: 100 }),
+    });
+    expect(assignment.status).toBe(201);
+    expect(await (await fetch(`${baseUrl}/v1/properties/${unit.property.propertyId}/owners`)).json()).toEqual([
+      expect.objectContaining({ ownerId: propertyOwner.ownerId, ownershipShare: 100 }),
+    ]);
   });
 
   it("assigns, lists and removes PropertyOwnership through the real PostgreSQL API composition", async () => {

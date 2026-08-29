@@ -15,7 +15,7 @@ const input = { title: "  Apartment Cocody  ", description: "  Balcony  ", prope
 
 class MemoryRepository implements PropertyRepository {
   readonly values = new Map<string, Property>();
-  async save(property: Property) { this.values.set(`${property.values.tenantId}:${property.values.propertyId}`, property); }
+  async saveStandalone(property: Property) { this.values.set(`${property.values.tenantId}:${property.values.propertyId}`, property); }
   async findById(tenantId: string, propertyId: string) { return this.values.get(`${tenantId}:${propertyId}`); }
   async updateAtomically(tenantId: string, propertyId: string, update: (property: Property) => Property) {
     const key = `${tenantId}:${propertyId}`; const property = this.values.get(key);

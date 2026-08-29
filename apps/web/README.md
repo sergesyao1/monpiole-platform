@@ -118,6 +118,16 @@ déjà visibles. Un échec de pagination conserve les données chargées et prop
 une nouvelle tentative. Les validations, confirmations et erreurs 401, 403, 404
 et 409 sont présentées en français.
 
+La fiche affiche le rôle structurel avec les libellés « Bien autonome »,
+« Ensemble immobilier » et « Unité ». Après la création du premier immeuble,
+elle actualise immédiatement le rôle du parent en « Ensemble immobilier » sans
+rechargement. Le formulaire Unit préremplit mais laisse modifier pays, ville,
+quartier et adresse, ainsi que la description. Chaque Unit rend un résumé
+français du code, du titre, du type, du projet commercial et de l’adresse. Les
+états de chargement, vide, succès, erreur et nouvelle tentative sont locaux à la
+composition, aux immeubles et aux unités ; une erreur locale conserve les
+résultats déjà affichés.
+
 ## Frontières
 
 - `src/app` compose le shell et les routes ;

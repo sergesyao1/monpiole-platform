@@ -26,7 +26,7 @@ export class CreateProperty {
       propertyType: command.propertyType, transactionType: command.transactionType,
       location: command.location, createdAt: now, updatedAt: now,
     });
-    await this.repository.save(property, command.correlationId, command.authority.actorId);
+    await this.repository.saveStandalone(property, command.correlationId, command.authority.actorId);
     return property.values;
   }
 }

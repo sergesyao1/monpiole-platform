@@ -8,7 +8,7 @@ import { PropertyCoreInformationForm } from "./PropertyCoreInformationForm.js";
 import { PropertyFeedback } from "./PropertyFeedback.js";
 import { toPropertyUiError, type PropertyUiError } from "./property-errors.js";
 import {
-  formatMinorAmount, pricingUnitLabels, propertyStatusLabels, propertyTypeLabels,
+  formatMinorAmount, pricingUnitLabels, propertyStatusLabels, propertyStructuralRoleLabels, propertyTypeLabels,
   transactionTypeLabels, type CommercialTerms, type Property,
 } from "./property-model.js";
 import { PropertyOwnershipSection } from "./PropertyOwnershipSection.js";
@@ -73,6 +73,7 @@ export function PropertyDetailPage() {
         <dl className="definition-grid">
           <div><dt>Type</dt><dd>{propertyTypeLabels[property.propertyType]}</dd></div>
           <div><dt>Projet</dt><dd>{transactionTypeLabels[property.transactionType]}</dd></div>
+          <div><dt>Rôle structurel</dt><dd>{propertyStructuralRoleLabels[property.structuralRole]}</dd></div>
           <div><dt>Localisation</dt><dd>{property.location.addressLine}, {property.location.district}, {property.location.city} ({property.location.country})</dd></div>
           <div><dt>Description</dt><dd>{property.description ?? "Aucune description"}</dd></div>
           <div><dt>Conditions</dt><dd>{property.commercialTerms ? <CommercialTermsSummary terms={property.commercialTerms} /> : "Non renseignées"}</dd></div>
@@ -91,7 +92,7 @@ export function PropertyDetailPage() {
       </section>
 
       <PropertyOwnershipSection propertyId={property.propertyId} api={api} />
-      <PropertyCompositionSection property={property} api={api} />
+      <PropertyCompositionSection property={property} api={api} onStructuralRoleChange={(structuralRole) => setProperty((current) => current === undefined ? current : { ...current, structuralRole })} />
     </div>
   );
 }

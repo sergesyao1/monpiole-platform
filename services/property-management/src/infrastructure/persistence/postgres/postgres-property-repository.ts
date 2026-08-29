@@ -3,14 +3,26 @@ import { and, eq } from "drizzle-orm";
 import type { Pool } from "pg";
 
 import type { PropertyRepository } from "../../../application/property-repository.js";
-import { Property, type PropertyStatus, type PropertyStructuralRole, type PropertyType, type TransactionType } from "../../../domain/property.js";
+import {
+  PersistedPropertyCorruptionError,
+  Property,
+  PropertyStructuralRoleConflictError,
+  type PropertyStatus,
+  type PropertyStructuralRole,
+  type PropertyType,
+  type TransactionType,
+} from "../../../domain/property.js";
 import type { CommercialTerms, PropertyDetails } from "../../../domain/property-details.js";
-import { properties } from "./schema.js";
+import { PropertyBuildingUnit } from "../../../domain/property-building-unit.js";
+import { properties, propertyBuildingUnits } from "./schema.js";
 
 export class PostgresPropertyRepository implements PropertyRepository {
   constructor(private readonly pool: Pool) {}
-  save(property: Property, correlationId: string, actorId: string): Promise<void> {
-    return withTenantPostgresTransaction(this.pool, property.values.tenantId, async (scope) => {
+  async saveStandalone(property: Property, correlationId: string, actorId: string): Promise<void> {
+    if (property.values.structuralRole !== "STANDALONE") {
+      throw new PropertyStructuralRoleConflictError();
+    }
+    await withTenantPostgresTransaction(this.pool, property.values.tenantId, async (scope) => {
       const value = property.values;
       await scope.database().insert(properties).values({
         propertyId: value.propertyId, tenantId: value.tenantId, title: value.title,
@@ -28,7 +40,16 @@ export class PostgresPropertyRepository implements PropertyRepository {
       const row = (await scope.database().select().from(properties).where(and(
         eq(properties.tenantId, tenantId), eq(properties.propertyId, propertyId),
       )).limit(1))[0];
-      return row === undefined ? undefined : toProperty(row);
+      if (row === undefined) return undefined;
+      const property = toProperty(row);
+      if (property.values.structuralRole === "UNIT") {
+        const relations = await scope.database().select().from(propertyBuildingUnits).where(and(
+          eq(propertyBuildingUnits.tenantId, tenantId), eq(propertyBuildingUnits.unitPropertyId, propertyId),
+        )).limit(2);
+        if (relations.length !== 1) throw new PersistedPropertyCorruptionError("buildingUnit");
+        PropertyBuildingUnit.rehydrate(toBuildingUnitValues(relations[0]!), property);
+      }
+      return property;
     });
   }
   updateAtomically(
@@ -42,7 +63,18 @@ export class PostgresPropertyRepository implements PropertyRepository {
         eq(properties.tenantId, tenantId), eq(properties.propertyId, propertyId),
       )).limit(1).for("update"))[0];
       if (row === undefined) return undefined;
-      const property = update(toProperty(row));
+      const current = toProperty(row);
+      if (current.values.structuralRole === "UNIT") {
+        const relations = await scope.database().select().from(propertyBuildingUnits).where(and(
+          eq(propertyBuildingUnits.tenantId, tenantId), eq(propertyBuildingUnits.unitPropertyId, propertyId),
+        )).limit(2);
+        if (relations.length !== 1) throw new PersistedPropertyCorruptionError("buildingUnit");
+        PropertyBuildingUnit.rehydrate(toBuildingUnitValues(relations[0]!), current);
+      }
+      const property = update(current);
+      if (property.values.structuralRole !== current.values.structuralRole) {
+        throw new PropertyStructuralRoleConflictError();
+      }
       const details = property.values.details;
       const terms = property.values.commercialTerms;
       await scope.database().update(properties).set({
@@ -65,6 +97,18 @@ export class PostgresPropertyRepository implements PropertyRepository {
       return property;
     });
   }
+}
+
+type BuildingUnitRow = typeof propertyBuildingUnits.$inferSelect;
+function toBuildingUnitValues(row: BuildingUnitRow) {
+  return {
+    tenantId: row.tenantId,
+    buildingId: row.buildingId,
+    unitPropertyId: row.unitPropertyId,
+    unitCode: row.unitCode,
+    createdAt: new Date(row.createdAt).toISOString(),
+    updatedAt: new Date(row.updatedAt).toISOString(),
+  };
 }
 
 type PropertyRow = typeof properties.$inferSelect;

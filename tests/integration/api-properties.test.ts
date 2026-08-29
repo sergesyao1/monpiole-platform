@@ -7,7 +7,7 @@ import { ProblemDetailsSchema } from "../../apps/api/src/contracts/v1/common/pro
 const TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"; const TENANT_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const PROPERTY_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 class MemoryRepository implements PropertyRepository {
-  values = new Map<string, Property>(); async save(p: Property) { this.values.set(`${p.values.tenantId}:${p.values.propertyId}`, p); }
+  values = new Map<string, Property>(); async saveStandalone(p: Property) { this.values.set(`${p.values.tenantId}:${p.values.propertyId}`, p); }
   async findById(t: string, p: string) { return this.values.get(`${t}:${p}`); }
   async updateAtomically(t: string, p: string, update: (property: Property) => Property) {
     const key = `${t}:${p}`; const property = this.values.get(key); if (property === undefined) return undefined;

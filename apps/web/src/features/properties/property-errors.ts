@@ -3,8 +3,9 @@ import { ApiProblem } from "../../infrastructure/http/problem-details.js";
 
 export type PropertyErrorKind = "session" | "forbidden" | "not-found" | "validation" | "conflict" | "unexpected";
 export interface PropertyUiError { readonly kind: PropertyErrorKind; readonly message: string; }
+export type PropertyErrorResource = "property" | "composition" | "building" | "unit";
 
-export function toPropertyUiError(error: unknown): PropertyUiError {
+export function toPropertyUiError(error: unknown, resource: PropertyErrorResource = "property"): PropertyUiError {
   if (error instanceof ApiSessionExpiredError) {
     return { kind: "session", message: "Votre session n’est plus utilisable. Veuillez vous reconnecter." };
   }
@@ -12,6 +13,15 @@ export function toPropertyUiError(error: unknown): PropertyUiError {
     return { kind: "forbidden", message: "Vous ne disposez pas de l’autorisation nécessaire pour cette action." };
   }
   if (error instanceof ApiProblem && error.problem.status === 404) {
+    if (error.problem.code === "PROPERTY_BUILDING_NOT_FOUND" || resource === "building") {
+      return { kind: "not-found", message: "Cet immeuble est introuvable ou n’est plus accessible dans votre espace." };
+    }
+    if (error.problem.code === "PROPERTY_UNIT_NOT_FOUND" || resource === "unit") {
+      return { kind: "not-found", message: "Cette unité est introuvable ou n’est plus accessible dans cet immeuble." };
+    }
+    if (resource === "composition") {
+      return { kind: "not-found", message: "La composition de ce bien est introuvable ou n’est plus accessible." };
+    }
     return { kind: "not-found", message: "Ce bien est introuvable ou n’est pas accessible dans votre espace." };
   }
   if (error instanceof ApiProblem && error.problem.status === 400) {
