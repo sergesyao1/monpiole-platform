@@ -42,12 +42,12 @@ export class UpdatePropertyBuilding {
   }
 }
 
-export interface CreateUnitFields { readonly unitCode: string; readonly title: string; readonly description?: string; readonly propertyType: PropertyType; readonly transactionType: TransactionType; readonly location: PropertyLocation; }
+export interface CreateUnitFields { readonly unitCode: string; readonly title: string; readonly description?: string; readonly propertyType: PropertyType; readonly transactionType: TransactionType; readonly apartmentSubtype?: "STUDIO" | "MULTI_ROOM"; readonly location: PropertyLocation; }
 export class CreatePropertyUnit {
   constructor(private readonly composition: PropertyCompositionRepository, private readonly ids: CompositionIdentifiers, private readonly clock: CompositionClock) {}
   async execute(command: CompositionContext & { readonly propertyId: string; readonly buildingId: string } & CreateUnitFields) {
     const tenantId = authorizedTenant(command.authority, "CREATE_PROPERTY_UNIT"); const now = this.clock.now();
-    const unit = Property.createUnit({ propertyId: this.ids.generate(), tenantId, title: command.title, ...(command.description === undefined ? {} : { description: command.description }), propertyType: command.propertyType, transactionType: command.transactionType, location: command.location, createdAt: now, updatedAt: now });
+    const unit = Property.createUnit({ propertyId: this.ids.generate(), tenantId, title: command.title, ...(command.description === undefined ? {} : { description: command.description }), propertyType: command.propertyType, transactionType: command.transactionType, ...(command.apartmentSubtype === undefined ? {} : { apartmentSubtype: command.apartmentSubtype }), location: command.location, createdAt: now, updatedAt: now });
     const relation = PropertyBuildingUnit.create({
       tenantId,
       buildingId: command.buildingId,

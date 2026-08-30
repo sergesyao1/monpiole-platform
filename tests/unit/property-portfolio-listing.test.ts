@@ -29,7 +29,7 @@ describe("ListProperties", () => {
   it.each([
     ["limit", { limit: 0 }], ["limit", { limit: 101 }], ["limit", { limit: 1.5 }],
     ["search", { search: "   " }], ["search", { search: "x".repeat(101) }],
-    ["status", { status: "PUBLISHED" }], ["type", { propertyType: "CASTLE" }],
+    ["status", { status: "ARCHIVED" }], ["type", { propertyType: "CASTLE" }],
   ] as const)("rejette le paramètre applicatif invalide %s", async (field, value) => {
     const useCase = new ListProperties({ list: vi.fn() });
     await expect(useCase.execute({ authority, ...value } as never)).rejects.toMatchObject({

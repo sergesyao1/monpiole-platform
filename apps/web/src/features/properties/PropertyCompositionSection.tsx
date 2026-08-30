@@ -191,6 +191,9 @@ export function PropertyCompositionSection({ property, api, onStructuralRoleChan
         ...(description.length === 0 ? {} : { description }),
         propertyType: String(data.get("propertyType")) as Property["propertyType"],
         transactionType: String(data.get("transactionType")) as Property["transactionType"],
+        ...(data.get("propertyType") === "APARTMENT" && data.get("transactionType") === "LONG_TERM_RENTAL"
+          ? { apartmentSubtype: String(data.get("apartmentSubtype")) as "STUDIO" | "MULTI_ROOM" }
+          : {}),
         location: {
           country: String(data.get("country")),
           city: String(data.get("city")),
@@ -279,6 +282,7 @@ export function PropertyCompositionSection({ property, api, onStructuralRoleChan
                         <label>Description de l’unité<textarea name="description" maxLength={5_000} /></label>
                         <label>Type<select name="propertyType"><option value="APARTMENT">Appartement</option><option value="HOUSE">Maison</option><option value="LAND">Terrain</option><option value="COMMERCIAL">Local commercial</option><option value="OTHER">Autre</option></select></label>
                         <label>Projet<select name="transactionType"><option value="LONG_TERM_RENTAL">Location longue durée</option><option value="SHORT_TERM_RENTAL">Location courte durée</option><option value="SALE">Vente</option></select></label>
+                        <label>Sous-type d’appartement<select name="apartmentSubtype" defaultValue="STUDIO"><option value="STUDIO">Studio</option><option value="MULTI_ROOM">Plusieurs pièces</option></select></label>
                         <fieldset>
                           <legend>Localisation de l’unité</legend>
                           <label>Pays de l’unité<input name="country" required minLength={2} maxLength={2} pattern="[A-Z]{2}" defaultValue={property.location.country} /></label>

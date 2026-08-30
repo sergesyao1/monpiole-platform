@@ -8,7 +8,7 @@ import { PropertyFeedback } from "./PropertyFeedback.js";
 import { toPropertyUiError, type PropertyUiError } from "./property-errors.js";
 import {
   propertyStatusLabels, propertyTypeLabels, propertyTypes, transactionTypeLabels,
-  type PropertyPortfolioItem, type PropertyType,
+  type PropertyPortfolioItem, type PropertyStatus, type PropertyType,
 } from "./property-model.js";
 
 const PAGE_LIMIT = 20;
@@ -16,7 +16,7 @@ const PAGE_LIMIT = 20;
 interface PortfolioFilters {
   readonly search?: string;
   readonly type?: PropertyType;
-  readonly status?: "DRAFT";
+  readonly status?: PropertyStatus;
 }
 
 export function PropertyWorkspacePage() {
@@ -57,7 +57,7 @@ export function PropertyWorkspacePage() {
     const values = new FormData(event.currentTarget);
     const search = String(values.get("search") ?? "").trim();
     const type = String(values.get("type") ?? "") as PropertyType | "";
-    const status = String(values.get("status") ?? "") as "DRAFT" | "";
+    const status = String(values.get("status") ?? "") as PropertyStatus | "";
     setFilters({
       ...(search.length === 0 ? {} : { search }),
       ...(type === "" ? {} : { type }),
@@ -101,7 +101,7 @@ export function PropertyWorkspacePage() {
         <form className="portfolio-filters" onSubmit={applyFilters} role="search">
           <label>Rechercher<input name="search" maxLength={100} defaultValue={filters.search ?? ""} placeholder="Titre, ville, quartier ou adresse" /></label>
           <label>Type de bien<select name="type" defaultValue={filters.type ?? ""}><option value="">Tous les types</option>{propertyTypes.map((type) => <option key={type} value={type}>{propertyTypeLabels[type]}</option>)}</select></label>
-          <label>Statut<select name="status" defaultValue={filters.status ?? ""}><option value="">Tous les statuts</option><option value="DRAFT">{propertyStatusLabels.DRAFT}</option></select></label>
+          <label>Statut<select name="status" defaultValue={filters.status ?? ""}><option value="">Tous les statuts</option><option value="DRAFT">{propertyStatusLabels.DRAFT}</option><option value="PUBLISHED">{propertyStatusLabels.PUBLISHED}</option></select></label>
           <button className="secondary-action" type="submit" disabled={loading || loadingMore}>Appliquer les filtres</button>
         </form>
 

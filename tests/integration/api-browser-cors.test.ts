@@ -42,4 +42,19 @@ describe("API browser CORS policy", () => {
     expect(response.headers.get("access-control-allow-headers")?.toLowerCase()).toContain("authorization");
     expect(response.headers.get("access-control-allow-headers")?.toLowerCase()).toContain("content-type");
   });
+
+  it("supports a PUT preflight for bodyless publication and primary-photo selection", async () => {
+    const response = await fetch(`${baseUrl}/v1/properties/cccccccc-cccc-4ccc-8ccc-cccccccccccc/publication`, {
+      method: "OPTIONS",
+      headers: {
+        origin: "http://localhost:5173",
+        "access-control-request-method": "PUT",
+        "access-control-request-headers": "authorization,x-correlation-id",
+      },
+    });
+    expect(response.status).toBe(204);
+    expect(response.headers.get("access-control-allow-origin")).toBe("http://localhost:5173");
+    expect(response.headers.get("access-control-allow-methods")?.split(",").map((method) => method.trim()))
+      .toContain("PUT");
+  });
 });

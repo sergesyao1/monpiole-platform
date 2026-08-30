@@ -40,6 +40,7 @@ describe("Property portfolio HTTP", () => {
 
   it.each([
     ["status=DRAFT", { status: "DRAFT" }],
+    ["status=PUBLISHED", { status: "PUBLISHED" }],
     ["type=HOUSE", { propertyType: "HOUSE" }],
     ["search=Lagune", { search: "Lagune" }],
     ["limit=10", { limit: 10 }],
@@ -61,7 +62,7 @@ describe("Property portfolio HTTP", () => {
     }));
   });
 
-  it.each(["limit=0", "limit=101", "limit=1.5", "status=PUBLISHED", "type=CASTLE", "search=", "cursor=not%2Ba%2Bcursor", `search=${"x".repeat(101)}`, `tenantId=${TENANT}`])(
+  it.each(["limit=0", "limit=101", "limit=1.5", "status=ARCHIVED", "type=CASTLE", "search=", "cursor=not%2Ba%2Bcursor", `search=${"x".repeat(101)}`, `tenantId=${TENANT}`])(
     "retourne un Problem Details 400 pour %s", async (query) => {
       await start(); const response = await fetch(`${baseUrl}/v1/properties?${query}`);
       expect(response.status).toBe(400); expect(ProblemDetailsSchema.parse(await response.json()).code).toBe("INVALID_REQUEST");

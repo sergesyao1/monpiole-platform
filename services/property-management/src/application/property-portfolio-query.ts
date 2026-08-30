@@ -1,4 +1,4 @@
-import type { PropertyLocation, PropertyStatus, PropertyStructuralRole, PropertyType, TransactionType } from "../domain/property.js";
+import type { ApartmentSubtype, PropertyLocation, PropertyStatus, PropertyStructuralRole, PropertyType, TransactionType } from "../domain/property.js";
 
 export interface PropertyPortfolioCursor {
   readonly createdAt: string;
@@ -11,7 +11,9 @@ export interface PropertyPortfolioItem {
   readonly description?: string;
   readonly propertyType: PropertyType;
   readonly transactionType: TransactionType;
+  readonly apartmentSubtype?: ApartmentSubtype;
   readonly status: PropertyStatus;
+  readonly publishedAt?: string;
   readonly structuralRole: PropertyStructuralRole;
   readonly location: PropertyLocation;
   readonly createdAt: string;

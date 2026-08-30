@@ -14,6 +14,8 @@ export function CreatePropertyPage() {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<PropertyUiError>();
+  const [propertyType, setPropertyType] = useState<CreatePropertyInput["propertyType"]>("APARTMENT");
+  const [transactionType, setTransactionType] = useState<CreatePropertyInput["transactionType"]>("LONG_TERM_RENTAL");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -25,8 +27,11 @@ export function CreatePropertyPage() {
     const input: CreatePropertyInput = {
       title: String(values.get("title") ?? "").trim(),
       ...(description ? { description } : {}),
-      propertyType: String(values.get("propertyType")) as CreatePropertyInput["propertyType"],
-      transactionType: String(values.get("transactionType")) as CreatePropertyInput["transactionType"],
+      propertyType,
+      transactionType,
+      ...(propertyType === "APARTMENT" && transactionType === "LONG_TERM_RENTAL"
+        ? { apartmentSubtype: String(values.get("apartmentSubtype")) as "STUDIO" | "MULTI_ROOM" }
+        : {}),
       location: {
         country: String(values.get("country") ?? "").trim().toUpperCase(),
         city: String(values.get("city") ?? "").trim(),
@@ -57,8 +62,13 @@ export function CreatePropertyPage() {
           <legend>Informations générales</legend>
           <div className="form-grid two-columns">
             <label>Titre du bien<input name="title" required maxLength={200} placeholder="Appartement lumineux à Cocody" /></label>
-            <label>Type de bien<select name="propertyType" defaultValue="APARTMENT">{propertyTypes.map((value) => <option key={value} value={value}>{propertyTypeLabels[value]}</option>)}</select></label>
-            <label>Projet commercial<select name="transactionType" defaultValue="LONG_TERM_RENTAL">{transactionTypes.map((value) => <option key={value} value={value}>{transactionTypeLabels[value]}</option>)}</select></label>
+            <label>Type de bien<select name="propertyType" value={propertyType} onChange={(event) => setPropertyType(event.currentTarget.value as CreatePropertyInput["propertyType"])}>{propertyTypes.map((value) => <option key={value} value={value}>{propertyTypeLabels[value]}</option>)}</select></label>
+            <label>Projet commercial<select name="transactionType" value={transactionType} onChange={(event) => setTransactionType(event.currentTarget.value as CreatePropertyInput["transactionType"])}>{transactionTypes.map((value) => <option key={value} value={value}>{transactionTypeLabels[value]}</option>)}</select></label>
+            {propertyType === "APARTMENT" && transactionType === "LONG_TERM_RENTAL" && (
+              <label>Sous-type d’appartement<select name="apartmentSubtype" defaultValue="STUDIO" required>
+                <option value="STUDIO">Studio</option><option value="MULTI_ROOM">Plusieurs pièces</option>
+              </select></label>
+            )}
             <label className="full-width">Description<textarea name="description" maxLength={5000} rows={4} placeholder="Décrivez les atouts essentiels du bien." /></label>
           </div>
         </fieldset>

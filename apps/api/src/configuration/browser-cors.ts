@@ -18,7 +18,7 @@ export function browserCorsConfigurationFromEnvironment(environment: NodeJS.Proc
 export function configureBrowserCors(application: INestApplication, configuration: BrowserCorsConfiguration): void {
   application.enableCors({
     origin: [...configuration.allowedOrigins],
-    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Authorization", "Content-Type", "X-Correlation-Id", "X-Tenant-Id", "Idempotency-Key"],
     exposedHeaders: ["X-Correlation-Id", "X-Request-Id"],
     credentials: false,

@@ -128,6 +128,41 @@ français du code, du titre, du type, du projet commercial et de l’adresse. Le
 composition, aux immeubles et aux unités ; une erreur locale conserve les
 résultats déjà affichés.
 
+La section « Publication » de chaque fiche privée affiche « Brouillon » ou
+« Publié » et vérifie visuellement les détails, conditions commerciales et la
+photo principale. Une
+Property prête peut être publiée après une confirmation explicite. Le client
+authentifié commun envoie un `PUT` sans corps, bloque les doubles soumissions et
+remplace immédiatement l’état local par la réponse canonique. Les prérequis
+manquants, l’attente, le succès, les refus 401/403, le conflit métier et les
+erreurs réseau sont rendus en français avec des annonces accessibles.
+
+La galerie de la fiche affiche toutes les photos disponibles. Chaque photo non
+principale propose « Définir comme photo principale » ; la sélection porte le
+badge « Photo principale ». Le remplacement reste disponible pour un bien
+publié. La suppression de la sélection courante est désactivée avec une aide
+explicite et reste protégée par l’API. L’absence de sélection bloque le bouton de
+publication avec « Sélectionnez la photo principale qui représentera ce bien
+dans les annonces. »
+
+Le formulaire de galerie enregistre le contenu JPEG, PNG ou WebP et sa catégorie
+avant de rafraîchir la représentation privée. Pour un appartement en location
+longue durée, le sous-type explicite « Studio » ou « Plusieurs pièces » pilote
+la checklist des six photos et de ses vues obligatoires. Le minimum éventuel de
+l'organisation et ses vues supplémentaires durcissent cette checklist sans
+réduire le socle MonPiole.
+
+Les champs monétaires utilisent les décimales de la devise à la saisie comme au
+préremplissage : XOF n'est pas divisé par 100, EUR et USD le sont. L'affichage
+rend notamment `125000 XOF` sous la forme « 125 000 FCFA » et n'expose plus le
+libellé technique « unité mineure ».
+
+Une Property publiée affiche sa date en français et ne propose aucune action de
+dépublication. Le texte précise que la diffusion publique n’est pas incluse
+dans cette version : aucun lien, catalogue ou promesse de visibilité publique
+n’est fabriqué. Le portfolio propose les deux filtres « Brouillon » et
+« Publié » et n’affiche jamais les valeurs techniques de statut.
+
 ## Frontières
 
 - `src/app` compose le shell et les routes ;

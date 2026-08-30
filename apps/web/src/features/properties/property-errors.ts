@@ -28,6 +28,15 @@ export function toPropertyUiError(error: unknown, resource: PropertyErrorResourc
     return { kind: "validation", message: "Certaines informations sont invalides. Vérifiez le formulaire puis réessayez." };
   }
   if (error instanceof ApiProblem && error.problem.status === 409) {
+    if (error.problem.code === "PROPERTY_PUBLICATION_REQUIREMENTS_NOT_MET") {
+      if (error.problem.errors?.some((item) => item.path === "property.primaryPhoto")) {
+        return { kind: "conflict", message: "Sélectionnez la photo principale qui représentera ce bien dans les annonces." };
+      }
+      return { kind: "conflict", message: "Complétez les détails et les conditions commerciales avant de publier." };
+    }
+    if (error.problem.code === "PROPERTY_PRIMARY_PHOTO_DELETION_FORBIDDEN") {
+      return { kind: "conflict", message: "Sélectionnez une photo remplaçante avant de supprimer la photo principale." };
+    }
     if (error.problem.code === "PROPERTY_BUILDING_CODE_CONFLICT") return { kind: "conflict", message: "Ce code d’immeuble est déjà utilisé pour ce bien." };
     if (error.problem.code === "PROPERTY_UNIT_CODE_CONFLICT") return { kind: "conflict", message: "Ce code d’unité est déjà utilisé dans cet immeuble." };
     if (error.problem.code === "PROPERTY_COMPOSITION_ROLE_CONFLICT") return { kind: "conflict", message: "Une unité ne peut pas contenir d’immeuble." };

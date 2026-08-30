@@ -1,20 +1,44 @@
-import type { CreatePropertyCommand, PropertyAuthority, PropertyView, UpdatePropertyCoreInformationCommand, UpdatePropertyDetailsCommand } from "@monpiole/property-management";
-import type { CreatePropertyRequest, PropertyResponse, UpdatePropertyCoreInformationRequest, UpdatePropertyDetailsRequest } from "../../contracts/v1/properties/property.schema.js";
+import type { CreatePropertyCommand, PropertyAuthority, PropertyView, PublishPropertyCommand, UpdatePropertyCoreInformationCommand, UpdatePropertyDetailsCommand } from "@monpiole/property-management";
+import type { CreatePropertyRequest, PropertyPhoto, PropertyPhotoGalleryResponse, PropertyResponse, UpdatePropertyCoreInformationRequest, UpdatePropertyDetailsRequest } from "../../contracts/v1/properties/property.schema.js";
+import type { PropertyPhotoValues } from "@monpiole/property-management";
 
 export function toCreatePropertyCommand(request: CreatePropertyRequest, correlationId: string, authority: PropertyAuthority): CreatePropertyCommand {
   return { ...request, correlationId, authority };
 }
 export function toPropertyResponse(property: PropertyView): PropertyResponse {
-  return {
+  const photos = (property.photos ?? []).map(toPropertyPhotoResponse);
+  const primaryPhoto = photos.find((photo) => photo.isPrimary);
+  const base = {
     propertyId: property.propertyId, title: property.title,
     ...(property.description === undefined ? {} : { description: property.description }),
     propertyType: property.propertyType, transactionType: property.transactionType,
-    status: property.status, location: property.location,
+    ...(property.apartmentSubtype === undefined ? {} : { apartmentSubtype: property.apartmentSubtype }),
+    location: property.location,
     structuralRole: property.structuralRole,
     createdAt: property.createdAt, updatedAt: property.updatedAt,
     ...(property.details === undefined ? {} : { details: property.details }),
     ...(property.commercialTerms === undefined ? {} : { commercialTerms: property.commercialTerms }),
+    photos,
+    ...(primaryPhoto === undefined ? {} : { primaryPhoto }),
   };
+  if (property.status === "PUBLISHED") {
+    if (property.publishedAt === undefined) throw new Error("Published property is missing its publication instant");
+    return { ...base, status: "PUBLISHED", publishedAt: property.publishedAt };
+  }
+  return { ...base, status: "DRAFT" };
+}
+
+export function toPropertyPhotoResponse(photo: PropertyPhotoValues): PropertyPhoto {
+  return {
+    photoId: photo.photoId, category: photo.category, status: photo.status,
+    contentPath: `/v1/properties/${photo.propertyId}/photos/${photo.photoId}/content`,
+    contentType: photo.contentType, contentByteSize: photo.contentByteSize, contentSha256: photo.contentSha256,
+    isPrimary: photo.isPrimary, registeredAt: photo.registeredAt, availableAt: photo.availableAt,
+  };
+}
+
+export function toPropertyPhotoGalleryResponse(photos: readonly PropertyPhotoValues[]): PropertyPhotoGalleryResponse {
+  return { photos: photos.map(toPropertyPhotoResponse) };
 }
 
 export function toUpdatePropertyDetailsCommand(
@@ -33,4 +57,12 @@ export function toUpdatePropertyCoreInformationCommand(
   authority: PropertyAuthority,
 ): UpdatePropertyCoreInformationCommand {
   return { propertyId, ...request, correlationId, authority };
+}
+
+export function toPublishPropertyCommand(
+  propertyId: string,
+  correlationId: string,
+  authority: PropertyAuthority,
+): PublishPropertyCommand {
+  return { propertyId, correlationId, authority };
 }

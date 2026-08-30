@@ -1,9 +1,10 @@
-import { createAuthenticatedApiClient, type AccessTokenProvider } from "../../infrastructure/http/api-client.js";
+import { createAuthenticatedApiClient, createAuthenticatedBinaryApiClient, type AccessTokenProvider } from "../../infrastructure/http/api-client.js";
 import type {
   CreatePropertyInput, Property, PropertyOwner, PropertyOwnerDirectoryCriteria, PropertyOwnerDirectoryPage,
   PropertyOwnerInput, PropertyOwnership, PropertyPortfolioCriteria, PropertyPortfolioPage, UpdatePropertyDetailsInput,
   UpdatePropertyCoreInformationInput,
   BuildingInput, CompositionPage, PropertyBuilding, PropertyUnit, UnitInput,
+  PropertyPhoto, PropertyPhotoCategory, PropertyPhotoStandard,
 } from "./property-model.js";
 
 export interface PropertyApi {
@@ -12,6 +13,16 @@ export interface PropertyApi {
   retrieveProperty(propertyId: string): Promise<Property>;
   updatePropertyDetails(propertyId: string, input: UpdatePropertyDetailsInput): Promise<Property>;
   updatePropertyCoreInformation(propertyId: string, input: UpdatePropertyCoreInformationInput): Promise<Property>;
+  publishProperty(propertyId: string): Promise<Property>;
+  listPropertyPhotos(propertyId: string): Promise<{ readonly photos: readonly PropertyPhoto[] }>;
+  registerPropertyPhoto(propertyId: string, input: Readonly<{
+    category: PropertyPhotoCategory; contentType: PropertyPhoto["contentType"]; contentBase64: string;
+  }>): Promise<{ readonly photos: readonly PropertyPhoto[] }>;
+  retrievePropertyPhotoContent(photo: PropertyPhoto): Promise<Blob>;
+  selectPropertyPrimaryPhoto(propertyId: string, photoId: string): Promise<{ readonly photos: readonly PropertyPhoto[] }>;
+  deletePropertyPhoto(propertyId: string, photoId: string): Promise<void>;
+  retrievePropertyPhotoStandard(): Promise<PropertyPhotoStandard>;
+  updatePropertyPhotoStandard(input: PropertyPhotoStandard): Promise<PropertyPhotoStandard>;
   retrieveOwnerships(propertyId: string): Promise<readonly PropertyOwnership[]>;
   retrievePropertyOwner(ownerId: string): Promise<PropertyOwner>;
   listPropertyOwners(criteria?: PropertyOwnerDirectoryCriteria): Promise<PropertyOwnerDirectoryPage>;
@@ -29,6 +40,7 @@ export interface PropertyApi {
 
 export function createPropertyApi(tokens: AccessTokenProvider): PropertyApi {
   const request = createAuthenticatedApiClient(tokens);
+  const requestBinary = createAuthenticatedBinaryApiClient(tokens);
   return {
     listProperties: (criteria = {}) => request<PropertyPortfolioPage>(portfolioPath(criteria)),
     createProperty: (input) => request<Property>("/v1/properties", { method: "POST", body: input }),
@@ -39,6 +51,24 @@ export function createPropertyApi(tokens: AccessTokenProvider): PropertyApi {
     updatePropertyCoreInformation: (propertyId, input) => request<Property>(
       `/v1/properties/${encodeURIComponent(propertyId)}`, { method: "PUT", body: input },
     ),
+    publishProperty: (propertyId) => request<Property>(
+      `/v1/properties/${encodeURIComponent(propertyId)}/publication`, { method: "PUT" },
+    ),
+    listPropertyPhotos: (propertyId) => request<{ readonly photos: readonly PropertyPhoto[] }>(
+      `/v1/properties/${encodeURIComponent(propertyId)}/photos`,
+    ),
+    registerPropertyPhoto: (propertyId, input) => request<{ readonly photos: readonly PropertyPhoto[] }>(
+      `/v1/properties/${encodeURIComponent(propertyId)}/photos`, { method: "POST", body: input },
+    ),
+    retrievePropertyPhotoContent: (photo) => requestBinary(photo.contentPath),
+    selectPropertyPrimaryPhoto: (propertyId, photoId) => request<{ readonly photos: readonly PropertyPhoto[] }>(
+      `/v1/properties/${encodeURIComponent(propertyId)}/photos/${encodeURIComponent(photoId)}/primary`, { method: "PUT" },
+    ),
+    deletePropertyPhoto: (propertyId, photoId) => request<void>(
+      `/v1/properties/${encodeURIComponent(propertyId)}/photos/${encodeURIComponent(photoId)}`, { method: "DELETE" },
+    ),
+    retrievePropertyPhotoStandard: () => request<PropertyPhotoStandard>("/v1/property-photo-standard"),
+    updatePropertyPhotoStandard: (input) => request<PropertyPhotoStandard>("/v1/property-photo-standard", { method: "PUT", body: input }),
     retrieveOwnerships: (propertyId) => request<readonly PropertyOwnership[]>(
       `/v1/properties/${encodeURIComponent(propertyId)}/owners`,
     ),

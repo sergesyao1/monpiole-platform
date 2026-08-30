@@ -9,10 +9,12 @@ import { PropertyFeedback } from "./PropertyFeedback.js";
 import { toPropertyUiError, type PropertyUiError } from "./property-errors.js";
 import {
   formatMinorAmount, pricingUnitLabels, propertyStatusLabels, propertyStructuralRoleLabels, propertyTypeLabels,
-  transactionTypeLabels, type CommercialTerms, type Property,
+  transactionTypeLabels, type CommercialTerms, type Property, type PropertyPhotoStandard,
 } from "./property-model.js";
 import { PropertyOwnershipSection } from "./PropertyOwnershipSection.js";
 import { PropertyCompositionSection } from "./PropertyCompositionSection.js";
+import { PropertyPublicationSection } from "./PropertyPublicationSection.js";
+import { PropertyPhotoGallery } from "./PropertyPhotoGallery.js";
 
 function CommercialTermsSummary({ terms }: Readonly<{ terms: CommercialTerms }>) {
   if (terms.kind === "LONG_TERM_RENTAL") return <>{formatMinorAmount(terms.rentAmountMinor, terms.currency)} / mois</>;
@@ -26,6 +28,7 @@ export function PropertyDetailPage() {
   const session = useSession();
   const api = useMemo(() => createPropertyApi(session), [session]);
   const [property, setProperty] = useState<Property>();
+  const [photoStandard, setPhotoStandard] = useState<PropertyPhotoStandard>({ minimumCount: 1, additionalRequiredCategories: [] });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingCoreInformation, setSavingCoreInformation] = useState(false);
@@ -38,6 +41,10 @@ export function PropertyDetailPage() {
     void api.retrieveProperty(propertyId).then((value) => { if (active) setProperty(value); })
       .catch((caught: unknown) => { if (active) setError(toPropertyUiError(caught)); })
       .finally(() => { if (active) setLoading(false); });
+    void api.retrievePropertyPhotoStandard().then((value) => {
+      if (active && Number.isInteger(value.minimumCount) && value.minimumCount >= 1
+        && Array.isArray(value.additionalRequiredCategories)) setPhotoStandard(value);
+    }).catch(() => undefined);
     return () => { active = false; };
   }, [api, propertyId]);
 
@@ -80,6 +87,26 @@ export function PropertyDetailPage() {
           <div><dt>Dernière mise à jour</dt><dd>{new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(property.updatedAt))}</dd></div>
         </dl>
       </section>
+
+      <PropertyPublicationSection
+        property={property}
+        photoStandard={photoStandard}
+        api={api}
+        onPublished={setProperty}
+        onReconnect={() => void session.login(`/properties/${propertyId}`)}
+      />
+
+      <PropertyPhotoGallery
+        property={property}
+        api={api}
+        onPhotosChanged={(photos) => setProperty((current) => {
+          if (current === undefined) return current;
+          const primaryPhoto = photos.find((photo) => photo.isPrimary);
+          const { primaryPhoto: _previousPrimaryPhoto, ...unchanged } = current;
+          return { ...unchanged, photos, ...(primaryPhoto === undefined ? {} : { primaryPhoto }) } as Property;
+        })}
+        onReconnect={() => void session.login(`/properties/${propertyId}`)}
+      />
 
       <section className="content-panel" aria-labelledby="property-core-information-title">
         <div className="section-heading"><div><p className="eyebrow">Informations fondamentales</p><h2 id="property-core-information-title">Modifier le bien</h2></div></div>

@@ -41,4 +41,18 @@ describe("variantes commerciales Property", () => {
       kind: "SALE", currency: "XOF", salePriceAmountMinor: 125000000,
     });
   });
+
+  it.each([
+    ["XOF", "125000", 125000],
+    ["EUR", "1250.00", 125000],
+    ["USD", "1250.00", 125000],
+  ] as const)("convertit la saisie %s selon les décimales de la devise", (currency, entered, expectedMinor) => {
+    const input = detailsInputFromForm(
+      { ...baseProperty, transactionType: "SALE" },
+      formData({ currency, salePriceAmountMinor: entered }),
+    );
+    expect(input.commercialTerms).toEqual({
+      kind: "SALE", currency, salePriceAmountMinor: expectedMinor,
+    });
+  });
 });

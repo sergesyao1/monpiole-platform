@@ -154,13 +154,53 @@ or query parameter selects a tenant. Optional `status`, `type` and `search`
 filters are validated, `limit` defaults to 20 and is capped at 100, and
 `cursor` is an opaque keyset cursor. Results are ordered deterministically by
 creation date then Property ID, descending. The endpoint is private portfolio
-discovery and does not provide publication or public catalogue behavior.
+discovery; its status filter accepts drafts and published Properties. It does
+not expose a public catalogue.
 
 `PUT /v1/properties/{propertyId}` updates only title, optional description and
 location for an existing Property. It requires
 `UPDATE_PROPERTY_CORE_INFORMATION`, derives the tenant from internal authority,
 and preserves type, commercial project, status, details, terms and ownerships.
 Missing and cross-tenant identifiers share the same non-revealing 404 response.
+
+`PUT /v1/properties/{propertyId}/publication` is the bodyless private lifecycle
+operation. It requires the internal `PUBLISH_PROPERTY` grant, derives the only
+tenant from authenticated authority, and returns the canonical
+`PropertyResponse` with 200 both for the first transition and an idempotent
+replay. The response contract is a strict DRAFT/PUBLISHED union: only the
+PUBLISHED variant requires `publishedAt`; every full Property representation
+also exposes `photos` and the optional derived `primaryPhoto`.
+
+An incomplete draft returns
+`PROPERTY_PUBLICATION_REQUIREMENTS_NOT_MET` as Problem Details 409 with only the
+closed `property.details`, `property.commercialTerms`, `property.apartmentSubtype`,
+`property.primaryPhoto`, photo-minimum and required-view causes. Invalid IDs,
+missing authentication, missing grant, missing/cross-tenant Properties and
+unexpected failures retain the safe 400/401/403/404/500 conventions. The normal
+PostgreSQL runtime composes the use case and the active tenant-administrator
+authority receives the grant from internal Identity state, never from OIDC
+scopes or claims. This private state transition creates no public route,
+projection, event or outbox entry.
+
+The private photo routes are:
+
+- `POST /v1/properties/{propertyId}/photos` with `CREATE_PROPERTY_PHOTO`,
+  persisting canonical JPEG/PNG/WebP content and its integrity evidence;
+- `GET /v1/properties/{propertyId}/photos` with `RETRIEVE_PROPERTY_PHOTOS`;
+- `GET /v1/properties/{propertyId}/photos/{photoId}/content` with
+  `RETRIEVE_PROPERTY_PHOTOS`, returning the authenticated binary content;
+- bodyless `PUT /v1/properties/{propertyId}/photos/{photoId}/primary` with
+  `SELECT_PROPERTY_PRIMARY_PHOTO` for an atomic initial selection or replacement;
+- `DELETE /v1/properties/{propertyId}/photos/{photoId}` with
+  `DELETE_PROPERTY_PHOTO`, returning 409 for the current primary photo.
+
+All routes derive the single tenant from internal authority, hide cross-Property
+and cross-tenant photo identifiers as 404, and use the normal safe Problem
+Details and correlation headers. No OIDC scope becomes one of these grants.
+`GET` and `PUT /v1/property-photo-standard` retrieve or strengthen the current
+tenant's minimum and mandatory views under dedicated internal grants. The
+publication repository reloads this standard transactionally and combines it
+with the non-reducible MonPiole baseline.
 
 ## Private Property owner directory
 

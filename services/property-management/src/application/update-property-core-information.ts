@@ -21,6 +21,7 @@ export class UpdatePropertyCoreInformation {
       (property) => property.updateCoreInformation({
         title: command.title,
         ...(command.description === undefined ? {} : { description: command.description }),
+        ...(command.apartmentSubtype === undefined ? {} : { apartmentSubtype: command.apartmentSubtype }),
         location: command.location,
       }, this.clock.now()),
       { correlationId: command.correlationId, actorId: command.authority.actorId },

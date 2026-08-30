@@ -60,6 +60,10 @@ export function toPropertyAuthority(authority: AuthenticatedAuthority): Property
       || grant === "CREATE_PROPERTY_OWNER" || grant === "RETRIEVE_PROPERTY_OWNER" || grant === "LIST_PROPERTY_OWNERS" || grant === "UPDATE_PROPERTY_OWNER"
       || grant === "CREATE_PROPERTY_BUILDING" || grant === "RETRIEVE_PROPERTY_COMPOSITION" || grant === "UPDATE_PROPERTY_BUILDING"
       || grant === "CREATE_PROPERTY_UNIT" || grant === "UPDATE_PROPERTY_UNIT_STRUCTURE"
+      || grant === "PUBLISH_PROPERTY"
+      || grant === "CREATE_PROPERTY_PHOTO" || grant === "RETRIEVE_PROPERTY_PHOTOS"
+      || grant === "SELECT_PROPERTY_PRIMARY_PHOTO" || grant === "DELETE_PROPERTY_PHOTO"
+      || grant === "RETRIEVE_PROPERTY_PHOTO_STANDARD" || grant === "MANAGE_PROPERTY_PHOTO_STANDARD"
       || grant === "ASSIGN_PROPERTY_OWNER" || grant === "RETRIEVE_PROPERTY_OWNERSHIP" || grant === "REMOVE_PROPERTY_OWNER"),
     tenantIds: authority.tenantIds,
   };

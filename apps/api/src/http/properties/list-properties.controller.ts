@@ -28,7 +28,7 @@ export class ListPropertiesController {
   @ApiSecurity("bearer")
   @ApiQuery({ name: "limit", required: false, schema: { type: "integer", minimum: 1, maximum: 100, default: 20 } })
   @ApiQuery({ name: "cursor", required: false, schema: { type: "string", maxLength: 512 } })
-  @ApiQuery({ name: "status", required: false, schema: { type: "string", enum: ["DRAFT"] } })
+  @ApiQuery({ name: "status", required: false, schema: { type: "string", enum: ["DRAFT", "PUBLISHED"] } })
   @ApiQuery({ name: "type", required: false, schema: { type: "string", enum: ["APARTMENT", "HOUSE", "LAND", "COMMERCIAL", "OTHER"] } })
   @ApiQuery({ name: "search", required: false, schema: { type: "string", minLength: 1, maxLength: 100 } })
   @ApiOkResponse({ description: "A stable page from the tenant-owned Property portfolio", type: PropertyPortfolioResponseDto, headers: responseHeaders() })
@@ -47,11 +47,18 @@ export class ListPropertiesController {
       ...(query.search === undefined ? {} : { search: query.search }),
     });
     return {
-      items: [...page.items],
+      items: page.items.map((item) => item.status === "PUBLISHED"
+        ? { ...item, status: "PUBLISHED" as const, publishedAt: requiredPublicationInstant(item.publishedAt) }
+        : { ...item, status: "DRAFT" as const }),
       pageInfo: {
         hasNextPage: page.nextCursor !== undefined,
         nextCursor: page.nextCursor === undefined ? null : encodePropertyPortfolioCursor(page.nextCursor),
       },
     };
   }
+}
+
+function requiredPublicationInstant(value: string | undefined): string {
+  if (value === undefined) throw new Error("Published portfolio item is missing its publication instant");
+  return value;
 }

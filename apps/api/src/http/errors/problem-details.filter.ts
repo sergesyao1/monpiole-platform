@@ -49,7 +49,7 @@ export class ProblemDetailsFilter implements ExceptionFilter {
       ? [...exception.safeErrors]
       : exception instanceof ZodValidationException
         ? zodErrors(exception)
-        : undefined;
+        : publicationErrors(exception);
     const correlationId = request[REQUEST_CONTEXT]?.correlationId ?? randomFallbackId();
     const requestId = request[REQUEST_CONTEXT]?.requestId ?? randomFallbackId();
     response.setHeader("X-Correlation-Id", correlationId);
@@ -127,6 +127,24 @@ function businessProblem(exception: unknown) {
     status: 404, type: "https://api.monpiole.example/problems/property-not-found",
     title: "Property not found", code: "PROPERTY_NOT_FOUND",
   };
+  if (code === "PROPERTY_PUBLICATION_REQUIREMENTS_NOT_MET") return {
+    status: 409,
+    type: "https://api.monpiole.example/problems/property-publication-requirements-not-met",
+    title: "Property publication requirements not met",
+    code: "PROPERTY_PUBLICATION_REQUIREMENTS_NOT_MET",
+  };
+  if (code === "PROPERTY_PHOTO_NOT_FOUND") return {
+    status: 404, type: "https://api.monpiole.example/problems/property-photo-not-found",
+    title: "Property photo not found", code: "PROPERTY_PHOTO_NOT_FOUND",
+  };
+  if (code === "PROPERTY_PRIMARY_PHOTO_DELETION_FORBIDDEN") return {
+    status: 409, type: "https://api.monpiole.example/problems/property-primary-photo-deletion-forbidden",
+    title: "Property primary photo deletion forbidden", code: "PROPERTY_PRIMARY_PHOTO_DELETION_FORBIDDEN",
+  };
+  if (code === "INVALID_PROPERTY_PHOTO_CONTENT" || code === "INVALID_PROPERTY_PHOTO_STANDARD") return {
+    status: 400, type: "https://api.monpiole.example/problems/invalid-request",
+    title: "Invalid request", code: "INVALID_REQUEST",
+  };
   if (code === "PROPERTY_BUILDING_NOT_FOUND" || code === "PROPERTY_UNIT_NOT_FOUND") return {
     status: 404, type: `https://api.monpiole.example/problems/${code === "PROPERTY_BUILDING_NOT_FOUND" ? "property-building" : "property-unit"}-not-found`,
     title: code === "PROPERTY_BUILDING_NOT_FOUND" ? "Property building not found" : "Property unit not found", code,
@@ -174,6 +192,21 @@ function businessProblem(exception: unknown) {
     title: "Property ownership not found", code: "PROPERTY_OWNERSHIP_NOT_FOUND",
   };
   return undefined;
+}
+
+function publicationErrors(exception: unknown): readonly { readonly path: string; readonly code: string }[] | undefined {
+  if (errorCode(exception) !== "PROPERTY_PUBLICATION_REQUIREMENTS_NOT_MET"
+    || exception === null || typeof exception !== "object" || !("missingRequirements" in exception)
+    || !Array.isArray(exception.missingRequirements)) return undefined;
+  const missing = new Set(exception.missingRequirements);
+  return [
+    ...(missing.has("DETAILS") ? [{ path: "property.details", code: "required_for_publication" }] : []),
+    ...(missing.has("COMMERCIAL_TERMS") ? [{ path: "property.commercialTerms", code: "required_for_publication" }] : []),
+    ...(missing.has("APARTMENT_SUBTYPE") ? [{ path: "property.apartmentSubtype", code: "required_for_publication" }] : []),
+    ...(missing.has("PRIMARY_PHOTO") ? [{ path: "property.primaryPhoto", code: "required_for_publication" }] : []),
+    ...(missing.has("PHOTO_MINIMUM") ? [{ path: "property.photos", code: "minimum_for_publication" }] : []),
+    ...(missing.has("PHOTO_REQUIRED_VIEWS") ? [{ path: "property.photos", code: "required_views_for_publication" }] : []),
+  ];
 }
 
 function errorCode(exception: unknown): string | undefined {

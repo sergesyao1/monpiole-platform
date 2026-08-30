@@ -5,7 +5,7 @@ import { PropertyBuildingCodeConflictError, PropertyBuildingNotFoundError, Prope
 
 const TENANT = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"; const PROPERTY = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"; const BUILDING = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"; const UNIT = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"; const NOW = "2026-08-28T12:00:00.000Z";
 const building = { buildingId: BUILDING, propertyId: PROPERTY, buildingCode: "BAT-A", name: "Immeuble A", createdAt: NOW, updatedAt: NOW };
-const property = { propertyId: UNIT, tenantId: TENANT, title: "Appartement A-101", propertyType: "APARTMENT" as const, transactionType: "LONG_TERM_RENTAL" as const, status: "DRAFT" as const, structuralRole: "UNIT" as const, location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue 1" }, createdAt: NOW, updatedAt: NOW };
+const property = { propertyId: UNIT, tenantId: TENANT, title: "Appartement A-101", propertyType: "APARTMENT" as const, transactionType: "LONG_TERM_RENTAL" as const, apartmentSubtype: "STUDIO" as const, status: "DRAFT" as const, structuralRole: "UNIT" as const, location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue 1" }, createdAt: NOW, updatedAt: NOW };
 const unit = { unitCode: "A-101", property };
 async function expectProblem(response: Response, status: number, code?: string) {
   expect(response.status).toBe(status);
@@ -34,7 +34,7 @@ describe("Property composition HTTP", () => {
       ["POST", `/v1/properties/${PROPERTY}/buildings`, { buildingCode: "bat-a", name: "Immeuble A" }, 201],
       ["GET", `/v1/properties/${PROPERTY}/buildings?limit=1`, undefined, 200],
       ["PUT", `/v1/properties/${PROPERTY}/buildings/${BUILDING}`, { buildingCode: "BAT-A", name: "Immeuble Alpha" }, 200],
-      ["POST", `/v1/properties/${PROPERTY}/buildings/${BUILDING}/units`, { unitCode: "A-101", title: "Appartement A-101", propertyType: "APARTMENT", transactionType: "LONG_TERM_RENTAL", location: property.location }, 201],
+      ["POST", `/v1/properties/${PROPERTY}/buildings/${BUILDING}/units`, { unitCode: "A-101", title: "Appartement A-101", propertyType: "APARTMENT", transactionType: "LONG_TERM_RENTAL", apartmentSubtype: "STUDIO", location: property.location }, 201],
       ["GET", `/v1/properties/${PROPERTY}/buildings/${BUILDING}/units?limit=1`, undefined, 200],
       ["PUT", `/v1/properties/${PROPERTY}/buildings/${BUILDING}/units/${UNIT}`, { unitCode: "A-102" }, 200],
     ];
@@ -56,7 +56,7 @@ describe("Property composition HTTP", () => {
     [calls.createBuilding, new PropertyBuildingCodeConflictError(), `/v1/properties/${PROPERTY}/buildings`, 409, "POST", "PROPERTY_BUILDING_CODE_CONFLICT"],
     [calls.createUnit, new PropertyUnitCodeConflictError(), `/v1/properties/${PROPERTY}/buildings/${BUILDING}/units`, 409, "POST", "PROPERTY_UNIT_CODE_CONFLICT"],
     [calls.updateUnit, new PropertyUnitNotFoundError(), `/v1/properties/${PROPERTY}/buildings/${BUILDING}/units/${UNIT}`, 404, "PUT", "PROPERTY_UNIT_NOT_FOUND"],
-  ]; for (const [call, failure, path, status, method, code] of scenarios) { call.mockRejectedValueOnce(failure); const body = method === "GET" ? undefined : method === "POST" && path.endsWith("units") ? { unitCode: unit.unitCode, title: property.title, propertyType: property.propertyType, transactionType: property.transactionType, location: property.location } : path.endsWith("buildings") ? { buildingCode: "BAT-A", name: "A" } : path.includes("units") ? { unitCode: "A-102" } : { buildingCode: "BAT-A", name: "A" }; const response = await fetch(`${baseUrl}${path}`, { method, headers: body ? { "content-type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined }); await expectProblem(response, status, code); } });
+  ]; for (const [call, failure, path, status, method, code] of scenarios) { call.mockRejectedValueOnce(failure); const body = method === "GET" ? undefined : method === "POST" && path.endsWith("units") ? { unitCode: unit.unitCode, title: property.title, propertyType: property.propertyType, transactionType: property.transactionType, apartmentSubtype: property.apartmentSubtype, location: property.location } : path.endsWith("buildings") ? { buildingCode: "BAT-A", name: "A" } : path.includes("units") ? { unitCode: "A-102" } : { buildingCode: "BAT-A", name: "A" }; const response = await fetch(`${baseUrl}${path}`, { method, headers: body ? { "content-type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined }); await expectProblem(response, status, code); } });
   it("retourne un Problem Details 500 sûr avec les headers de trace", async () => {
     await start(); calls.listUnits.mockRejectedValueOnce(new Error("sensitive persistence failure"));
     const response = await fetch(`${baseUrl}/v1/properties/${PROPERTY}/buildings/${BUILDING}/units`);

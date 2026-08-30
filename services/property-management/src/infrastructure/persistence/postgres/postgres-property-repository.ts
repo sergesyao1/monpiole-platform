@@ -1,5 +1,5 @@
 import { withTenantPostgresTransaction } from "@monpiole/persistence";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, isNotNull } from "drizzle-orm";
 import type { Pool } from "pg";
 
 import type { PropertyRepository } from "../../../application/property-repository.js";
@@ -7,14 +7,22 @@ import {
   PersistedPropertyCorruptionError,
   Property,
   PropertyStructuralRoleConflictError,
+  type ApartmentSubtype,
   type PropertyStatus,
   type PropertyStructuralRole,
   type PropertyType,
   type TransactionType,
 } from "../../../domain/property.js";
 import type { CommercialTerms, PropertyDetails } from "../../../domain/property-details.js";
+import {
+  rehydratePropertyPhoto,
+  validatePropertyPhotoStandardOverride,
+  type PropertyPhotoCategory,
+  type PropertyPhotoStandardOverride,
+  type PropertyPhotoValues,
+} from "../../../domain/property-photo.js";
 import { PropertyBuildingUnit } from "../../../domain/property-building-unit.js";
-import { properties, propertyBuildingUnits } from "./schema.js";
+import { properties, propertyBuildingUnits, propertyPhotos, propertyPhotoStandards } from "./schema.js";
 
 export class PostgresPropertyRepository implements PropertyRepository {
   constructor(private readonly pool: Pool) {}
@@ -28,6 +36,7 @@ export class PostgresPropertyRepository implements PropertyRepository {
         propertyId: value.propertyId, tenantId: value.tenantId, title: value.title,
         description: value.description, propertyType: value.propertyType,
         transactionType: value.transactionType, status: value.status,
+        apartmentSubtype: value.apartmentSubtype,
         structuralRole: value.structuralRole,
         country: value.location.country, city: value.location.city, district: value.location.district,
         addressLine: value.location.addressLine, createdAt: value.createdAt, updatedAt: value.updatedAt,
@@ -41,7 +50,11 @@ export class PostgresPropertyRepository implements PropertyRepository {
         eq(properties.tenantId, tenantId), eq(properties.propertyId, propertyId),
       )).limit(1))[0];
       if (row === undefined) return undefined;
-      const property = toProperty(row);
+      const photoRows = await scope.database().select().from(propertyPhotos).where(and(
+        eq(propertyPhotos.tenantId, tenantId), eq(propertyPhotos.propertyId, propertyId),
+        eq(propertyPhotos.status, "AVAILABLE"), isNotNull(propertyPhotos.contentBase64),
+      )).orderBy(asc(propertyPhotos.registeredAt), asc(propertyPhotos.photoId));
+      const property = toProperty(row, photoRows.map(toPropertyPhoto));
       if (property.values.structuralRole === "UNIT") {
         const relations = await scope.database().select().from(propertyBuildingUnits).where(and(
           eq(propertyBuildingUnits.tenantId, tenantId), eq(propertyBuildingUnits.unitPropertyId, propertyId),
@@ -55,7 +68,11 @@ export class PostgresPropertyRepository implements PropertyRepository {
   updateAtomically(
     tenantId: string,
     propertyId: string,
-    update: (property: Property) => Property,
+    update: (
+      property: Property,
+      photos: readonly PropertyPhotoValues[],
+      standardOverride?: PropertyPhotoStandardOverride,
+    ) => Property,
     trace: { readonly correlationId: string; readonly actorId: string },
   ): Promise<Property | undefined> {
     return withTenantPostgresTransaction(this.pool, tenantId, async (scope) => {
@@ -63,7 +80,19 @@ export class PostgresPropertyRepository implements PropertyRepository {
         eq(properties.tenantId, tenantId), eq(properties.propertyId, propertyId),
       )).limit(1).for("update"))[0];
       if (row === undefined) return undefined;
-      const current = toProperty(row);
+      const photoRows = await scope.database().select().from(propertyPhotos).where(and(
+        eq(propertyPhotos.tenantId, tenantId), eq(propertyPhotos.propertyId, propertyId),
+        eq(propertyPhotos.status, "AVAILABLE"), isNotNull(propertyPhotos.contentBase64),
+      )).orderBy(asc(propertyPhotos.registeredAt), asc(propertyPhotos.photoId));
+      const photos = photoRows.map(toPropertyPhoto);
+      const standardRow = (await scope.database().select().from(propertyPhotoStandards).where(
+        eq(propertyPhotoStandards.tenantId, tenantId),
+      ).limit(1))[0];
+      const standardOverride = standardRow === undefined ? undefined : validatePropertyPhotoStandardOverride({
+        minimumCount: standardRow.minimumPhotoCount,
+        additionalRequiredCategories: standardRow.additionalRequiredCategories as PropertyPhotoCategory[],
+      });
+      const current = toProperty(row, photos);
       if (current.values.structuralRole === "UNIT") {
         const relations = await scope.database().select().from(propertyBuildingUnits).where(and(
           eq(propertyBuildingUnits.tenantId, tenantId), eq(propertyBuildingUnits.unitPropertyId, propertyId),
@@ -71,14 +100,17 @@ export class PostgresPropertyRepository implements PropertyRepository {
         if (relations.length !== 1) throw new PersistedPropertyCorruptionError("buildingUnit");
         PropertyBuildingUnit.rehydrate(toBuildingUnitValues(relations[0]!), current);
       }
-      const property = update(current);
+      const property = update(current, photos, standardOverride);
+      if (property === current) return current;
       if (property.values.structuralRole !== current.values.structuralRole) {
         throw new PropertyStructuralRoleConflictError();
       }
+      const firstPublication = current.values.status === "DRAFT" && property.values.status === "PUBLISHED";
       const details = property.values.details;
       const terms = property.values.commercialTerms;
       await scope.database().update(properties).set({
         title: property.values.title, description: property.values.description ?? null,
+        apartmentSubtype: property.values.apartmentSubtype ?? null,
         country: property.values.location.country, city: property.values.location.city,
         district: property.values.location.district, addressLine: property.values.location.addressLine,
         usableSurfaceSquareMeters: details?.usableSurfaceSquareMeters ?? null,
@@ -92,6 +124,11 @@ export class PostgresPropertyRepository implements PropertyRepository {
         rateAmountMinor: terms?.kind === "SHORT_TERM_RENTAL" ? terms.rateAmountMinor : null,
         pricingUnit: terms?.kind === "SHORT_TERM_RENTAL" ? terms.pricingUnit : null,
         salePriceAmountMinor: terms?.kind === "SALE" ? terms.salePriceAmountMinor : null,
+        status: property.values.status, publishedAt: property.values.publishedAt ?? null,
+        ...(firstPublication ? {
+          publishedByActorId: trace.actorId,
+          publicationCorrelationId: trace.correlationId,
+        } : {}),
         updatedAt: property.values.updatedAt, correlationId: trace.correlationId, actorId: trace.actorId,
       }).where(and(eq(properties.tenantId, tenantId), eq(properties.propertyId, propertyId)));
       return property;
@@ -112,19 +149,34 @@ function toBuildingUnitValues(row: BuildingUnitRow) {
 }
 
 type PropertyRow = typeof properties.$inferSelect;
-export function toProperty(row: PropertyRow): Property {
+export function toProperty(row: PropertyRow, photos: readonly PropertyPhotoValues[] = []): Property {
   const details = toDetails(row);
   const commercialTerms = toCommercialTerms(row);
   return Property.rehydrate({
     propertyId: row.propertyId, tenantId: row.tenantId, title: row.title,
     ...(row.description === null ? {} : { description: row.description }),
     propertyType: row.propertyType as PropertyType, transactionType: row.transactionType as TransactionType,
+    ...(row.apartmentSubtype === null ? {} : { apartmentSubtype: row.apartmentSubtype as ApartmentSubtype }),
     status: row.status as PropertyStatus,
     structuralRole: row.structuralRole as PropertyStructuralRole,
     location: { country: row.country, city: row.city, district: row.district, addressLine: row.addressLine },
     createdAt: new Date(row.createdAt).toISOString(), updatedAt: new Date(row.updatedAt).toISOString(),
+    ...(row.publishedAt === null ? {} : { publishedAt: new Date(row.publishedAt).toISOString() }),
     ...(details === undefined ? {} : { details }),
     ...(commercialTerms === undefined ? {} : { commercialTerms }),
+    photos,
+  });
+}
+
+type PropertyPhotoRow = typeof propertyPhotos.$inferSelect;
+function toPropertyPhoto(row: PropertyPhotoRow): PropertyPhotoValues {
+  return rehydratePropertyPhoto({
+    photoId: row.photoId, tenantId: row.tenantId, propertyId: row.propertyId,
+    category: row.category as PropertyPhotoCategory, status: "AVAILABLE",
+    contentType: row.contentType as PropertyPhotoValues["contentType"],
+    contentByteSize: row.contentByteSize!, contentSha256: row.contentSha256!,
+    isPrimary: row.isPrimary, registeredAt: new Date(row.registeredAt).toISOString(),
+    availableAt: new Date(row.availableAt!).toISOString(),
   });
 }
 

@@ -6,6 +6,12 @@ import {
   type CommercialTerms,
   type PropertyDetails,
 } from "./property-details.js";
+import {
+  assessPropertyPhotoReadiness,
+  resolvePropertyPhotoStandard,
+  type PropertyPhotoStandardOverride,
+  type PropertyPhotoValues,
+} from "./property-photo.js";
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const COUNTRY = /^[A-Z]{2}$/u;
@@ -14,7 +20,10 @@ export const PROPERTY_TYPES = ["APARTMENT", "HOUSE", "LAND", "COMMERCIAL", "OTHE
 export const TRANSACTION_TYPES = ["LONG_TERM_RENTAL", "SHORT_TERM_RENTAL", "SALE"] as const;
 export type PropertyType = typeof PROPERTY_TYPES[number];
 export type TransactionType = typeof TRANSACTION_TYPES[number];
-export type PropertyStatus = "DRAFT";
+export const APARTMENT_SUBTYPES = ["STUDIO", "MULTI_ROOM"] as const;
+export type ApartmentSubtype = typeof APARTMENT_SUBTYPES[number];
+export const PROPERTY_STATUSES = ["DRAFT", "PUBLISHED"] as const;
+export type PropertyStatus = typeof PROPERTY_STATUSES[number];
 export const PROPERTY_STRUCTURAL_ROLES = ["STANDALONE", "COMPOSITE", "UNIT"] as const;
 export type PropertyStructuralRole = typeof PROPERTY_STRUCTURAL_ROLES[number];
 
@@ -32,19 +41,23 @@ export interface PropertyValues {
   readonly description?: string;
   readonly propertyType: PropertyType;
   readonly transactionType: TransactionType;
+  readonly apartmentSubtype?: ApartmentSubtype;
   readonly status: PropertyStatus;
+  readonly publishedAt?: string;
   readonly structuralRole: PropertyStructuralRole;
   readonly location: PropertyLocation;
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly details?: PropertyDetails;
   readonly commercialTerms?: CommercialTerms;
+  readonly photos?: readonly PropertyPhotoValues[];
 }
 
 export interface PropertyCoreInformation {
   readonly title: string;
   readonly description?: string;
   readonly location: PropertyLocation;
+  readonly apartmentSubtype?: ApartmentSubtype;
 }
 
 type PropertyField = keyof PropertyValues | keyof PropertyLocation;
@@ -71,20 +84,20 @@ export class PersistedPropertyCorruptionError extends Error {
 export class Property {
   private constructor(readonly values: Readonly<PropertyValues>) {}
 
-  static create(input: Omit<PropertyValues, "status" | "structuralRole">): Property {
+  static create(input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt">): Property {
     return Property.createStandalone(input);
   }
 
-  static createStandalone(input: Omit<PropertyValues, "status" | "structuralRole">): Property {
+  static createStandalone(input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt">): Property {
     return Property.createWithStructuralRole(input, "STANDALONE");
   }
 
-  static createUnit(input: Omit<PropertyValues, "status" | "structuralRole">): Property {
+  static createUnit(input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt">): Property {
     return Property.createWithStructuralRole(input, "UNIT");
   }
 
   private static createWithStructuralRole(
-    input: Omit<PropertyValues, "status" | "structuralRole">,
+    input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt">,
     structuralRole: "STANDALONE" | "UNIT",
   ): Property {
     try {
@@ -120,6 +133,35 @@ export class Property {
     }));
   }
 
+  publish(
+    publishedAt: string,
+    photos: readonly PropertyPhotoValues[] = this.values.photos ?? [],
+    standardOverride?: PropertyPhotoStandardOverride,
+  ): Property {
+    if (this.values.status === "PUBLISHED") return this;
+    const missingRequirements: PropertyPublicationRequirement[] = [];
+    if (this.values.details === undefined) missingRequirements.push("DETAILS");
+    if (this.values.commercialTerms === undefined) missingRequirements.push("COMMERCIAL_TERMS");
+    if (this.values.propertyType === "APARTMENT" && this.values.transactionType === "LONG_TERM_RENTAL"
+      && this.values.apartmentSubtype === undefined) missingRequirements.push("APARTMENT_SUBTYPE");
+    const photoReadiness = assessPropertyPhotoReadiness(photos, resolvePropertyPhotoStandard({
+      propertyType: this.values.propertyType,
+      transactionType: this.values.transactionType,
+      ...(this.values.apartmentSubtype === undefined ? {} : { apartmentSubtype: this.values.apartmentSubtype }),
+    }, standardOverride));
+    if (photoReadiness.primaryPhoto === undefined) missingRequirements.push("PRIMARY_PHOTO");
+    if (photoReadiness.availableCount < photoReadiness.minimumCount) missingRequirements.push("PHOTO_MINIMUM");
+    if (photoReadiness.missingRequiredCategories.length > 0) missingRequirements.push("PHOTO_REQUIRED_VIEWS");
+    if (missingRequirements.length > 0) throw new PropertyPublicationRequirementsNotMetError(missingRequirements);
+    if (!validInstant(publishedAt)) throw new InvalidPropertyServerValueError("publishedAt");
+    return new Property(Object.freeze({
+      ...this.values,
+      status: "PUBLISHED",
+      publishedAt,
+      updatedAt: publishedAt,
+    }));
+  }
+
   updateCoreInformation(information: PropertyCoreInformation, updatedAt: string): Property {
     if (!validInstant(updatedAt)) throw new InvalidPropertyServerValueError("updatedAt");
     try {
@@ -144,6 +186,21 @@ export class PropertyStructuralRoleConflictError extends Error {
   readonly code = "PROPERTY_COMPOSITION_ROLE_CONFLICT";
 }
 
+export type PropertyPublicationRequirement =
+  | "DETAILS"
+  | "COMMERCIAL_TERMS"
+  | "APARTMENT_SUBTYPE"
+  | "PRIMARY_PHOTO"
+  | "PHOTO_MINIMUM"
+  | "PHOTO_REQUIRED_VIEWS";
+
+export class PropertyPublicationRequirementsNotMetError extends Error {
+  readonly code = "PROPERTY_PUBLICATION_REQUIREMENTS_NOT_MET";
+  constructor(readonly missingRequirements: readonly PropertyPublicationRequirement[]) {
+    super("Property publication requirements are not met");
+  }
+}
+
 function validate(input: PropertyValues): Readonly<PropertyValues> {
   if (!UUID_V4.test(input.propertyId)) throw new PropertyInvariantViolation("propertyId");
   if (!UUID_V4.test(input.tenantId)) throw new PropertyInvariantViolation("tenantId");
@@ -152,7 +209,12 @@ function validate(input: PropertyValues): Readonly<PropertyValues> {
   if (description !== undefined && description.length > 5_000) throw new PropertyInvariantViolation("description");
   if (!PROPERTY_TYPES.includes(input.propertyType)) throw new PropertyInvariantViolation("propertyType");
   if (!TRANSACTION_TYPES.includes(input.transactionType)) throw new PropertyInvariantViolation("transactionType");
-  if (input.status !== "DRAFT") throw new PropertyInvariantViolation("status");
+  if (input.apartmentSubtype !== undefined && !APARTMENT_SUBTYPES.includes(input.apartmentSubtype)) {
+    throw new PropertyInvariantViolation("apartmentSubtype");
+  }
+  if ((input.propertyType !== "APARTMENT" || input.transactionType !== "LONG_TERM_RENTAL")
+    && input.apartmentSubtype !== undefined) throw new PropertyInvariantViolation("apartmentSubtype");
+  if (!PROPERTY_STATUSES.includes(input.status)) throw new PropertyInvariantViolation("status");
   if (!PROPERTY_STRUCTURAL_ROLES.includes(input.structuralRole)) throw new PropertyInvariantViolation("structuralRole");
   if (!COUNTRY.test(input.location.country)) throw new PropertyInvariantViolation("country");
   const location = Object.freeze({
@@ -168,6 +230,11 @@ function validate(input: PropertyValues): Readonly<PropertyValues> {
     ? undefined
     : validateCommercialTerms(input.transactionType, input.commercialTerms);
   if ((details === undefined) !== (commercialTerms === undefined)) throw new PropertyInvariantViolation("details");
+  if (input.status === "DRAFT" && input.publishedAt !== undefined) throw new PropertyInvariantViolation("publishedAt");
+  if (input.status === "PUBLISHED") {
+    if (details === undefined || commercialTerms === undefined) throw new PropertyInvariantViolation("status");
+    if (input.publishedAt === undefined || !validInstant(input.publishedAt)) throw new PropertyInvariantViolation("publishedAt");
+  }
   return Object.freeze({ ...input, title, description, location, details, commercialTerms });
 }
 

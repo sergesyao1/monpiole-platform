@@ -16,7 +16,7 @@ const firstProperty: PropertyPortfolioItem = {
 };
 const secondProperty: PropertyPortfolioItem = {
   propertyId: PROPERTY_B, title: "Appartement du Plateau", propertyType: "APARTMENT",
-  transactionType: "SALE", status: "DRAFT", structuralRole: "STANDALONE",
+  transactionType: "SALE", status: "PUBLISHED", publishedAt: "2026-08-26T12:00:00.000Z", structuralRole: "STANDALONE",
   location: { country: "CI", city: "Abidjan", district: "Plateau", addressLine: "Avenue Chardy" },
   createdAt: "2026-08-26T10:00:00.000Z", updatedAt: "2026-08-26T10:00:00.000Z",
 };
@@ -151,6 +151,17 @@ describe("portefeuille immobilier Web", () => {
     expect(String(url)).toContain("/v1/properties?limit=20&status=DRAFT&type=HOUSE&search=Lagune");
     expect(new Headers(options?.headers).get("authorization")).toBe("Bearer portfolio-test-token");
     expect(String(url)).not.toContain("tenant");
+  });
+  it("affiche et filtre le statut publié uniquement avec son libellé français", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(json(page([secondProperty])));
+    vi.stubGlobal("fetch", fetchMock);
+    renderPortfolio();
+    expect(await screen.findByText("Publié")).toBeInTheDocument();
+    expect(screen.queryByText("PUBLISHED")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Statut"), { target: { value: "PUBLISHED" } });
+    fireEvent.click(screen.getByRole("button", { name: "Appliquer les filtres" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("status=PUBLISHED");
   });
 
   it.each(["loading", "unauthenticated"] as const)("n’appelle pas l’API protégée avec une session %s", async (status) => {

@@ -14,6 +14,10 @@ import {
   RetrieveProperty, RetrievePropertyOwner, UpdatePropertyCoreInformation, UpdatePropertyDetails, UpdatePropertyOwner,
   AssignPropertyOwner, PostgresPropertyOwnershipRepository, RetrievePropertyOwnerships, RemovePropertyOwner,
   CreatePropertyBuilding, ListPropertyBuildings, UpdatePropertyBuilding, CreatePropertyUnit, ListPropertyUnits, UpdatePropertyUnitStructure, PostgresPropertyCompositionRepository,
+  PublishProperty,
+  PostgresPropertyPhotoRepository, RegisterPropertyPhoto, RetrievePropertyPhotoContent,
+  ListPropertyPhotos, SelectPropertyPrimaryPhoto, DeletePropertyPhoto,
+  PostgresPropertyPhotoStandardRepository, RetrievePropertyPhotoStandard, UpdatePropertyPhotoStandard,
 } from "@monpiole/property-management";
 import {
   ActivateTenant,
@@ -61,6 +65,8 @@ export function createPostgresApiRuntime(
   const tenantExists = new CheckTenantExists(new PostgresTenantExistenceRepository(pool));
   const authorityPolicy = new OnboardingAuthorityPolicy();
   const propertyRepository = new PostgresPropertyRepository(pool);
+  const propertyPhotoRepository = new PostgresPropertyPhotoRepository(pool);
+  const propertyPhotoStandardRepository = new PostgresPropertyPhotoStandardRepository(pool);
   const propertyOwnerRepository = new PostgresPropertyOwnerRepository(pool);
   const propertyOwnershipRepository = new PostgresPropertyOwnershipRepository(pool);
   const propertyCompositionRepository = new PostgresPropertyCompositionRepository(pool);
@@ -89,6 +95,14 @@ export function createPostgresApiRuntime(
     listProperties: new ListProperties(new PostgresPropertyPortfolioQuery(pool)),
     updatePropertyDetails: new UpdatePropertyDetails(propertyRepository, { now: () => new Date().toISOString() }),
     updatePropertyCoreInformation: new UpdatePropertyCoreInformation(propertyRepository, { now: () => new Date().toISOString() }),
+    publishProperty: new PublishProperty(propertyRepository, { now: () => new Date().toISOString() }),
+    listPropertyPhotos: new ListPropertyPhotos(propertyPhotoRepository),
+    registerPropertyPhoto: new RegisterPropertyPhoto(propertyPhotoRepository, { generate: randomUUID }, { now: () => new Date().toISOString() }),
+    retrievePropertyPhotoContent: new RetrievePropertyPhotoContent(propertyPhotoRepository),
+    selectPropertyPrimaryPhoto: new SelectPropertyPrimaryPhoto(propertyPhotoRepository, { now: () => new Date().toISOString() }),
+    deletePropertyPhoto: new DeletePropertyPhoto(propertyPhotoRepository),
+    retrievePropertyPhotoStandard: new RetrievePropertyPhotoStandard(propertyPhotoStandardRepository),
+    updatePropertyPhotoStandard: new UpdatePropertyPhotoStandard(propertyPhotoStandardRepository, { now: () => new Date().toISOString() }),
     createPropertyOwner: new CreatePropertyOwner(propertyOwnerRepository, { generate: randomUUID }, { now: () => new Date().toISOString() }),
     retrievePropertyOwner: new RetrievePropertyOwner(propertyOwnerRepository),
     listPropertyOwners: new ListPropertyOwners(new PostgresPropertyOwnerDirectoryQuery(pool)),

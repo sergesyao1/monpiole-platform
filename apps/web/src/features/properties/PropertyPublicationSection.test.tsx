@@ -1,0 +1,142 @@
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { ApiForbiddenError, ApiSessionExpiredError } from "../../infrastructure/http/api-client.js";
+import { ApiProblem } from "../../infrastructure/http/problem-details.js";
+import type { PropertyPublicationApi } from "./PropertyPublicationSection.js";
+import { PropertyPublicationSection } from "./PropertyPublicationSection.js";
+import type { Property } from "./property-model.js";
+
+const PROPERTY_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const primaryPhoto = { photoId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", category: "BUILDING_EXTERIOR_OR_ENTRANCE" as const,
+  status: "AVAILABLE" as const, contentPath: `/v1/properties/${PROPERTY_ID}/photos/cccccccc-cccc-4ccc-8ccc-cccccccccccc/content` as const,
+  contentType: "image/png" as const, contentByteSize: 8,
+  contentSha256: "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6", isPrimary: true,
+  registeredAt: "2026-08-25T12:10:00.000Z", availableAt: "2026-08-25T12:11:00.000Z" };
+const draft: Property = {
+  propertyId: PROPERTY_ID, title: "Maison Lagune", propertyType: "HOUSE", transactionType: "SALE",
+  status: "DRAFT", structuralRole: "STANDALONE",
+  location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Riviera" },
+  createdAt: "2026-08-25T12:00:00.000Z", updatedAt: "2026-08-25T12:00:00.000Z",
+};
+const ready: Property = {
+  ...draft, details: { rooms: 1 }, commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 0 },
+  photos: [primaryPhoto], primaryPhoto,
+};
+const photo = (photoId: string, category: typeof primaryPhoto.category | "MAIN_LIVING_SLEEPING_AREA" | "KITCHEN_OR_KITCHENETTE" | "BATHROOM_OR_SHOWER_ROOM" | "OTHER") => ({
+  ...primaryPhoto, photoId, category, isPrimary: false,
+  contentPath: `/v1/properties/${PROPERTY_ID}/photos/${photoId}/content` as const,
+});
+const published: Property = {
+  ...ready, status: "PUBLISHED", publishedAt: "2026-08-25T16:00:00.000Z", updatedAt: "2026-08-25T16:00:00.000Z",
+};
+
+function Harness({ initial = ready, api, onReconnect }: Readonly<{
+  initial?: Property; api: PropertyPublicationApi; onReconnect?: () => void;
+}>) {
+  const [property, setProperty] = useState(initial);
+  return <PropertyPublicationSection property={property} api={api} onPublished={setProperty} onReconnect={onReconnect} />;
+}
+
+function deferred<Value>() {
+  let resolve!: (value: Value) => void;
+  const promise = new Promise<Value>((done) => { resolve = done; });
+  return { promise, resolve };
+}
+
+afterEach(() => vi.clearAllMocks());
+
+describe("publication d’un bien", () => {
+  it("explique les prérequis manquants et désactive la publication", () => {
+    const publishProperty = vi.fn();
+    render(<Harness initial={draft} api={{ publishProperty }} />);
+    expect(screen.getByText("Sélectionnez la photo principale qui représentera ce bien dans les annonces.")).toBeInTheDocument();
+    expect(screen.getByText("Détails à compléter")).toBeInTheDocument();
+    expect(screen.getByText("Conditions commerciales à compléter")).toBeInTheDocument();
+    expect(screen.getByText("Photo principale à sélectionner")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Publier le bien" })).toBeDisabled();
+    expect(publishProperty).not.toHaveBeenCalled();
+  });
+
+  it("bloque la publication prête sans photo principale avec le message requis", () => {
+    const withoutPrimary: Property = { ...ready, photos: [], primaryPhoto: undefined };
+    render(<Harness initial={withoutPrimary} api={{ publishProperty: vi.fn() }} />);
+    expect(screen.getByText("Sélectionnez la photo principale qui représentera ce bien dans les annonces.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Publier le bien" })).toBeDisabled();
+  });
+
+  it("déclare prêt un Studio avec les quatre vues imposées et deux vues libres", () => {
+    const studioPhotos = [
+      primaryPhoto,
+      photo("11111111-1111-4111-8111-111111111111", "MAIN_LIVING_SLEEPING_AREA"),
+      photo("22222222-2222-4222-8222-222222222222", "KITCHEN_OR_KITCHENETTE"),
+      photo("33333333-3333-4333-8333-333333333333", "BATHROOM_OR_SHOWER_ROOM"),
+      photo("44444444-4444-4444-8444-444444444444", "OTHER"),
+      photo("55555555-5555-4555-8555-555555555555", "OTHER"),
+    ];
+    render(<Harness initial={{
+      ...ready, propertyType: "APARTMENT", transactionType: "LONG_TERM_RENTAL", apartmentSubtype: "STUDIO",
+      commercialTerms: { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 250000, rentPeriod: "MONTH" },
+      photos: studioPhotos, primaryPhoto,
+    }} api={{ publishProperty: vi.fn() }} />);
+    expect(screen.getByText("Ce bien est prêt à être publié.")).toBeInTheDocument();
+    expect(screen.queryByText(/séjour ou pièce principale/iu)).not.toBeInTheDocument();
+    expect(screen.queryByText(/chambre ou espace nuit/iu)).not.toBeInTheDocument();
+  });
+
+  it("demande confirmation, permet d’annuler et empêche une double soumission", async () => {
+    const pending = deferred<Property>();
+    const publishProperty = vi.fn(() => pending.promise);
+    render(<Harness api={{ publishProperty }} />);
+    expect(screen.getByText("Ce bien est prêt à être publié.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Publier le bien" }));
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("Cette première publication est définitive");
+    fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Publier le bien" }));
+    const confirmation = screen.getByRole("button", { name: "Confirmer la publication" });
+    fireEvent.click(confirmation);
+    fireEvent.click(confirmation);
+    expect(screen.getByRole("button", { name: "Publication en cours…" })).toBeDisabled();
+    expect(publishProperty).toHaveBeenCalledTimes(1);
+    expect(publishProperty).toHaveBeenCalledWith(PROPERTY_ID);
+    pending.resolve(published);
+    expect(await screen.findByText("Le bien est publié.")).toBeInTheDocument();
+    expect(screen.getByText("Publié")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Publier|publication/iu })).not.toBeInTheDocument();
+  });
+
+  it("affiche une Property déjà publiée sans action ni promesse de diffusion", () => {
+    render(<Harness initial={published} api={{ publishProperty: vi.fn() }} />);
+    expect(screen.getByText("Publié")).toBeInTheDocument();
+    expect(screen.getByText(/Publié le 25 août 2026/)).toBeInTheDocument();
+    expect(screen.getByText("La diffusion publique n’est pas incluse dans cette version.")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.queryByText("PUBLISHED")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["session", () => new ApiSessionExpiredError(), "Votre session n’est plus utilisable"],
+    ["interdiction", () => new ApiForbiddenError(), "Vous ne disposez pas de l’autorisation nécessaire"],
+    ["prérequis", () => new ApiProblem({
+      type: "https://api.monpiole.example/problems/property-publication-requirements-not-met",
+      title: "Property publication requirements not met", status: 409,
+      code: "PROPERTY_PUBLICATION_REQUIREMENTS_NOT_MET", correlationId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      errors: [{ path: "property.details", code: "required_for_publication" }],
+    }), "Complétez les détails et les conditions commerciales"],
+    ["réseau", () => new TypeError("network unavailable"), "Une erreur inattendue est survenue"],
+  ] as const)("présente l’erreur %s en français et permet un nouvel essai", async (_kind, failure, expected) => {
+    const publishProperty = vi.fn().mockRejectedValueOnce(failure()).mockResolvedValueOnce(published);
+    const reconnect = vi.fn();
+    render(<Harness api={{ publishProperty }} onReconnect={reconnect} />);
+    fireEvent.click(screen.getByRole("button", { name: "Publier le bien" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmer la publication" }));
+    expect(await screen.findByText(new RegExp(expected))).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Confirmer la publication" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Confirmer la publication" }));
+    expect(await screen.findByText("Le bien est publié.")).toBeInTheDocument();
+    expect(publishProperty).toHaveBeenCalledTimes(2);
+  });
+});

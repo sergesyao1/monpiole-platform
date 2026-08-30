@@ -31,6 +31,15 @@ export function createAuthenticatedApiClient(tokens: AccessTokenProvider) {
   };
 }
 
+export function createAuthenticatedBinaryApiClient(tokens: AccessTokenProvider) {
+  return async function requestAuthenticatedBinary(path: `/v1/${string}`): Promise<Blob> {
+    let response = await performFetch(path, {}, await tokens.getAccessToken());
+    if (response.status === 401) response = await performFetch(path, {}, await tokens.getAccessToken(true));
+    if (!response.ok) await readResponse<never>(response);
+    return response.blob();
+  };
+}
+
 async function performRequest<ResponseBody>(path: `/v1/${string}`, options: ApiRequestOptions): Promise<ResponseBody> {
   return readResponse<ResponseBody>(await performFetch(path, options));
 }

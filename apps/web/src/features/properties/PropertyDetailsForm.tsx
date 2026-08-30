@@ -1,7 +1,10 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 
-import { pricingUnitLabels, transactionTypeLabels, type Property, type UpdatePropertyDetailsInput } from "./property-model.js";
+import {
+  currencyFractionDigits, majorAmountInputToMinor, minorAmountToInputValue,
+  pricingUnitLabels, transactionTypeLabels, type Property, type UpdatePropertyDetailsInput,
+} from "./property-model.js";
 
 function optionalNumber(values: FormData, name: string): number | undefined {
   const value = String(values.get(name) ?? "").trim();
@@ -20,19 +23,24 @@ export function detailsInputFromForm(property: Property, values: FormData): Upda
   if (property.transactionType === "LONG_TERM_RENTAL") {
     return { details, commercialTerms: {
       kind: "LONG_TERM_RENTAL", currency, rentPeriod: "MONTH",
-      rentAmountMinor: Number(values.get("rentAmountMinor")),
-      ...(optionalNumber(values, "securityDepositAmountMinor") === undefined ? {} : { securityDepositAmountMinor: optionalNumber(values, "securityDepositAmountMinor") }),
-      ...(optionalNumber(values, "chargesAmountMinor") === undefined ? {} : { chargesAmountMinor: optionalNumber(values, "chargesAmountMinor") }),
+      rentAmountMinor: majorAmountInputToMinor(values.get("rentAmountMinor"), currency),
+      ...(optionalAmountMinor(values, "securityDepositAmountMinor", currency) === undefined ? {} : { securityDepositAmountMinor: optionalAmountMinor(values, "securityDepositAmountMinor", currency) }),
+      ...(optionalAmountMinor(values, "chargesAmountMinor", currency) === undefined ? {} : { chargesAmountMinor: optionalAmountMinor(values, "chargesAmountMinor", currency) }),
     } };
   }
   if (property.transactionType === "SHORT_TERM_RENTAL") {
     return { details, commercialTerms: {
       kind: "SHORT_TERM_RENTAL", currency,
-      rateAmountMinor: Number(values.get("rateAmountMinor")),
+      rateAmountMinor: majorAmountInputToMinor(values.get("rateAmountMinor"), currency),
       pricingUnit: String(values.get("pricingUnit")) as "NIGHT" | "WEEK",
     } };
   }
-  return { details, commercialTerms: { kind: "SALE", currency, salePriceAmountMinor: Number(values.get("salePriceAmountMinor")) } };
+  return { details, commercialTerms: { kind: "SALE", currency, salePriceAmountMinor: majorAmountInputToMinor(values.get("salePriceAmountMinor"), currency) } };
+}
+
+function optionalAmountMinor(values: FormData, name: string, currency: string): number | undefined {
+  const value = String(values.get(name) ?? "").trim();
+  return value === "" ? undefined : majorAmountInputToMinor(value, currency);
 }
 
 export function PropertyDetailsForm({ property, saving, onSave }: Readonly<{
@@ -40,11 +48,18 @@ export function PropertyDetailsForm({ property, saving, onSave }: Readonly<{
 }>) {
   const [clientError, setClientError] = useState("");
   const terms = property.commercialTerms;
+  const [currency, setCurrency] = useState(terms?.currency ?? "XOF");
+  const amountStep = currencyFractionDigits(currency) === 0 ? "1" : `0.${"0".repeat(currencyFractionDigits(currency) - 1)}1`;
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     if (!form.reportValidity()) return;
     const input = detailsInputFromForm(property, new FormData(form));
+    const amounts = Object.entries(input.commercialTerms).filter(([name]) => name.endsWith("AmountMinor")).map(([, value]) => value);
+    if (amounts.some((value) => typeof value === "number" && !Number.isSafeInteger(value))) {
+      setClientError(`Saisissez un montant valide pour la devise ${input.commercialTerms.currency}.`);
+      return;
+    }
     if (input.details.rooms !== undefined && input.details.bedrooms !== undefined && input.details.bedrooms > input.details.rooms) {
       setClientError("Le nombre de chambres ne peut pas dépasser le nombre de pièces.");
       return;
@@ -66,17 +81,18 @@ export function PropertyDetailsForm({ property, saving, onSave }: Readonly<{
       <fieldset disabled={saving}>
         <legend>Conditions — {transactionTypeLabels[property.transactionType]}</legend>
         <div className="form-grid three-columns">
-          <label>Devise ISO<input name="currency" required minLength={3} maxLength={3} pattern="[A-Za-z]{3}" defaultValue={terms?.currency ?? "XOF"} /></label>
+          <label>Devise ISO<input name="currency" required minLength={3} maxLength={3} pattern="[A-Za-z]{3}" value={currency}
+            onChange={(event) => setCurrency(event.currentTarget.value.toUpperCase())} /></label>
           {property.transactionType === "LONG_TERM_RENTAL" && <>
-            <label>Loyer mensuel (unité mineure)<input name="rentAmountMinor" required type="number" min="0" step="1" defaultValue={terms?.kind === "LONG_TERM_RENTAL" ? terms.rentAmountMinor : undefined} /></label>
-            <label>Dépôt de garantie (unité mineure)<input name="securityDepositAmountMinor" type="number" min="0" step="1" defaultValue={terms?.kind === "LONG_TERM_RENTAL" ? terms.securityDepositAmountMinor : undefined} /></label>
-            <label>Charges (unité mineure)<input name="chargesAmountMinor" type="number" min="0" step="1" defaultValue={terms?.kind === "LONG_TERM_RENTAL" ? terms.chargesAmountMinor : undefined} /></label>
+            <label>Loyer mensuel<input name="rentAmountMinor" required type="number" min="0" step={amountStep} defaultValue={terms?.kind === "LONG_TERM_RENTAL" ? minorAmountToInputValue(terms.rentAmountMinor, terms.currency) : undefined} /></label>
+            <label>Dépôt de garantie<input name="securityDepositAmountMinor" type="number" min="0" step={amountStep} defaultValue={terms?.kind === "LONG_TERM_RENTAL" && terms.securityDepositAmountMinor !== undefined ? minorAmountToInputValue(terms.securityDepositAmountMinor, terms.currency) : undefined} /></label>
+            <label>Charges<input name="chargesAmountMinor" type="number" min="0" step={amountStep} defaultValue={terms?.kind === "LONG_TERM_RENTAL" && terms.chargesAmountMinor !== undefined ? minorAmountToInputValue(terms.chargesAmountMinor, terms.currency) : undefined} /></label>
           </>}
           {property.transactionType === "SHORT_TERM_RENTAL" && <>
-            <label>Tarif (unité mineure)<input name="rateAmountMinor" required type="number" min="0" step="1" defaultValue={terms?.kind === "SHORT_TERM_RENTAL" ? terms.rateAmountMinor : undefined} /></label>
+            <label>Tarif<input name="rateAmountMinor" required type="number" min="0" step={amountStep} defaultValue={terms?.kind === "SHORT_TERM_RENTAL" ? minorAmountToInputValue(terms.rateAmountMinor, terms.currency) : undefined} /></label>
             <label>Unité de tarification<select name="pricingUnit" defaultValue={terms?.kind === "SHORT_TERM_RENTAL" ? terms.pricingUnit : "NIGHT"}><option value="NIGHT">{pricingUnitLabels.NIGHT}</option><option value="WEEK">{pricingUnitLabels.WEEK}</option></select></label>
           </>}
-          {property.transactionType === "SALE" && <label>Prix de vente (unité mineure)<input name="salePriceAmountMinor" required type="number" min="0" step="1" defaultValue={terms?.kind === "SALE" ? terms.salePriceAmountMinor : undefined} /></label>}
+          {property.transactionType === "SALE" && <label>Prix de vente<input name="salePriceAmountMinor" required type="number" min="0" step={amountStep} defaultValue={terms?.kind === "SALE" ? minorAmountToInputValue(terms.salePriceAmountMinor, terms.currency) : undefined} /></label>}
         </div>
       </fieldset>
       {clientError && <p className="field-error" role="alert">{clientError}</p>}

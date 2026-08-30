@@ -10,7 +10,8 @@ The service owns the tenant-bound `Property` aggregate and the
 `property_management.properties` PostgreSQL table. Create and retrieve use cases
 derive ownership from authenticated authority, never request payloads. The
 PostgreSQL adapter uses tenant-scoped transactions and forced RLS. Publication,
-search, pricing, media, availability, and workflow are outside this baseline.
+search, pricing, object storage, upload, broad media lifecycle, availability,
+and workflow are outside this baseline.
 
 ## TASK-035 details and commercial terms
 
@@ -107,3 +108,70 @@ indexes, and forced-RLS policies. No trigger is used: supported write and load
 boundaries enforce the cross-table role/relation invariant under the existing
 tenant-scoped locks, while foreign keys and unique constraints provide the SQL
 defence for relation identity and cardinality.
+
+## Property publication lifecycle
+
+`PublishProperty` performs the single supported transition from `DRAFT` to
+`PUBLISHED` under the dedicated `PUBLISH_PROPERTY` grant. A Property is eligible
+when its existing details, compatible commercial terms and exactly one
+content-backed AVAILABLE primary photo are present. The selected photo counts
+in both the applicable minimum and its category. Description, ownership, a
+100% ownership total and composition are not publication prerequisites. Standalone, composite and Unit
+Properties publish independently, with no cascade and no Building publication.
+
+The PostgreSQL repository serializes the transition with its existing
+tenant-scoped row lock. A replay returns the same published aggregate without a
+write or a new clock value. `published_at`, `published_by_actor_id` and
+`publication_correlation_id` preserve the first-publication evidence while the
+generic actor and correlation columns continue to describe the last mutation.
+Existing core, details, ownership and composition mutations remain available
+after publication and preserve its status and date. Unpublish, archive,
+republish, public projection and publication events are not part of this slice.
+
+Migration `0007_property_publication.sql` preserves historical drafts, expands
+the status constraint, enforces the publication trace tuple and adds the
+tenant/status portfolio index. Before generating it, CG-01 was closed by
+representing all existing Property Management CHECK constraints, RLS enablement
+and tenant policies in `schema.ts` and snapshot `0007`. PostgreSQL `FORCE ROW
+LEVEL SECURITY` remains explicit in the historical SQL migrations because
+Drizzle snapshots do not model it; integration tests verify enabled/forced RLS,
+named policies and constraints for all five tables on empty-to-head and
+`0006 → 0007` paths.
+
+## Property primary photo
+
+Migration `0008_property_management_baseline.sql` adds tenant-owned
+`property_photos` and append-only `property_primary_photo_audits`. A composite
+foreign key binds every photo to its Property and tenant, an AVAILABLE-only
+CHECK bounds this slice, and a partial unique index guarantees at most one
+primary photo per Property. Both tables enable and force RLS with named tenant
+policies. A deletion trigger rejects a primary photo until another photo has
+been selected; a second trigger keeps the audit immutable. Deferred constraint
+triggers also require every PUBLISHED Property to finish its transaction with
+exactly one AVAILABLE primary photo, including for direct SQL writes.
+
+`SelectPropertyPrimaryPhoto` locks the parent Property, verifies the target is
+AVAILABLE under the same tenant and Property, clears the previous marker, sets
+the replacement and appends the actor/correlation/status audit in one
+transaction. Parent locking serializes concurrent selectors; the partial unique
+index is the final database defence. Replacement remains allowed after
+publication and records `PUBLISHED` in the audit.
+
+Migration `0009_property_management_baseline.sql` leaves `0007` and `0008`
+unchanged and adds actual JPEG/PNG/WebP content evidence, `STUDIO | MULTI_ROOM`,
+tenant photo standards and a versioned deferred publication guard. New photos
+are stored with canonical base64 content, decoded byte size and SHA-256; legacy
+URL-only rows remain readable as historical data but are excluded from
+readiness and private galleries. The private content endpoint returns the
+persisted bytes. There is no functional maximum photo count.
+
+The MonPiole baseline is one photo except for `APARTMENT + LONG_TERM_RENTAL`,
+which requires six. Studio requires building exterior/entrance, a combined
+living/sleeping main area, kitchen/kitchenette and bathroom/shower room.
+Multi-room requires exterior/entrance, living/main room, kitchen,
+bedroom/sleeping area and bathroom/shower room. Count and required-category
+checks are independent. Tenant standards may only increase the minimum and add
+required categories; resolution uses `max` plus category union. The repository
+reloads that standard with the photos inside the locked publication
+transaction. Image transformation, CDN lifecycle and public catalogue
+projection remain separate capabilities.

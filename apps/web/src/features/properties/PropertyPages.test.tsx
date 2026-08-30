@@ -115,7 +115,8 @@ describe("vertical slice Web Property", () => {
     expect(await screen.findByText("Aucun propriétaire n’est disponible. Créez-en un depuis l’annuaire.")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Pièces"), { target: { value: "4" } });
     fireEvent.change(screen.getByLabelText("Chambres"), { target: { value: "3" } });
-    fireEvent.change(screen.getByLabelText("Loyer mensuel (unité mineure)"), { target: { value: "350000" } });
+    fireEvent.change(screen.getByLabelText("Loyer mensuel"), { target: { value: "350000" } });
+    expect(screen.queryByText(/unité mineure/iu)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Enregistrer les détails" }));
     expect(await screen.findByText("Les informations du bien sont à jour.")).toBeInTheDocument();
     const updateCall = fetchMock.mock.calls.find(([, init]) => init?.method === "PUT");
@@ -148,6 +149,35 @@ describe("vertical slice Web Property", () => {
     expect(new Headers(updateCall?.[1]?.headers).get("authorization")).toBe("Bearer property-test-token");
     expect(JSON.parse(String(updateCall?.[1]?.body))).toEqual({ title: "Villa Lagune", description: "Vue sur la lagune",
       location: { country: "CI", city: "Abidjan", district: "Marcory", addressLine: "Zone 4" } });
+  });
+  it("publie depuis la fiche avec le client authentifié bodyless et reflète immédiatement le résultat", async () => {
+    const primaryPhoto = { photoId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", category: "BUILDING_EXTERIOR_OR_ENTRANCE" as const,
+      status: "AVAILABLE" as const,
+      contentPath: `/v1/properties/${PROPERTY_ID}/photos/dddddddd-dddd-4ddd-8ddd-dddddddddddd/content` as const,
+      contentType: "image/png" as const, contentByteSize: 8,
+      contentSha256: "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6", isPrimary: true,
+      registeredAt: property.createdAt, availableAt: property.createdAt };
+    const ready: Property = { ...property, details: { rooms: 1 }, commercialTerms: {
+      kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 0, rentPeriod: "MONTH",
+    }, photos: [primaryPhoto], primaryPhoto };
+    const published: Property = { ...ready, status: "PUBLISHED", publishedAt: "2026-08-27T12:00:00.000Z", updatedAt: "2026-08-27T12:00:00.000Z" };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith(`/v1/properties/${PROPERTY_ID}/publication`) && init?.method === "PUT") return json(published);
+      if (url.endsWith(`/v1/properties/${PROPERTY_ID}/owners`)) return json([]);
+      if (url.includes("/v1/property-owners?")) return json(ownerPage());
+      if (url.endsWith("/buildings")) return json({ items: [], pageInfo: { nextCursor: null, hasNextPage: false } });
+      return json(ready);
+    });
+    vi.stubGlobal("fetch", fetchMock); renderPath(`/properties/${PROPERTY_ID}`);
+    await screen.findByText("Ce bien est prêt à être publié.");
+    fireEvent.click(screen.getByRole("button", { name: "Publier le bien" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmer la publication" }));
+    expect(await screen.findByText("Le bien est publié.")).toBeInTheDocument();
+    expect(screen.getByText("La diffusion publique n’est pas incluse dans cette version.")).toBeInTheDocument();
+    const call = fetchMock.mock.calls.find(([input, init]) => String(input).endsWith(`/v1/properties/${PROPERTY_ID}/publication`) && init?.method === "PUT");
+    expect(call?.[1]?.body).toBeUndefined();
+    expect(new Headers(call?.[1]?.headers).get("authorization")).toBe("Bearer property-test-token");
   });
 
   it("conserve les informations saisies si la mise à jour fondamentale échoue", async () => {
@@ -194,7 +224,7 @@ describe("vertical slice Web Property", () => {
     fireEvent.change(screen.getByLabelText("Quote-part (%)"), { target: { value: "60" } });
     fireEvent.click(screen.getByRole("button", { name: "Affecter le propriétaire" }));
     expect(await screen.findByText("Sélectionnez un propriétaire disponible.")).toBeInTheDocument();
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(5));
   });
 
   it("affecte un propriétaire existant avec le bearer token", async () => {

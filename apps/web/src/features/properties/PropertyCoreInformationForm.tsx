@@ -6,6 +6,9 @@ export function coreInformationInputFromForm(values: FormData): UpdatePropertyCo
   return {
     title: String(values.get("title") ?? "").trim(),
     ...(description === "" ? {} : { description }),
+    ...(values.get("apartmentSubtype") === null ? {} : {
+      apartmentSubtype: String(values.get("apartmentSubtype")) as "STUDIO" | "MULTI_ROOM",
+    }),
     location: {
       country: String(values.get("country") ?? "").trim().toUpperCase(),
       city: String(values.get("city") ?? "").trim(),
@@ -33,6 +36,11 @@ export function PropertyCoreInformationForm({ property, saving, onSave }: Readon
         <legend>Identification et localisation</legend>
         <div className="form-grid two-columns">
           <label>Titre<input name="title" required maxLength={200} defaultValue={property.title} /></label>
+          {property.propertyType === "APARTMENT" && property.transactionType === "LONG_TERM_RENTAL" && (
+            <label>Sous-type d’appartement<select name="apartmentSubtype" required defaultValue={property.apartmentSubtype ?? "STUDIO"}>
+              <option value="STUDIO">Studio</option><option value="MULTI_ROOM">Plusieurs pièces</option>
+            </select></label>
+          )}
           <label>Pays (code ISO à 2 lettres)<input name="country" required minLength={2} maxLength={2} pattern="[A-Za-z]{2}" defaultValue={property.location.country} /></label>
           <label>Ville<input name="city" required maxLength={200} defaultValue={property.location.city} /></label>
           <label>Quartier<input name="district" required maxLength={200} defaultValue={property.location.district} /></label>

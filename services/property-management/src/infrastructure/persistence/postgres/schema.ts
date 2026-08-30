@@ -1,19 +1,24 @@
 import {
-  bigint, boolean, doublePrecision, foreignKey, index, integer, numeric, pgSchema,
+  bigint, boolean, check, doublePrecision, foreignKey, index, integer, numeric, pgPolicy, pgSchema,
   primaryKey, text, timestamp, uniqueIndex, uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const propertyManagement = pgSchema("property_management");
 export const properties = propertyManagement.table("properties", {
   propertyId: uuid("property_id").primaryKey(), tenantId: uuid("tenant_id").notNull(),
   title: text("title").notNull(), description: text("description"),
   propertyType: text("property_type").notNull(), transactionType: text("transaction_type").notNull(),
+  apartmentSubtype: text("apartment_subtype"),
   status: text("status").notNull(), country: text("country").notNull(), city: text("city").notNull(),
   structuralRole: text("structural_role").notNull().default("STANDALONE"),
   district: text("district").notNull(), addressLine: text("address_line").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
   correlationId: uuid("correlation_id").notNull(), actorId: text("actor_id").notNull(),
+  publishedAt: timestamp("published_at", { withTimezone: true, mode: "string" }),
+  publishedByActorId: text("published_by_actor_id"), publicationCorrelationId: uuid("publication_correlation_id"),
+  photoStandardVersion: integer("photo_standard_version"),
   usableSurfaceSquareMeters: doublePrecision("usable_surface_square_meters"),
   rooms: integer("rooms"), bedrooms: integer("bedrooms"), bathrooms: integer("bathrooms"),
   furnished: boolean("furnished"), commercialKind: text("commercial_kind"), currency: text("currency"),
@@ -25,7 +30,140 @@ export const properties = propertyManagement.table("properties", {
 }, (table) => [
   uniqueIndex("properties_tenant_property_unique").on(table.tenantId, table.propertyId),
   index("properties_tenant_created_property_idx").on(table.tenantId, table.createdAt.desc(), table.propertyId.desc()),
-]);
+  index("properties_tenant_status_created_property_idx").on(table.tenantId, table.status, table.createdAt.desc(), table.propertyId.desc()),
+  check("properties_title_length_check", sql`char_length(${table.title}) BETWEEN 1 AND 200`),
+  check("properties_description_length_check", sql`${table.description} IS NULL OR char_length(${table.description}) <= 5000`),
+  check("properties_type_check", sql`${table.propertyType} IN ('APARTMENT', 'HOUSE', 'LAND', 'COMMERCIAL', 'OTHER')`),
+  check("properties_transaction_type_check", sql`${table.transactionType} IN ('LONG_TERM_RENTAL', 'SHORT_TERM_RENTAL', 'SALE')`),
+  check("properties_apartment_subtype_check", sql`
+    ${table.apartmentSubtype} IS NULL
+    OR (${table.propertyType} = 'APARTMENT' AND ${table.transactionType} = 'LONG_TERM_RENTAL'
+      AND ${table.apartmentSubtype} IN ('STUDIO', 'MULTI_ROOM'))
+  `),
+  check("properties_status_check", sql`${table.status} IN ('DRAFT', 'PUBLISHED')`),
+  check("properties_photo_standard_version_check", sql`${table.photoStandardVersion} IS NULL OR ${table.photoStandardVersion} = 1`),
+  check("properties_country_check", sql`${table.country} ~ '^[A-Z]{2}$'`),
+  check("properties_details_values_check", sql`
+    (${table.usableSurfaceSquareMeters} IS NULL OR (${table.usableSurfaceSquareMeters} > 0 AND ${table.usableSurfaceSquareMeters} < 'Infinity'::double precision))
+    AND (${table.rooms} IS NULL OR ${table.rooms} >= 0)
+    AND (${table.bedrooms} IS NULL OR ${table.bedrooms} >= 0)
+    AND (${table.bathrooms} IS NULL OR ${table.bathrooms} >= 0)
+    AND (${table.rooms} IS NULL OR ${table.bedrooms} IS NULL OR ${table.bedrooms} <= ${table.rooms})
+  `),
+  check("properties_commercial_terms_check", sql`
+    (${table.commercialKind} IS NULL AND ${table.currency} IS NULL
+      AND ${table.usableSurfaceSquareMeters} IS NULL AND ${table.rooms} IS NULL AND ${table.bedrooms} IS NULL AND ${table.bathrooms} IS NULL AND ${table.furnished} IS NULL
+      AND ${table.rentAmountMinor} IS NULL AND ${table.rentPeriod} IS NULL AND ${table.securityDepositAmountMinor} IS NULL
+      AND ${table.chargesAmountMinor} IS NULL AND ${table.rateAmountMinor} IS NULL AND ${table.pricingUnit} IS NULL AND ${table.salePriceAmountMinor} IS NULL)
+    OR
+    ((${table.usableSurfaceSquareMeters} IS NOT NULL OR ${table.rooms} IS NOT NULL OR ${table.bedrooms} IS NOT NULL OR ${table.bathrooms} IS NOT NULL OR ${table.furnished} IS NOT NULL)
+      AND ${table.currency} ~ '^[A-Z]{3}$'
+      AND (
+        (${table.commercialKind} = 'LONG_TERM_RENTAL' AND ${table.transactionType} = 'LONG_TERM_RENTAL'
+          AND ${table.rentAmountMinor} BETWEEN 0 AND 9007199254740991 AND ${table.rentPeriod} = 'MONTH'
+          AND (${table.securityDepositAmountMinor} IS NULL OR ${table.securityDepositAmountMinor} BETWEEN 0 AND 9007199254740991)
+          AND (${table.chargesAmountMinor} IS NULL OR ${table.chargesAmountMinor} BETWEEN 0 AND 9007199254740991)
+          AND ${table.rateAmountMinor} IS NULL AND ${table.pricingUnit} IS NULL AND ${table.salePriceAmountMinor} IS NULL)
+        OR (${table.commercialKind} = 'SHORT_TERM_RENTAL' AND ${table.transactionType} = 'SHORT_TERM_RENTAL'
+          AND ${table.rateAmountMinor} BETWEEN 0 AND 9007199254740991 AND ${table.pricingUnit} IN ('NIGHT', 'WEEK')
+          AND ${table.rentAmountMinor} IS NULL AND ${table.rentPeriod} IS NULL AND ${table.securityDepositAmountMinor} IS NULL
+          AND ${table.chargesAmountMinor} IS NULL AND ${table.salePriceAmountMinor} IS NULL)
+        OR (${table.commercialKind} = 'SALE' AND ${table.transactionType} = 'SALE'
+          AND ${table.salePriceAmountMinor} BETWEEN 0 AND 9007199254740991
+          AND ${table.rentAmountMinor} IS NULL AND ${table.rentPeriod} IS NULL AND ${table.securityDepositAmountMinor} IS NULL
+          AND ${table.chargesAmountMinor} IS NULL AND ${table.rateAmountMinor} IS NULL AND ${table.pricingUnit} IS NULL)
+      ))
+  `),
+  check("properties_structural_role_check", sql`${table.structuralRole} IN ('STANDALONE', 'COMPOSITE', 'UNIT')`),
+  check("properties_publication_state_check", sql`
+    (${table.status} = 'DRAFT' AND ${table.publishedAt} IS NULL AND ${table.publishedByActorId} IS NULL AND ${table.publicationCorrelationId} IS NULL)
+    OR
+    (${table.status} = 'PUBLISHED' AND ${table.publishedAt} IS NOT NULL AND ${table.publishedByActorId} IS NOT NULL
+      AND ${table.publicationCorrelationId} IS NOT NULL AND ${table.commercialKind} IS NOT NULL)
+  `),
+  pgPolicy("properties_tenant_isolation", {
+    using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+    withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+  }),
+]).enableRLS();
+
+export const propertyPhotos = propertyManagement.table("property_photos", {
+  photoId: uuid("photo_id").primaryKey(), tenantId: uuid("tenant_id").notNull(),
+  propertyId: uuid("property_id").notNull(), category: text("category").notNull(),
+  status: text("status").notNull(), url: text("url"), isPrimary: boolean("is_primary").notNull().default(false),
+  contentBase64: text("content_base64"), contentType: text("content_type"),
+  contentByteSize: bigint("content_byte_size", { mode: "number" }), contentSha256: text("content_sha256"),
+  registeredAt: timestamp("registered_at", { withTimezone: true, mode: "string" }).notNull(),
+  availableAt: timestamp("available_at", { withTimezone: true, mode: "string" }),
+}, (table) => [
+  uniqueIndex("property_photos_tenant_property_photo_unique").on(table.tenantId, table.propertyId, table.photoId),
+  uniqueIndex("property_photos_one_primary_per_property_idx")
+    .on(table.tenantId, table.propertyId).where(sql`${table.isPrimary}`),
+  foreignKey({
+    name: "property_photos_property_tenant_fk",
+    columns: [table.tenantId, table.propertyId], foreignColumns: [properties.tenantId, properties.propertyId],
+  }),
+  index("property_photos_tenant_property_registered_idx").on(table.tenantId, table.propertyId, table.registeredAt, table.photoId),
+  check("property_photos_category_check", sql`${table.category} IN (
+    'BUILDING_EXTERIOR_OR_ENTRANCE', 'MAIN_LIVING_SLEEPING_AREA', 'LIVING_ROOM_OR_MAIN_ROOM',
+    'KITCHEN_OR_KITCHENETTE', 'BEDROOM_OR_SLEEPING_AREA', 'BATHROOM_OR_SHOWER_ROOM',
+    'EXTERIOR', 'INTERIOR', 'LIVING_ROOM', 'KITCHEN', 'BEDROOM', 'BATHROOM', 'OTHER'
+  )`),
+  check("property_photos_status_check", sql`${table.status} IN ('PENDING', 'AVAILABLE')`),
+  check("property_photos_url_check", sql`${table.url} IS NULL OR (char_length(${table.url}) BETWEEN 1 AND 2048 AND ${table.url} ~ '^https://')`),
+  check("property_photos_content_check", sql`
+    (${table.contentBase64} IS NULL AND ${table.contentType} IS NULL
+      AND ${table.contentByteSize} IS NULL AND ${table.contentSha256} IS NULL AND ${table.url} IS NOT NULL)
+    OR
+    (${table.status} = 'AVAILABLE' AND ${table.contentBase64} IS NOT NULL AND char_length(${table.contentBase64}) > 0
+      AND ${table.contentType} IN ('image/jpeg', 'image/png', 'image/webp')
+      AND octet_length(decode(${table.contentBase64}, 'base64')) = ${table.contentByteSize}
+      AND ${table.contentByteSize} > 0 AND ${table.contentSha256} ~ '^[0-9a-f]{64}$' AND ${table.availableAt} IS NOT NULL)
+  `),
+  pgPolicy("property_photos_tenant_isolation", {
+    using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+    withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+  }),
+]).enableRLS();
+
+export const propertyPhotoStandards = propertyManagement.table("property_photo_standards", {
+  tenantId: uuid("tenant_id").primaryKey(),
+  minimumPhotoCount: integer("minimum_photo_count").notNull().default(1),
+  additionalRequiredCategories: text("additional_required_categories").array().notNull().default(sql`ARRAY[]::text[]`),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
+  correlationId: uuid("correlation_id").notNull(), actorId: text("actor_id").notNull(),
+}, (table) => [
+  check("property_photo_standards_minimum_check", sql`${table.minimumPhotoCount} >= 1`),
+  check("property_photo_standards_categories_check", sql`${table.additionalRequiredCategories} <@ ARRAY[
+    'BUILDING_EXTERIOR_OR_ENTRANCE', 'MAIN_LIVING_SLEEPING_AREA', 'LIVING_ROOM_OR_MAIN_ROOM',
+    'KITCHEN_OR_KITCHENETTE', 'BEDROOM_OR_SLEEPING_AREA', 'BATHROOM_OR_SHOWER_ROOM', 'OTHER'
+  ]::text[]`),
+  pgPolicy("property_photo_standards_tenant_isolation", {
+    using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+    withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+  }),
+]).enableRLS();
+
+export const propertyPrimaryPhotoAudits = propertyManagement.table("property_primary_photo_audits", {
+  auditId: uuid("audit_id").primaryKey(), tenantId: uuid("tenant_id").notNull(),
+  propertyId: uuid("property_id").notNull(), previousPhotoId: uuid("previous_photo_id"),
+  selectedPhotoId: uuid("selected_photo_id").notNull(), propertyStatus: text("property_status").notNull(),
+  selectedAt: timestamp("selected_at", { withTimezone: true, mode: "string" }).notNull(),
+  correlationId: uuid("correlation_id").notNull(), actorId: text("actor_id").notNull(),
+}, (table) => [
+  foreignKey({
+    name: "property_primary_photo_audits_property_tenant_fk",
+    columns: [table.tenantId, table.propertyId], foreignColumns: [properties.tenantId, properties.propertyId],
+  }),
+  index("property_primary_photo_audits_tenant_property_selected_idx")
+    .on(table.tenantId, table.propertyId, table.selectedAt, table.auditId),
+  check("property_primary_photo_audits_status_check", sql`${table.propertyStatus} IN ('DRAFT', 'PUBLISHED')`),
+  check("property_primary_photo_audits_replacement_check", sql`${table.previousPhotoId} IS NULL OR ${table.previousPhotoId} <> ${table.selectedPhotoId}`),
+  pgPolicy("property_primary_photo_audits_tenant_isolation", {
+    using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+    withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+  }),
+]).enableRLS();
 
 export const propertyBuildings = propertyManagement.table("property_buildings", {
   buildingId: uuid("building_id").primaryKey(), tenantId: uuid("tenant_id").notNull(),
@@ -38,7 +176,13 @@ export const propertyBuildings = propertyManagement.table("property_buildings", 
   uniqueIndex("property_buildings_tenant_property_code_unique").on(table.tenantId, table.propertyId, table.buildingCode),
   foreignKey({ name: "property_buildings_property_tenant_fk", columns: [table.tenantId, table.propertyId], foreignColumns: [properties.tenantId, properties.propertyId] }),
   index("property_buildings_tenant_property_code_idx").on(table.tenantId, table.propertyId, table.buildingCode, table.buildingId),
-]);
+  check("property_buildings_code_check", sql`${table.buildingCode} ~ '^[A-Z0-9][A-Z0-9._/ -]{0,49}$'`),
+  check("property_buildings_name_check", sql`length(btrim(${table.name})) BETWEEN 1 AND 200`),
+  pgPolicy("property_buildings_tenant_isolation", {
+    using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+    withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+  }),
+]).enableRLS();
 
 export const propertyBuildingUnits = propertyManagement.table("property_building_units", {
   tenantId: uuid("tenant_id").notNull(), buildingId: uuid("building_id").notNull(),
@@ -53,7 +197,12 @@ export const propertyBuildingUnits = propertyManagement.table("property_building
   uniqueIndex("property_building_units_tenant_unit_unique").on(table.tenantId, table.unitPropertyId),
   uniqueIndex("property_building_units_tenant_building_code_unique").on(table.tenantId, table.buildingId, table.unitCode),
   index("property_building_units_tenant_building_code_idx").on(table.tenantId, table.buildingId, table.unitCode, table.unitPropertyId),
-]);
+  check("property_building_units_code_check", sql`${table.unitCode} ~ '^[A-Z0-9][A-Z0-9._/ -]{0,49}$'`),
+  pgPolicy("property_building_units_tenant_isolation", {
+    using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+    withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+  }),
+]).enableRLS();
 
 export const propertyOwners = propertyManagement.table("property_owners", {
   ownerId: uuid("owner_id").primaryKey(), tenantId: uuid("tenant_id").notNull(),
@@ -67,7 +216,26 @@ export const propertyOwners = propertyManagement.table("property_owners", {
 }, (table) => [
   uniqueIndex("property_owners_tenant_owner_unique").on(table.tenantId, table.ownerId),
   index("property_owners_tenant_created_owner_idx").on(table.tenantId, table.createdAt.desc(), table.ownerId.desc()),
-]);
+  check("property_owners_identity_check", sql`
+    (${table.ownerType} = 'INDIVIDUAL'
+      AND char_length(btrim(${table.firstName})) BETWEEN 1 AND 200
+      AND char_length(btrim(${table.lastName})) BETWEEN 1 AND 200
+      AND ${table.legalName} IS NULL AND ${table.registrationNumber} IS NULL)
+    OR
+    (${table.ownerType} = 'LEGAL_ENTITY'
+      AND char_length(btrim(${table.legalName})) BETWEEN 1 AND 300
+      AND ${table.firstName} IS NULL AND ${table.lastName} IS NULL
+      AND (${table.registrationNumber} IS NULL OR char_length(btrim(${table.registrationNumber})) BETWEEN 1 AND 200))
+  `),
+  check("property_owners_contact_check", sql`
+    (${table.phoneNumber} IS NULL OR char_length(btrim(${table.phoneNumber})) BETWEEN 1 AND 100)
+    AND (${table.email} IS NULL OR (char_length(${table.email}) BETWEEN 3 AND 320 AND ${table.email} ~ '^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$'))
+  `),
+  pgPolicy("property_owners_tenant_isolation", {
+    using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+    withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+  }),
+]).enableRLS();
 
 export const propertyOwnerships = propertyManagement.table("property_ownerships", {
   tenantId: uuid("tenant_id").notNull(), propertyId: uuid("property_id").notNull(), ownerId: uuid("owner_id").notNull(),
@@ -85,4 +253,9 @@ export const propertyOwnerships = propertyManagement.table("property_ownerships"
     columns: [table.tenantId, table.ownerId], foreignColumns: [propertyOwners.tenantId, propertyOwners.ownerId],
   }),
   index("property_ownerships_tenant_owner_idx").on(table.tenantId, table.ownerId),
-]);
+  check("property_ownerships_share_check", sql`${table.ownershipShare} > 0 AND ${table.ownershipShare} <= 100`),
+  pgPolicy("property_ownerships_tenant_isolation", {
+    using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+    withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+  }),
+]).enableRLS();
