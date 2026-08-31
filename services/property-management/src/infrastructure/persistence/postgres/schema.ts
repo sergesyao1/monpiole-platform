@@ -31,6 +31,9 @@ export const properties = propertyManagement.table("properties", {
   uniqueIndex("properties_tenant_property_unique").on(table.tenantId, table.propertyId),
   index("properties_tenant_created_property_idx").on(table.tenantId, table.createdAt.desc(), table.propertyId.desc()),
   index("properties_tenant_status_created_property_idx").on(table.tenantId, table.status, table.createdAt.desc(), table.propertyId.desc()),
+  index("properties_public_catalog_idx")
+    .on(table.tenantId, table.publishedAt.desc(), table.propertyId.desc())
+    .where(sql`${table.status} = 'PUBLISHED'`),
   check("properties_title_length_check", sql`char_length(${table.title}) BETWEEN 1 AND 200`),
   check("properties_description_length_check", sql`${table.description} IS NULL OR char_length(${table.description}) <= 5000`),
   check("properties_type_check", sql`${table.propertyType} IN ('APARTMENT', 'HOUSE', 'LAND', 'COMMERCIAL', 'OTHER')`),
@@ -85,6 +88,12 @@ export const properties = propertyManagement.table("properties", {
     using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
     withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
   }),
+  pgPolicy("properties_public_catalog_published_select", {
+    as: "restrictive",
+    for: "select",
+    to: "monpiole_public_catalog_reader",
+    using: sql`${table.status} = 'PUBLISHED'`,
+  }),
 ]).enableRLS();
 
 export const propertyPhotos = propertyManagement.table("property_photos", {
@@ -123,6 +132,26 @@ export const propertyPhotos = propertyManagement.table("property_photos", {
   pgPolicy("property_photos_tenant_isolation", {
     using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
     withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+  }),
+  pgPolicy("property_photos_public_catalog_primary_select", {
+    as: "restrictive",
+    for: "select",
+    to: "monpiole_public_catalog_reader",
+    using: sql`
+      ${table.status} = 'AVAILABLE'
+      AND ${table.isPrimary} = TRUE
+      AND ${table.contentBase64} IS NOT NULL
+      AND ${table.contentType} IS NOT NULL
+      AND ${table.contentByteSize} IS NOT NULL
+      AND ${table.contentSha256} IS NOT NULL
+      AND EXISTS (
+        SELECT 1
+        FROM ${properties} AS "public_catalog_property"
+        WHERE "public_catalog_property"."tenant_id" = ${table.tenantId}
+          AND "public_catalog_property"."property_id" = ${table.propertyId}
+          AND "public_catalog_property"."status" = 'PUBLISHED'
+      )
+    `,
   }),
 ]).enableRLS();
 

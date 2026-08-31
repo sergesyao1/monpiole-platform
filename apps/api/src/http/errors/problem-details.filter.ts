@@ -54,6 +54,7 @@ export class ProblemDetailsFilter implements ExceptionFilter {
     const requestId = request[REQUEST_CONTEXT]?.requestId ?? randomFallbackId();
     response.setHeader("X-Correlation-Id", correlationId);
     response.setHeader("X-Request-Id", requestId);
+    response.setHeader("Cache-Control", "no-store");
     const problem = ProblemDetailsSchema.parse({
       type: mapped?.type ?? (isClientError
         ? "https://api.monpiole.example/problems/invalid-request"
@@ -126,6 +127,18 @@ function businessProblem(exception: unknown) {
   if (code === "PROPERTY_NOT_FOUND") return {
     status: 404, type: "https://api.monpiole.example/problems/property-not-found",
     title: "Property not found", code: "PROPERTY_NOT_FOUND",
+  };
+  if (code === "PUBLIC_CATALOG_NOT_FOUND") return {
+    status: 404, type: "https://api.monpiole.example/problems/public-catalog-not-found",
+    title: "Public catalog not found", code: "PUBLIC_CATALOG_NOT_FOUND",
+  };
+  if (code === "PUBLIC_PROPERTY_NOT_FOUND") return {
+    status: 404, type: "https://api.monpiole.example/problems/public-property-not-found",
+    title: "Public Property not found", code: "PUBLIC_PROPERTY_NOT_FOUND",
+  };
+  if (code === "INVALID_PUBLIC_PROPERTY_CATALOG_QUERY") return {
+    status: 400, type: "https://api.monpiole.example/problems/invalid-request",
+    title: "Invalid request", code: "INVALID_REQUEST",
   };
   if (code === "PROPERTY_PUBLICATION_REQUIREMENTS_NOT_MET") return {
     status: 409,

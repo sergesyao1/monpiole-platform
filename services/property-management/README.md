@@ -175,3 +175,25 @@ required categories; resolution uses `max` plus category union. The repository
 reloads that standard with the photos inside the locked publication
 transaction. Image transformation, CDN lifecycle and public catalogue
 projection remain separate capabilities.
+
+## Catalogue public tenant-scoped
+
+TASK-058 ajoute une frontière de lecture publique dédiée sans réutiliser le
+portfolio privé ni sa représentation. `ListPublicProperties`,
+`RetrievePublicProperty` et `RetrievePublicPrimaryPhoto` reçoivent explicitement
+le tenant déjà résolu à la frontière HTTP. Leur adapter PostgreSQL applique
+encore les prédicats `tenant_id` et `PUBLISHED` dans une transaction portant
+`SET LOCAL app.tenant_id`.
+
+La migration append-only `0011_public_property_catalog_read_boundary.sql`
+ajoute l’index keyset partiel, deux policies RLS restrictives et uniquement des
+grants `SELECT` par colonne au rôle pré-provisionné
+`monpiole_public_catalog_reader`. Ce rôle est distinct de `monpiole_runtime`,
+sans écriture ni `BYPASSRLS`, et ne peut lire ni adresse exacte, owners,
+ownerships, composition, standards ou audits. Les publications historiques
+sans photo content-backed restent visibles avec une photo principale nulle.
+
+Le login et son credential sont provisionnés par Operations avant la migration,
+jamais créés ou stockés dans le dépôt. La diffusion globale cross-tenant,
+l’écriture publique, la recherche libre, les Buildings et le graphe de
+composition restent interdits.

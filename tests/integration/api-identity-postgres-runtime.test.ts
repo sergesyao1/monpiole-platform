@@ -68,6 +68,7 @@ beforeAll(async () => {
     .withWaitStrategy(Wait.forLogMessage(/database system is ready to accept connections/, 2)).start();
   ownerPool = new Pool({ connectionString: connectionString("migration_owner", OWNER_PASSWORD) });
   await ownerPool.query(`CREATE ROLE monpiole_runtime LOGIN PASSWORD '${RUNTIME_PASSWORD}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS`);
+  await ownerPool.query("CREATE ROLE monpiole_public_catalog_reader LOGIN PASSWORD 'synthetic-public-reader' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS");
   await migrate(drizzle(ownerPool), { migrationsFolder: tenantMigrations, migrationsTable: "tenant_management_migrations" });
   await migrate(drizzle(ownerPool), { migrationsFolder: identityMigrations, migrationsTable: "identity_migrations" });
   await migrate(drizzle(ownerPool), { migrationsFolder: propertyMigrations, migrationsTable: "property_management_migrations" });
@@ -557,5 +558,50 @@ describe("API PostgreSQL Identity runtime composition", () => {
     const removed = await fetch(`${baseUrl}/v1/properties/${property.propertyId}/owners/${propertyOwner.ownerId}`, { method: "DELETE" });
     expect(removed.status).toBe(204);
     expect((await ownerPool.query("SELECT count(*)::int AS count FROM property_management.property_ownerships")).rows[0]?.count).toBe(0);
+  });
+
+  it("composes the activated public catalog with a distinct reader pool", async () => {
+    const tenantId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const propertyId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const client = await ownerPool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(`INSERT INTO property_management.properties
+        (property_id,tenant_id,title,description,property_type,transaction_type,status,structural_role,
+         country,city,district,address_line,created_at,updated_at,correlation_id,actor_id,published_at,
+         published_by_actor_id,publication_correlation_id,usable_surface_square_meters,rooms,
+         commercial_kind,currency,sale_price_amount_minor)
+        VALUES ($1,$2,'Maison publique','Description publique','HOUSE','SALE','PUBLISHED','STANDALONE',
+          'CI','Abidjan','Cocody','Adresse privée',now(),now(),$3,'publisher',now(),'publisher',$3,
+          100,4,'SALE','XOF',125000000)`, [propertyId, tenantId, randomUUID()]);
+      await client.query(`INSERT INTO property_management.property_photos
+        (photo_id,tenant_id,property_id,category,status,is_primary,content_base64,content_type,
+         content_byte_size,content_sha256,registered_at,available_at)
+        VALUES ($1,$2,$3,'BUILDING_EXTERIOR_OR_ENTRANCE','AVAILABLE',true,'iVBORw0KGgo=','image/png',8,
+          '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',now(),now())`,
+      [randomUUID(), tenantId, propertyId]);
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+
+    runtime = createPostgresApiRuntime({
+      ...runtimeEnvironment(),
+      PUBLIC_CATALOG_HOST_TENANT_ALLOWLIST: `catalogue.runtime.test=${tenantId}`,
+      PUBLIC_CATALOG_DATABASE_URL: connectionString("monpiole_public_catalog_reader", "synthetic-public-reader"),
+      PUBLIC_CATALOG_DATABASE_TLS: "disabled",
+      PUBLIC_CATALOG_DATABASE_POOL_MAX: "2",
+    });
+    expect(runtime.composition.publicCatalogTenantResolver?.resolve("catalogue.runtime.test")).toBe(tenantId);
+    await expect(runtime.composition.listPublicProperties?.execute({ tenantId })).resolves.toMatchObject({
+      items: [{ publicPropertyId: propertyId, title: "Maison publique", primaryPhoto: { contentType: "image/png" } }],
+    });
+    const databaseUsers = (await ownerPool.query(`SELECT DISTINCT usename FROM pg_stat_activity
+      WHERE datname = current_database() AND usename IN ('monpiole_runtime', 'monpiole_public_catalog_reader')
+      ORDER BY usename`)).rows.map((row) => row.usename);
+    expect(databaseUsers).toEqual(["monpiole_public_catalog_reader", "monpiole_runtime"]);
   });
 });

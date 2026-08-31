@@ -48,6 +48,7 @@ beforeAll(async () => {
     .withExposedPorts(5432).withWaitStrategy(Wait.forLogMessage(/database system is ready to accept connections/, 2)).start();
   owner = new Pool({ connectionString: connection("owner", "synthetic-owner") });
   await owner.query("CREATE ROLE monpiole_runtime LOGIN PASSWORD 'synthetic-runtime' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS");
+  await owner.query("CREATE ROLE monpiole_public_catalog_reader LOGIN PASSWORD 'synthetic-public-reader' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS");
   await migrate(drizzle(owner), { migrationsFolder });
   await owner.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
     property_management.properties,
@@ -372,6 +373,7 @@ describe("PostgreSQL primary Property photo", () => {
       ORDER BY tablename`)).rows).toEqual([
       { tablename: "property_photo_standards", policyname: "property_photo_standards_tenant_isolation", cmd: "ALL", roles: "{public}", tenant_qual: true, tenant_check: true },
       { tablename: "property_photos", policyname: "property_photos_tenant_isolation", cmd: "ALL", roles: "{public}", tenant_qual: true, tenant_check: true },
+      { tablename: "property_photos", policyname: "property_photos_public_catalog_primary_select", cmd: "SELECT", roles: "{monpiole_public_catalog_reader}", tenant_qual: false, tenant_check: null },
       { tablename: "property_primary_photo_audits", policyname: "property_primary_photo_audits_tenant_isolation", cmd: "ALL", roles: "{public}", tenant_qual: true, tenant_check: true },
     ]);
   });

@@ -58,6 +58,27 @@ describe("application web MonPiole", () => {
     expect(screen.getByRole("heading", { name: "La session n’a pas pu être restaurée" })).toBeInTheDocument();
   });
 
+  it.each(["loading", "unauthenticated", "error"] as const)(
+    "rend le catalogue public et appelle son API avec une session %s sans redirection OIDC",
+    async (status) => {
+      const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+        items: [], pageInfo: { nextCursor: null, hasNextPage: false },
+      }), { status: 200, headers: { "content-type": "application/json" } }));
+      vi.stubGlobal("fetch", fetchMock);
+      renderRoute("/catalogue", {
+        ...authenticatedSession,
+        status,
+        ...(status === "error" ? { error: new Error("session failure") } : {}),
+      });
+      expect(screen.getByRole("heading", { name: "Des biens prêts à accueillir vos projets" })).toBeInTheDocument();
+      expect(await screen.findByRole("heading", { name: "Aucun bien ne correspond à cette sélection" })).toBeInTheDocument();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole("heading", { name: "Connectez-vous à MonPiole" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "La session n’a pas pu être restaurée" })).not.toBeInTheDocument();
+      expect((new Headers(fetchMock.mock.calls[0]?.[1]?.headers)).has("authorization")).toBe(false);
+    },
+  );
+
   it("vérifie la chaîne authentifiée vers l’API sans afficher le token", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ authenticated: true }), {
       status: 200, headers: { "content-type": "application/json" },

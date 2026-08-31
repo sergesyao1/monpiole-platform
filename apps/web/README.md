@@ -172,3 +172,26 @@ n’est fabriqué. Le portfolio propose les deux filtres « Brouillon » et
 - `src/features/properties` contient le client, les modèles de transport, les
   mappings français, les pages et composants du vertical slice Property ;
 - les vertical slices métier restent isolés par feature.
+
+## Catalogue public
+
+`/catalogue` et `/catalogue/:publicPropertyId` sont placées hors de
+`AuthenticationBoundary`. Elles rendent pendant les états OIDC `loading`,
+`unauthenticated` et `error`, n’appellent jamais `getAccessToken` et ne
+redirigent pas vers `/connexion`.
+
+La feature `src/features/public-catalog` possède ses modèles et son client de
+lecture propres. Les appels `/v1/public/*` et les images restent same-origin :
+cette contrainte préserve l’hôte public utilisé côté API pour résoudre le tenant
+et pour isoler les caches. Le reverse proxy de l’environnement contrôlé doit
+router ces chemins sans réécrire `Host`. `VITE_API_BASE_URL` continue de servir
+les parcours privés mais ne sélectionne aucun tenant public.
+
+Le catalogue français couvre les deux filtres approuvés, la pagination keyset,
+le chargement, l’état vide, l’erreur avec nouvelle tentative, la fiche 404 et
+le placeholder des publications historiques sans contenu photo. Aucun lien de
+création, donnée owner, adresse exacte ou valeur enum technique n’y est rendu.
+
+TASK-058 n’autorise aucune exposition Internet de production. L’activation d’un
+tenant réel, la revue de ses données publiées et un rate limiting approuvé
+restent des portes opérationnelles obligatoires.

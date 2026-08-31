@@ -29,6 +29,18 @@ export type {
   PropertyPortfolioQuery, PropertyPortfolioCriteria, PropertyPortfolioCursor,
   PropertyPortfolioItem, PropertyPortfolioPage,
 } from "./application/property-portfolio-query.js";
+export {
+  ListPublicProperties, RetrievePublicProperty, RetrievePublicPrimaryPhoto,
+  InvalidPublicPropertyCatalogQueryError, PublicPropertyNotFoundError,
+  DEFAULT_PUBLIC_PROPERTY_CATALOG_LIMIT, MAX_PUBLIC_PROPERTY_CATALOG_LIMIT,
+  type ListPublicPropertiesQuery, type RetrievePublicPropertyQuery,
+} from "./application/public-property-catalog.js";
+export type {
+  PublicPropertyCatalogQuery, PublicPropertyCatalogCriteria, PublicPropertyCatalogCursor,
+  PublicPropertyCatalogItem, PublicPropertyCatalogDetail, PublicPropertyCatalogPage,
+  PublicPropertyLocation, PublicPropertyDetails, PublicPropertyCommercialTerms,
+  PublicPropertyPrimaryPhotoReference, PublicPrimaryPhotoContent,
+} from "./application/public-property-catalog-query.js";
 export { PropertyOwnerPersistenceFailureError, type PropertyOwnerRepository } from "./application/property-owner-repository.js";
 export type {
   PropertyOwnerDirectoryQuery, PropertyOwnerDirectoryCriteria, PropertyOwnerDirectoryCursor,
@@ -55,6 +67,7 @@ export { PostgresPropertyRepository } from "./infrastructure/persistence/postgre
 export { PostgresPropertyPhotoRepository } from "./infrastructure/persistence/postgres/postgres-property-photo-repository.js";
 export { PostgresPropertyPhotoStandardRepository } from "./infrastructure/persistence/postgres/postgres-property-photo-standard-repository.js";
 export { PostgresPropertyPortfolioQuery } from "./infrastructure/persistence/postgres/postgres-property-portfolio-query.js";
+export { PostgresPublicPropertyCatalogQuery } from "./infrastructure/persistence/postgres/postgres-public-property-catalog-query.js";
 export { PostgresPropertyOwnerRepository } from "./infrastructure/persistence/postgres/postgres-property-owner-repository.js";
 export { PostgresPropertyOwnerDirectoryQuery } from "./infrastructure/persistence/postgres/postgres-property-owner-directory-query.js";
 export { PostgresPropertyOwnershipRepository } from "./infrastructure/persistence/postgres/postgres-property-ownership-repository.js";

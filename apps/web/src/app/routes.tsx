@@ -14,9 +14,13 @@ import { PropertyWorkspacePage } from "../features/properties/PropertyWorkspaceP
 import { PropertyOwnerDirectoryPage } from "../features/properties/PropertyOwnerDirectoryPage.js";
 import { CreatePropertyOwnerPage } from "../features/properties/CreatePropertyOwnerPage.js";
 import { PropertyOwnerDetailPage } from "../features/properties/PropertyOwnerDetailPage.js";
+import { PublicPropertyCatalogPage } from "../features/public-catalog/PublicPropertyCatalogPage.js";
+import { PublicPropertyDetailPage } from "../features/public-catalog/PublicPropertyDetailPage.js";
 
 export const applicationRoutes: RouteObject[] = [
   { path: "/connexion", element: <LoginPage /> },
+  { path: "/catalogue", element: <PublicPropertyCatalogPage />, errorElement: <RouteErrorPage /> },
+  { path: "/catalogue/:publicPropertyId", element: <PublicPropertyDetailPage />, errorElement: <RouteErrorPage /> },
   {
     element: <AuthenticationBoundary />,
     children: [{

@@ -1843,6 +1843,399 @@
           }
         ]
       },
+      "PublicPropertyCatalogResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PublicPropertySummary"
+            },
+            "type": "array"
+          },
+          "pageInfo": {
+            "additionalProperties": false,
+            "properties": {
+              "hasNextPage": {
+                "type": "boolean"
+              },
+              "nextCursor": {
+                "anyOf": [
+                  {
+                    "maxLength": 512,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "hasNextPage",
+              "nextCursor"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "items",
+          "pageInfo"
+        ],
+        "type": "object"
+      },
+      "PublicPropertyCommercialTerms": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "chargesAmountMinor": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "currency": {
+                "pattern": "^[A-Z]{3}$",
+                "type": "string"
+              },
+              "kind": {
+                "const": "LONG_TERM_RENTAL",
+                "type": "string"
+              },
+              "rentAmountMinor": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "rentPeriod": {
+                "const": "MONTH",
+                "type": "string"
+              },
+              "securityDepositAmountMinor": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "currency",
+              "kind",
+              "rentAmountMinor",
+              "rentPeriod"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "currency": {
+                "pattern": "^[A-Z]{3}$",
+                "type": "string"
+              },
+              "kind": {
+                "const": "SHORT_TERM_RENTAL",
+                "type": "string"
+              },
+              "pricingUnit": {
+                "enum": [
+                  "NIGHT",
+                  "WEEK"
+                ],
+                "type": "string"
+              },
+              "rateAmountMinor": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "currency",
+              "kind",
+              "pricingUnit",
+              "rateAmountMinor"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "currency": {
+                "pattern": "^[A-Z]{3}$",
+                "type": "string"
+              },
+              "kind": {
+                "const": "SALE",
+                "type": "string"
+              },
+              "salePriceAmountMinor": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "currency",
+              "kind",
+              "salePriceAmountMinor"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PublicPropertyDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "apartmentSubtype": {
+            "enum": [
+              "MULTI_ROOM",
+              "STUDIO"
+            ],
+            "type": "string"
+          },
+          "commercialTerms": {
+            "$ref": "#/components/schemas/PublicPropertyCommercialTerms"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 5000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "details": {
+            "$ref": "#/components/schemas/PublicPropertyDetails"
+          },
+          "location": {
+            "$ref": "#/components/schemas/PublicPropertyLocation"
+          },
+          "primaryPhoto": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicPropertyPrimaryPhoto"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "propertyType": {
+            "enum": [
+              "APARTMENT",
+              "COMMERCIAL",
+              "HOUSE",
+              "LAND",
+              "OTHER"
+            ],
+            "type": "string"
+          },
+          "publicPropertyId": {
+            "$ref": "#/components/schemas/PublicPropertyId"
+          },
+          "publishedAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "structuralRole": {
+            "enum": [
+              "COMPOSITE",
+              "STANDALONE",
+              "UNIT"
+            ],
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "transactionType": {
+            "enum": [
+              "LONG_TERM_RENTAL",
+              "SALE",
+              "SHORT_TERM_RENTAL"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "commercialTerms",
+          "description",
+          "details",
+          "location",
+          "primaryPhoto",
+          "propertyType",
+          "publicPropertyId",
+          "publishedAt",
+          "structuralRole",
+          "title",
+          "transactionType"
+        ],
+        "type": "object"
+      },
+      "PublicPropertyDetails": {
+        "additionalProperties": false,
+        "properties": {
+          "bathrooms": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "bedrooms": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "furnished": {
+            "type": "boolean"
+          },
+          "rooms": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "usableSurfaceSquareMeters": {
+            "exclusiveMinimum": 0,
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "PublicPropertyId": {
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+        "type": "string"
+      },
+      "PublicPropertyLocation": {
+        "additionalProperties": false,
+        "properties": {
+          "city": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "country": {
+            "pattern": "^[A-Z]{2}$",
+            "type": "string"
+          },
+          "district": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "city",
+          "country",
+          "district"
+        ],
+        "type": "object"
+      },
+      "PublicPropertyPrimaryPhoto": {
+        "additionalProperties": false,
+        "properties": {
+          "contentType": {
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "image/webp"
+            ],
+            "type": "string"
+          },
+          "url": {
+            "pattern": "^\\/v1\\/public\\/properties\\/[0-9a-f-]+\\/primary-photo$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "contentType",
+          "url"
+        ],
+        "type": "object"
+      },
+      "PublicPropertySummary": {
+        "additionalProperties": false,
+        "properties": {
+          "apartmentSubtype": {
+            "enum": [
+              "MULTI_ROOM",
+              "STUDIO"
+            ],
+            "type": "string"
+          },
+          "commercialTerms": {
+            "$ref": "#/components/schemas/PublicPropertyCommercialTerms"
+          },
+          "location": {
+            "$ref": "#/components/schemas/PublicPropertyLocation"
+          },
+          "primaryPhoto": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicPropertyPrimaryPhoto"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "propertyType": {
+            "enum": [
+              "APARTMENT",
+              "COMMERCIAL",
+              "HOUSE",
+              "LAND",
+              "OTHER"
+            ],
+            "type": "string"
+          },
+          "publicPropertyId": {
+            "$ref": "#/components/schemas/PublicPropertyId"
+          },
+          "publishedAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "structuralRole": {
+            "enum": [
+              "COMPOSITE",
+              "STANDALONE",
+              "UNIT"
+            ],
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "transactionType": {
+            "enum": [
+              "LONG_TERM_RENTAL",
+              "SALE",
+              "SHORT_TERM_RENTAL"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "commercialTerms",
+          "location",
+          "primaryPhoto",
+          "propertyType",
+          "publicPropertyId",
+          "publishedAt",
+          "structuralRole",
+          "title",
+          "transactionType"
+        ],
+        "type": "object"
+      },
       "RegisterPropertyPhotoRequest": {
         "additionalProperties": false,
         "properties": {
@@ -5940,6 +6333,304 @@
         "summary": "Increase tenant photo minimum and add mandatory views",
         "tags": [
           "Property photos"
+        ]
+      }
+    },
+    "/v1/public/properties": {
+      "get": {
+        "operationId": "listPublicProperties",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "enum": [
+                "APARTMENT",
+                "COMMERCIAL",
+                "HOUSE",
+                "LAND",
+                "OTHER"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "transactionType",
+            "required": false,
+            "schema": {
+              "enum": [
+                "LONG_TERM_RENTAL",
+                "SALE",
+                "SHORT_TERM_RENTAL"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicPropertyCatalogResponse"
+                }
+              }
+            },
+            "description": "Published Properties of the tenant resolved from the exact request host",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid catalog query or cursor"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Public catalog host not found"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Safe internal failure"
+          }
+        },
+        "security": [],
+        "summary": "List one activated tenant's published Properties",
+        "tags": [
+          "Public Property catalog"
+        ]
+      }
+    },
+    "/v1/public/properties/{publicPropertyId}": {
+      "get": {
+        "operationId": "retrievePublicProperty",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "publicPropertyId",
+            "required": true,
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicPropertyDetail"
+                }
+              }
+            },
+            "description": "Public Property detail",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid public Property identifier"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Public Property not found"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Safe internal failure"
+          }
+        },
+        "security": [],
+        "summary": "Retrieve one published Property for the resolved tenant",
+        "tags": [
+          "Public Property catalog"
+        ]
+      }
+    },
+    "/v1/public/properties/{publicPropertyId}/primary-photo": {
+      "get": {
+        "operationId": "retrievePublicPropertyPrimaryPhoto",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "publicPropertyId",
+            "required": true,
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Content-backed primary image",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The cached primary image is still current",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid public Property identifier"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Public primary photo not found"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Safe internal failure"
+          }
+        },
+        "security": [],
+        "summary": "Retrieve the public primary photo of one published Property",
+        "tags": [
+          "Public Property catalog"
         ]
       }
     },

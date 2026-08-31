@@ -231,3 +231,45 @@ documents applicable `400`, `401`, `403`, `404`, `409`, and safe `500`
 responses with `application/problem+json`; the two read operations omit `409`.
 Dedicated contract tests lock these paths, schemas, headers, statuses, and
 cursor representations to the runtime DTOs.
+
+## Public Property catalog — TASK-058
+
+Les opérations anonymes suivantes constituent des contrats publics distincts :
+
+- `GET /v1/public/properties` ;
+- `GET /v1/public/properties/{publicPropertyId}` ;
+- `GET /v1/public/properties/{publicPropertyId}/primary-photo`.
+
+Elles déclarent `security: []`, n’appellent pas la frontière OIDC et n’acceptent
+aucun tenant, statut ou champ d’autorité du client. Le tenant unique provient de
+la correspondance exacte `Host → tenant UUID` configurée dans
+`PUBLIC_CATALOG_HOST_TENANT_ALLOWLIST`. La valeur est une liste séparée par des
+virgules d’entrées `host=tenantUuid`; absente ou vide, elle ferme tous les
+catalogues par 404. `X-Forwarded-Host` est ignoré tant qu’un proxy de confiance
+n’est pas explicitement intégré.
+
+Une allowlist non vide exige `PUBLIC_CATALOG_DATABASE_URL` et
+`PUBLIC_CATALOG_DATABASE_TLS`. L’URL doit authentifier exactement
+`monpiole_public_catalog_reader`; l’API crée alors un second pool, séparé de
+`monpiole_runtime`. Les variantes `PUBLIC_CATALOG_DATABASE_POOL_MAX`,
+`PUBLIC_CATALOG_DATABASE_CONNECTION_TIMEOUT_MS` et
+`PUBLIC_CATALOG_DATABASE_IDLE_TIMEOUT_MS` sont optionnelles. Le rôle doit être
+provisionné avant l’application de `0011` avec `NOSUPERUSER NOCREATEDB
+NOCREATEROLE NOINHERIT NOBYPASSRLS`; la migration accorde seulement les droits
+de lecture par colonne.
+
+Les listes utilisent une pagination keyset bornée à 50, les seuls filtres
+`type` et `transactionType`, et l’ordre `publishedAt DESC, publicPropertyId
+DESC`. Les DTO sont des listes blanches sans `tenantId`, adresse, owners,
+identités, traces ou identifiants photo. Liste et détail ont un cache public de
+60 secondes ; la photo, 300 secondes avec ETag ; toutes les erreurs utilisent
+`no-store` et la clé de cache doit conserver Host, path et query.
+
+Le Web public appelle ces routes en same-origin afin que l’hôte du catalogue
+arrive réellement à l’API. L’ingress contrôlé doit donc router `/v1/public/*`
+depuis chaque hôte activé vers l’API sans réécrire Host.
+
+La configuration refuse une allowlist non vide lorsque `MONPIOLE_ENV=production`.
+Le catalogue reste **NO-GO Internet production** : aucun rate limiter n’est
+livré, aucun tenant réel n’est activé et aucune revue de données pilote n’est
+encodée dans le dépôt.

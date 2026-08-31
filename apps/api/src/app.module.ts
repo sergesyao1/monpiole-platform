@@ -8,6 +8,7 @@ import type {
   CreatePropertyUnit, ListPropertyUnits, UpdatePropertyUnitStructure, PublishProperty,
   ListPropertyPhotos, RegisterPropertyPhoto, RetrievePropertyPhotoContent, SelectPropertyPrimaryPhoto, DeletePropertyPhoto,
   RetrievePropertyPhotoStandard, UpdatePropertyPhotoStandard,
+  ListPublicProperties, RetrievePublicProperty, RetrievePublicPrimaryPhoto,
 } from "@monpiole/property-management";
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core";
 import {
@@ -57,6 +58,15 @@ import { PropertyCompositionController, CREATE_PROPERTY_BUILDING, LIST_PROPERTY_
 import { PUBLISH_PROPERTY_USE_CASE, PublishPropertyController } from "./http/properties/publish-property.controller.js";
 import { DELETE_PROPERTY_PHOTO_USE_CASE, LIST_PROPERTY_PHOTOS_USE_CASE, REGISTER_PROPERTY_PHOTO_USE_CASE, RETRIEVE_PROPERTY_PHOTO_CONTENT_USE_CASE, SELECT_PROPERTY_PRIMARY_PHOTO_USE_CASE, PropertyPhotosController } from "./http/properties/property-photos.controller.js";
 import { PropertyPhotoStandardController, RETRIEVE_PROPERTY_PHOTO_STANDARD_USE_CASE, UPDATE_PROPERTY_PHOTO_STANDARD_USE_CASE } from "./http/properties/property-photo-standard.controller.js";
+import {
+  LIST_PUBLIC_PROPERTIES_USE_CASE, PUBLIC_CATALOG_TENANT_RESOLVER,
+  RETRIEVE_PUBLIC_PRIMARY_PHOTO_USE_CASE, RETRIEVE_PUBLIC_PROPERTY_USE_CASE,
+  PublicPropertiesController,
+} from "./http/public-properties/public-properties.controller.js";
+import {
+  AllowlistedPublicCatalogTenantResolver,
+  type PublicCatalogTenantResolver,
+} from "./configuration/public-catalog.js";
 
 const StrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
@@ -82,6 +92,10 @@ export interface ApiComposition {
   readonly deletePropertyPhoto?: Pick<DeletePropertyPhoto, "execute">;
   readonly retrievePropertyPhotoStandard?: Pick<RetrievePropertyPhotoStandard, "execute">;
   readonly updatePropertyPhotoStandard?: Pick<UpdatePropertyPhotoStandard, "execute">;
+  readonly publicCatalogTenantResolver?: PublicCatalogTenantResolver;
+  readonly listPublicProperties?: Pick<ListPublicProperties, "execute">;
+  readonly retrievePublicProperty?: Pick<RetrievePublicProperty, "execute">;
+  readonly retrievePublicPrimaryPhoto?: Pick<RetrievePublicPrimaryPhoto, "execute">;
   readonly createPropertyOwner?: Pick<CreatePropertyOwner, "execute">;
   readonly retrievePropertyOwner?: Pick<RetrievePropertyOwner, "execute">;
   readonly listPropertyOwners?: Pick<ListPropertyOwners, "execute">;
@@ -131,6 +145,10 @@ const unavailableSelectPropertyPrimaryPhoto: Pick<SelectPropertyPrimaryPhoto, "e
 const unavailableDeletePropertyPhoto: Pick<DeletePropertyPhoto, "execute"> = { async execute() { throw new Error("Delete Property photo composition is unavailable"); } };
 const unavailableRetrievePropertyPhotoStandard: Pick<RetrievePropertyPhotoStandard, "execute"> = { async execute() { throw new Error("Retrieve Property photo standard composition is unavailable"); } };
 const unavailableUpdatePropertyPhotoStandard: Pick<UpdatePropertyPhotoStandard, "execute"> = { async execute() { throw new Error("Update Property photo standard composition is unavailable"); } };
+const unavailableListPublicProperties: Pick<ListPublicProperties, "execute"> = { async execute() { throw new Error("Public Property catalog composition is unavailable"); } };
+const unavailableRetrievePublicProperty: Pick<RetrievePublicProperty, "execute"> = { async execute() { throw new Error("Public Property detail composition is unavailable"); } };
+const unavailableRetrievePublicPrimaryPhoto: Pick<RetrievePublicPrimaryPhoto, "execute"> = { async execute() { throw new Error("Public Property photo composition is unavailable"); } };
+const unavailablePublicCatalogTenantResolver = new AllowlistedPublicCatalogTenantResolver(new Map());
 const unavailableCreatePropertyOwner: Pick<CreatePropertyOwner, "execute"> = { async execute() { throw new Error("Create Property Owner composition is unavailable"); } };
 const unavailableRetrievePropertyOwner: Pick<RetrievePropertyOwner, "execute"> = { async execute() { throw new Error("Retrieve Property Owner composition is unavailable"); } };
 const unavailableListPropertyOwners: Pick<ListPropertyOwners, "execute"> = { async execute() { throw new Error("List Property Owners composition is unavailable"); } };
@@ -155,6 +173,7 @@ export class AppModule {
         UpdatePropertyCoreInformationController, UpdatePropertyDetailsController,
         PublishPropertyController,
         PropertyPhotosController, PropertyPhotoStandardController,
+        PublicPropertiesController,
         CreatePropertyOwnerController, ListPropertyOwnersController, RetrievePropertyOwnerController, UpdatePropertyOwnerController,
         AssignPropertyOwnerController, RetrievePropertyOwnershipsController, RemovePropertyOwnerController, PropertyCompositionController,
       ],
@@ -194,6 +213,10 @@ export class AppModule {
         { provide: DELETE_PROPERTY_PHOTO_USE_CASE, useValue: composition.deletePropertyPhoto ?? unavailableDeletePropertyPhoto },
         { provide: RETRIEVE_PROPERTY_PHOTO_STANDARD_USE_CASE, useValue: composition.retrievePropertyPhotoStandard ?? unavailableRetrievePropertyPhotoStandard },
         { provide: UPDATE_PROPERTY_PHOTO_STANDARD_USE_CASE, useValue: composition.updatePropertyPhotoStandard ?? unavailableUpdatePropertyPhotoStandard },
+        { provide: PUBLIC_CATALOG_TENANT_RESOLVER, useValue: composition.publicCatalogTenantResolver ?? unavailablePublicCatalogTenantResolver },
+        { provide: LIST_PUBLIC_PROPERTIES_USE_CASE, useValue: composition.listPublicProperties ?? unavailableListPublicProperties },
+        { provide: RETRIEVE_PUBLIC_PROPERTY_USE_CASE, useValue: composition.retrievePublicProperty ?? unavailableRetrievePublicProperty },
+        { provide: RETRIEVE_PUBLIC_PRIMARY_PHOTO_USE_CASE, useValue: composition.retrievePublicPrimaryPhoto ?? unavailableRetrievePublicPrimaryPhoto },
         { provide: CREATE_PROPERTY_OWNER_USE_CASE, useValue: composition.createPropertyOwner ?? unavailableCreatePropertyOwner },
         { provide: RETRIEVE_PROPERTY_OWNER_USE_CASE, useValue: composition.retrievePropertyOwner ?? unavailableRetrievePropertyOwner },
         { provide: LIST_PROPERTY_OWNERS_USE_CASE, useValue: composition.listPropertyOwners ?? unavailableListPropertyOwners },
