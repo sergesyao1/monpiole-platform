@@ -40,11 +40,16 @@ beforeAll(async () => {
   container = await new GenericContainer(IMAGE).withEnvironment({ POSTGRES_DB: "property_test", POSTGRES_USER: "owner", POSTGRES_PASSWORD: "synthetic-owner" })
     .withExposedPorts(5432).withWaitStrategy(Wait.forLogMessage(/database system is ready to accept connections/, 2)).start();
   owner = new Pool({ connectionString: connection("owner", "synthetic-owner") });
-  await owner.query("CREATE ROLE property_runtime LOGIN PASSWORD 'synthetic-runtime' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS");
+  await owner.query("CREATE ROLE monpiole_runtime LOGIN PASSWORD 'synthetic-runtime' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS");
   await migrate(drizzle(owner), { migrationsFolder });
-  await owner.query("GRANT USAGE ON SCHEMA property_management TO property_runtime");
-  await owner.query("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA property_management TO property_runtime");
-  runtime = new Pool({ connectionString: connection("property_runtime", "synthetic-runtime") });
+  await owner.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
+    property_management.properties,
+    property_management.property_owners,
+    property_management.property_ownerships,
+    property_management.property_buildings,
+    property_management.property_building_units
+    TO monpiole_runtime`);
+  runtime = new Pool({ connectionString: connection("monpiole_runtime", "synthetic-runtime") });
 });
 afterEach(async () => owner.query("TRUNCATE property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners"));
 afterAll(async () => { await runtime?.end(); await owner?.end(); await container?.stop(); });

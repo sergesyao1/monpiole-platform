@@ -22,6 +22,7 @@ import { propertyPhotos } from "../src/infrastructure/persistence/postgres/schem
 
 const IMAGE = "postgres@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687";
 const TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const TENANT_B = "11111111-1111-4111-8111-111111111111";
 const PROPERTY_A = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const PROPERTY_B = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const PHOTO_A = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
@@ -46,11 +47,16 @@ beforeAll(async () => {
     .withEnvironment({ POSTGRES_DB: "property_photo_test", POSTGRES_USER: "owner", POSTGRES_PASSWORD: "synthetic-owner" })
     .withExposedPorts(5432).withWaitStrategy(Wait.forLogMessage(/database system is ready to accept connections/, 2)).start();
   owner = new Pool({ connectionString: connection("owner", "synthetic-owner") });
-  await owner.query("CREATE ROLE property_runtime LOGIN PASSWORD 'synthetic-runtime' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS");
+  await owner.query("CREATE ROLE monpiole_runtime LOGIN PASSWORD 'synthetic-runtime' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS");
   await migrate(drizzle(owner), { migrationsFolder });
-  await owner.query("GRANT USAGE ON SCHEMA property_management TO property_runtime");
-  await owner.query("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA property_management TO property_runtime");
-  runtime = new Pool({ connectionString: connection("property_runtime", "synthetic-runtime") });
+  await owner.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
+    property_management.properties,
+    property_management.property_owners,
+    property_management.property_ownerships,
+    property_management.property_buildings,
+    property_management.property_building_units
+    TO monpiole_runtime`);
+  runtime = new Pool({ connectionString: connection("monpiole_runtime", "synthetic-runtime") });
 });
 afterEach(async () => owner.query("TRUNCATE property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners"));
 afterAll(async () => { await runtime?.end(); await owner?.end(); await container?.stop(); });
@@ -98,6 +104,27 @@ function selector() {
 }
 
 describe("PostgreSQL primary Property photo", () => {
+  it("applique 0010 et accorde exactement les privilèges photo nécessaires à monpiole_runtime", async () => {
+    const privileges = (await owner.query(`SELECT table_name, privilege_type
+      FROM information_schema.table_privileges
+      WHERE table_schema = 'property_management' AND grantee = 'monpiole_runtime'
+        AND table_name IN ('property_photos', 'property_photo_standards', 'property_primary_photo_audits')
+      ORDER BY table_name, privilege_type`)).rows;
+    expect(privileges).toEqual([
+      { table_name: "property_photo_standards", privilege_type: "INSERT" },
+      { table_name: "property_photo_standards", privilege_type: "SELECT" },
+      { table_name: "property_photo_standards", privilege_type: "UPDATE" },
+      { table_name: "property_photos", privilege_type: "DELETE" },
+      { table_name: "property_photos", privilege_type: "INSERT" },
+      { table_name: "property_photos", privilege_type: "SELECT" },
+      { table_name: "property_photos", privilege_type: "UPDATE" },
+      { table_name: "property_primary_photo_audits", privilege_type: "INSERT" },
+      { table_name: "property_primary_photo_audits", privilege_type: "SELECT" },
+    ]);
+    expect((await runtime.query("SELECT current_user, has_schema_privilege(current_user, 'property_management', 'USAGE') AS schema_usage")).rows[0])
+      .toEqual({ current_user: "monpiole_runtime", schema_usage: true });
+  });
+
   it("préserve une publication 0008 historique sans faire compter sa simple URL à l’avenir", async () => {
     const previousMigrations = await migrationsThrough(8);
     await owner.query("CREATE DATABASE property_photo_upgrade_test");
@@ -282,6 +309,52 @@ describe("PostgreSQL primary Property photo", () => {
       .resolves.toMatchObject({ outcome: "PUBLISHED" });
   });
 
+  it("refuse tout accès inter-tenant aux trois tables photo", async () => {
+    const tenantBAuthority = { ...authority, tenantIds: [TENANT_B] };
+    await new CreateProperty(new PostgresPropertyRepository(runtime), { generate: () => PROPERTY_B }, { now: () => NOW }).execute({
+      authority: tenantBAuthority, correlationId: CORRELATION, title: "Bien tenant B",
+      propertyType: "HOUSE", transactionType: "SALE",
+      location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Tenant B" },
+    });
+    await new PostgresPropertyPhotoRepository(runtime).register(TENANT_B, PROPERTY_B, {
+      photoId: PHOTO_B, category: "OTHER", contentType: "image/png", contentBase64: "iVBORw0KGgo=",
+      registeredAt: NOW, correlationId: CORRELATION, actorId: "tenant-b-admin",
+    });
+    await new PostgresPropertyPhotoStandardRepository(runtime).save(TENANT_B, {
+      minimumCount: 2, additionalRequiredCategories: ["OTHER"],
+    }, { updatedAt: NOW, correlationId: CORRELATION, actorId: "tenant-b-admin" });
+    await new SelectPropertyPrimaryPhoto(new PostgresPropertyPhotoRepository(runtime), { now: () => NOW }).execute({
+      authority: tenantBAuthority, correlationId: CORRELATION, propertyId: PROPERTY_B, photoId: PHOTO_B,
+    });
+
+    await expect(new PostgresPropertyRepository(runtime).findById(TENANT_A, PROPERTY_B)).resolves.toBeUndefined();
+    const hiddenRows = await withTenantPostgresTransaction(runtime, TENANT_A, (scope) => scope.query<{ source: string }>(`
+      SELECT 'photo' AS source FROM property_management.property_photos WHERE tenant_id = $1
+      UNION ALL SELECT 'standard' FROM property_management.property_photo_standards WHERE tenant_id = $1
+      UNION ALL SELECT 'audit' FROM property_management.property_primary_photo_audits WHERE tenant_id = $1`, [TENANT_B]));
+    expect(hiddenRows).toEqual([]);
+    await expect(withTenantPostgresTransaction(runtime, TENANT_A, (scope) => scope.query(
+      `INSERT INTO property_management.property_photo_standards
+        (tenant_id, minimum_photo_count, additional_required_categories, updated_at, correlation_id, actor_id)
+       VALUES ($1, 2, ARRAY[]::text[], $2, $3, 'tenant-a-admin')`, [TENANT_B, NOW, CORRELATION],
+    ))).rejects.toMatchObject({ code: "42501" });
+  });
+
+  it("autorise la lecture et l’ajout d’audit mais refuse sa modification et sa suppression", async () => {
+    await createReady(); await insertPhoto(PHOTO_A);
+    await selector().execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_A, photoId: PHOTO_A });
+    const audits = await withTenantPostgresTransaction(runtime, TENANT_A, (scope) => scope.query<{ audit_id: string }>(
+      "SELECT audit_id FROM property_management.property_primary_photo_audits WHERE selected_photo_id = $1", [PHOTO_A],
+    ));
+    expect(audits).toHaveLength(1);
+    await expect(withTenantPostgresTransaction(runtime, TENANT_A, (scope) => scope.query(
+      "UPDATE property_management.property_primary_photo_audits SET actor_id = 'forbidden' WHERE audit_id = $1", [audits[0]!.audit_id],
+    ))).rejects.toMatchObject({ code: "42501" });
+    await expect(withTenantPostgresTransaction(runtime, TENANT_A, (scope) => scope.query(
+      "DELETE FROM property_management.property_primary_photo_audits WHERE audit_id = $1", [audits[0]!.audit_id],
+    ))).rejects.toMatchObject({ code: "42501" });
+  });
+
   it("active et force la RLS sur les photos, le standard et l’audit", async () => {
     const rows = (await owner.query(`SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class
       WHERE relnamespace = 'property_management'::regnamespace
@@ -290,6 +363,16 @@ describe("PostgreSQL primary Property photo", () => {
       { relname: "property_photo_standards", relrowsecurity: true, relforcerowsecurity: true },
       { relname: "property_photos", relrowsecurity: true, relforcerowsecurity: true },
       { relname: "property_primary_photo_audits", relrowsecurity: true, relforcerowsecurity: true },
+    ]);
+    expect((await owner.query(`SELECT tablename, policyname, cmd, roles,
+        qual LIKE '%app.tenant_id%' AS tenant_qual,
+        with_check LIKE '%app.tenant_id%' AS tenant_check
+      FROM pg_policies WHERE schemaname = 'property_management'
+        AND tablename IN ('property_photos', 'property_photo_standards', 'property_primary_photo_audits')
+      ORDER BY tablename`)).rows).toEqual([
+      { tablename: "property_photo_standards", policyname: "property_photo_standards_tenant_isolation", cmd: "ALL", roles: "{public}", tenant_qual: true, tenant_check: true },
+      { tablename: "property_photos", policyname: "property_photos_tenant_isolation", cmd: "ALL", roles: "{public}", tenant_qual: true, tenant_check: true },
+      { tablename: "property_primary_photo_audits", policyname: "property_primary_photo_audits_tenant_isolation", cmd: "ALL", roles: "{public}", tenant_qual: true, tenant_check: true },
     ]);
   });
 });

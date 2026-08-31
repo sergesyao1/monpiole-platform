@@ -71,6 +71,13 @@
       "when": 1788098738773,
       "tag": "0009_property_management_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788165439167,
+      "tag": "0010_runtime_photo_permissions_recovery",
+      "breakpoints": true
     }
   ]
 }

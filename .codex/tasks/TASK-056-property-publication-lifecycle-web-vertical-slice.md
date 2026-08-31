@@ -349,6 +349,54 @@ dans les représentations privées canoniques.
 - `corepack pnpm test` : PASS final, 72 fichiers et 564/564 tests ;
 - `git diff --check` : PASS.
 
+## Runtime Photo Permissions Recovery
+
+La migration Drizzle append-only `0010_runtime_photo_permissions_recovery.sql`
+répare les droits manquants après `0009` sans modifier `0007`, `0008`, `0009`
+ni aucune donnée. Elle réaffirme `ENABLE` et `FORCE ROW LEVEL SECURITY` sur les
+trois tables photo, conserve leurs policies tenant nommées et accorde l'usage du
+schema au rôle applicatif réel `monpiole_runtime`.
+
+Les privilèges de table suivent strictement les opérations des repositories :
+
+- `property_photos` : `SELECT`, `INSERT`, `UPDATE`, `DELETE` pour lire la
+  galerie et le contenu, téléverser, sélectionner/remplacer la principale et
+  supprimer une photo non principale ;
+- `property_photo_standards` : `SELECT`, `INSERT`, `UPDATE` pour lire et
+  renforcer le standard de l'organisation, sans suppression ;
+- `property_primary_photo_audits` : `SELECT`, `INSERT` uniquement. La table
+  reste append-only et le runtime ne peut ni modifier ni supprimer un audit.
+
+La migration révoque explicitement les privilèges de table non requis avant de
+réaccorder cette matrice minimale ; aucun `GRANT ALL` ni privilège de
+`TRUNCATE`, `REFERENCES` ou `TRIGGER` n'est utilisé. Le snapshot et le journal
+Drizzle portent l'entrée `0010`.
+
+Les preuves PostgreSQL créent `monpiole_runtime` avant d'exécuter réellement la
+chaîne de migrations, puis vérifient les grants effectifs, le rôle de connexion,
+la RLS forcée, les trois policies tenant et leurs expressions tenant. Elles
+exercent avec ce rôle la lecture d'un bien et de ses photos, l'upload, la
+sélection principale, la suppression autorisée, la lecture et le renforcement
+du standard, l'insertion/lecture d'audit, le masquage et le refus d'écriture
+inter-tenant, ainsi que les refus `UPDATE` et `DELETE` sur l'audit. Le test
+d'intégration API PostgreSQL utilise également `monpiole_runtime` et couvre les
+GET du bien avec photos et du standard, puis le parcours POST/PUT/DELETE photo.
+
+Validation du recovery :
+
+- `corepack pnpm service:property-management:migration:check` : PASS ;
+- `corepack pnpm service:property-management:test:integration` : PASS,
+  2 fichiers et 58/58 tests PostgreSQL ;
+- test d'intégration API runtime ciblé : PASS, 10/10 tests ;
+- `corepack pnpm test:integration` : PASS, 17 fichiers et 150/150 tests ;
+- `corepack pnpm test:contract` : PASS, 13 fichiers et 79/79 tests ;
+- `corepack pnpm test` : PASS, 72 fichiers et 568/568 tests ;
+- `corepack pnpm -r typecheck` et `corepack pnpm typecheck:tests` : PASS ;
+- `corepack pnpm app:api:build` et `corepack pnpm app:web:build` : PASS ; le
+  warning Vite de chunk à 567,30 kB reste non bloquant ;
+- `corepack pnpm architecture:check` : PASS ;
+- `git diff --check` : PASS.
+
 ## Résultat
 
 La tranche TASK-056 est fonctionnelle et vérifiée de bout en bout. La décision

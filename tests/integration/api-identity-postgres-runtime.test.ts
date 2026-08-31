@@ -67,15 +67,21 @@ beforeAll(async () => {
     .withExposedPorts(5432)
     .withWaitStrategy(Wait.forLogMessage(/database system is ready to accept connections/, 2)).start();
   ownerPool = new Pool({ connectionString: connectionString("migration_owner", OWNER_PASSWORD) });
-  await ownerPool.query(`CREATE ROLE api_runtime LOGIN PASSWORD '${RUNTIME_PASSWORD}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS`);
+  await ownerPool.query(`CREATE ROLE monpiole_runtime LOGIN PASSWORD '${RUNTIME_PASSWORD}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS`);
   await migrate(drizzle(ownerPool), { migrationsFolder: tenantMigrations, migrationsTable: "tenant_management_migrations" });
   await migrate(drizzle(ownerPool), { migrationsFolder: identityMigrations, migrationsTable: "identity_migrations" });
   await migrate(drizzle(ownerPool), { migrationsFolder: propertyMigrations, migrationsTable: "property_management_migrations" });
-  await ownerPool.query("GRANT USAGE ON SCHEMA tenant_management, identity, property_management TO api_runtime");
-  await ownerPool.query("GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA tenant_management TO api_runtime");
-  await ownerPool.query("GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA identity TO api_runtime");
-  await ownerPool.query("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA property_management TO api_runtime");
-  runtimePool = new Pool({ connectionString: connectionString("api_runtime", RUNTIME_PASSWORD), max: 4 });
+  await ownerPool.query("GRANT USAGE ON SCHEMA tenant_management, identity TO monpiole_runtime");
+  await ownerPool.query("GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA tenant_management TO monpiole_runtime");
+  await ownerPool.query("GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA identity TO monpiole_runtime");
+  await ownerPool.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
+    property_management.properties,
+    property_management.property_owners,
+    property_management.property_ownerships,
+    property_management.property_buildings,
+    property_management.property_building_units
+    TO monpiole_runtime`);
+  runtimePool = new Pool({ connectionString: connectionString("monpiole_runtime", RUNTIME_PASSWORD), max: 4 });
 });
 
 afterEach(async () => {
@@ -105,6 +111,8 @@ async function start() {
         "CREATE_TENANT", "BOOTSTRAP_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT",
         "CREATE_PROPERTY", "RETRIEVE_PROPERTY", "LIST_PROPERTIES", "UPDATE_PROPERTY_DETAILS", "UPDATE_PROPERTY_CORE_INFORMATION",
         "PUBLISH_PROPERTY",
+        "CREATE_PROPERTY_PHOTO", "RETRIEVE_PROPERTY_PHOTOS", "SELECT_PROPERTY_PRIMARY_PHOTO", "DELETE_PROPERTY_PHOTO",
+        "RETRIEVE_PROPERTY_PHOTO_STANDARD", "MANAGE_PROPERTY_PHOTO_STANDARD",
         "CREATE_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNER", "LIST_PROPERTY_OWNERS", "UPDATE_PROPERTY_OWNER",
         "ASSIGN_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNERSHIP", "REMOVE_PROPERTY_OWNER",
         "CREATE_PROPERTY_BUILDING", "RETRIEVE_PROPERTY_COMPOSITION", "UPDATE_PROPERTY_BUILDING",
@@ -118,7 +126,7 @@ async function start() {
 
 function runtimeEnvironment(): NodeJS.ProcessEnv {
   return {
-    DATABASE_URL: connectionString("api_runtime", RUNTIME_PASSWORD),
+    DATABASE_URL: connectionString("monpiole_runtime", RUNTIME_PASSWORD),
     DATABASE_POOL_MAX: "4", DATABASE_CONNECTION_TIMEOUT_MS: "2500", DATABASE_IDLE_TIMEOUT_MS: "12000",
     DATABASE_TLS: "disabled", NODE_ENV: "test",
     AUTHENTICATION_ISSUER: "https://login.runtime.test/",
@@ -397,6 +405,66 @@ describe("API PostgreSQL Identity runtime composition", () => {
       FROM property_management.properties WHERE property_id = $1`, [property.propertyId])).rows[0]).toEqual({
       status: "PUBLISHED", has_published_at: true, published_by_actor_id: "runtime-test", has_publication_correlation: true,
     });
+  });
+
+  it("récupère les lectures et la gestion photo via le rôle monpiole_runtime migré", async () => {
+    await start(); await createTenant("runtime-photo");
+    expect((await runtimePool.query("SELECT current_user")).rows[0]).toEqual({ current_user: "monpiole_runtime" });
+
+    const created = await fetch(`${baseUrl}/v1/properties`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        title: "Maison avec photos", propertyType: "HOUSE", transactionType: "SALE",
+        location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Riviera" },
+      }),
+    });
+    expect(created.status).toBe(201);
+    const propertyId = (await created.json() as { propertyId: string }).propertyId;
+
+    const upload = async (category: string) => {
+      const response = await fetch(`${baseUrl}/v1/properties/${propertyId}/photos`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+          category, contentType: "image/png", contentBase64: "iVBORw0KGgo=",
+        }),
+      });
+      expect(response.status).toBe(201);
+      return await response.json() as { photos: { photoId: string; category: string; isPrimary: boolean }[] };
+    };
+    const firstUpload = await upload("BUILDING_EXTERIOR_OR_ENTRANCE");
+    const firstPhotoId = firstUpload.photos[0]!.photoId;
+    const secondUpload = await upload("OTHER");
+    const secondPhotoId = secondUpload.photos.find((photo) => photo.photoId !== firstPhotoId)!.photoId;
+
+    const property = await fetch(`${baseUrl}/v1/properties/${propertyId}`);
+    expect(property.status).toBe(200);
+    expect(await property.json()).toMatchObject({
+      propertyId,
+      photos: expect.arrayContaining([
+        expect.objectContaining({ photoId: firstPhotoId }),
+        expect.objectContaining({ photoId: secondPhotoId }),
+      ]),
+    });
+
+    const defaultStandard = await fetch(`${baseUrl}/v1/property-photo-standard`);
+    expect(defaultStandard.status).toBe(200);
+    expect(await defaultStandard.json()).toEqual({ minimumCount: 1, additionalRequiredCategories: [] });
+    const strengthened = await fetch(`${baseUrl}/v1/property-photo-standard`, {
+      method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        minimumCount: 2, additionalRequiredCategories: ["BEDROOM_OR_SLEEPING_AREA"],
+      }),
+    });
+    expect(strengthened.status).toBe(200);
+    expect(await strengthened.json()).toEqual({
+      minimumCount: 2, additionalRequiredCategories: ["BEDROOM_OR_SLEEPING_AREA"],
+    });
+    expect(await (await fetch(`${baseUrl}/v1/property-photo-standard`)).json()).toEqual({
+      minimumCount: 2, additionalRequiredCategories: ["BEDROOM_OR_SLEEPING_AREA"],
+    });
+
+    expect((await fetch(`${baseUrl}/v1/properties/${propertyId}/photos/${firstPhotoId}/primary`, { method: "PUT" })).status).toBe(200);
+    expect((await fetch(`${baseUrl}/v1/properties/${propertyId}/photos/${secondPhotoId}`, { method: "DELETE" })).status).toBe(204);
+    expect((await ownerPool.query(`SELECT selected_photo_id, actor_id
+      FROM property_management.property_primary_photo_audits WHERE property_id = $1`, [propertyId])).rows)
+      .toEqual([{ selected_photo_id: firstPhotoId, actor_id: "runtime-test" }]);
   });
 
   it("exécute le parcours Property vers Building puis Unit avec détails et ownership sur le runtime réel", async () => {
