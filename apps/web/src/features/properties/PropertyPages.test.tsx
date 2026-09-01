@@ -184,7 +184,7 @@ describe("vertical slice Web Property", () => {
     expect(screen.getByRole("alertdialog")).toHaveTextContent("Il ne sera plus visible publiquement");
     fireEvent.click(screen.getByRole("button", { name: "Confirmer le retrait" }));
     expect(await screen.findByText("Le bien a été retiré du catalogue.")).toBeInTheDocument();
-    expect(screen.getAllByText("Retiré du catalogue")).toHaveLength(2);
+    expect(screen.getAllByText("Retiré du catalogue")).toHaveLength(3);
     const withdrawalCall = fetchMock.mock.calls.find(([input, init]) => String(input).endsWith(`/v1/properties/${PROPERTY_ID}/publication`) && init?.method === "DELETE");
     expect(withdrawalCall?.[1]?.body).toBeUndefined();
     expect(new Headers(withdrawalCall?.[1]?.headers).get("authorization")).toBe("Bearer property-test-token");

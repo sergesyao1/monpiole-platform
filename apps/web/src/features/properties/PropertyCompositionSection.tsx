@@ -12,6 +12,7 @@ import {
   type PropertyStructuralRole,
   type PropertyUnit,
 } from "./property-model.js";
+import { Alert, Button, EmptyState, Field, LoadingState, StatusBadge, buttonClassName } from "../../ui/index.js";
 
 const CODE_PATTERN = "[A-Za-z0-9][A-Za-z0-9._/ \\-]{0,49}";
 
@@ -246,36 +247,45 @@ export function PropertyCompositionSection({ property, api, onStructuralRoleChan
   return (
     <section className="content-panel" aria-labelledby="composition-title" aria-busy={loading || loadingMore || busyKey !== undefined}>
       <div className="section-heading"><div><p className="eyebrow">Organisation</p><h2 id="composition-title">Composition du bien</h2></div></div>
-      {message && <div className="form-message is-success" role="status">{message}</div>}
-      {error && <div className="form-message" role="alert"><p>{error.message}</p>{buildings.length === 0 && <button type="button" className="secondary-action" onClick={() => void retryInitialBuildings()}>Réessayer de charger la composition</button>}</div>}
-      {loading ? <p role="status">Chargement de la composition…</p> : (
+      {message && <Alert tone="success" title={message} />}
+      {error && <Alert tone="danger" title="Composition indisponible"><p>{error.message}</p>{buildings.length === 0 && <Button variant="secondary" onClick={() => void retryInitialBuildings()}>Réessayer de charger la composition</Button>}</Alert>}
+      {loading ? <LoadingState label="Chargement de la composition…" /> : (
         <>
-          <form onSubmit={addBuilding}>
+          <form className="composition-toolbar composition-form" onSubmit={addBuilding}>
             <fieldset disabled={busyKey !== undefined}>
               <legend>Ajouter un immeuble</legend>
-              <CodeField name="buildingCode" label="Code du nouvel immeuble" />
-              <label>Nom du nouvel immeuble<input name="name" required maxLength={200} /></label>
-              <button className="primary-action" type="submit">Ajouter l’immeuble</button>
+              <div className="composition-form-grid">
+                <CodeField name="buildingCode" label="Code du nouvel immeuble" />
+                <Field label="Nom du nouvel immeuble"><input name="name" required maxLength={200} /></Field>
+              </div>
+              <Button type="submit" loading={busyKey === "create-building"} loadingLabel="Ajout en cours…">Ajouter l’immeuble</Button>
             </fieldset>
           </form>
-          {buildings.length === 0 ? <p>Aucun immeuble n’est encore rattaché à ce bien.</p> : (
+          {buildings.length === 0 ? <EmptyState title="Aucun immeuble" description="Aucun immeuble n’est encore rattaché à ce bien." /> : (
             <ul className="composition-list">
               {buildings.map((building) => {
                 const unitState = units[building.buildingId];
                 return (
-                  <li key={building.buildingId}>
-                    <form onSubmit={(event) => void updateBuilding(event, building.buildingId)}>
+                  <li className="composition-building" key={building.buildingId}>
+                    <div className="composition-building__header">
+                      <div><StatusBadge tone="info">{building.buildingCode}</StatusBadge><h3>{building.name}</h3></div>
+                      <Button variant="secondary" onClick={() => void loadUnits(building.buildingId)} disabled={unitState?.loading} loading={unitState?.loading && !unitState.loaded} loadingLabel="Chargement…">
+                        {unitState?.loaded ? "Actualiser les unités" : "Afficher les unités"}
+                      </Button>
+                    </div>
+                    <form className="composition-form" onSubmit={(event) => void updateBuilding(event, building.buildingId)}>
                       <fieldset disabled={busyKey !== undefined}>
                         <legend>Modifier {building.name}</legend>
-                        <CodeField name="buildingCode" label={`Code de ${building.name}`} defaultValue={building.buildingCode} />
-                        <label>Nom de l’immeuble<input name="name" required maxLength={200} defaultValue={building.name} /></label>
-                        <button className="secondary-action" type="submit">Enregistrer l’immeuble</button>
+                        <div className="composition-form-grid">
+                          <CodeField name="buildingCode" label={`Code de ${building.name}`} defaultValue={building.buildingCode} />
+                          <Field label="Nom de l’immeuble"><input name="name" required maxLength={200} defaultValue={building.name} /></Field>
+                        </div>
+                        <Button variant="secondary" type="submit" loading={busyKey === `building-${building.buildingId}`} loadingLabel="Enregistrement…">Enregistrer l’immeuble</Button>
                       </fieldset>
                     </form>
-                    <button type="button" className="secondary-action" onClick={() => void loadUnits(building.buildingId)} disabled={unitState?.loading}>
-                      {unitState?.loading && !unitState.loaded ? "Chargement…" : unitState?.loaded ? "Actualiser les unités" : "Afficher les unités"}
-                    </button>
-                    <form onSubmit={(event) => void addUnit(event, building.buildingId)}>
+                    <details className="composition-details">
+                      <summary>Ajouter une unité à {building.name}</summary>
+                    <form className="composition-form" onSubmit={(event) => void addUnit(event, building.buildingId)}>
                       <fieldset disabled={busyKey !== undefined}>
                         <legend>Ajouter une unité à {building.name}</legend>
                         <CodeField name="unitCode" label="Code de la nouvelle unité" />
@@ -291,28 +301,29 @@ export function PropertyCompositionSection({ property, api, onStructuralRoleChan
                           <label>Quartier de l’unité<input name="district" required maxLength={200} defaultValue={property.location.district} /></label>
                           <label>Adresse de l’unité<input name="addressLine" required maxLength={200} defaultValue={property.location.addressLine} /></label>
                         </fieldset>
-                        <button type="submit" className="primary-action">Ajouter l’unité</button>
+                        <Button type="submit" loading={busyKey === `create-unit-${building.buildingId}`} loadingLabel="Ajout en cours…">Ajouter l’unité</Button>
                       </fieldset>
                     </form>
-                    {unitState?.loading && unitState.loaded && <p role="status">Chargement des unités suivantes…</p>}
-                    {unitState?.error && <div className="form-message" role="alert"><p>{unitState.error.message} Les unités déjà affichées restent disponibles.</p><button type="button" className="secondary-action" onClick={() => void loadUnits(building.buildingId)}>Réessayer de charger les unités</button></div>}
-                    {unitState?.loaded && unitState.items.length === 0 && <p>Aucune unité dans cet immeuble.</p>}
-                    <ul>
+                    </details>
+                    {unitState?.loading && unitState.loaded && <LoadingState label="Chargement des unités suivantes…" />}
+                    {unitState?.error && <Alert tone="danger" title="Unités indisponibles"><p>{unitState.error.message} Les unités déjà affichées restent disponibles.</p><Button variant="secondary" onClick={() => void loadUnits(building.buildingId)}>Réessayer de charger les unités</Button></Alert>}
+                    {unitState?.loaded && unitState.items.length === 0 && <EmptyState title="Aucune unité" description="Aucune unité dans cet immeuble." />}
+                    <ul className="unit-list">
                       {(unitState?.items ?? []).map((unit) => (
                         <li key={unit.property.propertyId}>
-                          <article aria-label={`Unité ${unit.unitCode}`}>
-                            <h3>{unit.unitCode} — {unit.property.title}</h3>
+                          <article className="composition-unit-card" aria-label={`Unité ${unit.unitCode}`}>
+                            <h4>{unit.unitCode} — {unit.property.title}</h4>
                             <dl className="definition-grid">
                               <div><dt>Type</dt><dd>{propertyTypeLabels[unit.property.propertyType]}</dd></div>
                               <div><dt>Projet</dt><dd>{transactionTypeLabels[unit.property.transactionType]}</dd></div>
                               <div><dt>Adresse</dt><dd>{formatLocation(unit.property)}</dd></div>
                             </dl>
-                            <form onSubmit={(event) => void updateUnit(event, building.buildingId, unit.property.propertyId)}>
+                            <form className="composition-unit-actions" onSubmit={(event) => void updateUnit(event, building.buildingId, unit.property.propertyId)}>
                               <fieldset disabled={busyKey !== undefined}>
                                 <legend>Modifier le code de {unit.property.title}</legend>
                                 <CodeField name="unitCode" label={`Code de ${unit.property.title}`} defaultValue={unit.unitCode} />
-                                <button className="secondary-action" type="submit">Enregistrer le code</button>{" "}
-                                <Link to={`/properties/${unit.property.propertyId}`}>Ouvrir la fiche</Link>
+                                <Button variant="secondary" type="submit" loading={busyKey === `unit-${unit.property.propertyId}`} loadingLabel="Enregistrement…">Enregistrer le code</Button>{" "}
+                                <Link className={buttonClassName("subtle")} to={`/properties/${unit.property.propertyId}`} state={{ compositionContext: { parentPropertyId: property.propertyId, parentTitle: property.title, buildingName: building.name } }}>Ouvrir la fiche</Link>
                               </fieldset>
                             </form>
                             <PropertyAvailabilitySection
@@ -326,14 +337,14 @@ export function PropertyCompositionSection({ property, api, onStructuralRoleChan
                         </li>
                       ))}
                     </ul>
-                    {unitState?.hasNextPage && <button type="button" className="secondary-action" disabled={unitState.loading} onClick={() => void loadUnits(building.buildingId, unitState.nextCursor ?? undefined)}>Afficher plus d’unités</button>}
+                    {unitState?.hasNextPage && <Button variant="secondary" disabled={unitState.loading} onClick={() => void loadUnits(building.buildingId, unitState.nextCursor ?? undefined)}>Afficher plus d’unités</Button>}
                   </li>
                 );
               })}
             </ul>
           )}
-          {pageError && <div className="form-message" role="alert">{pageError}</div>}
-          {hasMoreBuildings && <button type="button" className="secondary-action" disabled={loadingMore} onClick={() => void loadMoreBuildings()}>{loadingMore ? "Chargement…" : "Afficher plus d’immeubles"}</button>}
+          {pageError && <Alert tone="danger" title="Page suivante indisponible"><p>{pageError}</p></Alert>}
+          {hasMoreBuildings && <Button variant="secondary" loading={loadingMore} loadingLabel="Chargement…" onClick={() => void loadMoreBuildings()}>Afficher plus d’immeubles</Button>}
         </>
       )}
     </section>
@@ -341,7 +352,7 @@ export function PropertyCompositionSection({ property, api, onStructuralRoleChan
 }
 
 function CodeField({ name, label, defaultValue }: Readonly<{ name: string; label: string; defaultValue?: string }>) {
-  return <label>{label}<input name={name} required minLength={1} maxLength={50} pattern={CODE_PATTERN} title="Utilisez des lettres, chiffres, espaces, points, tirets, barres obliques ou caractères de soulignement." defaultValue={defaultValue} /></label>;
+  return <Field label={label}><input name={name} required minLength={1} maxLength={50} pattern={CODE_PATTERN} title="Utilisez des lettres, chiffres, espaces, points, tirets, barres obliques ou caractères de soulignement." defaultValue={defaultValue} /></Field>;
 }
 
 function formatLocation(property: Property) {

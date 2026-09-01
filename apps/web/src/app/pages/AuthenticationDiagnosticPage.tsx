@@ -6,6 +6,7 @@ import {
   ApiSessionExpiredError,
   createAuthenticatedApiClient,
 } from "../../infrastructure/http/api-client.js";
+import { Button } from "../../ui/index.js";
 
 type DiagnosticState = "idle" | "loading" | "success" | "session-expired" | "forbidden" | "error";
 type AuthorizationProbeState = "idle" | "loading" | "forbidden" | "authorized" | "session-expired" | "error";
@@ -49,9 +50,7 @@ export function AuthenticationDiagnosticPage() {
           <p className="hero-copy">
             Ce contrôle transmet un access token à l’API, puis vérifie que l’identité Auth0 est liée à une autorité MonPiole active.
           </p>
-          <button className="primary-action" type="button" disabled={state === "loading"} onClick={() => void verify()}>
-            {state === "loading" ? "Vérification en cours…" : "Vérifier ma session API"}
-          </button>
+          <Button loading={state === "loading"} loadingLabel="Vérification en cours…" onClick={() => void verify()}>Vérifier ma session API</Button>
         </div>
       </section>
 
@@ -67,9 +66,7 @@ export function AuthenticationDiagnosticPage() {
         <div>
           <h2 id="authorization-probe-title">Vérifier un refus d’autorisation</h2>
           <p>Cette sonde demande à l’API si votre autorité interne peut créer un tenant, sans créer ni modifier aucune donnée.</p>
-          <button className="secondary-action" type="button" disabled={authorizationState === "loading"} onClick={() => void verifyForbiddenOperation()}>
-            {authorizationState === "loading" ? "Vérification en cours…" : "Tester le refus 403"}
-          </button>
+          <Button variant="secondary" loading={authorizationState === "loading"} loadingLabel="Vérification en cours…" onClick={() => void verifyForbiddenOperation()}>Tester le refus 403</Button>
           <div role="status" aria-live="polite">
             {authorizationState === "forbidden" && <p>Votre session reste authentifiée, mais cette opération est interdite.</p>}
             {authorizationState === "authorized" && <p>Cette autorité possède le droit de créer un tenant ; aucun refus 403 n’était attendu.</p>}

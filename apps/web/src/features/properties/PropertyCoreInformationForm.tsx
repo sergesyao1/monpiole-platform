@@ -1,5 +1,6 @@
 import type { FormEvent } from "react";
 import type { Property, UpdatePropertyCoreInformationInput } from "./property-model.js";
+import { Button, Field } from "../../ui/index.js";
 
 export function coreInformationInputFromForm(values: FormData): UpdatePropertyCoreInformationInput {
   const description = String(values.get("description") ?? "").trim();
@@ -35,20 +36,20 @@ export function PropertyCoreInformationForm({ property, saving, onSave }: Readon
       <fieldset disabled={saving}>
         <legend>Identification et localisation</legend>
         <div className="form-grid two-columns">
-          <label>Titre<input name="title" required maxLength={200} defaultValue={property.title} /></label>
+          <Field label="Titre"><input name="title" required maxLength={200} defaultValue={property.title} /></Field>
           {property.propertyType === "APARTMENT" && property.transactionType === "LONG_TERM_RENTAL" && (
-            <label>Sous-type d’appartement<select name="apartmentSubtype" required defaultValue={property.apartmentSubtype ?? "STUDIO"}>
+            <Field label="Sous-type d’appartement"><select name="apartmentSubtype" required defaultValue={property.apartmentSubtype ?? "STUDIO"}>
               <option value="STUDIO">Studio</option><option value="MULTI_ROOM">Plusieurs pièces</option>
-            </select></label>
+            </select></Field>
           )}
-          <label>Pays (code ISO à 2 lettres)<input name="country" required minLength={2} maxLength={2} pattern="[A-Za-z]{2}" defaultValue={property.location.country} /></label>
-          <label>Ville<input name="city" required maxLength={200} defaultValue={property.location.city} /></label>
-          <label>Quartier<input name="district" required maxLength={200} defaultValue={property.location.district} /></label>
-          <label className="full-width">Adresse<input name="addressLine" required maxLength={200} defaultValue={property.location.addressLine} /></label>
-          <label className="full-width">Description<textarea name="description" maxLength={5000} rows={5} defaultValue={property.description} /></label>
+          <Field label="Pays (code ISO à 2 lettres)"><input name="country" required minLength={2} maxLength={2} pattern="[A-Za-z]{2}" defaultValue={property.location.country} /></Field>
+          <Field label="Ville"><input name="city" required maxLength={200} defaultValue={property.location.city} /></Field>
+          <Field label="Quartier"><input name="district" required maxLength={200} defaultValue={property.location.district} /></Field>
+          <div className="full-width"><Field label="Adresse"><input name="addressLine" required maxLength={200} defaultValue={property.location.addressLine} /></Field></div>
+          <div className="full-width"><Field label="Description" optional><textarea name="description" maxLength={5000} rows={5} defaultValue={property.description} /></Field></div>
         </div>
       </fieldset>
-      <button className="primary-action" type="submit" disabled={saving}>{saving ? "Enregistrement…" : "Enregistrer les informations"}</button>
+      <Button type="submit" loading={saving} loadingLabel="Enregistrement…">Enregistrer les informations</Button>
     </form>
   );
 }

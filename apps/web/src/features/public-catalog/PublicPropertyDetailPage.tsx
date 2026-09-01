@@ -11,6 +11,7 @@ import {
   type PublicPropertyDetail,
 } from "./public-property-model.js";
 import { PublicCatalogLayout } from "./PublicCatalogLayout.js";
+import { Button, LoadingState, StatusBadge, buttonClassName } from "../../ui/index.js";
 
 const api = createPublicPropertyApi();
 
@@ -36,17 +37,17 @@ export function PublicPropertyDetailPage() {
 
   return (
     <PublicCatalogLayout>
-      {state === "loading" ? <div className="public-catalog-state" role="status"><span className="loading-indicator" aria-hidden="true" />Chargement du bien…</div> : null}
+      {state === "loading" ? <LoadingState label="Chargement du bien…" /> : null}
       {state === "not-found" ? (
         <section className="public-detail-state">
           <p className="eyebrow">Catalogue immobilier</p><h1>Bien introuvable</h1>
-          <p>Ce bien n’est pas disponible dans ce catalogue.</p><Link className="primary-action" to={backPath}>Retour au catalogue</Link>
+          <p>Ce bien n’est pas disponible dans ce catalogue.</p><Link className={buttonClassName("primary")} to={backPath}>Retour au catalogue</Link>
         </section>
       ) : null}
       {state === "error" ? (
         <section className="public-detail-state" role="alert">
           <p className="eyebrow">Catalogue immobilier</p><h1>Impossible d’afficher ce bien</h1>
-          <p>Veuillez réessayer dans un instant.</p><button className="primary-action" type="button" onClick={() => void load()}>Réessayer</button>
+          <p>Veuillez réessayer dans un instant.</p><Button onClick={() => void load()}>Réessayer</Button>
         </section>
       ) : null}
       {state === "ready" && property !== undefined ? <PublicPropertyDetailView property={property} backPath={backPath} /> : null}
@@ -65,7 +66,7 @@ function PublicPropertyDetailView({ property, backPath }: Readonly<{ property: P
             : <img src={api.photoUrl(property.primaryPhoto.url)} alt={`Photo principale de ${property.title}`} />}
         </div>
         <div className="public-detail-copy">
-          <div className="public-property-badges"><span>{propertyTypeLabels[property.propertyType]}</span><span>{transactionTypeLabels[property.transactionType]}</span></div>
+          <div className="public-property-badges"><StatusBadge tone="info">{propertyTypeLabels[property.propertyType]}</StatusBadge><StatusBadge>{transactionTypeLabels[property.transactionType]}</StatusBadge></div>
           <h1>{property.title}</h1>
           <p className="public-property-location">{property.location.city} · {property.location.district} · {property.location.country}</p>
           <p className="public-detail-price">{formatPublicPropertyPrice(property.commercialTerms)}</p>

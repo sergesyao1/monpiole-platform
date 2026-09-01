@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { PropertyPhotoGallery, type PropertyPhotoGalleryApi } from "./PropertyPhotoGallery.js";
 import type { Property, PropertyPhoto } from "./property-model.js";
@@ -27,6 +27,7 @@ function Harness({ api }: Readonly<{ api: PropertyPhotoGalleryApi }>) {
 }
 
 describe("galerie des photos du bien", () => {
+  afterEach(() => vi.restoreAllMocks());
   beforeAll(() => {
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:photo") });
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
@@ -43,11 +44,13 @@ describe("galerie des photos du bien", () => {
   });
 
   it("supprime seulement une photo non principale", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
     const api = { registerPropertyPhoto: vi.fn(), retrievePropertyPhotoContent: vi.fn().mockResolvedValue(new Blob()), selectPropertyPrimaryPhoto: vi.fn(), deletePropertyPhoto: vi.fn().mockResolvedValue(undefined) };
     render(<Harness api={api} />);
     const deletes = screen.getAllByRole("button", { name: "Supprimer la photo" });
     expect(deletes[0]).toBeDisabled();
     fireEvent.click(deletes[1]!);
+    expect(window.confirm).toHaveBeenCalledWith("Supprimer définitivement cette photo ?");
     await waitFor(() => expect(api.deletePropertyPhoto).toHaveBeenCalledWith(PROPERTY_ID, second.photoId));
     expect(screen.queryByAltText("Vue séjour ou pièce principale du bien")).not.toBeInTheDocument();
   });

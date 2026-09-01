@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import { PropertyFeedback } from "./PropertyFeedback.js";
 import { toPropertyUiError, type PropertyUiError } from "./property-errors.js";
 import { propertyPhotoCategoryLabels, type Property, type PropertyPhoto } from "./property-model.js";
+import { Button, EmptyState, Field, StatusBadge } from "../../ui/index.js";
 
 export interface PropertyPhotoGalleryApi {
   registerPropertyPhoto(propertyId: string, input: Readonly<{
@@ -61,6 +62,7 @@ export function PropertyPhotoGallery({ property, api, onPhotosChanged, onReconne
 
   async function deletePhoto(photo: PropertyPhoto) {
     if (inFlight.current || photo.isPrimary) return;
+    if (!window.confirm("Supprimer définitivement cette photo ?")) return;
     inFlight.current = true; setBusyPhotoId(photo.photoId); setError(undefined);
     try {
       await api.deletePropertyPhoto(property.propertyId, photo.photoId);
@@ -73,22 +75,20 @@ export function PropertyPhotoGallery({ property, api, onPhotosChanged, onReconne
     <section className="content-panel" aria-labelledby="property-photo-gallery-title" aria-busy={busyPhotoId !== undefined}>
       <div className="section-heading">
         <div><p className="eyebrow">Médias</p><h2 id="property-photo-gallery-title">Galerie photos</h2></div>
-        <span className="quiet-badge">{photos.length} photo{photos.length > 1 ? "s" : ""}</span>
+        <StatusBadge tone="info">{photos.length} photo{photos.length > 1 ? "s" : ""}</StatusBadge>
       </div>
       {error && <PropertyFeedback error={error} onReconnect={onReconnect} />}
       <form className="property-photo-upload" onSubmit={(event) => void uploadPhoto(event)}>
-        <label>Vue photographiée<select name="category" defaultValue="OTHER">
+        <Field label="Vue photographiée"><select name="category" defaultValue="OTHER">
           {Object.entries(propertyPhotoCategoryLabels).map(([category, label]) => (
             <option key={category} value={category}>{label}</option>
           ))}
-        </select></label>
-        <label>Fichier image<input name="photo" type="file" required accept="image/jpeg,image/png,image/webp" /></label>
-        <button className="secondary-action" type="submit" disabled={busyPhotoId !== undefined}>
-          {busyPhotoId === "upload" ? "Enregistrement de la photo…" : "Ajouter la photo"}
-        </button>
+        </select></Field>
+        <Field label="Fichier image"><input name="photo" type="file" required accept="image/jpeg,image/png,image/webp" /></Field>
+        <Button variant="secondary" type="submit" loading={busyPhotoId === "upload"} disabled={busyPhotoId !== undefined} loadingLabel="Enregistrement de la photo…">Ajouter la photo</Button>
       </form>
       {photos.length === 0 ? (
-        <p className="muted-status">Aucune photo disponible. Une photo principale est obligatoire avant la première publication.</p>
+        <EmptyState title="Aucune photo" description="Ajoutez une photo puis choisissez celle qui représentera le bien avant sa première publication." />
       ) : (
         <ul className="property-photo-grid">
           {photos.map((photo) => (
@@ -100,16 +100,16 @@ export function PropertyPhotoGallery({ property, api, onPhotosChanged, onReconne
               <div className="property-photo-actions">
                 <span>{propertyPhotoCategoryLabels[photo.category]}</span>
                 {!photo.isPrimary && (
-                  <button className="secondary-action" type="button" disabled={busyPhotoId !== undefined}
+                  <Button variant="secondary" disabled={busyPhotoId !== undefined}
                     onClick={() => void selectPrimary(photo.photoId)}>
                     {busyPhotoId === photo.photoId ? "Sélection en cours…" : "Définir comme photo principale"}
-                  </button>
+                  </Button>
                 )}
-                <button className="danger-action" type="button" disabled={busyPhotoId !== undefined || photo.isPrimary}
+                <Button variant="danger" disabled={busyPhotoId !== undefined || photo.isPrimary}
                   title={photo.isPrimary ? "Sélectionnez d’abord une photo remplaçante" : undefined}
                   onClick={() => void deletePhoto(photo)}>
                   Supprimer la photo
-                </button>
+                </Button>
               </div>
             </li>
           ))}

@@ -8,6 +8,7 @@ import type {
   PropertyOccupancyStatus,
   TransactionType,
 } from "./property-model.js";
+import { Alert, Button, Field, LoadingState, StatusBadge } from "../../ui/index.js";
 
 const availabilityLabels: Readonly<Record<PropertyAvailabilityStatus | "NOT_CONFIGURED", string>> = {
   AVAILABLE: "Disponible",
@@ -82,46 +83,40 @@ export function PropertyAvailabilitySection({
 
   const content = (
     <>
-      {loading && <p role="status">Chargement de la disponibilité et de l’occupation…</p>}
+      {loading && <LoadingState label="Chargement de la disponibilité et de l’occupation…" />}
       {!loading && error && (
-        <div className="form-message" role="alert">
+        <Alert tone="danger" title="Disponibilité indisponible">
           <p>{error.message}</p>
           {error.kind === "session" && onReconnect
-            ? <button type="button" className="secondary-action" onClick={onReconnect}>Se reconnecter</button>
-            : <button type="button" className="secondary-action" onClick={() => void load()}>Réessayer</button>}
-        </div>
+            ? <Button variant="secondary" onClick={onReconnect}>Se reconnecter</Button>
+            : <Button variant="secondary" onClick={() => void load()}>Réessayer</Button>}
+        </Alert>
       )}
       {!loading && availability?.source === "DERIVED_FROM_UNITS" && <CompositeSummary availability={availability} />}
       {!loading && availability?.source === "DIRECT" && (
         <>
           <dl className="definition-grid">
-            <div><dt>Disponibilité</dt><dd>{availability.configured ? availabilityLabels[availability.availabilityStatus] : "Non renseignée"}</dd></div>
-            <div><dt>Occupation</dt><dd>{availability.configured ? occupancyLabels[availability.occupancyStatus] : "Non renseignée"}</dd></div>
+            <div><dt>Disponibilité</dt><dd><StatusBadge tone={availability.configured && availability.availabilityStatus === "AVAILABLE" ? "success" : availability.configured ? "warning" : "neutral"}>{availability.configured ? availabilityLabels[availability.availabilityStatus] : "Non renseignée"}</StatusBadge></dd></div>
+            <div><dt>Occupation</dt><dd><StatusBadge tone={availability.configured && availability.occupancyStatus === "VACANT" ? "info" : availability.configured ? "warning" : "neutral"}>{availability.configured ? occupancyLabels[availability.occupancyStatus] : "Non renseignée"}</StatusBadge></dd></div>
             {availability.configured && <div><dt>État mis à jour</dt><dd>{formatInstant(availability.updatedAt)}</dd></div>}
           </dl>
           {availability.canUpdateAvailability && (
-            <form onSubmit={save}>
+            <form className="availability-form" onSubmit={save}>
               <fieldset disabled={saving}>
                 <legend>Mettre à jour la situation du bien</legend>
-                <label>Disponibilité
-                  <select value={availabilityStatus} onChange={(event) => setAvailabilityStatus(event.target.value as PropertyAvailabilityStatus)}>
+                <Field label="Disponibilité"><select value={availabilityStatus} onChange={(event) => setAvailabilityStatus(event.target.value as PropertyAvailabilityStatus)}>
                     <option value="AVAILABLE">Disponible</option>
                     <option value="UNAVAILABLE">Indisponible</option>
-                  </select>
-                </label>
-                <label>Occupation
-                  <select value={occupancyStatus} onChange={(event) => setOccupancyStatus(event.target.value as PropertyOccupancyStatus)}>
+                  </select></Field>
+                <Field label="Occupation"><select value={occupancyStatus} onChange={(event) => setOccupancyStatus(event.target.value as PropertyOccupancyStatus)}>
                     <option value="VACANT">Libre</option>
                     <option value="OCCUPIED">Occupé</option>
-                  </select>
-                </label>
-                <button type="submit" className={compact ? "secondary-action" : "primary-action"}>
-                  {saving ? "Enregistrement…" : "Enregistrer la disponibilité"}
-                </button>
+                  </select></Field>
+                <Button type="submit" variant={compact ? "secondary" : "primary"} loading={saving} loadingLabel="Enregistrement…">Enregistrer la disponibilité</Button>
               </fieldset>
             </form>
           )}
-          {saved && <div className="form-message is-success" role="status">Disponibilité et occupation à jour.</div>}
+          {saved && <Alert tone="success" title="Disponibilité et occupation à jour." />}
         </>
       )}
       {!loading && availability !== undefined && transactionType === "SHORT_TERM_RENTAL" && (
@@ -131,7 +126,7 @@ export function PropertyAvailabilitySection({
   );
 
   if (compact) {
-    return <section aria-label={label ?? "Disponibilité de l’unité"} aria-busy={loading || saving}><h4>Disponibilité et occupation</h4>{content}</section>;
+    return <section className="availability-compact" aria-label={label ?? "Disponibilité de l’unité"} aria-busy={loading || saving}><h4>Disponibilité et occupation</h4>{content}</section>;
   }
   return (
     <section className="content-panel" aria-labelledby={`property-availability-${propertyId}`} aria-busy={loading || saving}>
@@ -146,7 +141,7 @@ function CompositeSummary({ availability }: Readonly<{ availability: Extract<Pro
     <>
       <p>La disponibilité de cet ensemble immobilier est calculée unité par unité. Elle ne peut pas être modifiée directement ici.</p>
       <dl className="definition-grid">
-        <div><dt>Disponibilité de l’ensemble</dt><dd>{availabilityLabels[availability.availabilityStatus]}</dd></div>
+        <div><dt>Disponibilité de l’ensemble</dt><dd><StatusBadge tone={availability.availabilityStatus === "AVAILABLE" ? "success" : "warning"}>{availabilityLabels[availability.availabilityStatus]}</StatusBadge></dd></div>
         <div><dt>Unités au total</dt><dd>{availability.totalUnitCount}</dd></div>
         <div><dt>Unités renseignées</dt><dd>{availability.configuredUnitCount}</dd></div>
         <div><dt>Disponibles</dt><dd>{availability.availableUnitCount}</dd></div>

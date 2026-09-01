@@ -1,4 +1,5 @@
 import { Link, isRouteErrorResponse, useRouteError } from "react-router";
+import { buttonClassName } from "../../ui/index.js";
 
 export function RouteErrorPage() {
   const error = useRouteError();
@@ -11,7 +12,7 @@ export function RouteErrorPage() {
       <p className="eyebrow">Un problème est survenu</p>
       <h1 id="route-error-title">Impossible d'afficher la page</h1>
       <p>{detail}</p>
-      <Link className="primary-action" to="/">Revenir à l'accueil</Link>
+      <Link className={buttonClassName("primary")} to="/">Revenir à l'accueil</Link>
     </main>
   );
 }

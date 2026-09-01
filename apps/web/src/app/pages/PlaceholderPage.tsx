@@ -1,3 +1,5 @@
+import { StatusBadge } from "../../ui/index.js";
+
 interface PlaceholderPageProps {
   readonly eyebrow: string;
   readonly title: string;
@@ -11,7 +13,7 @@ export function PlaceholderPage({ eyebrow, title, description }: PlaceholderPage
       <p className="eyebrow">{eyebrow}</p>
       <h1 id="placeholder-title">{title}</h1>
       <p>{description}</p>
-      <span className="quiet-badge">Fonctionnalité à venir</span>
+      <StatusBadge tone="info">Fonctionnalité à venir</StatusBadge>
     </section>
   );
 }

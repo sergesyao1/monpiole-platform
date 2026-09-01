@@ -10,6 +10,7 @@ import {
   propertyStatusLabels, propertyTypeLabels, propertyTypes, transactionTypeLabels,
   type PropertyPortfolioItem, type PropertyStatus, type PropertyType,
 } from "./property-model.js";
+import { Alert, Button, EmptyState, Field, LoadingState, StatusBadge, buttonClassName, type StatusTone } from "../../ui/index.js";
 
 const PAGE_LIMIT = 20;
 
@@ -88,7 +89,7 @@ export function PropertyWorkspacePage() {
           <p className="eyebrow">Biens immobiliers</p>
           <h1>Votre portefeuille immobilier</h1>
           <p className="hero-copy">Retrouvez les biens de votre espace, consultez leur fiche et poursuivez leur gestion.</p>
-          <Link className="primary-action inline-action" to="/properties/new">Créer un bien</Link>
+          <Link className={buttonClassName("primary", "inline-action")} to="/properties/new">Créer un bien</Link>
         </div>
         <div className="hero-accent" aria-hidden="true"><span>⌂</span></div>
       </section>
@@ -99,30 +100,30 @@ export function PropertyWorkspacePage() {
         </div>
 
         <form className="portfolio-filters" onSubmit={applyFilters} role="search">
-          <label>Rechercher<input name="search" maxLength={100} defaultValue={filters.search ?? ""} placeholder="Titre, ville, quartier ou adresse" /></label>
-          <label>Type de bien<select name="type" defaultValue={filters.type ?? ""}><option value="">Tous les types</option>{propertyTypes.map((type) => <option key={type} value={type}>{propertyTypeLabels[type]}</option>)}</select></label>
-          <label>Statut<select name="status" defaultValue={filters.status ?? ""}><option value="">Tous les statuts</option><option value="DRAFT">{propertyStatusLabels.DRAFT}</option><option value="PUBLISHED">{propertyStatusLabels.PUBLISHED}</option><option value="WITHDRAWN">{propertyStatusLabels.WITHDRAWN}</option></select></label>
-          <button className="secondary-action" type="submit" disabled={loading || loadingMore}>Appliquer les filtres</button>
+          <Field label="Rechercher" optional><input name="search" maxLength={100} defaultValue={filters.search ?? ""} placeholder="Titre, ville, quartier ou adresse" /></Field>
+          <Field label="Type de bien" optional><select name="type" defaultValue={filters.type ?? ""}><option value="">Tous les types</option>{propertyTypes.map((type) => <option key={type} value={type}>{propertyTypeLabels[type]}</option>)}</select></Field>
+          <Field label="Statut" optional><select name="status" defaultValue={filters.status ?? ""}><option value="">Tous les statuts</option><option value="DRAFT">{propertyStatusLabels.DRAFT}</option><option value="PUBLISHED">{propertyStatusLabels.PUBLISHED}</option><option value="WITHDRAWN">{propertyStatusLabels.WITHDRAWN}</option></select></Field>
+          <Button variant="secondary" type="submit" disabled={loading || loadingMore}>Appliquer les filtres</Button>
         </form>
 
-        {loading && <div className="portfolio-state" role="status"><span className="loading-indicator" aria-hidden="true" /><p>Chargement de votre portefeuille…</p></div>}
+        {loading && <LoadingState label="Chargement de votre portefeuille…" />}
         {!loading && initialError && <PropertyFeedback error={initialError} onReconnect={() => void session.login("/properties")} />}
         {!loading && !initialError && items.length === 0 && (
-          <div className="portfolio-state portfolio-empty">
-            <h3>Aucun bien à afficher</h3>
-            <p>Créez votre premier bien ou modifiez vos critères de recherche.</p>
-            <Link className="primary-action inline-action" to="/properties/new">Créer un bien</Link>
-          </div>
+          <EmptyState
+            title="Aucun bien à afficher"
+            description="Créez votre premier bien ou modifiez vos critères de recherche."
+            action={<Link className={buttonClassName("primary", "inline-action")} to="/properties/new">Créer un bien</Link>}
+          />
         )}
         {!loading && !initialError && items.length > 0 && (
           <>
             <ul className="property-portfolio-list">
               {items.map((property) => <PropertyPortfolioCard key={property.propertyId} property={property} />)}
             </ul>
-            {nextPageError && <div className="form-message" role="alert"><strong>La page suivante n’a pas pu être chargée.</strong><p>{nextPageError.message} Les biens déjà affichés restent disponibles.</p></div>}
+            {nextPageError && <Alert tone="danger" title="La page suivante n’a pas pu être chargée."><p>{nextPageError.message} Les biens déjà affichés restent disponibles.</p></Alert>}
             <div className="portfolio-pagination">
-              {hasNextPage && <button className="secondary-action" type="button" onClick={() => void loadNextPage()} disabled={loadingMore}>{loadingMore ? "Chargement…" : "Afficher plus de biens"}</button>}
-              {!hasNextPage && <p className="muted-status" role="status">Tous les biens disponibles sont affichés.</p>}
+              {hasNextPage && <Button variant="secondary" onClick={() => void loadNextPage()} loading={loadingMore} loadingLabel="Chargement…">Afficher plus de biens</Button>}
+              {!hasNextPage && <p className="muted-status" role="status">Tous les biens sont affichés.</p>}
             </div>
           </>
         )}
@@ -135,7 +136,7 @@ function PropertyPortfolioCard({ property }: Readonly<{ property: PropertyPortfo
   return (
     <li className="property-portfolio-card">
       <div className="portfolio-card-heading">
-        <div><span className="quiet-badge">{propertyStatusLabels[property.status]}</span><h3>{property.title}</h3></div>
+        <div><StatusBadge tone={propertyStatusTone(property.status)}>{propertyStatusLabels[property.status]}</StatusBadge><h3>{property.title}</h3></div>
         <span className="property-type-mark" aria-hidden="true">{propertyTypeLabels[property.propertyType].slice(0, 1)}</span>
       </div>
       <p className="portfolio-location">{property.location.district}, {property.location.city} · {property.location.country}</p>
@@ -144,9 +145,15 @@ function PropertyPortfolioCard({ property }: Readonly<{ property: PropertyPortfo
         <div><dt>Type</dt><dd>{propertyTypeLabels[property.propertyType]}</dd></div>
         <div><dt>Projet</dt><dd>{transactionTypeLabels[property.transactionType]}</dd></div>
       </dl>
-      <Link className="secondary-action inline-action" to={`/properties/${property.propertyId}`} aria-label={`Consulter ${property.title}`}>Consulter la fiche</Link>
+      <Link className={buttonClassName("secondary", "inline-action")} to={`/properties/${property.propertyId}`} aria-label={`Consulter ${property.title}`}>Consulter la fiche</Link>
     </li>
   );
+}
+
+function propertyStatusTone(status: PropertyStatus): StatusTone {
+  if (status === "PUBLISHED") return "success";
+  if (status === "WITHDRAWN") return "warning";
+  return "neutral";
 }
 
 function appendUnique(current: readonly PropertyPortfolioItem[], next: readonly PropertyPortfolioItem[]): readonly PropertyPortfolioItem[] {

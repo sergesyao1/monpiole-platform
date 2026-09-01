@@ -12,6 +12,7 @@ import {
   type TransactionType,
 } from "./public-property-model.js";
 import { PublicCatalogLayout } from "./PublicCatalogLayout.js";
+import { Alert, Button, EmptyState, Field, LoadingState, StatusBadge } from "../../ui/index.js";
 
 const api = createPublicPropertyApi();
 const propertyTypes = ["APARTMENT", "HOUSE", "LAND", "COMMERCIAL", "OTHER"] as const;
@@ -83,34 +84,23 @@ export function PublicPropertyCatalogPage() {
           <div><p className="eyebrow">Sélection publiée</p><h2 id="catalogue-title">Biens publiés</h2></div>
         </div>
         <form className="public-catalog-filters" onSubmit={applyFilters}>
-          <label>Type de bien
-            <select value={type} onChange={(event) => setType(event.target.value as PropertyType | "")}>
+          <Field label="Type de bien" optional><select value={type} onChange={(event) => setType(event.target.value as PropertyType | "")}>
               <option value="">Tous les types</option>
               {propertyTypes.map((value) => <option key={value} value={value}>{propertyTypeLabels[value]}</option>)}
-            </select>
-          </label>
-          <label>Projet
-            <select value={transactionType} onChange={(event) => setTransactionType(event.target.value as TransactionType | "")}>
+            </select></Field>
+          <Field label="Projet" optional><select value={transactionType} onChange={(event) => setTransactionType(event.target.value as TransactionType | "")}>
               <option value="">Tous les projets</option>
               {transactionTypes.map((value) => <option key={value} value={value}>{transactionTypeLabels[value]}</option>)}
-            </select>
-          </label>
-          <button className="primary-action public-filter-action" type="submit">Afficher la sélection</button>
+            </select></Field>
+          <Button className="public-filter-action" type="submit">Afficher la sélection</Button>
         </form>
 
-        {loading ? <div className="public-catalog-state" role="status"><span className="loading-indicator" aria-hidden="true" />Chargement des biens…</div> : null}
+        {loading ? <LoadingState label="Chargement des biens…" /> : null}
         {!loading && error ? (
-          <div className="public-catalog-state" role="alert">
-            <h3>Le catalogue est momentanément indisponible</h3>
-            <p>Veuillez réessayer dans un instant.</p>
-            <button className="secondary-action" type="button" onClick={() => void load(items.length > 0)}>Réessayer</button>
-          </div>
+          <Alert tone="danger" title="Le catalogue est momentanément indisponible"><p>Veuillez réessayer dans un instant.</p><Button variant="secondary" onClick={() => void load(items.length > 0)}>Réessayer</Button></Alert>
         ) : null}
         {!loading && !error && items.length === 0 ? (
-          <div className="public-catalog-state public-catalog-empty">
-            <h3>Aucun bien ne correspond à cette sélection</h3>
-            <p>Modifiez les filtres pour découvrir d’autres biens publiés.</p>
-          </div>
+          <EmptyState title="Aucun bien ne correspond à cette sélection" description="Modifiez les filtres pour découvrir d’autres biens publiés." />
         ) : null}
         {items.length > 0 ? (
           <ul className="public-catalog-grid">
@@ -121,9 +111,7 @@ export function PublicPropertyCatalogPage() {
         ) : null}
         {!loading && !error && hasNextPage ? (
           <div className="public-catalog-pagination">
-            <button className="secondary-action" type="button" disabled={loadingMore} onClick={() => void load(true)}>
-              {loadingMore ? "Chargement…" : "Afficher plus de biens"}
-            </button>
+            <Button variant="secondary" loading={loadingMore} loadingLabel="Chargement…" onClick={() => void load(true)}>Afficher plus de biens</Button>
           </div>
         ) : null}
       </section>
@@ -141,7 +129,7 @@ function PublicPropertyCard({ property, catalogSearch }: Readonly<{ property: Pu
       </div>
       <div className="public-property-card-body">
         <div className="public-property-badges">
-          <span>{propertyTypeLabels[property.propertyType]}</span><span>{transactionTypeLabels[property.transactionType]}</span>
+          <StatusBadge tone="info">{propertyTypeLabels[property.propertyType]}</StatusBadge><StatusBadge>{transactionTypeLabels[property.transactionType]}</StatusBadge>
         </div>
         <h3>{property.title}</h3>
         <p className="public-property-location">{property.location.city} · {property.location.district}</p>

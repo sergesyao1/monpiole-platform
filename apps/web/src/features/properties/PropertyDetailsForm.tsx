@@ -5,6 +5,7 @@ import {
   currencyFractionDigits, majorAmountInputToMinor, minorAmountToInputValue,
   pricingUnitLabels, transactionTypeLabels, type Property, type UpdatePropertyDetailsInput,
 } from "./property-model.js";
+import { Alert, Button } from "../../ui/index.js";
 
 function optionalNumber(values: FormData, name: string): number | undefined {
   const value = String(values.get(name) ?? "").trim();
@@ -95,8 +96,8 @@ export function PropertyDetailsForm({ property, saving, onSave }: Readonly<{
           {property.transactionType === "SALE" && <label>Prix de vente<input name="salePriceAmountMinor" required type="number" min="0" step={amountStep} defaultValue={terms?.kind === "SALE" ? minorAmountToInputValue(terms.salePriceAmountMinor, terms.currency) : undefined} /></label>}
         </div>
       </fieldset>
-      {clientError && <p className="field-error" role="alert">{clientError}</p>}
-      <button className="primary-action" type="submit" disabled={saving}>{saving ? "Enregistrement…" : "Enregistrer les détails"}</button>
+      {clientError && <Alert tone="danger" title="Détails invalides"><p>{clientError}</p></Alert>}
+      <Button type="submit" loading={saving} loadingLabel="Enregistrement…">Enregistrer les détails</Button>
     </form>
   );
 }

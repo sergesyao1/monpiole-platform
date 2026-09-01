@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 
 import type { PropertyOwner, PropertyOwnerInput } from "./property-model.js";
+import { Alert, Button, Field } from "../../ui/index.js";
 
 export function PropertyOwnerForm({ owner, saving, onSubmit }: Readonly<{
   owner?: PropertyOwner;
@@ -39,30 +40,28 @@ export function PropertyOwnerForm({ owner, saving, onSubmit }: Readonly<{
       <fieldset>
         <legend>Identité du propriétaire</legend>
         <div className="form-grid two-columns">
-          <label>Type de propriétaire
-            <select value={ownerType} disabled={owner !== undefined || saving} onChange={(event) => setOwnerType(event.target.value as typeof ownerType)}>
+          <Field label="Type de propriétaire"><select value={ownerType} disabled={owner !== undefined || saving} onChange={(event) => setOwnerType(event.target.value as typeof ownerType)}>
               <option value="INDIVIDUAL">Personne physique</option>
               <option value="LEGAL_ENTITY">Personne morale</option>
-            </select>
-          </label>
+            </select></Field>
           {ownerType === "INDIVIDUAL" ? <>
-            <label>Prénom<input name="firstName" required maxLength={200} defaultValue={owner?.ownerType === "INDIVIDUAL" ? owner.firstName : ""} /></label>
-            <label>Nom<input name="lastName" required maxLength={200} defaultValue={owner?.ownerType === "INDIVIDUAL" ? owner.lastName : ""} /></label>
+            <Field label="Prénom"><input name="firstName" required maxLength={200} defaultValue={owner?.ownerType === "INDIVIDUAL" ? owner.firstName : ""} /></Field>
+            <Field label="Nom"><input name="lastName" required maxLength={200} defaultValue={owner?.ownerType === "INDIVIDUAL" ? owner.lastName : ""} /></Field>
           </> : <>
-            <label>Raison sociale<input name="legalName" required maxLength={300} defaultValue={owner?.ownerType === "LEGAL_ENTITY" ? owner.legalName : ""} /></label>
-            <label>Numéro d’immatriculation<input name="registrationNumber" maxLength={200} defaultValue={owner?.ownerType === "LEGAL_ENTITY" ? owner.registrationNumber ?? "" : ""} /></label>
+            <Field label="Raison sociale"><input name="legalName" required maxLength={300} defaultValue={owner?.ownerType === "LEGAL_ENTITY" ? owner.legalName : ""} /></Field>
+            <Field label="Numéro d’immatriculation" optional><input name="registrationNumber" maxLength={200} defaultValue={owner?.ownerType === "LEGAL_ENTITY" ? owner.registrationNumber ?? "" : ""} /></Field>
           </>}
         </div>
       </fieldset>
       <fieldset>
         <legend>Coordonnées</legend>
         <div className="form-grid two-columns">
-          <label>Téléphone<input name="phoneNumber" maxLength={100} defaultValue={owner?.phoneNumber ?? ""} /></label>
-          <label>E-mail<input name="email" type="email" maxLength={320} defaultValue={owner?.email ?? ""} /></label>
+          <Field label="Téléphone" optional><input name="phoneNumber" maxLength={100} defaultValue={owner?.phoneNumber ?? ""} /></Field>
+          <Field label="E-mail" optional><input name="email" type="email" maxLength={320} defaultValue={owner?.email ?? ""} /></Field>
         </div>
       </fieldset>
-      {error && <p className="field-error" role="alert">{error}</p>}
-      <div className="form-actions"><button className="primary-action" type="submit" disabled={saving}>{saving ? "Enregistrement…" : "Enregistrer"}</button></div>
+      {error && <Alert tone="danger" title="Informations incomplètes"><p>{error}</p></Alert>}
+      <div className="form-actions"><Button type="submit" loading={saving} loadingLabel="Enregistrement…">Enregistrer</Button></div>
     </form>
   );
 }

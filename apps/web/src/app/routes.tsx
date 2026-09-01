@@ -2,20 +2,20 @@ import { Navigate, type RouteObject } from "react-router";
 
 import { AuthenticationBoundary } from "../auth/AuthenticationBoundary.js";
 import { LoginPage } from "../auth/LoginPage.js";
+import { CreatePropertyOwnerPage } from "../features/properties/CreatePropertyOwnerPage.js";
+import { CreatePropertyPage } from "../features/properties/CreatePropertyPage.js";
+import { PropertyDetailPage } from "../features/properties/PropertyDetailPage.js";
+import { PropertyOwnerDetailPage } from "../features/properties/PropertyOwnerDetailPage.js";
+import { PropertyOwnerDirectoryPage } from "../features/properties/PropertyOwnerDirectoryPage.js";
+import { PropertyWorkspacePage } from "../features/properties/PropertyWorkspacePage.js";
+import { PublicPropertyCatalogPage } from "../features/public-catalog/PublicPropertyCatalogPage.js";
+import { PublicPropertyDetailPage } from "../features/public-catalog/PublicPropertyDetailPage.js";
+import { AuthenticationDiagnosticPage } from "./pages/AuthenticationDiagnosticPage.js";
 import { HomePage } from "./pages/HomePage.js";
 import { LoadingPage } from "./pages/LoadingPage.js";
 import { NotFoundPage } from "./pages/NotFoundPage.js";
 import { RouteErrorPage } from "./pages/RouteErrorPage.js";
 import { ApplicationShell } from "./shell/ApplicationShell.js";
-import { AuthenticationDiagnosticPage } from "./pages/AuthenticationDiagnosticPage.js";
-import { CreatePropertyPage } from "../features/properties/CreatePropertyPage.js";
-import { PropertyDetailPage } from "../features/properties/PropertyDetailPage.js";
-import { PropertyWorkspacePage } from "../features/properties/PropertyWorkspacePage.js";
-import { PropertyOwnerDirectoryPage } from "../features/properties/PropertyOwnerDirectoryPage.js";
-import { CreatePropertyOwnerPage } from "../features/properties/CreatePropertyOwnerPage.js";
-import { PropertyOwnerDetailPage } from "../features/properties/PropertyOwnerDetailPage.js";
-import { PublicPropertyCatalogPage } from "../features/public-catalog/PublicPropertyCatalogPage.js";
-import { PublicPropertyDetailPage } from "../features/public-catalog/PublicPropertyDetailPage.js";
 
 export const applicationRoutes: RouteObject[] = [
   { path: "/connexion", element: <LoginPage /> },

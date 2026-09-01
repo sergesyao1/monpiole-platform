@@ -7,6 +7,7 @@ import { createPropertyApi } from "./property-api.js";
 import { toPropertyUiError, type PropertyUiError } from "./property-errors.js";
 import { PropertyFeedback } from "./PropertyFeedback.js";
 import { propertyOwnerName, type PropertyOwner } from "./property-model.js";
+import { Alert, Button, EmptyState, Field, LoadingState, StatusBadge, buttonClassName } from "../../ui/index.js";
 
 const PAGE_LIMIT = 20;
 
@@ -56,22 +57,22 @@ export function PropertyOwnerDirectoryPage() {
   return (
     <div className="page-stack owner-directory-page">
       <section className="hero">
-        <div><p className="eyebrow">Propriétaires</p><h1>Votre annuaire de propriétaires</h1><p className="hero-copy">Retrouvez les personnes physiques et morales de votre espace et gérez leurs coordonnées.</p><Link className="primary-action inline-action" to="/proprietaires/new">Créer un propriétaire</Link></div>
+        <div><p className="eyebrow">Propriétaires</p><h1>Votre annuaire de propriétaires</h1><p className="hero-copy">Retrouvez les personnes physiques et morales de votre espace et gérez leurs coordonnées.</p><Link className={buttonClassName("primary", "inline-action")} to="/proprietaires/new">Créer un propriétaire</Link></div>
         <div className="hero-accent" aria-hidden="true"><span>P</span></div>
       </section>
       <section className="content-panel" aria-labelledby="owner-directory-title" aria-busy={loading || loadingMore}>
         <div className="section-heading"><div><p className="eyebrow">Annuaire privé</p><h2 id="owner-directory-title">Vos propriétaires</h2></div></div>
         <form className="owner-directory-search" role="search" onSubmit={applySearch}>
-          <label>Rechercher<input name="search" maxLength={100} defaultValue={search ?? ""} placeholder="Nom, raison sociale, immatriculation ou e-mail" /></label>
-          <button className="secondary-action" type="submit" disabled={loading || loadingMore}>Rechercher</button>
+          <Field label="Rechercher" optional><input name="search" maxLength={100} defaultValue={search ?? ""} placeholder="Nom, raison sociale, immatriculation ou e-mail" /></Field>
+          <Button variant="secondary" type="submit" disabled={loading || loadingMore}>Rechercher</Button>
         </form>
-        {loading && <div className="portfolio-state" role="status"><span className="loading-indicator" aria-hidden="true" /><p>Chargement de l’annuaire…</p></div>}
+        {loading && <LoadingState label="Chargement de l’annuaire…" />}
         {!loading && error && <PropertyFeedback error={error} onReconnect={() => void session.login("/proprietaires")} />}
-        {!loading && !error && items.length === 0 && <div className="portfolio-state portfolio-empty"><h3>{search ? "Aucun résultat" : "Aucun propriétaire"}</h3><p>{search ? "Aucun propriétaire ne correspond à votre recherche." : "Créez votre premier propriétaire pour commencer l’annuaire."}</p>{!search && <Link className="primary-action inline-action" to="/proprietaires/new">Créer un propriétaire</Link>}</div>}
+        {!loading && !error && items.length === 0 && <EmptyState title={search ? "Aucun résultat" : "Aucun propriétaire"} description={search ? "Aucun propriétaire ne correspond à votre recherche." : "Créez votre premier propriétaire pour commencer l’annuaire."} action={!search && <Link className={buttonClassName("primary", "inline-action")} to="/proprietaires/new">Créer un propriétaire</Link>} />}
         {!loading && !error && items.length > 0 && <>
           <ul className="property-portfolio-list">{items.map((owner) => <OwnerCard key={owner.ownerId} owner={owner} />)}</ul>
-          {nextError && <div className="form-message" role="alert"><strong>La page suivante n’a pas pu être chargée.</strong><p>{nextError.message} Les propriétaires déjà affichés restent disponibles.</p></div>}
-          <div className="portfolio-pagination">{hasNextPage ? <button className="secondary-action" type="button" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? "Chargement…" : "Afficher plus de propriétaires"}</button> : <p className="muted-status" role="status">Tous les propriétaires disponibles sont affichés.</p>}</div>
+          {nextError && <Alert tone="danger" title="La page suivante n’a pas pu être chargée."><p>{nextError.message} Les propriétaires déjà affichés restent disponibles.</p></Alert>}
+          <div className="portfolio-pagination">{hasNextPage ? <Button variant="secondary" loading={loadingMore} loadingLabel="Chargement…" onClick={() => void loadMore()}>Afficher plus de propriétaires</Button> : <p className="muted-status" role="status">Tous les propriétaires sont affichés.</p>}</div>
         </>}
       </section>
     </div>
@@ -80,9 +81,9 @@ export function PropertyOwnerDirectoryPage() {
 
 function OwnerCard({ owner }: Readonly<{ owner: PropertyOwner }>) {
   return <li className="property-portfolio-card owner-card">
-    <div className="portfolio-card-heading"><div><span className="quiet-badge">{owner.ownerType === "INDIVIDUAL" ? "Personne physique" : "Personne morale"}</span><h3>{propertyOwnerName(owner)}</h3></div><span className="property-type-mark" aria-hidden="true">{propertyOwnerName(owner).slice(0, 1)}</span></div>
+    <div className="portfolio-card-heading"><div><StatusBadge tone="info">{owner.ownerType === "INDIVIDUAL" ? "Personne physique" : "Personne morale"}</StatusBadge><h3>{propertyOwnerName(owner)}</h3></div><span className="property-type-mark" aria-hidden="true">{propertyOwnerName(owner).slice(0, 1)}</span></div>
     <dl className="portfolio-metadata"><div><dt>E-mail</dt><dd>{owner.email ?? "Non renseigné"}</dd></div><div><dt>Téléphone</dt><dd>{owner.phoneNumber ?? "Non renseigné"}</dd></div></dl>
-    <Link className="secondary-action inline-action" to={`/proprietaires/${owner.ownerId}`} aria-label={`Consulter ${propertyOwnerName(owner)}`}>Consulter la fiche</Link>
+    <Link className={buttonClassName("secondary", "inline-action")} to={`/proprietaires/${owner.ownerId}`} aria-label={`Consulter ${propertyOwnerName(owner)}`}>Consulter la fiche</Link>
   </li>;
 }
 

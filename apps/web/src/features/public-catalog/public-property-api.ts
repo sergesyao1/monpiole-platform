@@ -29,6 +29,7 @@ async function requestPublicJson<ResponseBody>(path: `/v1/${string}`): Promise<R
     if (isProblemDetails(payload)) throw new ApiProblem(payload);
     throw new Error("La réponse du catalogue n'a pas pu être traitée.");
   }
+  if (payload === undefined) throw new Error("La réponse du catalogue est vide.");
   return payload as ResponseBody;
 }
 

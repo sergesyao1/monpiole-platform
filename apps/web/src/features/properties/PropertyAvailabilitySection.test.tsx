@@ -46,8 +46,8 @@ describe("Property availability Web", () => {
 
   it("shows persisted direct labels and hides the action without capability", async () => {
     show(client({ ...configured, canUpdateAvailability: false }));
-    expect(await screen.findByText("Disponible", { selector: "dd" })).toBeVisible();
-    expect(screen.getByText("Occupé", { selector: "dd" })).toBeVisible();
+    expect(await screen.findByText("Disponible", { selector: ".ui-badge" })).toBeVisible();
+    expect(screen.getByText("Occupé", { selector: ".ui-badge" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Enregistrer la disponibilité" })).not.toBeInTheDocument();
   });
 
@@ -62,8 +62,8 @@ describe("Property availability Web", () => {
     fireEvent.change(screen.getByLabelText("Occupation"), { target: { value: "VACANT" } });
     fireEvent.click(screen.getByRole("button", { name: "Enregistrer la disponibilité" }));
     expect(await screen.findByText("Disponibilité et occupation à jour.")).toBeVisible();
-    expect(screen.getByText("Indisponible", { selector: "dd" })).toBeVisible();
-    expect(screen.getByText("Libre", { selector: "dd" })).toBeVisible();
+    expect(screen.getByText("Indisponible", { selector: ".ui-badge" })).toBeVisible();
+    expect(screen.getByText("Libre", { selector: ".ui-badge" })).toBeVisible();
     expect(api.updatePropertyAvailability).toHaveBeenCalledWith(PROPERTY_ID, {
       availabilityStatus: "UNAVAILABLE", occupancyStatus: "VACANT",
     });

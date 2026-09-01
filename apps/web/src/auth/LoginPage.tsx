@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from "react-router";
 import { LoadingPage } from "../app/pages/LoadingPage.js";
 import { useSession } from "./session.js";
+import { Alert, Button } from "../ui/index.js";
 
 export function LoginPage() {
   const session = useSession();
@@ -12,8 +13,8 @@ export function LoginPage() {
     <main className="standalone-state">
       <p className="eyebrow">Espace sécurisé</p><h1>Connectez-vous à MonPiole</h1>
       <p>L’authentification est prise en charge par notre fournisseur d’identité sécurisé.</p>
-      {session.status === "error" && <p role="alert">Une erreur d’authentification est survenue. Veuillez réessayer.</p>}
-      <button className="primary-action" type="button" onClick={() => void session.login(returnTo)}>Se connecter</button>
+      {session.status === "error" && <Alert tone="danger" title="Connexion impossible"><p>Une erreur d’authentification est survenue. Veuillez réessayer.</p></Alert>}
+      <Button onClick={() => void session.login(returnTo)}>Se connecter</Button>
     </main>
   );
 }

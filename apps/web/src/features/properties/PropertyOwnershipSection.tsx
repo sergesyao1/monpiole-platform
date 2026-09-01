@@ -5,6 +5,7 @@ import type { PropertyApi } from "./property-api.js";
 import { PropertyFeedback } from "./PropertyFeedback.js";
 import { toPropertyUiError, type PropertyUiError } from "./property-errors.js";
 import { propertyOwnerName, type PropertyOwner, type PropertyOwnership } from "./property-model.js";
+import { Alert, Button, Field, LoadingState } from "../../ui/index.js";
 
 interface OwnershipView { readonly ownership: PropertyOwnership; readonly owner?: PropertyOwner; }
 
@@ -65,6 +66,7 @@ export function PropertyOwnershipSection({ propertyId, api }: Readonly<{ propert
 
   async function remove(ownerId: string) {
     if (saving) return;
+    if (!window.confirm("Retirer ce propriétaire du bien ?")) return;
     setSaving(true); setError(undefined);
     try { await api.removePropertyOwner(propertyId, ownerId); await load(); }
     catch (caught) { setError(toPropertyUiError(caught)); }
@@ -75,14 +77,14 @@ export function PropertyOwnershipSection({ propertyId, api }: Readonly<{ propert
     <section className="content-panel" aria-labelledby="property-owners-title">
       <div className="section-heading"><div><p className="eyebrow">Propriété</p><h2 id="property-owners-title">Propriétaires affectés</h2></div></div>
       {error && <PropertyFeedback error={error} />}
-      {loading ? <p className="muted-status" role="status">Chargement des propriétaires…</p> : items.length === 0 ? (
+      {loading ? <LoadingState label="Chargement des propriétaires…" /> : items.length === 0 ? (
         <p className="muted-status">Aucun propriétaire n’est encore affecté à ce bien.</p>
       ) : (
         <ul className="ownership-list">
           {items.map(({ ownership, owner }) => <li key={ownership.ownerId}>
             <div><strong>{owner ? propertyOwnerName(owner) : "Propriétaire non consultable"}</strong><small>{ownership.ownerId}</small></div>
             <span>{ownership.ownershipShare.toLocaleString("fr-FR")} %</span>
-            <button className="danger-action" type="button" disabled={saving} onClick={() => void remove(ownership.ownerId)}>Retirer</button>
+            <Button variant="danger" disabled={saving} onClick={() => void remove(ownership.ownerId)}>Retirer</Button>
           </li>)}
         </ul>
       )}
@@ -90,17 +92,17 @@ export function PropertyOwnershipSection({ propertyId, api }: Readonly<{ propert
         <h3>Affecter un propriétaire existant</h3>
         <p className="form-help">Recherchez puis sélectionnez un propriétaire de votre annuaire.</p>
         <div className="owner-picker-search" role="search">
-          <label>Rechercher dans l’annuaire<input value={ownerSearch} maxLength={100} onChange={(event) => setOwnerSearch(event.target.value)} placeholder="Nom, raison sociale ou e-mail" /></label>
-          <button className="secondary-action" type="button" disabled={ownersLoading} onClick={() => setAppliedOwnerSearch(ownerSearch.trim() || undefined)}>Rechercher</button>
+          <Field label="Rechercher dans l’annuaire" optional><input value={ownerSearch} maxLength={100} onChange={(event) => setOwnerSearch(event.target.value)} placeholder="Nom, raison sociale ou e-mail" /></Field>
+          <Button variant="secondary" disabled={ownersLoading} onClick={() => setAppliedOwnerSearch(ownerSearch.trim() || undefined)}>Rechercher</Button>
         </div>
-        {ownersError && <div className="form-message" role="alert"><strong>Annuaire indisponible</strong><p>{ownersError.message}</p><button className="secondary-action" type="button" onClick={() => setOwnersReload((current) => current + 1)}>Réessayer</button></div>}
+        {ownersError && <Alert tone="danger" title="Annuaire indisponible"><p>{ownersError.message}</p><Button variant="secondary" onClick={() => setOwnersReload((current) => current + 1)}>Réessayer</Button></Alert>}
         {!ownersLoading && !ownersError && ownerOptions.length === 0 && <p className="muted-status" role="status">{appliedOwnerSearch ? "Aucun propriétaire ne correspond à cette recherche." : "Aucun propriétaire n’est disponible. Créez-en un depuis l’annuaire."}</p>}
         <div className="form-grid two-columns">
-          <label>Propriétaire<select name="ownerId" required defaultValue="" disabled={ownersLoading || ownerOptions.length === 0}><option value="">Sélectionner un propriétaire</option>{ownerOptions.map((owner) => { const assigned = items.some(({ ownership }) => ownership.ownerId === owner.ownerId); return <option key={owner.ownerId} value={owner.ownerId} disabled={assigned}>{propertyOwnerName(owner)}{assigned ? " — déjà affecté" : ""}</option>; })}</select></label>
-          <label>Quote-part (%)<input name="ownershipShare" required type="number" min="0.01" max="100" step="0.01" /></label>
+          <Field label="Propriétaire"><select name="ownerId" required defaultValue="" disabled={ownersLoading || ownerOptions.length === 0}><option value="">Sélectionner un propriétaire</option>{ownerOptions.map((owner) => { const assigned = items.some(({ ownership }) => ownership.ownerId === owner.ownerId); return <option key={owner.ownerId} value={owner.ownerId} disabled={assigned}>{propertyOwnerName(owner)}{assigned ? " — déjà affecté" : ""}</option>; })}</select></Field>
+          <Field label="Quote-part (%)"><input name="ownershipShare" required type="number" min="0.01" max="100" step="0.01" /></Field>
         </div>
         {clientError && <p className="field-error" role="alert">{clientError}</p>}
-        <button className="secondary-action" type="submit" disabled={saving}>{saving ? "Affectation…" : "Affecter le propriétaire"}</button>
+        <Button variant="secondary" type="submit" loading={saving} loadingLabel="Affectation…">Affecter le propriétaire</Button>
       </form>
     </section>
   );

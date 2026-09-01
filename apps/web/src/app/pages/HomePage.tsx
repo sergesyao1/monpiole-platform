@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { StatusBadge } from "../../ui/index.js";
 
 const sections = [
   {
@@ -9,7 +10,7 @@ const sections = [
   },
   {
     title: "Propriétaires",
-    description: "Retrouvez prochainement les personnes physiques et morales que vous accompagnez.",
+    description: "Retrouvez les personnes physiques et morales que vous accompagnez et leurs coordonnées.",
     to: "/proprietaires",
     label: "Voir l'espace propriétaires",
   },
@@ -37,7 +38,7 @@ export function HomePage() {
             <p className="eyebrow">Navigation</p>
             <h2 id="modules-title">Vos espaces</h2>
           </div>
-          <span className="quiet-badge">Fondation active</span>
+          <StatusBadge tone="success">Espace opérationnel</StatusBadge>
         </div>
         <div className="card-grid">
           {sections.map((section, index) => (
@@ -54,8 +55,8 @@ export function HomePage() {
       <section className="foundation-note" aria-labelledby="foundation-title">
         <div className="note-icon" aria-hidden="true">✓</div>
         <div>
-          <h2 id="foundation-title">Une base prête à évoluer</h2>
-          <p>Le shell, la navigation, la configuration publique et la frontière API sont en place. Les fonctionnalités métier arriveront par vertical slices dédiés.</p>
+          <h2 id="foundation-title">Votre activité, au même endroit</h2>
+          <p>Centralisez vos biens, leurs propriétaires, leur disponibilité et leur publication. Le catalogue public reste séparé de votre espace privé.</p>
         </div>
       </section>
     </div>

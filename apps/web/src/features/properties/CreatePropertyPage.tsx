@@ -7,6 +7,7 @@ import { createPropertyApi } from "./property-api.js";
 import { PropertyFeedback } from "./PropertyFeedback.js";
 import { toPropertyUiError, type PropertyUiError } from "./property-errors.js";
 import { propertyTypeLabels, propertyTypes, transactionTypeLabels, transactionTypes, type CreatePropertyInput } from "./property-model.js";
+import { Button, Field, PageHeader, buttonClassName } from "../../ui/index.js";
 
 export function CreatePropertyPage() {
   const session = useSession();
@@ -52,37 +53,34 @@ export function CreatePropertyPage() {
 
   return (
     <div className="page-stack property-page">
-      <div className="page-heading">
-        <div><p className="eyebrow">Nouveau bien</p><h1>Créer un bien immobilier</h1></div>
-        <Link className="secondary-action inline-action" to="/properties">Retour aux biens</Link>
-      </div>
+      <PageHeader actions={<Link className={buttonClassName("secondary", "inline-action")} to="/properties">Retour aux biens</Link>} breadcrumbs={[{ label: "Biens", to: "/properties" }, { label: "Nouveau" }]} eyebrow="Nouveau bien" title="Créer un bien immobilier" />
       {error && <PropertyFeedback error={error} onReconnect={() => void session.login("/properties/new")} />}
       <form className="property-form content-panel" onSubmit={(event) => void submit(event)}>
         <fieldset disabled={submitting}>
           <legend>Informations générales</legend>
           <div className="form-grid two-columns">
-            <label>Titre du bien<input name="title" required maxLength={200} placeholder="Appartement lumineux à Cocody" /></label>
-            <label>Type de bien<select name="propertyType" value={propertyType} onChange={(event) => setPropertyType(event.currentTarget.value as CreatePropertyInput["propertyType"])}>{propertyTypes.map((value) => <option key={value} value={value}>{propertyTypeLabels[value]}</option>)}</select></label>
-            <label>Projet commercial<select name="transactionType" value={transactionType} onChange={(event) => setTransactionType(event.currentTarget.value as CreatePropertyInput["transactionType"])}>{transactionTypes.map((value) => <option key={value} value={value}>{transactionTypeLabels[value]}</option>)}</select></label>
+            <Field label="Titre du bien"><input name="title" required maxLength={200} placeholder="Appartement lumineux à Cocody" /></Field>
+            <Field label="Type de bien"><select name="propertyType" value={propertyType} onChange={(event) => setPropertyType(event.currentTarget.value as CreatePropertyInput["propertyType"])}>{propertyTypes.map((value) => <option key={value} value={value}>{propertyTypeLabels[value]}</option>)}</select></Field>
+            <Field label="Projet commercial"><select name="transactionType" value={transactionType} onChange={(event) => setTransactionType(event.currentTarget.value as CreatePropertyInput["transactionType"])}>{transactionTypes.map((value) => <option key={value} value={value}>{transactionTypeLabels[value]}</option>)}</select></Field>
             {propertyType === "APARTMENT" && transactionType === "LONG_TERM_RENTAL" && (
-              <label>Sous-type d’appartement<select name="apartmentSubtype" defaultValue="STUDIO" required>
+              <Field label="Sous-type d’appartement"><select name="apartmentSubtype" defaultValue="STUDIO" required>
                 <option value="STUDIO">Studio</option><option value="MULTI_ROOM">Plusieurs pièces</option>
-              </select></label>
+              </select></Field>
             )}
-            <label className="full-width">Description<textarea name="description" maxLength={5000} rows={4} placeholder="Décrivez les atouts essentiels du bien." /></label>
+            <div className="full-width"><Field label="Description" optional><textarea name="description" maxLength={5000} rows={4} placeholder="Décrivez les atouts essentiels du bien." /></Field></div>
           </div>
         </fieldset>
         <fieldset disabled={submitting}>
           <legend>Adresse</legend>
           <div className="form-grid two-columns">
-            <label>Pays (code ISO)<input name="country" required minLength={2} maxLength={2} pattern="[A-Za-z]{2}" defaultValue="CI" /></label>
-            <label>Ville<input name="city" required maxLength={200} placeholder="Abidjan" /></label>
-            <label>Quartier<input name="district" required maxLength={200} placeholder="Cocody" /></label>
-            <label>Adresse<input name="addressLine" required maxLength={200} placeholder="Rue, résidence ou repère" /></label>
+            <Field label="Pays (code ISO)"><input name="country" required minLength={2} maxLength={2} pattern="[A-Za-z]{2}" defaultValue="CI" /></Field>
+            <Field label="Ville"><input name="city" required maxLength={200} placeholder="Abidjan" /></Field>
+            <Field label="Quartier"><input name="district" required maxLength={200} placeholder="Cocody" /></Field>
+            <Field label="Adresse"><input name="addressLine" required maxLength={200} placeholder="Rue, résidence ou repère" /></Field>
           </div>
         </fieldset>
         <div className="form-actions">
-          <button className="primary-action" type="submit" disabled={submitting}>{submitting ? "Création en cours…" : "Créer le bien"}</button>
+          <Button type="submit" loading={submitting} loadingLabel="Création en cours…">Créer le bien</Button>
         </div>
       </form>
     </div>

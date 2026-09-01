@@ -80,7 +80,7 @@ describe("portefeuille immobilier Web", () => {
     expect(within(item).getByText("Location longue durée")).toBeInTheDocument();
     expect(within(item).getByText("Cocody, Abidjan · CI")).toBeInTheDocument();
     expect(within(item).getByRole("link", { name: `Consulter ${firstProperty.title}` })).toHaveAttribute("href", `/properties/${PROPERTY_A}`);
-    expect(screen.getByText("Tous les biens disponibles sont affichés.")).toBeInTheDocument();
+    expect(screen.getByText("Tous les biens sont affichés.")).toBeInTheDocument();
   });
 
   it("navigue du portefeuille vers la fiche existante", async () => {
@@ -110,7 +110,7 @@ describe("portefeuille immobilier Web", () => {
     expect(await screen.findByRole("heading", { name: secondProperty.title })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { name: firstProperty.title })).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Afficher plus de biens" })).not.toBeInTheDocument();
-    expect(screen.getByText("Tous les biens disponibles sont affichés.")).toBeInTheDocument();
+    expect(screen.getByText("Tous les biens sont affichés.")).toBeInTheDocument();
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain("cursor=opaque%2B%2Fcursor%3D%3D");
   });
 
