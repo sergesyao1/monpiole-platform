@@ -5,6 +5,7 @@ import type {
   UpdatePropertyCoreInformationInput,
   BuildingInput, CompositionPage, PropertyBuilding, PropertyUnit, UnitInput,
   PropertyPhoto, PropertyPhotoCategory, PropertyPhotoStandard,
+  PropertyGeolocation, UpdatePropertyGeolocationInput,
 } from "./property-model.js";
 
 export interface PropertyApi {
@@ -14,6 +15,9 @@ export interface PropertyApi {
   updatePropertyDetails(propertyId: string, input: UpdatePropertyDetailsInput): Promise<Property>;
   updatePropertyCoreInformation(propertyId: string, input: UpdatePropertyCoreInformationInput): Promise<Property>;
   publishProperty(propertyId: string): Promise<Property>;
+  retrievePropertyGeolocation(propertyId: string): Promise<PropertyGeolocation>;
+  updatePropertyGeolocation(propertyId: string, input: UpdatePropertyGeolocationInput): Promise<PropertyGeolocation>;
+  removePropertyGeolocation(propertyId: string): Promise<void>;
   listPropertyPhotos(propertyId: string): Promise<{ readonly photos: readonly PropertyPhoto[] }>;
   registerPropertyPhoto(propertyId: string, input: Readonly<{
     category: PropertyPhotoCategory; contentType: PropertyPhoto["contentType"]; contentBase64: string;
@@ -53,6 +57,15 @@ export function createPropertyApi(tokens: AccessTokenProvider): PropertyApi {
     ),
     publishProperty: (propertyId) => request<Property>(
       `/v1/properties/${encodeURIComponent(propertyId)}/publication`, { method: "PUT" },
+    ),
+    retrievePropertyGeolocation: (propertyId) => request<PropertyGeolocation>(
+      `/v1/properties/${encodeURIComponent(propertyId)}/geolocation`,
+    ),
+    updatePropertyGeolocation: (propertyId, input) => request<PropertyGeolocation>(
+      `/v1/properties/${encodeURIComponent(propertyId)}/geolocation`, { method: "PUT", body: input },
+    ),
+    removePropertyGeolocation: (propertyId) => request<void>(
+      `/v1/properties/${encodeURIComponent(propertyId)}/geolocation`, { method: "DELETE" },
     ),
     listPropertyPhotos: (propertyId) => request<{ readonly photos: readonly PropertyPhoto[] }>(
       `/v1/properties/${encodeURIComponent(propertyId)}/photos`,

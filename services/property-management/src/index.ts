@@ -7,6 +7,17 @@ export {
 export { UpdatePropertyDetails, type UpdatePropertyDetailsCommand } from "./application/update-property-details.js";
 export { UpdatePropertyCoreInformation, type UpdatePropertyCoreInformationCommand } from "./application/update-property-core-information.js";
 export { PublishProperty, type PublishPropertyCommand, type PublishPropertyResult } from "./application/publish-property.js";
+export {
+  RetrievePropertyGeolocation, UpdatePropertyGeolocation, RemovePropertyGeolocation,
+  type PropertyGeolocationView, type PropertyGeolocationClock,
+  type RetrievePropertyGeolocationQuery, type UpdatePropertyGeolocationCommand,
+  type RemovePropertyGeolocationCommand,
+} from "./application/manage-property-geolocation.js";
+export {
+  PropertyUnitGeolocationInheritedError,
+  type PropertyGeolocationRepository, type PropertyGeolocationResolution,
+  type PropertyGeolocationMutationTrace,
+} from "./application/property-geolocation-repository.js";
 export { RegisterPropertyPhoto, RetrievePropertyPhotoContent, ListPropertyPhotos, SelectPropertyPrimaryPhoto, DeletePropertyPhoto, type PropertyPhotoCommand } from "./application/manage-property-photos.js";
 export type { PropertyPhotoRepository, PropertyPhotoRegistration, PropertyPhotoContent, PropertyPhotoSelectionTrace } from "./application/property-photo-repository.js";
 export { RetrievePropertyPhotoStandard, UpdatePropertyPhotoStandard } from "./application/manage-property-photo-standard.js";
@@ -48,6 +59,13 @@ export type {
 } from "./application/property-owner-directory-query.js";
 export { PropertyOwnershipPersistenceFailureError, type PropertyOwnershipRepository } from "./application/property-ownership-repository.js";
 export { Property, InvalidPropertyInputError, InvalidPropertyServerValueError, PersistedPropertyCorruptionError, PropertyStructuralRoleConflictError, PropertyPublicationRequirementsNotMetError, PROPERTY_TYPES, TRANSACTION_TYPES, APARTMENT_SUBTYPES, PROPERTY_STATUSES, PROPERTY_STRUCTURAL_ROLES, type PropertyCoreInformation, type PropertyLocation, type PropertyType, type TransactionType, type ApartmentSubtype, type PropertyStatus, type PropertyStructuralRole, type PropertyPublicationRequirement } from "./domain/property.js";
+export {
+  PropertyGeolocation, InvalidPropertyGeolocationInputError,
+  InvalidPropertyGeolocationServerValueError, PersistedPropertyGeolocationCorruptionError,
+  PROPERTY_GEOLOCATION_PUBLIC_VISIBILITIES,
+  type PropertyGeolocationValues, type PropertyGeolocationPublicVisibility,
+  type PropertyPublicPosition,
+} from "./domain/property-geolocation.js";
 export { assessPropertyPhotoReadiness, resolvePropertyPhotoStandard, validatePropertyPhotoStandardOverride, rehydratePropertyPhoto, PersistedPropertyPhotoCorruptionError, InvalidPropertyPhotoContentError, InvalidPropertyPhotoStandardError, PropertyPhotoNotFoundError, PropertyPrimaryPhotoDeletionForbiddenError, PROPERTY_PHOTO_CATEGORIES, MINIMUM_PROPERTY_PHOTO_COUNT, APARTMENT_LONG_TERM_MINIMUM_PHOTO_COUNT, type PropertyPhotoValues, type PropertyPhotoCategory, type PropertyPhotoStatus, type PropertyPhotoReadiness, type PropertyPhotoStandard, type PropertyPhotoStandardOverride } from "./domain/property-photo.js";
 export { PropertyBuilding, InvalidPropertyCompositionInputError, InvalidPropertyCompositionServerValueError, normalizeStructuralCode, type PropertyBuildingValues } from "./domain/property-building.js";
 export { PropertyBuildingUnit, type PropertyBuildingUnitValues } from "./domain/property-building-unit.js";
@@ -64,6 +82,7 @@ export {
   assertOwnershipShareCapacity, type PropertyOwnershipValues,
 } from "./domain/property-ownership.js";
 export { PostgresPropertyRepository } from "./infrastructure/persistence/postgres/postgres-property-repository.js";
+export { PostgresPropertyGeolocationRepository } from "./infrastructure/persistence/postgres/postgres-property-geolocation-repository.js";
 export { PostgresPropertyPhotoRepository } from "./infrastructure/persistence/postgres/postgres-property-photo-repository.js";
 export { PostgresPropertyPhotoStandardRepository } from "./infrastructure/persistence/postgres/postgres-property-photo-standard-repository.js";
 export { PostgresPropertyPortfolioQuery } from "./infrastructure/persistence/postgres/postgres-property-portfolio-query.js";

@@ -85,6 +85,13 @@
       "when": 1788187260766,
       "tag": "0011_public_property_catalog_read_boundary",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788204632162,
+      "tag": "0012_property_geolocation",
+      "breakpoints": true
     }
   ]
 }

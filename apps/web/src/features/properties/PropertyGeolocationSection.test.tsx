@@ -1,0 +1,111 @@
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
+import { describe, expect, it, vi } from "vitest";
+
+import type { PropertyApi } from "./property-api.js";
+import { geolocationInputFromForm, PropertyGeolocationSection } from "./PropertyGeolocationSection.js";
+
+const PROPERTY_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const PARENT_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+
+function client(initial: Awaited<ReturnType<PropertyApi["retrievePropertyGeolocation"]>> = { configured: false, source: "OWN" }) {
+  return {
+    retrievePropertyGeolocation: vi.fn().mockResolvedValue(initial),
+    updatePropertyGeolocation: vi.fn().mockResolvedValue({
+      configured: true, source: "OWN", latitude: 5.336789, longitude: -4.027123, publicVisibility: "HIDDEN",
+    }),
+    removePropertyGeolocation: vi.fn().mockResolvedValue(undefined),
+  } satisfies Pick<PropertyApi, "retrievePropertyGeolocation" | "updatePropertyGeolocation" | "removePropertyGeolocation">;
+}
+
+function show(api = client()) {
+  return render(<MemoryRouter><PropertyGeolocationSection propertyId={PROPERTY_ID} api={api} onReconnect={vi.fn()} /></MemoryRouter>);
+}
+
+describe("Property geolocation Web", () => {
+  it("shows an empty private form with French privacy guidance", async () => {
+    show();
+    expect(await screen.findByText("Aucune géolocalisation n’est enregistrée pour ce bien.")).toBeVisible();
+    expect(screen.getByLabelText("Latitude")).toHaveValue("");
+    expect(screen.getByLabelText("Longitude")).toHaveValue("");
+    expect(screen.getByLabelText("Visibilité de la position")).toHaveValue("HIDDEN");
+    expect(screen.getByText(/Aucune carte ni service externe/)).toBeVisible();
+  });
+
+  it("normalizes decimal commas and saves an approximate own position", async () => {
+    const api = client(); show(api);
+    await screen.findByText("Aucune géolocalisation n’est enregistrée pour ce bien.");
+    fireEvent.change(screen.getByLabelText("Latitude"), { target: { value: "5,336789" } });
+    fireEvent.change(screen.getByLabelText("Longitude"), { target: { value: "-4,027123" } });
+    fireEvent.change(screen.getByLabelText("Visibilité de la position"), { target: { value: "APPROXIMATE" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer la géolocalisation" }));
+    await screen.findByText("Géolocalisation à jour");
+    expect(api.updatePropertyGeolocation).toHaveBeenCalledWith(PROPERTY_ID, {
+      latitude: 5.336789, longitude: -4.027123, publicVisibility: "APPROXIMATE",
+    });
+  });
+
+  it("validates bounds and six-decimal precision before any request", async () => {
+    const api = client(); show(api);
+    await screen.findByText("Aucune géolocalisation n’est enregistrée pour ce bien.");
+    fireEvent.change(screen.getByLabelText("Latitude"), { target: { value: "5.1234567" } });
+    fireEvent.change(screen.getByLabelText("Longitude"), { target: { value: "-4" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer la géolocalisation" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("six décimales");
+    expect(api.updatePropertyGeolocation).not.toHaveBeenCalled();
+  });
+
+  it("requires confirmation for exact publication intent", async () => {
+    const api = client(); const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    show(api); await screen.findByText("Aucune géolocalisation n’est enregistrée pour ce bien.");
+    fireEvent.change(screen.getByLabelText("Latitude"), { target: { value: "5" } });
+    fireEvent.change(screen.getByLabelText("Longitude"), { target: { value: "-4" } });
+    fireEvent.change(screen.getByLabelText("Visibilité de la position"), { target: { value: "EXACT" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer la géolocalisation" }));
+    expect(api.updatePropertyGeolocation).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer la géolocalisation" }));
+    await waitFor(() => expect(api.updatePropertyGeolocation).toHaveBeenCalledTimes(1));
+    expect(confirm).toHaveBeenCalledTimes(2);
+    confirm.mockRestore();
+  });
+
+  it("removes an existing own position after confirmation", async () => {
+    const api = client({ configured: true, source: "OWN", latitude: 5.336789, longitude: -4.027123, publicVisibility: "HIDDEN" });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    show(api);
+    const remove = await screen.findByRole("button", { name: "Supprimer la géolocalisation" });
+    fireEvent.click(remove);
+    await screen.findByText("Géolocalisation à jour");
+    expect(api.removePropertyGeolocation).toHaveBeenCalledWith(PROPERTY_ID);
+    expect(screen.getByText("Aucune géolocalisation n’est enregistrée pour ce bien.")).toBeVisible();
+    confirm.mockRestore();
+  });
+
+  it("renders a Unit's inherited position read-only with a parent link", async () => {
+    const api = client({
+      configured: true, source: "INHERITED", inheritedFromPropertyId: PARENT_ID,
+      latitude: 5.336789, longitude: -4.027123, publicVisibility: "APPROXIMATE",
+    });
+    show(api);
+    expect(await screen.findByText(/Cette unité hérite/)).toBeVisible();
+    expect(screen.getByText("Position approximative")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Enregistrer la géolocalisation" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ouvrir l’ensemble immobilier parent" })).toHaveAttribute("href", `/properties/${PARENT_ID}`);
+  });
+
+  it("offers retry after a loading failure", async () => {
+    const api = client();
+    vi.mocked(api.retrievePropertyGeolocation).mockRejectedValueOnce(new Error("network"));
+    show(api);
+    expect(await screen.findByRole("alert")).toHaveTextContent("erreur inattendue");
+    fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
+    expect(await screen.findByText("Aucune géolocalisation n’est enregistrée pour ce bien.")).toBeVisible();
+    expect(api.retrievePropertyGeolocation).toHaveBeenCalledTimes(2);
+  });
+
+  it("exports deterministic form parsing for localized values", () => {
+    const form = new FormData();
+    form.set("latitude", "-0,000001"); form.set("longitude", "180"); form.set("publicVisibility", "HIDDEN");
+    expect(geolocationInputFromForm(form)).toEqual({ latitude: -0.000001, longitude: 180, publicVisibility: "HIDDEN" });
+  });
+});

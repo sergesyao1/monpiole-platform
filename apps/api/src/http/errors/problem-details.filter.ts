@@ -172,6 +172,14 @@ function businessProblem(exception: unknown) {
     status: 400, type: "https://api.monpiole.example/problems/invalid-request",
     title: "Invalid request", code: "INVALID_REQUEST",
   };
+  if (code === "INVALID_PROPERTY_GEOLOCATION_INPUT") return {
+    status: 400, type: "https://api.monpiole.example/problems/invalid-request",
+    title: "Invalid request", code: "INVALID_REQUEST",
+  };
+  if (code === "PROPERTY_UNIT_GEOLOCATION_INHERITED") return {
+    status: 409, type: "https://api.monpiole.example/problems/property-unit-geolocation-inherited",
+    title: "Property Unit geolocation must be inherited", code: "PROPERTY_UNIT_GEOLOCATION_INHERITED",
+  };
   if (code === "INVALID_PROPERTY_PORTFOLIO_QUERY") return {
     status: 400, type: "https://api.monpiole.example/problems/invalid-request",
     title: "Invalid request", code: "INVALID_REQUEST",

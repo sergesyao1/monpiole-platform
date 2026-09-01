@@ -152,6 +152,19 @@ la checklist des six photos et de ses vues obligatoires. Le minimum éventuel de
 l'organisation et ses vues supplémentaires durcissent cette checklist sans
 réduire le socle MonPiole.
 
+La section privée « Géolocalisation et confidentialité » gère séparément la
+latitude, la longitude et la visibilité publique souhaitée. Elle rend en
+français les états de chargement, absence, validation, sauvegarde, suppression,
+succès et erreur. Les virgules décimales sont normalisées et les valeurs restent
+bornées à six décimales. Le choix « Position exacte » exige une confirmation ;
+la suppression est également confirmée.
+
+Pour une Unit, la section est en lecture seule : elle affiche la position
+effective héritée et propose un lien vers l'ensemble immobilier parent. Aucun
+sélecteur cartographique, géocodeur ou appel provider n'est exécuté. Le formulaire
+est conçu pour qu'un futur sélecteur puisse fournir les deux coordonnées sans
+changer le contrat métier.
+
 Les champs monétaires utilisent les décimales de la devise à la saisie comme au
 préremplissage : XOF n'est pas divisé par 100, EUR et USD le sont. L'affichage
 rend notamment `125000 XOF` sous la forme « 125 000 FCFA » et n'expose plus le

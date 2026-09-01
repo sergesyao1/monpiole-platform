@@ -273,3 +273,25 @@ La configuration refuse une allowlist non vide lorsque `MONPIOLE_ENV=production`
 Le catalogue reste **NO-GO Internet production** : aucun rate limiter n’est
 livré, aucun tenant réel n’est activé et aucune revue de données pilote n’est
 encodée dans le dépôt.
+
+## Property geolocation — TASK-060
+
+La frontière privée authentifiée expose `GET`, `PUT` et `DELETE
+/v1/properties/{propertyId}/geolocation`. Le body `PUT` strict accepte uniquement
+`latitude`, `longitude` et `publicVisibility` (`EXACT`, `APPROXIMATE` ou
+`HIDDEN`), avec les bornes WGS84 et six décimales au maximum. `DELETE` représente
+explicitement l'absence et reste idempotent. Les réponses privées distinguent
+une valeur propre (`OWN`) d'une valeur héritée (`INHERITED`) pour les Units sans
+retourner tenant, traces ou métadonnées de persistance.
+
+Les grants `RETRIEVE_PROPERTY_GEOLOCATION`, `UPDATE_PROPERTY_GEOLOCATION` et
+`REMOVE_PROPERTY_GEOLOCATION` sont attribués au rôle métier
+`TENANT_ADMINISTRATOR`. Une Unit ne peut ni créer un override ni supprimer la
+position héritée ; l'API répond 409 avec le code stable
+`PROPERTY_UNIT_GEOLOCATION_INHERITED`. Les erreurs cross-tenant restent 404 et
+non révélatrices.
+
+Cette tranche n'ajoute aucune coordonnée aux trois routes du catalogue public.
+Elle ne charge aucun SDK cartographique, géocodeur, credential ou provider. Le
+contrat OpenAPI généré décrit les trois opérations privées, leurs validations,
+réponses Problem Details et en-têtes de traçage.

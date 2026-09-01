@@ -6,6 +6,7 @@ export type TransactionType = typeof transactionTypes[number];
 export type ApartmentSubtype = "STUDIO" | "MULTI_ROOM";
 export type PropertyStatus = "DRAFT" | "PUBLISHED";
 export type PropertyStructuralRole = "STANDALONE" | "COMPOSITE" | "UNIT";
+export type PropertyGeolocationPublicVisibility = "EXACT" | "APPROXIMATE" | "HIDDEN";
 export type PricingUnit = "NIGHT" | "WEEK";
 export type PropertyPhotoCategory =
   | "BUILDING_EXTERIOR_OR_ENTRANCE"
@@ -55,6 +56,11 @@ export const transactionTypeLabels: Readonly<Record<TransactionType, string>> = 
 
 export const propertyStatusLabels: Readonly<Record<PropertyStatus, string>> = { DRAFT: "Brouillon", PUBLISHED: "Publié" };
 export const propertyStructuralRoleLabels: Readonly<Record<PropertyStructuralRole, string>> = { STANDALONE: "Bien autonome", COMPOSITE: "Ensemble immobilier", UNIT: "Unité" };
+export const propertyGeolocationPublicVisibilityLabels: Readonly<Record<PropertyGeolocationPublicVisibility, string>> = {
+  EXACT: "Position exacte",
+  APPROXIMATE: "Position approximative",
+  HIDDEN: "Masquer la position",
+};
 export const pricingUnitLabels: Readonly<Record<PricingUnit | "MONTH", string>> = {
   MONTH: "Mensuel",
   NIGHT: "Nuit",
@@ -142,6 +148,31 @@ export interface UpdatePropertyCoreInformationInput {
   readonly description?: string;
   readonly location: PropertyLocation;
   readonly apartmentSubtype?: ApartmentSubtype;
+}
+
+export type PropertyGeolocation =
+  | Readonly<{ configured: false; source: "OWN" }>
+  | Readonly<{ configured: false; source: "INHERITED"; inheritedFromPropertyId: string }>
+  | Readonly<{
+    configured: true;
+    source: "OWN";
+    latitude: number;
+    longitude: number;
+    publicVisibility: PropertyGeolocationPublicVisibility;
+  }>
+  | Readonly<{
+    configured: true;
+    source: "INHERITED";
+    inheritedFromPropertyId: string;
+    latitude: number;
+    longitude: number;
+    publicVisibility: PropertyGeolocationPublicVisibility;
+  }>;
+
+export interface UpdatePropertyGeolocationInput {
+  readonly latitude: number;
+  readonly longitude: number;
+  readonly publicVisibility: PropertyGeolocationPublicVisibility;
 }
 
 export interface PropertyPhotoStandard {

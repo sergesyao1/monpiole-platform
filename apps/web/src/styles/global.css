@@ -127,6 +127,8 @@ h1 { max-width: 17ch; margin: 0; font-family: Georgia, serif; font-size: clamp(2
 .property-form fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 .property-form legend, .compact-form h3 { margin: 0 0 1rem; color: var(--green-950); font-family: Georgia, serif; font-size: 1.35rem; }
 .form-grid { display: grid; gap: 1rem; }
+.form-stack { display: grid; gap: 1rem; }
+.field-help { margin: 0; color: #5d6f65; font-size: .86rem; }
 .two-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .three-columns { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .four-columns { grid-template-columns: repeat(4, minmax(0, 1fr)); }

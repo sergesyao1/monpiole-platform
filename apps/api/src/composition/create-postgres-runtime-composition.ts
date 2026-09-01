@@ -19,6 +19,8 @@ import {
   ListPropertyPhotos, SelectPropertyPrimaryPhoto, DeletePropertyPhoto,
   PostgresPropertyPhotoStandardRepository, RetrievePropertyPhotoStandard, UpdatePropertyPhotoStandard,
   ListPublicProperties, RetrievePublicProperty, RetrievePublicPrimaryPhoto, PostgresPublicPropertyCatalogQuery,
+  PostgresPropertyGeolocationRepository, RetrievePropertyGeolocation,
+  UpdatePropertyGeolocation, RemovePropertyGeolocation,
 } from "@monpiole/property-management";
 import {
   ActivateTenant,
@@ -76,6 +78,7 @@ export function createPostgresApiRuntime(
   const propertyOwnerRepository = new PostgresPropertyOwnerRepository(pool);
   const propertyOwnershipRepository = new PostgresPropertyOwnershipRepository(pool);
   const propertyCompositionRepository = new PostgresPropertyCompositionRepository(pool);
+  const propertyGeolocationRepository = new PostgresPropertyGeolocationRepository(pool);
   const compositionClock = { now: () => new Date().toISOString() };
   const publicCatalogQuery = publicCatalogDatabase === undefined
     ? undefined
@@ -112,6 +115,9 @@ export function createPostgresApiRuntime(
     deletePropertyPhoto: new DeletePropertyPhoto(propertyPhotoRepository),
     retrievePropertyPhotoStandard: new RetrievePropertyPhotoStandard(propertyPhotoStandardRepository),
     updatePropertyPhotoStandard: new UpdatePropertyPhotoStandard(propertyPhotoStandardRepository, { now: () => new Date().toISOString() }),
+    retrievePropertyGeolocation: new RetrievePropertyGeolocation(propertyGeolocationRepository),
+    updatePropertyGeolocation: new UpdatePropertyGeolocation(propertyGeolocationRepository, { now: () => new Date().toISOString() }),
+    removePropertyGeolocation: new RemovePropertyGeolocation(propertyGeolocationRepository),
     publicCatalogTenantResolver: publicCatalogAllowlist.resolver,
     ...(publicCatalogQuery === undefined ? {} : {
       listPublicProperties: new ListPublicProperties(publicCatalogQuery),

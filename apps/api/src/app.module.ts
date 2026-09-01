@@ -9,6 +9,7 @@ import type {
   ListPropertyPhotos, RegisterPropertyPhoto, RetrievePropertyPhotoContent, SelectPropertyPrimaryPhoto, DeletePropertyPhoto,
   RetrievePropertyPhotoStandard, UpdatePropertyPhotoStandard,
   ListPublicProperties, RetrievePublicProperty, RetrievePublicPrimaryPhoto,
+  RetrievePropertyGeolocation, UpdatePropertyGeolocation, RemovePropertyGeolocation,
 } from "@monpiole/property-management";
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core";
 import {
@@ -59,6 +60,10 @@ import { PUBLISH_PROPERTY_USE_CASE, PublishPropertyController } from "./http/pro
 import { DELETE_PROPERTY_PHOTO_USE_CASE, LIST_PROPERTY_PHOTOS_USE_CASE, REGISTER_PROPERTY_PHOTO_USE_CASE, RETRIEVE_PROPERTY_PHOTO_CONTENT_USE_CASE, SELECT_PROPERTY_PRIMARY_PHOTO_USE_CASE, PropertyPhotosController } from "./http/properties/property-photos.controller.js";
 import { PropertyPhotoStandardController, RETRIEVE_PROPERTY_PHOTO_STANDARD_USE_CASE, UPDATE_PROPERTY_PHOTO_STANDARD_USE_CASE } from "./http/properties/property-photo-standard.controller.js";
 import {
+  PropertyGeolocationController, REMOVE_PROPERTY_GEOLOCATION_USE_CASE,
+  RETRIEVE_PROPERTY_GEOLOCATION_USE_CASE, UPDATE_PROPERTY_GEOLOCATION_USE_CASE,
+} from "./http/properties/property-geolocation.controller.js";
+import {
   LIST_PUBLIC_PROPERTIES_USE_CASE, PUBLIC_CATALOG_TENANT_RESOLVER,
   RETRIEVE_PUBLIC_PRIMARY_PHOTO_USE_CASE, RETRIEVE_PUBLIC_PROPERTY_USE_CASE,
   PublicPropertiesController,
@@ -92,6 +97,9 @@ export interface ApiComposition {
   readonly deletePropertyPhoto?: Pick<DeletePropertyPhoto, "execute">;
   readonly retrievePropertyPhotoStandard?: Pick<RetrievePropertyPhotoStandard, "execute">;
   readonly updatePropertyPhotoStandard?: Pick<UpdatePropertyPhotoStandard, "execute">;
+  readonly retrievePropertyGeolocation?: Pick<RetrievePropertyGeolocation, "execute">;
+  readonly updatePropertyGeolocation?: Pick<UpdatePropertyGeolocation, "execute">;
+  readonly removePropertyGeolocation?: Pick<RemovePropertyGeolocation, "execute">;
   readonly publicCatalogTenantResolver?: PublicCatalogTenantResolver;
   readonly listPublicProperties?: Pick<ListPublicProperties, "execute">;
   readonly retrievePublicProperty?: Pick<RetrievePublicProperty, "execute">;
@@ -145,6 +153,9 @@ const unavailableSelectPropertyPrimaryPhoto: Pick<SelectPropertyPrimaryPhoto, "e
 const unavailableDeletePropertyPhoto: Pick<DeletePropertyPhoto, "execute"> = { async execute() { throw new Error("Delete Property photo composition is unavailable"); } };
 const unavailableRetrievePropertyPhotoStandard: Pick<RetrievePropertyPhotoStandard, "execute"> = { async execute() { throw new Error("Retrieve Property photo standard composition is unavailable"); } };
 const unavailableUpdatePropertyPhotoStandard: Pick<UpdatePropertyPhotoStandard, "execute"> = { async execute() { throw new Error("Update Property photo standard composition is unavailable"); } };
+const unavailableRetrievePropertyGeolocation: Pick<RetrievePropertyGeolocation, "execute"> = { async execute() { throw new Error("Retrieve Property geolocation composition is unavailable"); } };
+const unavailableUpdatePropertyGeolocation: Pick<UpdatePropertyGeolocation, "execute"> = { async execute() { throw new Error("Update Property geolocation composition is unavailable"); } };
+const unavailableRemovePropertyGeolocation: Pick<RemovePropertyGeolocation, "execute"> = { async execute() { throw new Error("Remove Property geolocation composition is unavailable"); } };
 const unavailableListPublicProperties: Pick<ListPublicProperties, "execute"> = { async execute() { throw new Error("Public Property catalog composition is unavailable"); } };
 const unavailableRetrievePublicProperty: Pick<RetrievePublicProperty, "execute"> = { async execute() { throw new Error("Public Property detail composition is unavailable"); } };
 const unavailableRetrievePublicPrimaryPhoto: Pick<RetrievePublicPrimaryPhoto, "execute"> = { async execute() { throw new Error("Public Property photo composition is unavailable"); } };
@@ -172,7 +183,7 @@ export class AppModule {
         CreatePropertyController, ListPropertiesController, RetrievePropertyController,
         UpdatePropertyCoreInformationController, UpdatePropertyDetailsController,
         PublishPropertyController,
-        PropertyPhotosController, PropertyPhotoStandardController,
+        PropertyPhotosController, PropertyPhotoStandardController, PropertyGeolocationController,
         PublicPropertiesController,
         CreatePropertyOwnerController, ListPropertyOwnersController, RetrievePropertyOwnerController, UpdatePropertyOwnerController,
         AssignPropertyOwnerController, RetrievePropertyOwnershipsController, RemovePropertyOwnerController, PropertyCompositionController,
@@ -213,6 +224,9 @@ export class AppModule {
         { provide: DELETE_PROPERTY_PHOTO_USE_CASE, useValue: composition.deletePropertyPhoto ?? unavailableDeletePropertyPhoto },
         { provide: RETRIEVE_PROPERTY_PHOTO_STANDARD_USE_CASE, useValue: composition.retrievePropertyPhotoStandard ?? unavailableRetrievePropertyPhotoStandard },
         { provide: UPDATE_PROPERTY_PHOTO_STANDARD_USE_CASE, useValue: composition.updatePropertyPhotoStandard ?? unavailableUpdatePropertyPhotoStandard },
+        { provide: RETRIEVE_PROPERTY_GEOLOCATION_USE_CASE, useValue: composition.retrievePropertyGeolocation ?? unavailableRetrievePropertyGeolocation },
+        { provide: UPDATE_PROPERTY_GEOLOCATION_USE_CASE, useValue: composition.updatePropertyGeolocation ?? unavailableUpdatePropertyGeolocation },
+        { provide: REMOVE_PROPERTY_GEOLOCATION_USE_CASE, useValue: composition.removePropertyGeolocation ?? unavailableRemovePropertyGeolocation },
         { provide: PUBLIC_CATALOG_TENANT_RESOLVER, useValue: composition.publicCatalogTenantResolver ?? unavailablePublicCatalogTenantResolver },
         { provide: LIST_PUBLIC_PROPERTIES_USE_CASE, useValue: composition.listPublicProperties ?? unavailableListPublicProperties },
         { provide: RETRIEVE_PUBLIC_PROPERTY_USE_CASE, useValue: composition.retrievePublicProperty ?? unavailableRetrievePublicProperty },

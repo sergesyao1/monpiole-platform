@@ -44,7 +44,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
-  await owner.query("TRUNCATE property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners");
+  await owner.query("TRUNCATE property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners");
 });
 
 afterAll(async () => {
@@ -67,7 +67,7 @@ describe("PostgreSQL public Property catalog boundary", () => {
     expect(first.nextCursor).toEqual({ publishedAt: "2026-08-31T12:00:00.000Z", publicPropertyId: PROPERTY_A });
     const second = await catalog.list({ tenantId: TENANT_A, limit: 1, cursor: first.nextCursor });
     expect(second.items.map((item) => item.publicPropertyId)).toEqual([PROPERTY_B]);
-    expect(JSON.stringify([...first.items, ...second.items])).not.toMatch(/tenantId|addressLine|actorId|photoId|contentSha256/);
+    expect(JSON.stringify([...first.items, ...second.items])).not.toMatch(/tenantId|addressLine|actorId|photoId|contentSha256|latitude|longitude|publicVisibility/);
   });
 
   it("returns the same absence for missing, DRAFT and another tenant", async () => {

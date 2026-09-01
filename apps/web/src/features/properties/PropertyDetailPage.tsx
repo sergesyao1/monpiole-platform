@@ -15,6 +15,7 @@ import { PropertyOwnershipSection } from "./PropertyOwnershipSection.js";
 import { PropertyCompositionSection } from "./PropertyCompositionSection.js";
 import { PropertyPublicationSection } from "./PropertyPublicationSection.js";
 import { PropertyPhotoGallery } from "./PropertyPhotoGallery.js";
+import { PropertyGeolocationSection } from "./PropertyGeolocationSection.js";
 
 function CommercialTermsSummary({ terms }: Readonly<{ terms: CommercialTerms }>) {
   if (terms.kind === "LONG_TERM_RENTAL") return <>{formatMinorAmount(terms.rentAmountMinor, terms.currency)} / mois</>;
@@ -105,6 +106,12 @@ export function PropertyDetailPage() {
           const { primaryPhoto: _previousPrimaryPhoto, ...unchanged } = current;
           return { ...unchanged, photos, ...(primaryPhoto === undefined ? {} : { primaryPhoto }) } as Property;
         })}
+        onReconnect={() => void session.login(`/properties/${propertyId}`)}
+      />
+
+      <PropertyGeolocationSection
+        propertyId={property.propertyId}
+        api={api}
         onReconnect={() => void session.login(`/properties/${propertyId}`)}
       />
 

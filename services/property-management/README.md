@@ -197,3 +197,27 @@ Le login et son credential sont provisionnés par Operations avant la migration,
 jamais créés ou stockés dans le dépôt. La diffusion globale cross-tenant,
 l’écriture publique, la recherche libre, les Buildings et le graphe de
 composition restent interdits.
+
+## Géolocalisation structurée des biens — TASK-060
+
+`PropertyGeolocation` est un concept distinct de l'adresse textuelle. Il porte
+une latitude WGS84 `[-90, 90]`, une longitude `[-180, 180]` et une décision de
+visibilité publique `EXACT | APPROXIMATE | HIDDEN`. La représentation canonique
+accepte au plus six décimales ; PostgreSQL utilise `numeric(8,6)` et
+`numeric(9,6)`. La projection approximative du domaine arrondit de façon stable
+à `0.01°` (ordre de grandeur d'un kilomètre), sans aléa ni fournisseur externe.
+Cette projection n'est pas encore branchée au catalogue public.
+
+Une `STANDALONE` ou `COMPOSITE` possède au plus une géolocalisation propre. Une
+`UNIT` n'en stocke jamais : sa lecture effective hérite de la Property
+`COMPOSITE` parente et ses tentatives de mise à jour ou suppression échouent par
+`PROPERTY_UNIT_GEOLOCATION_INHERITED`. `Building` reste une entité structurelle
+sans coordonnées propres. La géolocalisation est facultative et ne modifie ni
+les prérequis ni la transition de publication.
+
+La table dédiée `property_geolocations` sépare les données privées du catalogue,
+porte une clé primaire/FK `(tenant_id, property_id)`, des contraintes de bornes,
+une RLS activée et forcée, et les traces de dernière mutation. Le runtime reçoit
+les seuls droits CRUD ; `monpiole_public_catalog_reader` n'a aucun privilège sur
+cette table. Géocodage, reverse geocoding, carte, PostGIS et recherches spatiales
+restent des capacités séparées.

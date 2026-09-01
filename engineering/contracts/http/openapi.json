@@ -787,6 +787,136 @@
         "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
         "type": "string"
       },
+      "PropertyGeolocationResponse": {
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "configured": {
+                "const": false,
+                "type": "boolean"
+              },
+              "source": {
+                "const": "OWN",
+                "type": "string"
+              }
+            },
+            "required": [
+              "configured",
+              "source"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "configured": {
+                "const": false,
+                "type": "boolean"
+              },
+              "inheritedFromPropertyId": {
+                "$ref": "#/components/schemas/PropertyId"
+              },
+              "source": {
+                "const": "INHERITED",
+                "type": "string"
+              }
+            },
+            "required": [
+              "configured",
+              "inheritedFromPropertyId",
+              "source"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "configured": {
+                "const": true,
+                "type": "boolean"
+              },
+              "latitude": {
+                "maximum": 90,
+                "minimum": -90,
+                "multipleOf": 0.000001,
+                "type": "number"
+              },
+              "longitude": {
+                "maximum": 180,
+                "minimum": -180,
+                "multipleOf": 0.000001,
+                "type": "number"
+              },
+              "publicVisibility": {
+                "enum": [
+                  "APPROXIMATE",
+                  "EXACT",
+                  "HIDDEN"
+                ],
+                "type": "string"
+              },
+              "source": {
+                "const": "OWN",
+                "type": "string"
+              }
+            },
+            "required": [
+              "configured",
+              "latitude",
+              "longitude",
+              "publicVisibility",
+              "source"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "configured": {
+                "const": true,
+                "type": "boolean"
+              },
+              "inheritedFromPropertyId": {
+                "$ref": "#/components/schemas/PropertyId"
+              },
+              "latitude": {
+                "maximum": 90,
+                "minimum": -90,
+                "multipleOf": 0.000001,
+                "type": "number"
+              },
+              "longitude": {
+                "maximum": 180,
+                "minimum": -180,
+                "multipleOf": 0.000001,
+                "type": "number"
+              },
+              "publicVisibility": {
+                "enum": [
+                  "APPROXIMATE",
+                  "EXACT",
+                  "HIDDEN"
+                ],
+                "type": "string"
+              },
+              "source": {
+                "const": "INHERITED",
+                "type": "string"
+              }
+            },
+            "required": [
+              "configured",
+              "inheritedFromPropertyId",
+              "latitude",
+              "longitude",
+              "publicVisibility",
+              "source"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "PropertyId": {
         "format": "uuid",
         "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -2560,6 +2690,37 @@
         "required": [
           "commercialTerms",
           "details"
+        ],
+        "type": "object"
+      },
+      "UpdatePropertyGeolocationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "latitude": {
+            "maximum": 90,
+            "minimum": -90,
+            "multipleOf": 0.000001,
+            "type": "number"
+          },
+          "longitude": {
+            "maximum": 180,
+            "minimum": -180,
+            "multipleOf": 0.000001,
+            "type": "number"
+          },
+          "publicVisibility": {
+            "enum": [
+              "APPROXIMATE",
+              "EXACT",
+              "HIDDEN"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude",
+          "publicVisibility"
         ],
         "type": "object"
       }
@@ -4777,6 +4938,563 @@
         "summary": "Define property details and commercial terms",
         "tags": [
           "Properties"
+        ]
+      }
+    },
+    "/v1/properties/{propertyId}/geolocation": {
+      "delete": {
+        "operationId": "removePropertyGeolocation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "propertyId",
+            "required": true,
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Geolocation absent after the operation",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid Property identifier",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication required",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden Property authority",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Property not found",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "A Unit must inherit its parent geolocation",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Safe internal failure",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove a Property's own geolocation idempotently",
+        "tags": [
+          "Property geolocation"
+        ]
+      },
+      "get": {
+        "operationId": "retrievePropertyGeolocation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "propertyId",
+            "required": true,
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertyGeolocationResponse"
+                }
+              }
+            },
+            "description": "Configured or absent effective geolocation",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid Property identifier",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication required",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden Property authority",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Property not found",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Safe internal failure",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Retrieve a Property's private effective geolocation",
+        "tags": [
+          "Property geolocation"
+        ]
+      },
+      "put": {
+        "operationId": "updatePropertyGeolocation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "propertyId",
+            "required": true,
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePropertyGeolocationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertyGeolocationResponse"
+                }
+              }
+            },
+            "description": "Canonical Property geolocation",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid coordinate, visibility, identifier or body",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication required",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden Property authority",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Property not found",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "A Unit must inherit its parent geolocation",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Safe internal failure",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create or replace a Property's own geolocation",
+        "tags": [
+          "Property geolocation"
         ]
       }
     },

@@ -127,7 +127,7 @@ describe("public Property catalog HTTP vertical slice", () => {
       tenantId: TENANT_A, limit: 50, propertyType: "HOUSE", transactionType: "SALE",
       cursor: { publishedAt: PUBLISHED_AT, publicPropertyId: PROPERTY_ID },
     });
-    expect(JSON.stringify(body)).not.toMatch(/tenantId|addressLine|owner|actor|correlation|status|createdAt|updatedAt|photoId|contentSha256/iu);
+    expect(JSON.stringify(body)).not.toMatch(/tenantId|addressLine|owner|actor|correlation|status|createdAt|updatedAt|photoId|contentSha256|latitude|longitude|publicVisibility/iu);
   });
 
   it("returns 404 before any query for an unknown Host and ignores forwarded Host", async () => {

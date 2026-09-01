@@ -96,6 +96,31 @@ export const properties = propertyManagement.table("properties", {
   }),
 ]).enableRLS();
 
+export const propertyGeolocations = propertyManagement.table("property_geolocations", {
+  tenantId: uuid("tenant_id").notNull(),
+  propertyId: uuid("property_id").notNull(),
+  latitude: numeric("latitude", { precision: 8, scale: 6, mode: "number" }).notNull(),
+  longitude: numeric("longitude", { precision: 9, scale: 6, mode: "number" }).notNull(),
+  publicVisibility: text("public_visibility").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
+  correlationId: uuid("correlation_id").notNull(),
+  actorId: text("actor_id").notNull(),
+}, (table) => [
+  primaryKey({ name: "property_geolocations_pkey", columns: [table.tenantId, table.propertyId] }),
+  foreignKey({
+    name: "property_geolocations_property_tenant_fk",
+    columns: [table.tenantId, table.propertyId],
+    foreignColumns: [properties.tenantId, properties.propertyId],
+  }),
+  check("property_geolocations_latitude_check", sql`${table.latitude} BETWEEN -90 AND 90`),
+  check("property_geolocations_longitude_check", sql`${table.longitude} BETWEEN -180 AND 180`),
+  check("property_geolocations_public_visibility_check", sql`${table.publicVisibility} IN ('EXACT', 'APPROXIMATE', 'HIDDEN')`),
+  pgPolicy("property_geolocations_tenant_isolation", {
+    using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+    withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+  }),
+]).enableRLS();
+
 export const propertyPhotos = propertyManagement.table("property_photos", {
   photoId: uuid("photo_id").primaryKey(), tenantId: uuid("tenant_id").notNull(),
   propertyId: uuid("property_id").notNull(), category: text("category").notNull(),

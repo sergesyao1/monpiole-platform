@@ -45,7 +45,7 @@ describe("public Property catalog OpenAPI contract", () => {
     const document = JSON.parse(await readFile(openApiPath, "utf8"));
     const componentText = JSON.stringify(Object.fromEntries(Object.entries(document.components.schemas)
       .filter(([name]) => name.startsWith("PublicProperty"))));
-    expect(componentText).not.toMatch(/tenantId|addressLine|owner|ownership|actor|authority|correlation|publishedBy|photoStandard|createdAt|updatedAt|photoId|contentSha256|contentByteSize|contentBase64|buildingId|unitPropertyId/iu);
+    expect(componentText).not.toMatch(/tenantId|addressLine|owner|ownership|actor|authority|correlation|publishedBy|photoStandard|createdAt|updatedAt|photoId|contentSha256|contentByteSize|contentBase64|buildingId|unitPropertyId|latitude|longitude|publicVisibility/iu);
     expect(componentText).toMatch(/publicPropertyId/u);
     expect(componentText).toMatch(/primaryPhoto/u);
   });
