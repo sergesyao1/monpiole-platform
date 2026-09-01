@@ -8,6 +8,7 @@ import type { PropertyPortfolioItem } from "./property-model.js";
 
 const PROPERTY_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const PROPERTY_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const PROPERTY_C = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const firstProperty: PropertyPortfolioItem = {
   propertyId: PROPERTY_A, title: "Maison des Lagunes", description: "Une maison familiale.",
   propertyType: "HOUSE", transactionType: "LONG_TERM_RENTAL", status: "DRAFT", structuralRole: "STANDALONE",
@@ -19,6 +20,14 @@ const secondProperty: PropertyPortfolioItem = {
   transactionType: "SALE", status: "PUBLISHED", publishedAt: "2026-08-26T12:00:00.000Z", structuralRole: "STANDALONE",
   location: { country: "CI", city: "Abidjan", district: "Plateau", addressLine: "Avenue Chardy" },
   createdAt: "2026-08-26T10:00:00.000Z", updatedAt: "2026-08-26T10:00:00.000Z",
+};
+const withdrawnProperty: PropertyPortfolioItem = {
+  ...secondProperty,
+  propertyId: PROPERTY_C,
+  title: "Villa retirée",
+  status: "WITHDRAWN",
+  withdrawnAt: "2026-08-27T12:00:00.000Z",
+  updatedAt: "2026-08-27T12:00:00.000Z",
 };
 
 const authenticatedSession: Session = {
@@ -162,6 +171,19 @@ describe("portefeuille immobilier Web", () => {
     fireEvent.click(screen.getByRole("button", { name: "Appliquer les filtres" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain("status=PUBLISHED");
+  });
+
+  it("conserve un bien retiré dans le portefeuille et applique son filtre français", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(json(page([withdrawnProperty])));
+    vi.stubGlobal("fetch", fetchMock);
+    renderPortfolio();
+    expect(await screen.findByText("Retiré du catalogue")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: withdrawnProperty.title })).toBeInTheDocument();
+    expect(screen.queryByText("WITHDRAWN")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Statut"), { target: { value: "WITHDRAWN" } });
+    fireEvent.click(screen.getByRole("button", { name: "Appliquer les filtres" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("status=WITHDRAWN");
   });
 
   it.each(["loading", "unauthenticated"] as const)("n’appelle pas l’API protégée avec une session %s", async (status) => {

@@ -8,12 +8,12 @@ import type { Property } from "./property-model.js";
 
 const PROPERTY_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const OWNER_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
-const property: Property = {
+const property = {
   propertyId: PROPERTY_ID, title: "Maison des Lagunes", description: "Une maison familiale.",
-  propertyType: "HOUSE", transactionType: "LONG_TERM_RENTAL", status: "DRAFT", structuralRole: "STANDALONE",
+  propertyType: "HOUSE", transactionType: "LONG_TERM_RENTAL", status: "DRAFT", canWithdrawFromCatalog: false, structuralRole: "STANDALONE",
   location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue des Jardins" },
   createdAt: "2026-08-27T10:00:00.000Z", updatedAt: "2026-08-27T10:00:00.000Z",
-};
+} satisfies Property;
 const session: Session = {
   status: "authenticated", user: { name: "Jeanne Test" }, login: vi.fn(async () => undefined),
   logout: async () => undefined, getAccessToken: vi.fn(async () => "property-test-token"),
@@ -157,13 +157,15 @@ describe("vertical slice Web Property", () => {
       contentType: "image/png" as const, contentByteSize: 8,
       contentSha256: "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6", isPrimary: true,
       registeredAt: property.createdAt, availableAt: property.createdAt };
-    const ready: Property = { ...property, details: { rooms: 1 }, commercialTerms: {
+    const ready = { ...property, details: { rooms: 1 }, commercialTerms: {
       kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 0, rentPeriod: "MONTH",
-    }, photos: [primaryPhoto], primaryPhoto };
-    const published: Property = { ...ready, status: "PUBLISHED", publishedAt: "2026-08-27T12:00:00.000Z", updatedAt: "2026-08-27T12:00:00.000Z" };
+    }, photos: [primaryPhoto], primaryPhoto } satisfies Property;
+    const published: Property = { ...ready, status: "PUBLISHED", publishedAt: "2026-08-27T12:00:00.000Z", canWithdrawFromCatalog: true, updatedAt: "2026-08-27T12:00:00.000Z" };
+    const withdrawn: Property = { ...published, status: "WITHDRAWN", withdrawnAt: "2026-08-27T13:00:00.000Z", canWithdrawFromCatalog: false, updatedAt: "2026-08-27T13:00:00.000Z" };
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.endsWith(`/v1/properties/${PROPERTY_ID}/publication`) && init?.method === "PUT") return json(published);
+      if (url.endsWith(`/v1/properties/${PROPERTY_ID}/publication`) && init?.method === "DELETE") return json(withdrawn);
       if (url.endsWith(`/v1/properties/${PROPERTY_ID}/owners`)) return json([]);
       if (url.includes("/v1/property-owners?")) return json(ownerPage());
       if (url.endsWith("/buildings")) return json({ items: [], pageInfo: { nextCursor: null, hasNextPage: false } });
@@ -174,10 +176,18 @@ describe("vertical slice Web Property", () => {
     fireEvent.click(screen.getByRole("button", { name: "Publier le bien" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirmer la publication" }));
     expect(await screen.findByText("Le bien est publié.")).toBeInTheDocument();
-    expect(screen.getByText("La diffusion publique n’est pas incluse dans cette version.")).toBeInTheDocument();
+    expect(screen.getByText("Ce bien est visible dans le catalogue public.")).toBeInTheDocument();
     const call = fetchMock.mock.calls.find(([input, init]) => String(input).endsWith(`/v1/properties/${PROPERTY_ID}/publication`) && init?.method === "PUT");
     expect(call?.[1]?.body).toBeUndefined();
     expect(new Headers(call?.[1]?.headers).get("authorization")).toBe("Bearer property-test-token");
+    fireEvent.click(screen.getByRole("button", { name: "Retirer du catalogue" }));
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("Il ne sera plus visible publiquement");
+    fireEvent.click(screen.getByRole("button", { name: "Confirmer le retrait" }));
+    expect(await screen.findByText("Le bien a été retiré du catalogue.")).toBeInTheDocument();
+    expect(screen.getAllByText("Retiré du catalogue")).toHaveLength(2);
+    const withdrawalCall = fetchMock.mock.calls.find(([input, init]) => String(input).endsWith(`/v1/properties/${PROPERTY_ID}/publication`) && init?.method === "DELETE");
+    expect(withdrawalCall?.[1]?.body).toBeUndefined();
+    expect(new Headers(withdrawalCall?.[1]?.headers).get("authorization")).toBe("Bearer property-test-token");
   });
 
   it("conserve les informations saisies si la mise à jour fondamentale échoue", async () => {

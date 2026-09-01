@@ -8,7 +8,7 @@ const baseProperty: Property = {
   title: "Bien test",
   propertyType: "APARTMENT",
   transactionType: "SHORT_TERM_RENTAL",
-  status: "DRAFT", structuralRole: "STANDALONE",
+  status: "DRAFT", canWithdrawFromCatalog: false, structuralRole: "STANDALONE",
   location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue test" },
   createdAt: "2026-08-27T10:00:00.000Z",
   updatedAt: "2026-08-27T10:00:00.000Z",

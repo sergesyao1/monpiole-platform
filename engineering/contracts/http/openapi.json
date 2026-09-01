@@ -1439,6 +1439,122 @@
               "updatedAt"
             ],
             "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "apartmentSubtype": {
+                "enum": [
+                  "MULTI_ROOM",
+                  "STUDIO"
+                ],
+                "type": "string"
+              },
+              "createdAt": {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "location": {
+                "additionalProperties": false,
+                "properties": {
+                  "addressLine": {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "city": {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "country": {
+                    "pattern": "^[A-Z]{2}$",
+                    "type": "string"
+                  },
+                  "district": {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "addressLine",
+                  "city",
+                  "country",
+                  "district"
+                ],
+                "type": "object"
+              },
+              "propertyId": {
+                "$ref": "#/components/schemas/PropertyId"
+              },
+              "propertyType": {
+                "enum": [
+                  "APARTMENT",
+                  "COMMERCIAL",
+                  "HOUSE",
+                  "LAND",
+                  "OTHER"
+                ],
+                "type": "string"
+              },
+              "publishedAt": {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              "status": {
+                "const": "WITHDRAWN",
+                "type": "string"
+              },
+              "structuralRole": {
+                "enum": [
+                  "COMPOSITE",
+                  "STANDALONE",
+                  "UNIT"
+                ],
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "transactionType": {
+                "enum": [
+                  "LONG_TERM_RENTAL",
+                  "SALE",
+                  "SHORT_TERM_RENTAL"
+                ],
+                "type": "string"
+              },
+              "updatedAt": {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              "withdrawnAt": {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "createdAt",
+              "location",
+              "propertyId",
+              "propertyType",
+              "publishedAt",
+              "status",
+              "structuralRole",
+              "title",
+              "transactionType",
+              "updatedAt",
+              "withdrawnAt"
+            ],
+            "type": "object"
           }
         ]
       },
@@ -1492,6 +1608,10 @@
                   "STUDIO"
                 ],
                 "type": "string"
+              },
+              "canWithdrawFromCatalog": {
+                "const": false,
+                "type": "boolean"
               },
               "commercialTerms": {
                 "oneOf": [
@@ -1711,6 +1831,7 @@
               }
             },
             "required": [
+              "canWithdrawFromCatalog",
               "createdAt",
               "location",
               "photos",
@@ -1733,6 +1854,9 @@
                   "STUDIO"
                 ],
                 "type": "string"
+              },
+              "canWithdrawFromCatalog": {
+                "type": "boolean"
               },
               "commercialTerms": {
                 "oneOf": [
@@ -1957,6 +2081,7 @@
               }
             },
             "required": [
+              "canWithdrawFromCatalog",
               "createdAt",
               "location",
               "photos",
@@ -1968,6 +2093,264 @@
               "title",
               "transactionType",
               "updatedAt"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "apartmentSubtype": {
+                "enum": [
+                  "MULTI_ROOM",
+                  "STUDIO"
+                ],
+                "type": "string"
+              },
+              "canWithdrawFromCatalog": {
+                "const": false,
+                "type": "boolean"
+              },
+              "commercialTerms": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "chargesAmountMinor": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "currency": {
+                        "pattern": "^[A-Z]{3}$",
+                        "type": "string"
+                      },
+                      "kind": {
+                        "const": "LONG_TERM_RENTAL",
+                        "type": "string"
+                      },
+                      "rentAmountMinor": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "rentPeriod": {
+                        "const": "MONTH",
+                        "type": "string"
+                      },
+                      "securityDepositAmountMinor": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "currency",
+                      "kind",
+                      "rentAmountMinor",
+                      "rentPeriod"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "currency": {
+                        "pattern": "^[A-Z]{3}$",
+                        "type": "string"
+                      },
+                      "kind": {
+                        "const": "SHORT_TERM_RENTAL",
+                        "type": "string"
+                      },
+                      "pricingUnit": {
+                        "enum": [
+                          "NIGHT",
+                          "WEEK"
+                        ],
+                        "type": "string"
+                      },
+                      "rateAmountMinor": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "currency",
+                      "kind",
+                      "pricingUnit",
+                      "rateAmountMinor"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "currency": {
+                        "pattern": "^[A-Z]{3}$",
+                        "type": "string"
+                      },
+                      "kind": {
+                        "const": "SALE",
+                        "type": "string"
+                      },
+                      "salePriceAmountMinor": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "currency",
+                      "kind",
+                      "salePriceAmountMinor"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "createdAt": {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "details": {
+                "additionalProperties": false,
+                "properties": {
+                  "bathrooms": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "bedrooms": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "furnished": {
+                    "type": "boolean"
+                  },
+                  "rooms": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "usableSurfaceSquareMeters": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  }
+                },
+                "type": "object"
+              },
+              "location": {
+                "additionalProperties": false,
+                "properties": {
+                  "addressLine": {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "city": {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "country": {
+                    "pattern": "^[A-Z]{2}$",
+                    "type": "string"
+                  },
+                  "district": {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "addressLine",
+                  "city",
+                  "country",
+                  "district"
+                ],
+                "type": "object"
+              },
+              "photos": {
+                "items": {
+                  "$ref": "#/components/schemas/PropertyPhoto"
+                },
+                "type": "array"
+              },
+              "primaryPhoto": {
+                "$ref": "#/components/schemas/PropertyPhoto"
+              },
+              "propertyId": {
+                "$ref": "#/components/schemas/PropertyId"
+              },
+              "propertyType": {
+                "enum": [
+                  "APARTMENT",
+                  "COMMERCIAL",
+                  "HOUSE",
+                  "LAND",
+                  "OTHER"
+                ],
+                "type": "string"
+              },
+              "publishedAt": {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              "status": {
+                "const": "WITHDRAWN",
+                "type": "string"
+              },
+              "structuralRole": {
+                "enum": [
+                  "COMPOSITE",
+                  "STANDALONE",
+                  "UNIT"
+                ],
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "transactionType": {
+                "enum": [
+                  "LONG_TERM_RENTAL",
+                  "SALE",
+                  "SHORT_TERM_RENTAL"
+                ],
+                "type": "string"
+              },
+              "updatedAt": {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              "withdrawnAt": {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "canWithdrawFromCatalog",
+              "createdAt",
+              "location",
+              "photos",
+              "propertyId",
+              "propertyType",
+              "publishedAt",
+              "status",
+              "structuralRole",
+              "title",
+              "transactionType",
+              "updatedAt",
+              "withdrawnAt"
             ],
             "type": "object"
           }
@@ -2956,7 +3339,8 @@
             "name": "tenantId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],
@@ -3170,7 +3554,8 @@
             "schema": {
               "enum": [
                 "DRAFT",
-                "PUBLISHED"
+                "PUBLISHED",
+                "WITHDRAWN"
               ],
               "type": "string"
             }
@@ -3376,7 +3761,8 @@
             "name": "propertyId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],
@@ -3474,7 +3860,8 @@
             "name": "propertyId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],
@@ -4840,7 +5227,8 @@
             "name": "propertyId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],
@@ -4950,7 +5338,8 @@
             "name": "propertyId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],
@@ -5135,7 +5524,8 @@
             "name": "propertyId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],
@@ -5303,7 +5693,8 @@
             "name": "propertyId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],
@@ -5507,7 +5898,8 @@
             "name": "propertyId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],
@@ -5605,7 +5997,8 @@
             "name": "propertyId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],
@@ -5725,7 +6118,8 @@
             "name": "propertyId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           },
           {
@@ -5733,7 +6127,8 @@
             "name": "ownerId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],
@@ -5826,7 +6221,8 @@
             "name": "propertyId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],
@@ -5924,7 +6320,8 @@
             "name": "propertyId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],
@@ -6034,7 +6431,8 @@
             "name": "propertyId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           },
           {
@@ -6042,7 +6440,8 @@
             "name": "photoId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],
@@ -6145,7 +6544,8 @@
             "name": "propertyId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           },
           {
@@ -6153,7 +6553,8 @@
             "name": "photoId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],
@@ -6246,7 +6647,8 @@
             "name": "propertyId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           },
           {
@@ -6254,7 +6656,8 @@
             "name": "photoId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],
@@ -6346,6 +6749,115 @@
       }
     },
     "/v1/properties/{propertyId}/publication": {
+      "delete": {
+        "operationId": "withdrawPropertyFromCatalog",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "propertyId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertyResponse"
+                }
+              }
+            },
+            "description": "Property withdrawn or withdrawal replayed",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid Property identifier"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden Property authority"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Property not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Property is not currently published"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Safe internal failure"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Withdraw a published Property from the public catalog",
+        "tags": [
+          "Properties"
+        ]
+      },
       "put": {
         "operationId": "publishProperty",
         "parameters": [
@@ -6354,7 +6866,8 @@
             "name": "propertyId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],
@@ -6431,7 +6944,7 @@
                 }
               }
             },
-            "description": "Property publication requirements not met"
+            "description": "Property publication requirements not met or republication unsupported"
           },
           "500": {
             "content": {
@@ -6685,7 +7198,8 @@
             "name": "ownerId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],
@@ -6793,7 +7307,8 @@
             "name": "ownerId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],
@@ -7179,7 +7694,8 @@
             "name": "publicPropertyId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],
@@ -7255,7 +7771,8 @@
             "name": "publicPropertyId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],
@@ -7361,7 +7878,8 @@
             "name": "tenantId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           },
           {
@@ -7460,7 +7978,8 @@
             "name": "tenantId",
             "required": true,
             "schema": {
-              "format": "uuid"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],

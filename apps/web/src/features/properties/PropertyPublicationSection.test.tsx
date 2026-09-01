@@ -14,29 +14,30 @@ const primaryPhoto = { photoId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", category
   contentType: "image/png" as const, contentByteSize: 8,
   contentSha256: "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6", isPrimary: true,
   registeredAt: "2026-08-25T12:10:00.000Z", availableAt: "2026-08-25T12:11:00.000Z" };
-const draft: Property = {
+const draft = {
   propertyId: PROPERTY_ID, title: "Maison Lagune", propertyType: "HOUSE", transactionType: "SALE",
-  status: "DRAFT", structuralRole: "STANDALONE",
+  status: "DRAFT", canWithdrawFromCatalog: false, structuralRole: "STANDALONE",
   location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Riviera" },
   createdAt: "2026-08-25T12:00:00.000Z", updatedAt: "2026-08-25T12:00:00.000Z",
-};
-const ready: Property = {
+} satisfies Property;
+const ready = {
   ...draft, details: { rooms: 1 }, commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 0 },
   photos: [primaryPhoto], primaryPhoto,
-};
+} satisfies Property;
 const photo = (photoId: string, category: typeof primaryPhoto.category | "MAIN_LIVING_SLEEPING_AREA" | "KITCHEN_OR_KITCHENETTE" | "BATHROOM_OR_SHOWER_ROOM" | "OTHER") => ({
   ...primaryPhoto, photoId, category, isPrimary: false,
   contentPath: `/v1/properties/${PROPERTY_ID}/photos/${photoId}/content` as const,
 });
 const published: Property = {
-  ...ready, status: "PUBLISHED", publishedAt: "2026-08-25T16:00:00.000Z", updatedAt: "2026-08-25T16:00:00.000Z",
+  ...ready, status: "PUBLISHED", publishedAt: "2026-08-25T16:00:00.000Z", canWithdrawFromCatalog: true, updatedAt: "2026-08-25T16:00:00.000Z",
 };
 
 function Harness({ initial = ready, api, onReconnect }: Readonly<{
-  initial?: Property; api: PropertyPublicationApi; onReconnect?: () => void;
+  initial?: Property; api: Pick<PropertyPublicationApi, "publishProperty"> & Partial<Pick<PropertyPublicationApi, "withdrawPropertyFromCatalog">>; onReconnect?: () => void;
 }>) {
   const [property, setProperty] = useState(initial);
-  return <PropertyPublicationSection property={property} api={api} onPublished={setProperty} onReconnect={onReconnect} />;
+  const client: PropertyPublicationApi = { withdrawPropertyFromCatalog: vi.fn(), ...api };
+  return <PropertyPublicationSection property={property} api={client} onPublished={setProperty} onWithdrawn={setProperty} onReconnect={onReconnect} />;
 }
 
 function deferred<Value>() {
@@ -91,7 +92,7 @@ describe("publication d’un bien", () => {
     render(<Harness api={{ publishProperty }} />);
     expect(screen.getByText("Ce bien est prêt à être publié.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Publier le bien" }));
-    expect(screen.getByRole("alertdialog")).toHaveTextContent("Cette première publication est définitive");
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("Le bien deviendra visible dans le catalogue public");
     fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
 
@@ -108,13 +109,92 @@ describe("publication d’un bien", () => {
     expect(screen.queryByRole("button", { name: /Publier|publication/iu })).not.toBeInTheDocument();
   });
 
-  it("affiche une Property déjà publiée sans action ni promesse de diffusion", () => {
+  it("affiche une Property déjà publiée avec son action de retrait autorisée", () => {
     render(<Harness initial={published} api={{ publishProperty: vi.fn() }} />);
     expect(screen.getByText("Publié")).toBeInTheDocument();
     expect(screen.getByText(/Publié le 25 août 2026/)).toBeInTheDocument();
-    expect(screen.getByText("La diffusion publique n’est pas incluse dans cette version.")).toBeInTheDocument();
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.getByText("Ce bien est visible dans le catalogue public.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retirer du catalogue" })).toBeInTheDocument();
     expect(screen.queryByText("PUBLISHED")).not.toBeInTheDocument();
+  });
+
+  it("confirme le retrait, bloque le double clic et actualise immédiatement l’état privé", async () => {
+    const pending = deferred<Property>();
+    const withdrawPropertyFromCatalog = vi.fn(() => pending.promise);
+    const withdrawn: Property = {
+      ...published, status: "WITHDRAWN", withdrawnAt: "2026-08-25T17:00:00.000Z",
+      canWithdrawFromCatalog: false, updatedAt: "2026-08-25T17:00:00.000Z",
+    };
+    render(<Harness initial={published} api={{ publishProperty: vi.fn(), withdrawPropertyFromCatalog }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Retirer du catalogue" }));
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("Retirer ce bien du catalogue ?");
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("Il ne sera plus visible publiquement, mais restera disponible dans votre portefeuille.");
+    const confirmation = screen.getByRole("button", { name: "Confirmer le retrait" });
+    fireEvent.click(confirmation);
+    fireEvent.click(confirmation);
+    expect(screen.getByRole("button", { name: "Retrait en cours…" })).toBeDisabled();
+    expect(withdrawPropertyFromCatalog).toHaveBeenCalledTimes(1);
+    expect(withdrawPropertyFromCatalog).toHaveBeenCalledWith(PROPERTY_ID);
+    pending.resolve(withdrawn);
+    expect(await screen.findByText("Le bien a été retiré du catalogue.")).toBeInTheDocument();
+    expect(screen.getByText("Retiré du catalogue")).toBeInTheDocument();
+    expect(screen.getByText(/Retiré le 25 août 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/reste disponible dans votre portefeuille/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retirer du catalogue" })).not.toBeInTheDocument();
+  });
+
+  it("annule la confirmation de retrait sans appeler l’API", () => {
+    const withdrawPropertyFromCatalog = vi.fn();
+    render(<Harness initial={published} api={{ publishProperty: vi.fn(), withdrawPropertyFromCatalog }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Retirer du catalogue" }));
+    fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(withdrawPropertyFromCatalog).not.toHaveBeenCalled();
+  });
+
+  it("masque l’action sans affordance et dans l’état retiré", () => {
+    const unauthorized: Property = { ...published, canWithdrawFromCatalog: false };
+    const first = render(<Harness initial={unauthorized} api={{ publishProperty: vi.fn() }} />);
+    expect(screen.queryByRole("button", { name: "Retirer du catalogue" })).not.toBeInTheDocument();
+    first.unmount();
+    const withdrawn: Property = { ...published, status: "WITHDRAWN", withdrawnAt: "2026-08-25T17:00:00.000Z", canWithdrawFromCatalog: false };
+    render(<Harness initial={withdrawn} api={{ publishProperty: vi.fn() }} />);
+    expect(screen.getByText("Retiré du catalogue")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("affiche une erreur de retrait et permet une nouvelle tentative", async () => {
+    const withdrawn: Property = { ...published, status: "WITHDRAWN", withdrawnAt: "2026-08-25T17:00:00.000Z", canWithdrawFromCatalog: false };
+    const withdrawPropertyFromCatalog = vi.fn()
+      .mockRejectedValueOnce(new ApiProblem({
+        type: "https://api.monpiole.example/problems/property-not-published", title: "Property is not published",
+        status: 409, code: "PROPERTY_NOT_PUBLISHED", correlationId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      }))
+      .mockResolvedValueOnce(withdrawn);
+    render(<Harness initial={published} api={{ publishProperty: vi.fn(), withdrawPropertyFromCatalog }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Retirer du catalogue" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmer le retrait" }));
+    expect(await screen.findByText("Seul un bien actuellement publié peut être retiré du catalogue.")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Confirmer le retrait" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Confirmer le retrait" }));
+    expect(await screen.findByText("Le bien a été retiré du catalogue.")).toBeInTheDocument();
+    expect(withdrawPropertyFromCatalog).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    [new ApiForbiddenError(), "Vous ne disposez pas de l’autorisation nécessaire"],
+    [new ApiProblem({
+      type: "https://api.monpiole.example/problems/property-not-found", title: "Property not found",
+      status: 404, code: "PROPERTY_NOT_FOUND", correlationId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    }), "Ce bien est introuvable ou n’est pas accessible"],
+    [new TypeError("network unavailable"), "Une erreur inattendue est survenue"],
+  ] as const)("rend une erreur de retrait sûre et réessayable", async (failure, expected) => {
+    const withdrawPropertyFromCatalog = vi.fn().mockRejectedValue(failure);
+    render(<Harness initial={published} api={{ publishProperty: vi.fn(), withdrawPropertyFromCatalog }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Retirer du catalogue" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmer le retrait" }));
+    expect(await screen.findByText(new RegExp(expected))).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirmer le retrait" })).toBeEnabled();
   });
 
   it.each([

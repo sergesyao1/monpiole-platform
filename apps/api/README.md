@@ -154,7 +154,7 @@ or query parameter selects a tenant. Optional `status`, `type` and `search`
 filters are validated, `limit` defaults to 20 and is capped at 100, and
 `cursor` is an opaque keyset cursor. Results are ordered deterministically by
 creation date then Property ID, descending. The endpoint is private portfolio
-discovery; its status filter accepts drafts and published Properties. It does
+discovery; its status filter accepts `DRAFT`, `PUBLISHED` and `WITHDRAWN`. It does
 not expose a public catalogue.
 
 `PUT /v1/properties/{propertyId}` updates only title, optional description and
@@ -163,24 +163,30 @@ location for an existing Property. It requires
 and preserves type, commercial project, status, details, terms and ownerships.
 Missing and cross-tenant identifiers share the same non-revealing 404 response.
 
-`PUT /v1/properties/{propertyId}/publication` is the bodyless private lifecycle
-operation. It requires the internal `PUBLISH_PROPERTY` grant, derives the only
-tenant from authenticated authority, and returns the canonical
-`PropertyResponse` with 200 both for the first transition and an idempotent
-replay. The response contract is a strict DRAFT/PUBLISHED union: only the
-PUBLISHED variant requires `publishedAt`; every full Property representation
-also exposes `photos` and the optional derived `primaryPhoto`.
+`PUT /v1/properties/{propertyId}/publication` publishes and the bodyless
+`DELETE` on the same resource withdraws a publication from the public catalog.
+They require `PUBLISH_PROPERTY` and `WITHDRAW_PROPERTY_FROM_CATALOG`
+respectively, derive the only tenant from authenticated authority, and return
+the canonical `PropertyResponse` with 200 for both the first transition and an
+idempotent replay. The response contract is a strict
+`DRAFT | PUBLISHED | WITHDRAWN` union. Published and withdrawn variants retain
+`publishedAt`; only withdrawn requires `withdrawnAt`. The authenticated detail
+and mutation representation projects `canWithdrawFromCatalog` without exposing
+the authority's grants.
 
 An incomplete draft returns
 `PROPERTY_PUBLICATION_REQUIREMENTS_NOT_MET` as Problem Details 409 with only the
 closed `property.details`, `property.commercialTerms`, `property.apartmentSubtype`,
 `property.primaryPhoto`, photo-minimum and required-view causes. Invalid IDs,
 missing authentication, missing grant, missing/cross-tenant Properties and
-unexpected failures retain the safe 400/401/403/404/500 conventions. The normal
+unexpected failures retain the safe 400/401/403/404/500 conventions. Withdrawal
+of a draft returns `PROPERTY_NOT_PUBLISHED`; publishing a withdrawn Property
+returns `PROPERTY_REPUBLICATION_NOT_SUPPORTED`, both as Problem Details 409. The normal
 PostgreSQL runtime composes the use case and the active tenant-administrator
 authority receives the grant from internal Identity state, never from OIDC
-scopes or claims. This private state transition creates no public route,
-projection, event or outbox entry.
+scopes or claims. Withdrawal creates no event or outbox entry. The existing
+public routes continue to expose exactly `PUBLISHED`; after withdrawal the list
+omits the Property and detail/photo return the same non-disclosing 404.
 
 The private photo routes are:
 

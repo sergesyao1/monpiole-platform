@@ -94,6 +94,7 @@ export function PropertyDetailPage() {
         photoStandard={photoStandard}
         api={api}
         onPublished={setProperty}
+        onWithdrawn={setProperty}
         onReconnect={() => void session.login(`/properties/${propertyId}`)}
       />
 

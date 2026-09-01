@@ -4,7 +4,7 @@ export const PropertyIdSchema = z.uuid().meta({ id: "PropertyId" });
 export const PropertyTypeSchema = z.enum(["APARTMENT", "HOUSE", "LAND", "COMMERCIAL", "OTHER"]);
 export const TransactionTypeSchema = z.enum(["LONG_TERM_RENTAL", "SHORT_TERM_RENTAL", "SALE"]);
 export const ApartmentSubtypeSchema = z.enum(["STUDIO", "MULTI_ROOM"]);
-export const PropertyStatusSchema = z.enum(["DRAFT", "PUBLISHED"]);
+export const PropertyStatusSchema = z.enum(["DRAFT", "PUBLISHED", "WITHDRAWN"]);
 export const PropertyStructuralRoleSchema = z.enum(["STANDALONE", "COMPOSITE", "UNIT"]);
 export const PropertyLocationSchema = z.object({
   country: z.string().regex(/^[A-Z]{2}$/),
@@ -107,8 +107,9 @@ const PropertyResponseBaseShape = {
   primaryPhoto: PropertyPhotoSchema.optional(),
 };
 export const PropertyResponseSchema = z.discriminatedUnion("status", [
-  z.object({ ...PropertyResponseBaseShape, status: z.literal("DRAFT") }).strict(),
-  z.object({ ...PropertyResponseBaseShape, status: z.literal("PUBLISHED"), publishedAt: InstantSchema }).strict(),
+  z.object({ ...PropertyResponseBaseShape, status: z.literal("DRAFT"), canWithdrawFromCatalog: z.literal(false) }).strict(),
+  z.object({ ...PropertyResponseBaseShape, status: z.literal("PUBLISHED"), publishedAt: InstantSchema, canWithdrawFromCatalog: z.boolean() }).strict(),
+  z.object({ ...PropertyResponseBaseShape, status: z.literal("WITHDRAWN"), publishedAt: InstantSchema, withdrawnAt: InstantSchema, canWithdrawFromCatalog: z.literal(false) }).strict(),
 ]).meta({ id: "PropertyResponse" });
 
 export const RetrievePropertyPathSchema = z.object({ propertyId: PropertyIdSchema }).strict().meta({ id: "RetrievePropertyPath" });
@@ -136,6 +137,7 @@ const PropertyPortfolioItemBaseShape = {
 export const PropertyPortfolioItemSchema = z.discriminatedUnion("status", [
   z.object({ ...PropertyPortfolioItemBaseShape, status: z.literal("DRAFT") }).strict(),
   z.object({ ...PropertyPortfolioItemBaseShape, status: z.literal("PUBLISHED"), publishedAt: InstantSchema }).strict(),
+  z.object({ ...PropertyPortfolioItemBaseShape, status: z.literal("WITHDRAWN"), publishedAt: InstantSchema, withdrawnAt: InstantSchema }).strict(),
 ]).meta({ id: "PropertyPortfolioItem" });
 export const PropertyPortfolioResponseSchema = z.object({
   items: z.array(PropertyPortfolioItemSchema),

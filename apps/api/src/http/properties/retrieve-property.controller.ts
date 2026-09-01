@@ -26,6 +26,7 @@ export class RetrievePropertyController {
   @ZodSerializerDto(PropertyResponseDto)
   async execute(@Param() path: RetrievePropertyPathDto, @Req() request: RequestWithContext): Promise<PropertyResponse> {
     const authenticated = await requireAuthenticatedAuthority(this.authorityProvider, request);
-    return toPropertyResponse(await this.useCase.execute({ propertyId: path.propertyId, authority: toPropertyAuthority(authenticated) }));
+    const authority = toPropertyAuthority(authenticated);
+    return toPropertyResponse(await this.useCase.execute({ propertyId: path.propertyId, authority }), authority);
   }
 }

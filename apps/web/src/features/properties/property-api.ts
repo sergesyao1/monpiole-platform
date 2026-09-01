@@ -15,6 +15,7 @@ export interface PropertyApi {
   updatePropertyDetails(propertyId: string, input: UpdatePropertyDetailsInput): Promise<Property>;
   updatePropertyCoreInformation(propertyId: string, input: UpdatePropertyCoreInformationInput): Promise<Property>;
   publishProperty(propertyId: string): Promise<Property>;
+  withdrawPropertyFromCatalog(propertyId: string): Promise<Property>;
   retrievePropertyGeolocation(propertyId: string): Promise<PropertyGeolocation>;
   updatePropertyGeolocation(propertyId: string, input: UpdatePropertyGeolocationInput): Promise<PropertyGeolocation>;
   removePropertyGeolocation(propertyId: string): Promise<void>;
@@ -57,6 +58,9 @@ export function createPropertyApi(tokens: AccessTokenProvider): PropertyApi {
     ),
     publishProperty: (propertyId) => request<Property>(
       `/v1/properties/${encodeURIComponent(propertyId)}/publication`, { method: "PUT" },
+    ),
+    withdrawPropertyFromCatalog: (propertyId) => request<Property>(
+      `/v1/properties/${encodeURIComponent(propertyId)}/publication`, { method: "DELETE" },
     ),
     retrievePropertyGeolocation: (propertyId) => request<PropertyGeolocation>(
       `/v1/properties/${encodeURIComponent(propertyId)}/geolocation`,

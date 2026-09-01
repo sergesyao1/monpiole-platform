@@ -21,7 +21,8 @@ import {
   PropertyUnitCodeConflictError, PropertyStructuralRoleConflictError, Property,
   PersistedPropertyCorruptionError,
   PropertyBuildingNotFoundError, PropertyUnitNotFoundError,
-  PublishProperty, PropertyPublicationRequirementsNotMetError,
+  PublishProperty, PropertyPublicationRequirementsNotMetError, PropertyRepublicationNotSupportedError,
+  WithdrawPropertyFromCatalog, PostgresPublicPropertyCatalogQuery,
 } from "../src/index.js";
 
 const IMAGE = "postgres@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687";
@@ -29,6 +30,7 @@ const TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"; const TENANT_B = "bbbbb
 const PROPERTY_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"; const CORRELATION = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const PUBLICATION_CORRELATION = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 const REPLAY_CORRELATION = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+const WITHDRAWAL_CORRELATION = "11111111-1111-4111-8111-111111111111";
 let container: StartedTestContainer; let owner: Pool; let runtime: Pool;
 const migrationsFolder = fileURLToPath(new URL("../migrations", import.meta.url));
 
@@ -94,6 +96,48 @@ async function create(repository = new PostgresPropertyRepository(runtime), tena
 }
 
 describe("Property PostgreSQL persistence", () => {
+  it("migre 0012 vers 0013 sans altérer les DRAFT/PUBLISHED historiques", async () => {
+    const previousMigrations = await migrationsThrough(12);
+    await owner.query("CREATE DATABASE property_withdrawal_upgrade_test");
+    const upgrade = new Pool({ connectionString: connection("owner", "synthetic-owner", "property_withdrawal_upgrade_test") });
+    const publishedId = "22222222-2222-4222-8222-222222222222";
+    try {
+      await migrate(drizzle(upgrade), { migrationsFolder: previousMigrations });
+      for (const [propertyId, title] of [[PROPERTY_ID, "Historical draft"], [publishedId, "Historical published"]]) {
+        await upgrade.query(`INSERT INTO property_management.properties
+          (property_id, tenant_id, title, property_type, transaction_type, status, country, city, district, address_line,
+           rooms, commercial_kind, currency, sale_price_amount_minor, photo_standard_version,
+           created_at, updated_at, correlation_id, actor_id)
+          VALUES ($1,$2,$3,'HOUSE','SALE','DRAFT','CI','Abidjan','Cocody','Riviera',1,'SALE','XOF',1,1,now(),now(),$4,'historical')`,
+        [propertyId, TENANT_A, title, CORRELATION]);
+      }
+      await upgrade.query(`INSERT INTO property_management.property_photos
+        (photo_id,tenant_id,property_id,category,status,is_primary,content_base64,content_type,content_byte_size,content_sha256,registered_at,available_at)
+        VALUES ($1,$2,$3,'BUILDING_EXTERIOR_OR_ENTRANCE','AVAILABLE',true,'iVBORw0KGgo=','image/png',8,
+          '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',now(),now())`,
+      [randomUUID(), TENANT_A, publishedId]);
+      await upgrade.query(`UPDATE property_management.properties SET status='PUBLISHED', published_at=now(),
+        published_by_actor_id='historical-publisher', publication_correlation_id=$2 WHERE property_id=$1`,
+      [publishedId, PUBLICATION_CORRELATION]);
+
+      await migrate(drizzle(upgrade), { migrationsFolder });
+
+      expect((await upgrade.query(`SELECT property_id, status, withdrawn_at, withdrawn_by_actor_id, withdrawal_correlation_id
+        FROM property_management.properties ORDER BY property_id`)).rows).toEqual([
+        { property_id: publishedId, status: "PUBLISHED", withdrawn_at: null, withdrawn_by_actor_id: null, withdrawal_correlation_id: null },
+        { property_id: PROPERTY_ID, status: "DRAFT", withdrawn_at: null, withdrawn_by_actor_id: null, withdrawal_correlation_id: null },
+      ]);
+      expect((await upgrade.query(`SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint
+        WHERE connamespace='property_management'::regnamespace AND conname='properties_status_check'`)).rows[0]?.definition)
+        .toContain("'WITHDRAWN'::text");
+      expect((await upgrade.query(`SELECT has_column_privilege('monpiole_public_catalog_reader',
+        'property_management.properties', 'withdrawn_at', 'SELECT') AS public_can_read_withdrawal_trace`)).rows[0])
+        .toEqual({ public_can_read_withdrawal_trace: false });
+    } finally {
+      await upgrade.end();
+      await rm(previousMigrations, { recursive: true, force: true });
+    }
+  });
   it("migre 0006 vers 0007, ferme CG-01 et préserve les Properties DRAFT historiques", async () => {
     const previousMigrations = await previousPropertyMigrations();
     await owner.query("CREATE DATABASE property_upgrade_test");
@@ -253,6 +297,103 @@ describe("Property PostgreSQL persistence", () => {
       actor_id: "editor", correlation_id: REPLAY_CORRELATION,
     });
   });
+  it("withdraws exactly once, serializes concurrent calls and removes every public read while preserving private data", async () => {
+    const repository = new PostgresPropertyRepository(runtime); await create(repository);
+    await new UpdatePropertyDetails(repository, { now: () => "2026-08-25T13:00:00.000Z" }).execute({
+      authority: { ...authority(TENANT_A), grants: ["UPDATE_PROPERTY_DETAILS"] }, correlationId: CORRELATION,
+      propertyId: PROPERTY_ID, details: { rooms: 3 }, commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 42 },
+    });
+    await new PublishProperty(repository, { now: () => "2026-08-25T14:00:00.000Z" }).execute({
+      authority: { ...authority(TENANT_A), actorId: "publisher", grants: ["PUBLISH_PROPERTY"] },
+      correlationId: PUBLICATION_CORRELATION, propertyId: PROPERTY_ID,
+    });
+    await withTenantPostgresTransaction(runtime, TENANT_A, (scope) => scope.query(
+      `INSERT INTO property_management.property_geolocations
+        (tenant_id, property_id, latitude, longitude, public_visibility, updated_at, correlation_id, actor_id)
+       VALUES ($1,$2,5.359952,-4.008256,'HIDDEN',$3,$4,'geolocation-editor')`,
+      [TENANT_A, PROPERTY_ID, "2026-08-25T14:30:00.000Z", CORRELATION],
+    ));
+    const publicPool = new Pool({ connectionString: connection("monpiole_public_catalog_reader", "synthetic-public-reader") });
+    try {
+      const catalog = new PostgresPublicPropertyCatalogQuery(publicPool);
+      expect((await catalog.list({ tenantId: TENANT_A, limit: 20 })).items).toEqual([
+        expect.objectContaining({ publicPropertyId: PROPERTY_ID }),
+      ]);
+      await expect(catalog.retrieve(TENANT_A, PROPERTY_ID)).resolves.toMatchObject({ publicPropertyId: PROPERTY_ID });
+      await expect(catalog.retrievePrimaryPhoto(TENANT_A, PROPERTY_ID)).resolves.toMatchObject({ contentType: "image/png" });
+
+      const attempts = [
+        { instant: "2026-08-25T15:00:00.000Z", actorId: "withdrawer-a", correlationId: WITHDRAWAL_CORRELATION },
+        { instant: "2026-08-25T15:00:01.000Z", actorId: "withdrawer-b", correlationId: REPLAY_CORRELATION },
+      ];
+      const results = await Promise.all(attempts.map((attempt) => new WithdrawPropertyFromCatalog(repository, { now: () => attempt.instant }).execute({
+        authority: { ...authority(TENANT_A), actorId: attempt.actorId, grants: ["WITHDRAW_PROPERTY_FROM_CATALOG"] },
+        correlationId: attempt.correlationId, propertyId: PROPERTY_ID,
+      })));
+      expect(results.map((result) => result.outcome).sort()).toEqual(["ALREADY_WITHDRAWN", "WITHDRAWN"]);
+      const row = (await owner.query(`SELECT status, published_at, published_by_actor_id, publication_correlation_id,
+        withdrawn_at, withdrawn_by_actor_id, withdrawal_correlation_id, updated_at, actor_id, correlation_id
+        FROM property_management.properties WHERE property_id=$1`, [PROPERTY_ID])).rows[0];
+      const winner = attempts.find((attempt) => attempt.instant === row.withdrawn_at.toISOString());
+      expect(winner).toBeDefined();
+      expect({ ...row, published_at: row.published_at.toISOString(), withdrawn_at: row.withdrawn_at.toISOString(), updated_at: row.updated_at.toISOString() })
+        .toMatchObject({
+          status: "WITHDRAWN", published_at: "2026-08-25T14:00:00.000Z", published_by_actor_id: "publisher",
+          publication_correlation_id: PUBLICATION_CORRELATION, withdrawn_by_actor_id: winner?.actorId,
+          withdrawal_correlation_id: winner?.correlationId, actor_id: winner?.actorId, correlation_id: winner?.correlationId,
+        });
+      await expect(new WithdrawPropertyFromCatalog(repository, { now: () => { throw new Error("clock must not be read on replay"); } }).execute({
+        authority: { ...authority(TENANT_A), actorId: "replayer", grants: ["WITHDRAW_PROPERTY_FROM_CATALOG"] },
+        correlationId: CORRELATION, propertyId: PROPERTY_ID,
+      })).resolves.toMatchObject({ outcome: "ALREADY_WITHDRAWN" });
+      await expect(new WithdrawPropertyFromCatalog(repository, { now: () => "2026-08-25T16:00:00.000Z" }).execute({
+        authority: { ...authority(TENANT_B), grants: ["WITHDRAW_PROPERTY_FROM_CATALOG"] },
+        correlationId: CORRELATION, propertyId: PROPERTY_ID,
+      })).rejects.toBeInstanceOf(PropertyNotFoundError);
+      const crossTenantRead = await withTenantPostgresTransaction(runtime, TENANT_B, (scope) => scope.query(
+        "SELECT property_id FROM property_management.properties WHERE property_id=$1",
+        [PROPERTY_ID],
+      ));
+      expect(crossTenantRead).toEqual([]);
+      const crossTenantWrite = await withTenantPostgresTransaction(runtime, TENANT_B, (scope) => scope.query(
+        "UPDATE property_management.properties SET title='forbidden' WHERE property_id=$1 RETURNING property_id",
+        [PROPERTY_ID],
+      ));
+      expect(crossTenantWrite).toEqual([]);
+
+      await expect(new RetrieveProperty(repository).execute({ authority: authority(TENANT_A), propertyId: PROPERTY_ID }))
+        .resolves.toMatchObject({ status: "WITHDRAWN", title: "House", details: { rooms: 3 }, commercialTerms: { salePriceAmountMinor: 42 } });
+      const privatePage = await new ListProperties(new PostgresPropertyPortfolioQuery(runtime)).execute({
+        authority: { ...authority(TENANT_A), grants: ["LIST_PROPERTIES"] }, status: "WITHDRAWN",
+      });
+      expect(privatePage.items).toEqual([expect.objectContaining({
+        propertyId: PROPERTY_ID, status: "WITHDRAWN", publishedAt: "2026-08-25T14:00:00.000Z", withdrawnAt: winner?.instant,
+      })]);
+      expect((await catalog.list({ tenantId: TENANT_A, limit: 20 })).items).toEqual([]);
+      await expect(catalog.retrieve(TENANT_A, PROPERTY_ID)).resolves.toBeUndefined();
+      await expect(catalog.retrievePrimaryPhoto(TENANT_A, PROPERTY_ID)).resolves.toBeUndefined();
+
+      await new UpdatePropertyCoreInformation(repository, { now: () => "2026-08-25T16:00:00.000Z" }).execute({
+        authority: { ...authority(TENANT_A), actorId: "editor", grants: ["UPDATE_PROPERTY_CORE_INFORMATION"] },
+        correlationId: CORRELATION, propertyId: PROPERTY_ID, title: "Maison privée conservée",
+        location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Riviera" },
+      });
+      expect((await owner.query(`SELECT status, withdrawn_by_actor_id, withdrawal_correlation_id, actor_id
+        FROM property_management.properties WHERE property_id=$1`, [PROPERTY_ID])).rows[0]).toEqual({
+        status: "WITHDRAWN", withdrawn_by_actor_id: winner?.actorId,
+        withdrawal_correlation_id: winner?.correlationId, actor_id: "editor",
+      });
+      expect(await withTenantPostgresTransaction(runtime, TENANT_A, (scope) => scope.query(
+        `SELECT latitude::text, longitude::text, public_visibility, actor_id
+         FROM property_management.property_geolocations WHERE property_id=$1`,
+        [PROPERTY_ID],
+      ))).toEqual([{
+        latitude: "5.359952", longitude: "-4.008256", public_visibility: "HIDDEN", actor_id: "geolocation-editor",
+      }]);
+    } finally {
+      await publicPool.end();
+    }
+  });
   it("rejects publication without prerequisites and hides another tenant", async () => {
     const repository = new PostgresPropertyRepository(runtime); await create(repository);
     const publish = new PublishProperty(repository, { now: () => "2026-08-25T14:00:00.000Z" });
@@ -284,6 +425,32 @@ describe("Property PostgreSQL persistence", () => {
     expect(winningAttempt).toBeDefined();
     expect(row).toMatchObject({ status: "PUBLISHED", published_by_actor_id: winningAttempt?.actorId,
       publication_correlation_id: winningAttempt?.correlationId });
+  });
+  it("serializes a publication replay racing with withdrawal into a valid terminal state", async () => {
+    const repository = new PostgresPropertyRepository(runtime); await create(repository);
+    await new UpdatePropertyDetails(repository, { now: () => "2026-08-25T13:00:00.000Z" }).execute({
+      authority: { ...authority(TENANT_A), grants: ["UPDATE_PROPERTY_DETAILS"] }, correlationId: CORRELATION,
+      propertyId: PROPERTY_ID, details: { rooms: 1 }, commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 1 },
+    });
+    await new PublishProperty(repository, { now: () => "2026-08-25T14:00:00.000Z" }).execute({
+      authority: { ...authority(TENANT_A), grants: ["PUBLISH_PROPERTY"] },
+      correlationId: PUBLICATION_CORRELATION, propertyId: PROPERTY_ID,
+    });
+    const [publication, withdrawal] = await Promise.allSettled([
+      new PublishProperty(repository, { now: () => "2026-08-25T15:00:00.000Z" }).execute({
+        authority: { ...authority(TENANT_A), actorId: "publisher-replay", grants: ["PUBLISH_PROPERTY"] },
+        correlationId: REPLAY_CORRELATION, propertyId: PROPERTY_ID,
+      }),
+      new WithdrawPropertyFromCatalog(repository, { now: () => "2026-08-25T15:00:00.000Z" }).execute({
+        authority: { ...authority(TENANT_A), actorId: "withdrawer", grants: ["WITHDRAW_PROPERTY_FROM_CATALOG"] },
+        correlationId: WITHDRAWAL_CORRELATION, propertyId: PROPERTY_ID,
+      }),
+    ]);
+    expect(withdrawal).toMatchObject({ status: "fulfilled", value: { outcome: "WITHDRAWN" } });
+    if (publication.status === "fulfilled") expect(publication.value.outcome).toBe("ALREADY_PUBLISHED");
+    else expect(publication.reason).toBeInstanceOf(PropertyRepublicationNotSupportedError);
+    await expect(new RetrieveProperty(repository).execute({ authority: authority(TENANT_A), propertyId: PROPERTY_ID }))
+      .resolves.toMatchObject({ status: "WITHDRAWN", publishedAt: "2026-08-25T14:00:00.000Z", withdrawnAt: "2026-08-25T15:00:00.000Z" });
   });
   it("serializes publication with a concurrent details update while preserving both outcomes", async () => {
     const repository = new PostgresPropertyRepository(runtime); await create(repository);
@@ -321,9 +488,23 @@ describe("Property PostgreSQL persistence", () => {
       .rejects.toMatchObject({ code: "23514", constraint: "properties_publication_state_check" });
     await expect(owner.query("UPDATE property_management.properties SET status='ARCHIVED' WHERE property_id=$1", [PROPERTY_ID]))
       .rejects.toMatchObject({ code: "23514" });
+    await expect(owner.query(`UPDATE property_management.properties
+      SET withdrawn_at=now(), withdrawn_by_actor_id='invalid', withdrawal_correlation_id=$2
+      WHERE property_id=$1`, [PROPERTY_ID, WITHDRAWAL_CORRELATION]))
+      .rejects.toMatchObject({ code: "23514", constraint: "properties_publication_state_check" });
+    await new PublishProperty(repository, { now: () => "2026-08-25T14:00:00.000Z" }).execute({
+      authority: { ...authority(TENANT_A), grants: ["PUBLISH_PROPERTY"] },
+      correlationId: PUBLICATION_CORRELATION, propertyId: PROPERTY_ID,
+    });
+    await expect(owner.query("UPDATE property_management.properties SET status='WITHDRAWN' WHERE property_id=$1", [PROPERTY_ID]))
+      .rejects.toMatchObject({ code: "23514", constraint: "properties_publication_state_check" });
+    await expect(owner.query(`UPDATE property_management.properties SET status='WITHDRAWN',
+      withdrawn_at=published_at - interval '1 second', withdrawn_by_actor_id='invalid', withdrawal_correlation_id=$2
+      WHERE property_id=$1`, [PROPERTY_ID, WITHDRAWAL_CORRELATION]))
+      .rejects.toMatchObject({ code: "23514", constraint: "properties_publication_state_check" });
     expect((await owner.query(`SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint
       WHERE connamespace='property_management'::regnamespace AND conname='properties_status_check'`)).rows[0]?.definition)
-      .toContain("status = ANY (ARRAY['DRAFT'::text, 'PUBLISHED'::text])");
+      .toContain("status = ANY (ARRAY['DRAFT'::text, 'PUBLISHED'::text, 'WITHDRAWN'::text])");
   });
   it("does not update another tenant's Property", async () => {
     const repository = new PostgresPropertyRepository(runtime); await create(repository);
@@ -397,6 +578,24 @@ async function previousPropertyMigrations() {
     readonly entries: readonly { readonly idx: number }[];
   };
   await writeFile(join(meta, "_journal.json"), `${JSON.stringify({ ...journal, entries: journal.entries.filter((entry) => entry.idx <= 6) }, null, 2)}\n`, "utf8");
+  return folder;
+}
+
+async function migrationsThrough(lastIndex: number) {
+  const folder = await mkdtemp(join(tmpdir(), `monpiole-property-${lastIndex}-`));
+  const meta = join(folder, "meta");
+  await mkdir(meta);
+  const journal = JSON.parse(await readFile(join(migrationsFolder, "meta", "_journal.json"), "utf8")) as {
+    readonly version: string; readonly dialect: string;
+    readonly entries: readonly { readonly idx: number; readonly tag: string }[];
+  };
+  const entries = journal.entries.filter((entry) => entry.idx <= lastIndex);
+  for (const entry of entries) {
+    await copyFile(join(migrationsFolder, `${entry.tag}.sql`), join(folder, `${entry.tag}.sql`));
+    const prefix = String(entry.idx).padStart(4, "0");
+    await copyFile(join(migrationsFolder, "meta", `${prefix}_snapshot.json`), join(meta, `${prefix}_snapshot.json`));
+  }
+  await writeFile(join(meta, "_journal.json"), `${JSON.stringify({ ...journal, entries }, null, 2)}\n`, "utf8");
   return folder;
 }
 

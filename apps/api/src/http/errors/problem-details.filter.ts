@@ -146,6 +146,18 @@ function businessProblem(exception: unknown) {
     title: "Property publication requirements not met",
     code: "PROPERTY_PUBLICATION_REQUIREMENTS_NOT_MET",
   };
+  if (code === "PROPERTY_NOT_PUBLISHED") return {
+    status: 409,
+    type: "https://api.monpiole.example/problems/property-not-published",
+    title: "Property is not published",
+    code: "PROPERTY_NOT_PUBLISHED",
+  };
+  if (code === "PROPERTY_REPUBLICATION_NOT_SUPPORTED") return {
+    status: 409,
+    type: "https://api.monpiole.example/problems/property-republication-not-supported",
+    title: "Property republication is not supported",
+    code: "PROPERTY_REPUBLICATION_NOT_SUPPORTED",
+  };
   if (code === "PROPERTY_PHOTO_NOT_FOUND") return {
     status: 404, type: "https://api.monpiole.example/problems/property-photo-not-found",
     title: "Property photo not found", code: "PROPERTY_PHOTO_NOT_FOUND",

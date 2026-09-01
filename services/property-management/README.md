@@ -125,8 +125,17 @@ write or a new clock value. `published_at`, `published_by_actor_id` and
 `publication_correlation_id` preserve the first-publication evidence while the
 generic actor and correlation columns continue to describe the last mutation.
 Existing core, details, ownership and composition mutations remain available
-after publication and preserve its status and date. Unpublish, archive,
-republish, public projection and publication events are not part of this slice.
+after publication and preserve its status and date.
+
+TASK-062 extends this lifecycle to `DRAFT -> PUBLISHED -> WITHDRAWN`.
+`WithdrawPropertyFromCatalog` requires `WITHDRAW_PROPERTY_FROM_CATALOG`, locks
+the same tenant-owned row, rejects `DRAFT`, and changes `PUBLISHED` to
+`WITHDRAWN`. A replay is a no-op that preserves the first `withdrawn_at`, actor
+and correlation trace. Publishing a withdrawn Property is rejected by
+`PROPERTY_REPUBLICATION_NOT_SUPPORTED`; republication, archive, deletion,
+publication events and an outbox remain outside this slice. Private core,
+details, ownership, composition, photo and geolocation changes remain possible
+after withdrawal without changing the lifecycle evidence.
 
 Migration `0007_property_publication.sql` preserves historical drafts, expands
 the status constraint, enforces the publication trace tuple and adds the
@@ -137,6 +146,13 @@ LEVEL SECURITY` remains explicit in the historical SQL migrations because
 Drizzle snapshots do not model it; integration tests verify enabled/forced RLS,
 named policies and constraints for all five tables on empty-to-head and
 `0006 → 0007` paths.
+
+Migration `0013_property_catalog_withdrawal.sql` is append-only. It adds the
+nullable first-withdrawal trace, extends the status and publication-state CHECK
+constraints, and permits `WITHDRAWN` in primary-photo audit rows. Existing
+`DRAFT` and `PUBLISHED` rows need no backfill. The Properties RLS and runtime
+grants remain the enforcement boundary; the public reader receives no access
+to the new columns.
 
 ## Property primary photo
 
@@ -184,6 +200,13 @@ portfolio privé ni sa représentation. `ListPublicProperties`,
 le tenant déjà résolu à la frontière HTTP. Leur adapter PostgreSQL applique
 encore les prédicats `tenant_id` et `PUBLISHED` dans une transaction portant
 `SET LOCAL app.tenant_id`.
+
+Après TASK-062, la visibilité reste définie positivement par
+`status = 'PUBLISHED'`. Une Property `WITHDRAWN` demeure dans le portfolio privé
+mais disparaît des listes publiques et produit la même absence 404 sur le détail
+et la photo principale. Cette garantie est immédiate à l’origine après commit ;
+les réponses JSON et photo déjà cachées peuvent subsister pendant leurs TTL
+respectifs de 60 et 300 secondes.
 
 La migration append-only `0011_public_property_catalog_read_boundary.sql`
 ajoute l’index keyset partiel, deux policies RLS restrictives et uniquement des

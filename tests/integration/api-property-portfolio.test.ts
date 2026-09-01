@@ -41,6 +41,7 @@ describe("Property portfolio HTTP", () => {
   it.each([
     ["status=DRAFT", { status: "DRAFT" }],
     ["status=PUBLISHED", { status: "PUBLISHED" }],
+    ["status=WITHDRAWN", { status: "WITHDRAWN" }],
     ["type=HOUSE", { propertyType: "HOUSE" }],
     ["search=Lagune", { search: "Lagune" }],
     ["limit=10", { limit: 10 }],

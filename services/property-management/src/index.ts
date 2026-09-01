@@ -7,6 +7,7 @@ export {
 export { UpdatePropertyDetails, type UpdatePropertyDetailsCommand } from "./application/update-property-details.js";
 export { UpdatePropertyCoreInformation, type UpdatePropertyCoreInformationCommand } from "./application/update-property-core-information.js";
 export { PublishProperty, type PublishPropertyCommand, type PublishPropertyResult } from "./application/publish-property.js";
+export { WithdrawPropertyFromCatalog, type WithdrawPropertyFromCatalogCommand, type WithdrawPropertyFromCatalogResult } from "./application/withdraw-property-from-catalog.js";
 export {
   RetrievePropertyGeolocation, UpdatePropertyGeolocation, RemovePropertyGeolocation,
   type PropertyGeolocationView, type PropertyGeolocationClock,
@@ -58,7 +59,7 @@ export type {
   PropertyOwnerDirectoryItem, PropertyOwnerDirectoryPage,
 } from "./application/property-owner-directory-query.js";
 export { PropertyOwnershipPersistenceFailureError, type PropertyOwnershipRepository } from "./application/property-ownership-repository.js";
-export { Property, InvalidPropertyInputError, InvalidPropertyServerValueError, PersistedPropertyCorruptionError, PropertyStructuralRoleConflictError, PropertyPublicationRequirementsNotMetError, PROPERTY_TYPES, TRANSACTION_TYPES, APARTMENT_SUBTYPES, PROPERTY_STATUSES, PROPERTY_STRUCTURAL_ROLES, type PropertyCoreInformation, type PropertyLocation, type PropertyType, type TransactionType, type ApartmentSubtype, type PropertyStatus, type PropertyStructuralRole, type PropertyPublicationRequirement } from "./domain/property.js";
+export { Property, InvalidPropertyInputError, InvalidPropertyServerValueError, PersistedPropertyCorruptionError, PropertyStructuralRoleConflictError, PropertyPublicationRequirementsNotMetError, PropertyNotPublishedError, PropertyRepublicationNotSupportedError, PROPERTY_TYPES, TRANSACTION_TYPES, APARTMENT_SUBTYPES, PROPERTY_STATUSES, PROPERTY_STRUCTURAL_ROLES, type PropertyCoreInformation, type PropertyLocation, type PropertyType, type TransactionType, type ApartmentSubtype, type PropertyStatus, type PropertyStructuralRole, type PropertyPublicationRequirement } from "./domain/property.js";
 export {
   PropertyGeolocation, InvalidPropertyGeolocationInputError,
   InvalidPropertyGeolocationServerValueError, PersistedPropertyGeolocationCorruptionError,

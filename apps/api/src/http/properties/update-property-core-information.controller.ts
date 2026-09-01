@@ -37,8 +37,9 @@ export class UpdatePropertyCoreInformationController {
     const context = request[REQUEST_CONTEXT];
     if (context === undefined) throw new Error("Request context was not established");
     const authenticated = await requireAuthenticatedAuthority(this.authorityProvider, request);
+    const authority = toPropertyAuthority(authenticated);
     return toPropertyResponse(await this.useCase.execute(toUpdatePropertyCoreInformationCommand(
-      path.propertyId, body, context.correlationId, toPropertyAuthority(authenticated),
-    )));
+      path.propertyId, body, context.correlationId, authority,
+    )), authority);
   }
 }

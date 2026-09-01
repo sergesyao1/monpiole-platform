@@ -5,7 +5,7 @@ import type {
   CreateProperty, CreatePropertyOwner, ListProperties, ListPropertyOwners, RetrieveProperty, RetrievePropertyOwner,
   UpdatePropertyCoreInformation, UpdatePropertyDetails, UpdatePropertyOwner, AssignPropertyOwner,
   RetrievePropertyOwnerships, RemovePropertyOwner, CreatePropertyBuilding, ListPropertyBuildings, UpdatePropertyBuilding,
-  CreatePropertyUnit, ListPropertyUnits, UpdatePropertyUnitStructure, PublishProperty,
+  CreatePropertyUnit, ListPropertyUnits, UpdatePropertyUnitStructure, PublishProperty, WithdrawPropertyFromCatalog,
   ListPropertyPhotos, RegisterPropertyPhoto, RetrievePropertyPhotoContent, SelectPropertyPrimaryPhoto, DeletePropertyPhoto,
   RetrievePropertyPhotoStandard, UpdatePropertyPhotoStandard,
   ListPublicProperties, RetrievePublicProperty, RetrievePublicPrimaryPhoto,
@@ -56,7 +56,7 @@ import {
   PlatformTenantCreationAuthorizationProbeController,
 } from "./http/authentication/platform-tenant-creation-authorization-probe.controller.js";
 import { PropertyCompositionController, CREATE_PROPERTY_BUILDING, LIST_PROPERTY_BUILDINGS, UPDATE_PROPERTY_BUILDING, CREATE_PROPERTY_UNIT, LIST_PROPERTY_UNITS, UPDATE_PROPERTY_UNIT } from "./http/properties/property-composition.controller.js";
-import { PUBLISH_PROPERTY_USE_CASE, PublishPropertyController } from "./http/properties/publish-property.controller.js";
+import { PUBLISH_PROPERTY_USE_CASE, WITHDRAW_PROPERTY_FROM_CATALOG_USE_CASE, PublishPropertyController } from "./http/properties/publish-property.controller.js";
 import { DELETE_PROPERTY_PHOTO_USE_CASE, LIST_PROPERTY_PHOTOS_USE_CASE, REGISTER_PROPERTY_PHOTO_USE_CASE, RETRIEVE_PROPERTY_PHOTO_CONTENT_USE_CASE, SELECT_PROPERTY_PRIMARY_PHOTO_USE_CASE, PropertyPhotosController } from "./http/properties/property-photos.controller.js";
 import { PropertyPhotoStandardController, RETRIEVE_PROPERTY_PHOTO_STANDARD_USE_CASE, UPDATE_PROPERTY_PHOTO_STANDARD_USE_CASE } from "./http/properties/property-photo-standard.controller.js";
 import {
@@ -90,6 +90,7 @@ export interface ApiComposition {
   readonly updatePropertyDetails?: Pick<UpdatePropertyDetails, "execute">;
   readonly updatePropertyCoreInformation?: Pick<UpdatePropertyCoreInformation, "execute">;
   readonly publishProperty?: Pick<PublishProperty, "execute">;
+  readonly withdrawPropertyFromCatalog?: Pick<WithdrawPropertyFromCatalog, "execute">;
   readonly listPropertyPhotos?: Pick<ListPropertyPhotos, "execute">;
   readonly registerPropertyPhoto?: Pick<RegisterPropertyPhoto, "execute">;
   readonly retrievePropertyPhotoContent?: Pick<RetrievePropertyPhotoContent, "execute">;
@@ -146,6 +147,7 @@ const unavailableListProperties: Pick<ListProperties, "execute"> = { async execu
 const unavailableUpdatePropertyDetails: Pick<UpdatePropertyDetails, "execute"> = { async execute() { throw new Error("Update Property Details composition is unavailable"); } };
 const unavailableUpdatePropertyCoreInformation: Pick<UpdatePropertyCoreInformation, "execute"> = { async execute() { throw new Error("Update Property Core Information composition is unavailable"); } };
 const unavailablePublishProperty: Pick<PublishProperty, "execute"> = { async execute() { throw new Error("Publish Property composition is unavailable"); } };
+const unavailableWithdrawPropertyFromCatalog: Pick<WithdrawPropertyFromCatalog, "execute"> = { async execute() { throw new Error("Withdraw Property from catalog composition is unavailable"); } };
 const unavailableListPropertyPhotos: Pick<ListPropertyPhotos, "execute"> = { async execute() { throw new Error("List Property photos composition is unavailable"); } };
 const unavailableRegisterPropertyPhoto: Pick<RegisterPropertyPhoto, "execute"> = { async execute() { throw new Error("Register Property photo composition is unavailable"); } };
 const unavailableRetrievePropertyPhotoContent: Pick<RetrievePropertyPhotoContent, "execute"> = { async execute() { throw new Error("Retrieve Property photo content composition is unavailable"); } };
@@ -217,6 +219,7 @@ export class AppModule {
         { provide: UPDATE_PROPERTY_DETAILS_USE_CASE, useValue: composition.updatePropertyDetails ?? unavailableUpdatePropertyDetails },
         { provide: UPDATE_PROPERTY_CORE_INFORMATION_USE_CASE, useValue: composition.updatePropertyCoreInformation ?? unavailableUpdatePropertyCoreInformation },
         { provide: PUBLISH_PROPERTY_USE_CASE, useValue: composition.publishProperty ?? unavailablePublishProperty },
+        { provide: WITHDRAW_PROPERTY_FROM_CATALOG_USE_CASE, useValue: composition.withdrawPropertyFromCatalog ?? unavailableWithdrawPropertyFromCatalog },
         { provide: LIST_PROPERTY_PHOTOS_USE_CASE, useValue: composition.listPropertyPhotos ?? unavailableListPropertyPhotos },
         { provide: REGISTER_PROPERTY_PHOTO_USE_CASE, useValue: composition.registerPropertyPhoto ?? unavailableRegisterPropertyPhoto },
         { provide: RETRIEVE_PROPERTY_PHOTO_CONTENT_USE_CASE, useValue: composition.retrievePropertyPhotoContent ?? unavailableRetrievePropertyPhotoContent },

@@ -18,6 +18,8 @@ export const properties = propertyManagement.table("properties", {
   correlationId: uuid("correlation_id").notNull(), actorId: text("actor_id").notNull(),
   publishedAt: timestamp("published_at", { withTimezone: true, mode: "string" }),
   publishedByActorId: text("published_by_actor_id"), publicationCorrelationId: uuid("publication_correlation_id"),
+  withdrawnAt: timestamp("withdrawn_at", { withTimezone: true, mode: "string" }),
+  withdrawnByActorId: text("withdrawn_by_actor_id"), withdrawalCorrelationId: uuid("withdrawal_correlation_id"),
   photoStandardVersion: integer("photo_standard_version"),
   usableSurfaceSquareMeters: doublePrecision("usable_surface_square_meters"),
   rooms: integer("rooms"), bedrooms: integer("bedrooms"), bathrooms: integer("bathrooms"),
@@ -43,7 +45,7 @@ export const properties = propertyManagement.table("properties", {
     OR (${table.propertyType} = 'APARTMENT' AND ${table.transactionType} = 'LONG_TERM_RENTAL'
       AND ${table.apartmentSubtype} IN ('STUDIO', 'MULTI_ROOM'))
   `),
-  check("properties_status_check", sql`${table.status} IN ('DRAFT', 'PUBLISHED')`),
+  check("properties_status_check", sql`${table.status} IN ('DRAFT', 'PUBLISHED', 'WITHDRAWN')`),
   check("properties_photo_standard_version_check", sql`${table.photoStandardVersion} IS NULL OR ${table.photoStandardVersion} = 1`),
   check("properties_country_check", sql`${table.country} ~ '^[A-Z]{2}$'`),
   check("properties_details_values_check", sql`
@@ -79,10 +81,19 @@ export const properties = propertyManagement.table("properties", {
   `),
   check("properties_structural_role_check", sql`${table.structuralRole} IN ('STANDALONE', 'COMPOSITE', 'UNIT')`),
   check("properties_publication_state_check", sql`
-    (${table.status} = 'DRAFT' AND ${table.publishedAt} IS NULL AND ${table.publishedByActorId} IS NULL AND ${table.publicationCorrelationId} IS NULL)
+    (${table.status} = 'DRAFT' AND ${table.publishedAt} IS NULL AND ${table.publishedByActorId} IS NULL
+      AND ${table.publicationCorrelationId} IS NULL AND ${table.withdrawnAt} IS NULL
+      AND ${table.withdrawnByActorId} IS NULL AND ${table.withdrawalCorrelationId} IS NULL)
     OR
     (${table.status} = 'PUBLISHED' AND ${table.publishedAt} IS NOT NULL AND ${table.publishedByActorId} IS NOT NULL
-      AND ${table.publicationCorrelationId} IS NOT NULL AND ${table.commercialKind} IS NOT NULL)
+      AND ${table.publicationCorrelationId} IS NOT NULL AND ${table.withdrawnAt} IS NULL
+      AND ${table.withdrawnByActorId} IS NULL AND ${table.withdrawalCorrelationId} IS NULL
+      AND ${table.commercialKind} IS NOT NULL)
+    OR
+    (${table.status} = 'WITHDRAWN' AND ${table.publishedAt} IS NOT NULL AND ${table.publishedByActorId} IS NOT NULL
+      AND ${table.publicationCorrelationId} IS NOT NULL AND ${table.withdrawnAt} IS NOT NULL
+      AND ${table.withdrawnByActorId} IS NOT NULL AND ${table.withdrawalCorrelationId} IS NOT NULL
+      AND ${table.withdrawnAt} >= ${table.publishedAt} AND ${table.commercialKind} IS NOT NULL)
   `),
   pgPolicy("properties_tenant_isolation", {
     using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
@@ -211,7 +222,7 @@ export const propertyPrimaryPhotoAudits = propertyManagement.table("property_pri
   }),
   index("property_primary_photo_audits_tenant_property_selected_idx")
     .on(table.tenantId, table.propertyId, table.selectedAt, table.auditId),
-  check("property_primary_photo_audits_status_check", sql`${table.propertyStatus} IN ('DRAFT', 'PUBLISHED')`),
+  check("property_primary_photo_audits_status_check", sql`${table.propertyStatus} IN ('DRAFT', 'PUBLISHED', 'WITHDRAWN')`),
   check("property_primary_photo_audits_replacement_check", sql`${table.previousPhotoId} IS NULL OR ${table.previousPhotoId} <> ${table.selectedPhotoId}`),
   pgPolicy("property_primary_photo_audits_tenant_isolation", {
     using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,

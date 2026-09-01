@@ -35,6 +35,7 @@ export class PostgresPropertyPortfolioQuery implements PropertyPortfolioQuery {
         structuralRole: properties.structuralRole,
         country: properties.country, city: properties.city, district: properties.district, addressLine: properties.addressLine,
         createdAt: properties.createdAt, updatedAt: properties.updatedAt, publishedAt: properties.publishedAt,
+        withdrawnAt: properties.withdrawnAt,
       }).from(properties).where(and(...filters)).orderBy(desc(properties.createdAt), desc(properties.propertyId)).limit(criteria.limit + 1);
 
       const hasNextPage = rows.length > criteria.limit;
@@ -57,7 +58,7 @@ type PortfolioRow = {
   readonly propertyType: string; readonly transactionType: string; readonly apartmentSubtype: string | null; readonly status: string;
   readonly structuralRole: string;
   readonly country: string; readonly city: string; readonly district: string; readonly addressLine: string;
-  readonly createdAt: string; readonly updatedAt: string; readonly publishedAt: string | null;
+  readonly createdAt: string; readonly updatedAt: string; readonly publishedAt: string | null; readonly withdrawnAt: string | null;
 };
 function toPortfolioItem(row: PortfolioRow): PropertyPortfolioItem {
   return {
@@ -70,5 +71,6 @@ function toPortfolioItem(row: PortfolioRow): PropertyPortfolioItem {
     location: { country: row.country, city: row.city, district: row.district, addressLine: row.addressLine },
     createdAt: new Date(row.createdAt).toISOString(), updatedAt: new Date(row.updatedAt).toISOString(),
     ...(row.publishedAt === null ? {} : { publishedAt: new Date(row.publishedAt).toISOString() }),
+    ...(row.withdrawnAt === null ? {} : { withdrawnAt: new Date(row.withdrawnAt).toISOString() }),
   };
 }

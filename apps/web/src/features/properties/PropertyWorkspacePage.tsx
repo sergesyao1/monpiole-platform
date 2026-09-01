@@ -101,7 +101,7 @@ export function PropertyWorkspacePage() {
         <form className="portfolio-filters" onSubmit={applyFilters} role="search">
           <label>Rechercher<input name="search" maxLength={100} defaultValue={filters.search ?? ""} placeholder="Titre, ville, quartier ou adresse" /></label>
           <label>Type de bien<select name="type" defaultValue={filters.type ?? ""}><option value="">Tous les types</option>{propertyTypes.map((type) => <option key={type} value={type}>{propertyTypeLabels[type]}</option>)}</select></label>
-          <label>Statut<select name="status" defaultValue={filters.status ?? ""}><option value="">Tous les statuts</option><option value="DRAFT">{propertyStatusLabels.DRAFT}</option><option value="PUBLISHED">{propertyStatusLabels.PUBLISHED}</option></select></label>
+          <label>Statut<select name="status" defaultValue={filters.status ?? ""}><option value="">Tous les statuts</option><option value="DRAFT">{propertyStatusLabels.DRAFT}</option><option value="PUBLISHED">{propertyStatusLabels.PUBLISHED}</option><option value="WITHDRAWN">{propertyStatusLabels.WITHDRAWN}</option></select></label>
           <button className="secondary-action" type="submit" disabled={loading || loadingMore}>Appliquer les filtres</button>
         </form>
 

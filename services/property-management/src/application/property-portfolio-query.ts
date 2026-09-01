@@ -14,6 +14,7 @@ export interface PropertyPortfolioItem {
   readonly apartmentSubtype?: ApartmentSubtype;
   readonly status: PropertyStatus;
   readonly publishedAt?: string;
+  readonly withdrawnAt?: string;
   readonly structuralRole: PropertyStructuralRole;
   readonly location: PropertyLocation;
   readonly createdAt: string;

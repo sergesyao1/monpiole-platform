@@ -1,8 +1,17 @@
+import { request } from "node:http";
+
 import { afterEach, describe, expect, it } from "vitest";
-import { CreateProperty, Property, PublishProperty, RetrieveProperty, UpdatePropertyCoreInformation, UpdatePropertyDetails, type PropertyRepository } from "../../services/property-management/src/index.js";
+import {
+  CreateProperty, ListPublicProperties, Property, PublishProperty, RetrieveProperty,
+  RetrievePublicPrimaryPhoto, RetrievePublicProperty, UpdatePropertyCoreInformation,
+  UpdatePropertyDetails, WithdrawPropertyFromCatalog,
+  type PropertyRepository, type PublicPropertyCatalogItem, type PublicPropertyCatalogQuery,
+} from "../../services/property-management/src/index.js";
 import { createApiApplication } from "../../apps/api/src/bootstrap.js";
 import { PropertyResponseSchema } from "../../apps/api/src/contracts/v1/properties/property.schema.js";
 import { ProblemDetailsSchema } from "../../apps/api/src/contracts/v1/common/problem-details.schema.js";
+import { PublicPropertyCatalogResponseSchema, PublicPropertyDetailSchema } from "../../apps/api/src/contracts/v1/public-properties/public-property.schema.js";
+import { AllowlistedPublicCatalogTenantResolver } from "../../apps/api/src/configuration/public-catalog.js";
 
 const TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"; const TENANT_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const PROPERTY_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
@@ -27,15 +36,78 @@ class MemoryRepository implements PropertyRepository {
     const updated = update(property, property.values.photos ?? []); if (updated === property) return property; this.values.set(key, updated); return updated;
   }
 }
+class MemoryPublicPropertyCatalog implements PublicPropertyCatalogQuery {
+  constructor(private readonly repository: MemoryRepository) {}
+
+  async list(criteria: Parameters<PublicPropertyCatalogQuery["list"]>[0]) {
+    const property = this.repository.values.get(`${criteria.tenantId}:${PROPERTY_ID}`);
+    const item = property === undefined ? undefined : toPublicItem(property);
+    if (item === undefined || (criteria.propertyType !== undefined && item.propertyType !== criteria.propertyType)
+      || (criteria.transactionType !== undefined && item.transactionType !== criteria.transactionType)
+      || criteria.cursor !== undefined) return { items: [] };
+    return { items: [item] };
+  }
+
+  async retrieve(tenantId: string, publicPropertyId: string) {
+    const property = this.repository.values.get(`${tenantId}:${publicPropertyId}`);
+    if (property === undefined) return undefined;
+    const item = toPublicItem(property);
+    if (item === undefined) return undefined;
+    return { ...item, description: property.values.description ?? null, details: property.values.details ?? {} };
+  }
+
+  async retrievePrimaryPhoto(tenantId: string, publicPropertyId: string) {
+    const property = this.repository.values.get(`${tenantId}:${publicPropertyId}`);
+    const item = property === undefined ? undefined : toPublicItem(property);
+    if (item?.primaryPhoto === null || item === undefined) return undefined;
+    return {
+      content: new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]),
+      contentType: item.primaryPhoto.contentType,
+      contentByteSize: 8,
+      contentSha256: PRIMARY_PHOTO.contentSha256,
+    };
+  }
+}
+
+function toPublicItem(property: Property): PublicPropertyCatalogItem | undefined {
+  const value = property.values;
+  if (value.status !== "PUBLISHED" || value.publishedAt === undefined || value.commercialTerms === undefined) return undefined;
+  const primaryPhoto = value.photos?.find((photo) => photo.isPrimary);
+  return {
+    publicPropertyId: value.propertyId,
+    title: value.title,
+    propertyType: value.propertyType,
+    transactionType: value.transactionType,
+    ...(value.apartmentSubtype === undefined ? {} : { apartmentSubtype: value.apartmentSubtype }),
+    structuralRole: value.structuralRole,
+    location: { country: value.location.country, city: value.location.city, district: value.location.district },
+    commercialTerms: value.commercialTerms,
+    primaryPhoto: primaryPhoto === undefined ? null : { contentType: primaryPhoto.contentType },
+    publishedAt: value.publishedAt,
+  };
+}
 describe("Property HTTP vertical slice", () => {
   let application: Awaited<ReturnType<typeof createApiApplication>> | undefined; let baseUrl = ""; const repository = new MemoryRepository();
-  async function start(tenantId: string | null = TENANT_A, allowUpdate = true, allowPublish = true, publishOverride?: { execute: PublishProperty["execute"] }) {
+  async function start(
+    tenantId: string | null = TENANT_A,
+    allowUpdate = true,
+    allowPublish = true,
+    publishOverride?: { execute: PublishProperty["execute"] },
+    allowWithdraw = true,
+    withdrawOverride?: { execute: WithdrawPropertyFromCatalog["execute"] },
+  ) {
+    const publicCatalog = new MemoryPublicPropertyCatalog(repository);
     application = await createApiApplication({ logger: false }, {
-      authenticatedAuthorityProvider: { resolve: async () => tenantId === null ? undefined : ({ actorId: "actor", authorityId: "authority", grants: ["CREATE_PROPERTY", "RETRIEVE_PROPERTY", ...(allowUpdate ? ["UPDATE_PROPERTY_DETAILS" as const, "UPDATE_PROPERTY_CORE_INFORMATION" as const] : []), ...(allowPublish ? ["PUBLISH_PROPERTY" as const] : [])], tenantIds: [tenantId] }) },
+      authenticatedAuthorityProvider: { resolve: async () => tenantId === null ? undefined : ({ actorId: "actor", authorityId: "authority", grants: ["CREATE_PROPERTY", "RETRIEVE_PROPERTY", ...(allowUpdate ? ["UPDATE_PROPERTY_DETAILS" as const, "UPDATE_PROPERTY_CORE_INFORMATION" as const] : []), ...(allowPublish ? ["PUBLISH_PROPERTY" as const] : []), ...(allowWithdraw ? ["WITHDRAW_PROPERTY_FROM_CATALOG" as const] : [])], tenantIds: [tenantId] }) },
       createProperty: new CreateProperty(repository, { generate: () => PROPERTY_ID }, { now: () => "2026-08-25T12:00:00.000Z" }), retrieveProperty: new RetrieveProperty(repository),
       updatePropertyDetails: new UpdatePropertyDetails(repository, { now: () => "2026-08-25T14:00:00.000Z" }),
       updatePropertyCoreInformation: new UpdatePropertyCoreInformation(repository, { now: () => "2026-08-25T15:00:00.000Z" }),
       publishProperty: publishOverride ?? new PublishProperty(repository, { now: () => "2026-08-25T16:00:00.000Z" }),
+      withdrawPropertyFromCatalog: withdrawOverride ?? new WithdrawPropertyFromCatalog(repository, { now: () => "2026-08-25T17:00:00.000Z" }),
+      publicCatalogTenantResolver: new AllowlistedPublicCatalogTenantResolver(new Map([["catalogue.test", TENANT_A]])),
+      listPublicProperties: new ListPublicProperties(publicCatalog),
+      retrievePublicProperty: new RetrievePublicProperty(publicCatalog),
+      retrievePublicPrimaryPhoto: new RetrievePublicPrimaryPhoto(publicCatalog),
     }); await application.listen(0, "127.0.0.1"); const address = application.getHttpServer().address();
     if (address === null || typeof address === "string") throw new Error("API did not bind"); baseUrl = `http://127.0.0.1:${address.port}`;
   }
@@ -47,6 +119,24 @@ describe("Property HTTP vertical slice", () => {
     details: { rooms: 2 }, commercialTerms: { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 0, rentPeriod: "MONTH" },
   }) });
   const publish = (propertyId = PROPERTY_ID) => fetch(`${baseUrl}/v1/properties/${propertyId}/publication`, { method: "PUT" });
+  const withdraw = (propertyId = PROPERTY_ID, init: RequestInit = {}) => fetch(`${baseUrl}/v1/properties/${propertyId}/publication`, { ...init, method: "DELETE" });
+  const requestPublic = (path: string, headers: Readonly<Record<string, string>> = {}) => new Promise<Response>((resolve, reject) => {
+    const outgoing = request(`${baseUrl}${path}`, { headers: { host: "catalogue.test", ...headers } }, (incoming) => {
+      const chunks: Uint8Array[] = [];
+      incoming.on("data", (chunk: Uint8Array) => chunks.push(chunk));
+      incoming.on("end", () => {
+        const responseHeaders = new Headers();
+        for (const [name, value] of Object.entries(incoming.headers)) {
+          if (Array.isArray(value)) value.forEach((item) => responseHeaders.append(name, item));
+          else if (value !== undefined) responseHeaders.set(name, value);
+        }
+        const status = incoming.statusCode ?? 500;
+        resolve(new Response(status === 204 || status === 304 ? null : Buffer.concat(chunks), { status, headers: responseHeaders }));
+      });
+    });
+    outgoing.on("error", reject);
+    outgoing.end();
+  });
   const seedPrimaryPhoto = () => {
     const key = `${TENANT_A}:${PROPERTY_ID}`; const property = repository.values.get(key)!;
     repository.values.set(key, Property.rehydrate({ ...property.values, photos: STUDIO_PHOTOS }));
@@ -160,5 +250,85 @@ describe("Property HTTP vertical slice", () => {
     const problem = ProblemDetailsSchema.parse(await response.json());
     expect(problem).toMatchObject({ code: "INTERNAL_ERROR", status: 500 });
     expect(JSON.stringify(problem)).not.toContain("sensitive database failure");
+  });
+  it("withdraws with a bodyless DELETE and returns the canonical WITHDRAWN representation on first call and replay", async () => {
+    await start(); await post(); await putDetails(); seedPrimaryPhoto(); await publish();
+    const first = await withdraw();
+    expect(first.status).toBe(200);
+    expect(first.headers.get("x-correlation-id")).toMatch(/^[0-9a-f-]{36}$/u);
+    expect(PropertyResponseSchema.parse(await first.json())).toMatchObject({
+      propertyId: PROPERTY_ID, status: "WITHDRAWN", publishedAt: "2026-08-25T16:00:00.000Z",
+      withdrawnAt: "2026-08-25T17:00:00.000Z", updatedAt: "2026-08-25T17:00:00.000Z",
+      canWithdrawFromCatalog: false, details: { rooms: 2 },
+    });
+    const replay = await withdraw();
+    expect(replay.status).toBe(200);
+    expect(PropertyResponseSchema.parse(await replay.json())).toMatchObject({
+      status: "WITHDRAWN", withdrawnAt: "2026-08-25T17:00:00.000Z", canWithdrawFromCatalog: false,
+    });
+    const retrieved = await fetch(`${baseUrl}/v1/properties/${PROPERTY_ID}`);
+    expect(PropertyResponseSchema.parse(await retrieved.json())).toMatchObject({ status: "WITHDRAWN", details: { rooms: 2 } });
+  });
+  it("returns stable withdrawal lifecycle conflicts and rejects republication", async () => {
+    await start(); await post();
+    const draftWithdrawal = await withdraw();
+    expect(draftWithdrawal.status).toBe(409);
+    expect(ProblemDetailsSchema.parse(await draftWithdrawal.json())).toMatchObject({ code: "PROPERTY_NOT_PUBLISHED", status: 409 });
+    await putDetails(); seedPrimaryPhoto(); await publish(); await withdraw();
+    const republication = await publish();
+    expect(republication.status).toBe(409);
+    expect(ProblemDetailsSchema.parse(await republication.json())).toMatchObject({ code: "PROPERTY_REPUBLICATION_NOT_SUPPORTED", status: 409 });
+  });
+  it("authenticates, authorizes, validates and tenant-scopes catalog withdrawal", async () => {
+    await start(TENANT_A); await post(); await putDetails(); seedPrimaryPhoto(); await publish(); await stop();
+    await start(null); expect((await withdraw()).status).toBe(401); await stop();
+    await start(TENANT_A, true, true, undefined, false); expect((await withdraw()).status).toBe(403); await stop();
+    await start(TENANT_B); expect((await withdraw()).status).toBe(404); await stop();
+    await start(TENANT_A); expect((await withdraw("not-a-uuid")).status).toBe(400);
+    expect((await withdraw("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee")).status).toBe(404);
+  });
+  it("exposes the withdrawal affordance only for a published Property and matching authority", async () => {
+    await start(); await post(); await putDetails(); seedPrimaryPhoto(); await publish();
+    const allowed = PropertyResponseSchema.parse(await (await fetch(`${baseUrl}/v1/properties/${PROPERTY_ID}`)).json());
+    expect(allowed).toMatchObject({ status: "PUBLISHED", canWithdrawFromCatalog: true });
+    await stop(); await start(TENANT_A, true, true, undefined, false);
+    const denied = PropertyResponseSchema.parse(await (await fetch(`${baseUrl}/v1/properties/${PROPERTY_ID}`)).json());
+    expect(denied).toMatchObject({ status: "PUBLISHED", canWithdrawFromCatalog: false });
+  });
+  it("maps an unexpected withdrawal failure to a safe 500", async () => {
+    await start(TENANT_A, true, true, undefined, true, { execute: async () => { throw new Error("sensitive withdrawal failure"); } });
+    const response = await withdraw();
+    expect(response.status).toBe(500);
+    const problem = ProblemDetailsSchema.parse(await response.json());
+    expect(problem).toMatchObject({ code: "INTERNAL_ERROR", status: 500 });
+    expect(JSON.stringify(problem)).not.toContain("sensitive withdrawal failure");
+  });
+  it("removes a withdrawn Property from every public HTTP surface while preserving its private detail", async () => {
+    await start(); await post(); await putDetails(); seedPrimaryPhoto(); await publish();
+    const visiblePage = await requestPublic("/v1/public/properties");
+    expect(visiblePage.status).toBe(200);
+    expect(PublicPropertyCatalogResponseSchema.parse(await visiblePage.json()).items).toEqual([
+      expect.objectContaining({ publicPropertyId: PROPERTY_ID }),
+    ]);
+    const visibleDetail = await requestPublic(`/v1/public/properties/${PROPERTY_ID}`);
+    expect(visibleDetail.status).toBe(200);
+    expect(PublicPropertyDetailSchema.parse(await visibleDetail.json())).toMatchObject({ publicPropertyId: PROPERTY_ID });
+    const visiblePhoto = await requestPublic(`/v1/public/properties/${PROPERTY_ID}/primary-photo`);
+    expect(visiblePhoto.status).toBe(200);
+    const etag = visiblePhoto.headers.get("etag");
+    expect(etag).toBe(`"${PRIMARY_PHOTO.contentSha256}"`);
+
+    expect((await withdraw()).status).toBe(200);
+
+    const hiddenPage = await requestPublic("/v1/public/properties");
+    expect(PublicPropertyCatalogResponseSchema.parse(await hiddenPage.json()).items).toEqual([]);
+    const hiddenDetail = await requestPublic(`/v1/public/properties/${PROPERTY_ID}`);
+    expect(hiddenDetail.status).toBe(404);
+    expect(ProblemDetailsSchema.parse(await hiddenDetail.json())).toMatchObject({ code: "PUBLIC_PROPERTY_NOT_FOUND" });
+    const hiddenPhoto = await requestPublic(`/v1/public/properties/${PROPERTY_ID}/primary-photo`, { "if-none-match": etag! });
+    expect(hiddenPhoto.status).toBe(404);
+    expect(hiddenPhoto.headers.get("cache-control")).toBe("no-store");
+    const privateDetail = PropertyResponseSchema.parse(await (await fetch(`${baseUrl}/v1/properties/${PROPERTY_ID}`)).json());
+    expect(privateDetail).toMatchObject({ status: "WITHDRAWN", propertyId: PROPERTY_ID, details: { rooms: 2 } });
   });
 });

@@ -34,6 +34,12 @@ export function toPropertyUiError(error: unknown, resource: PropertyErrorResourc
       }
       return { kind: "conflict", message: "Complétez les détails et les conditions commerciales avant de publier." };
     }
+    if (error.problem.code === "PROPERTY_NOT_PUBLISHED") {
+      return { kind: "conflict", message: "Seul un bien actuellement publié peut être retiré du catalogue." };
+    }
+    if (error.problem.code === "PROPERTY_REPUBLICATION_NOT_SUPPORTED") {
+      return { kind: "conflict", message: "La republication d’un bien retiré du catalogue n’est pas encore disponible." };
+    }
     if (error.problem.code === "PROPERTY_PRIMARY_PHOTO_DELETION_FORBIDDEN") {
       return { kind: "conflict", message: "Sélectionnez une photo remplaçante avant de supprimer la photo principale." };
     }

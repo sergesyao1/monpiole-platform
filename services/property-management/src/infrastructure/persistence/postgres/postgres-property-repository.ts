@@ -106,6 +106,7 @@ export class PostgresPropertyRepository implements PropertyRepository {
         throw new PropertyStructuralRoleConflictError();
       }
       const firstPublication = current.values.status === "DRAFT" && property.values.status === "PUBLISHED";
+      const firstWithdrawal = current.values.status === "PUBLISHED" && property.values.status === "WITHDRAWN";
       const details = property.values.details;
       const terms = property.values.commercialTerms;
       await scope.database().update(properties).set({
@@ -125,9 +126,14 @@ export class PostgresPropertyRepository implements PropertyRepository {
         pricingUnit: terms?.kind === "SHORT_TERM_RENTAL" ? terms.pricingUnit : null,
         salePriceAmountMinor: terms?.kind === "SALE" ? terms.salePriceAmountMinor : null,
         status: property.values.status, publishedAt: property.values.publishedAt ?? null,
+        withdrawnAt: property.values.withdrawnAt ?? null,
         ...(firstPublication ? {
           publishedByActorId: trace.actorId,
           publicationCorrelationId: trace.correlationId,
+        } : {}),
+        ...(firstWithdrawal ? {
+          withdrawnByActorId: trace.actorId,
+          withdrawalCorrelationId: trace.correlationId,
         } : {}),
         updatedAt: property.values.updatedAt, correlationId: trace.correlationId, actorId: trace.actorId,
       }).where(and(eq(properties.tenantId, tenantId), eq(properties.propertyId, propertyId)));
@@ -162,6 +168,7 @@ export function toProperty(row: PropertyRow, photos: readonly PropertyPhotoValue
     location: { country: row.country, city: row.city, district: row.district, addressLine: row.addressLine },
     createdAt: new Date(row.createdAt).toISOString(), updatedAt: new Date(row.updatedAt).toISOString(),
     ...(row.publishedAt === null ? {} : { publishedAt: new Date(row.publishedAt).toISOString() }),
+    ...(row.withdrawnAt === null ? {} : { withdrawnAt: new Date(row.withdrawnAt).toISOString() }),
     ...(details === undefined ? {} : { details }),
     ...(commercialTerms === undefined ? {} : { commercialTerms }),
     photos,

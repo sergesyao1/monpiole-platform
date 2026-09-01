@@ -9,6 +9,7 @@ describe("présentation française Property", () => {
   it("traduit les enums métier sans exposer leurs valeurs techniques", () => {
     expect(propertyStatusLabels.DRAFT).toBe("Brouillon");
     expect(propertyStatusLabels.PUBLISHED).toBe("Publié");
+    expect(propertyStatusLabels.WITHDRAWN).toBe("Retiré du catalogue");
     expect(propertyTypeLabels).toEqual({
       APARTMENT: "Appartement", HOUSE: "Maison", LAND: "Terrain", COMMERCIAL: "Local commercial", OTHER: "Autre",
     });

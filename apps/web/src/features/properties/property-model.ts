@@ -4,7 +4,7 @@ export type PropertyType = typeof propertyTypes[number];
 export const transactionTypes = ["LONG_TERM_RENTAL", "SHORT_TERM_RENTAL", "SALE"] as const;
 export type TransactionType = typeof transactionTypes[number];
 export type ApartmentSubtype = "STUDIO" | "MULTI_ROOM";
-export type PropertyStatus = "DRAFT" | "PUBLISHED";
+export type PropertyStatus = "DRAFT" | "PUBLISHED" | "WITHDRAWN";
 export type PropertyStructuralRole = "STANDALONE" | "COMPOSITE" | "UNIT";
 export type PropertyGeolocationPublicVisibility = "EXACT" | "APPROXIMATE" | "HIDDEN";
 export type PricingUnit = "NIGHT" | "WEEK";
@@ -54,7 +54,7 @@ export const transactionTypeLabels: Readonly<Record<TransactionType, string>> = 
   SALE: "Vente",
 };
 
-export const propertyStatusLabels: Readonly<Record<PropertyStatus, string>> = { DRAFT: "Brouillon", PUBLISHED: "Publié" };
+export const propertyStatusLabels: Readonly<Record<PropertyStatus, string>> = { DRAFT: "Brouillon", PUBLISHED: "Publié", WITHDRAWN: "Retiré du catalogue" };
 export const propertyStructuralRoleLabels: Readonly<Record<PropertyStructuralRole, string>> = { STANDALONE: "Bien autonome", COMPOSITE: "Ensemble immobilier", UNIT: "Unité" };
 export const propertyGeolocationPublicVisibilityLabels: Readonly<Record<PropertyGeolocationPublicVisibility, string>> = {
   EXACT: "Position exacte",
@@ -105,12 +105,13 @@ interface PropertyBase {
 }
 
 export type Property = Readonly<PropertyBase & (
-  | { readonly status: "DRAFT"; readonly publishedAt?: never }
-  | { readonly status: "PUBLISHED"; readonly publishedAt: string }
+  | { readonly status: "DRAFT"; readonly publishedAt?: never; readonly withdrawnAt?: never; readonly canWithdrawFromCatalog: false }
+  | { readonly status: "PUBLISHED"; readonly publishedAt: string; readonly withdrawnAt?: never; readonly canWithdrawFromCatalog: boolean }
+  | { readonly status: "WITHDRAWN"; readonly publishedAt: string; readonly withdrawnAt: string; readonly canWithdrawFromCatalog: false }
 )>;
 
 export type PropertyPortfolioItem = Property extends infer Value
-  ? Value extends Property ? Omit<Value, "details" | "commercialTerms"> : never
+  ? Value extends Property ? Omit<Value, "details" | "commercialTerms" | "photos" | "primaryPhoto" | "canWithdrawFromCatalog"> : never
   : never;
 
 export interface PropertyPortfolioPage {

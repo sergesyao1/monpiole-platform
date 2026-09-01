@@ -3,7 +3,8 @@ import {
   CreateProperty, InvalidPropertyInputError, InvalidPropertyServerValueError, PersistedPropertyCorruptionError,
   Property, PropertyForbiddenError, PropertyNotFoundError, RetrieveProperty, type PropertyRepository,
   UpdatePropertyCoreInformation, UpdatePropertyDetails, InvalidPropertyDetailsError, IncompatibleCommercialTermsError,
-  PublishProperty, PropertyPublicationRequirementsNotMetError,
+  PublishProperty, PropertyPublicationRequirementsNotMetError, WithdrawPropertyFromCatalog,
+  PropertyNotPublishedError, PropertyRepublicationNotSupportedError,
   assessPropertyPhotoReadiness, resolvePropertyPhotoStandard,
 } from "../../services/property-management/src/index.js";
 
@@ -39,6 +40,15 @@ class MemoryRepository implements PropertyRepository {
     if (updated === property) return property;
     this.values.set(key, updated); this.updateWrites += 1; return updated;
   }
+}
+
+function publishedProperty(): Property {
+  return Property.create({ propertyId: PROPERTY_ID, tenantId: TENANT_A, ...input,
+    createdAt: "2026-08-25T12:00:00.000Z", updatedAt: "2026-08-25T12:00:00.000Z" })
+    .defineDetails({ rooms: 2 }, {
+      kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 250_000, rentPeriod: "MONTH",
+    }, "2026-08-25T13:00:00.000Z")
+    .publish("2026-08-25T14:00:00.000Z", STUDIO_PHOTOS);
 }
 
 describe("Property Domain and Application", () => {
@@ -99,6 +109,33 @@ describe("Property Domain and Application", () => {
     const published = property.publish("2026-08-25T14:00:00.000Z", STUDIO_PHOTOS);
     expect(published.values).toMatchObject({ status: "PUBLISHED", publishedAt: "2026-08-25T14:00:00.000Z", updatedAt: "2026-08-25T14:00:00.000Z" });
     expect(published.publish("not-an-instant")).toBe(published);
+  });
+  it("withdraws a published Property while preserving its private data and lifecycle history", () => {
+    const published = publishedProperty();
+    const withdrawn = published.withdraw("2026-08-25T15:00:00.000Z");
+    expect(withdrawn.values).toMatchObject({
+      status: "WITHDRAWN", publishedAt: "2026-08-25T14:00:00.000Z",
+      withdrawnAt: "2026-08-25T15:00:00.000Z", updatedAt: "2026-08-25T15:00:00.000Z",
+      title: "Apartment Cocody", details: { rooms: 2 }, commercialTerms: { rentAmountMinor: 250_000 },
+    });
+    expect(withdrawn.withdraw("not-an-instant")).toBe(withdrawn);
+    expect(() => withdrawn.publish("2026-08-25T16:00:00.000Z", STUDIO_PHOTOS)).toThrow(PropertyRepublicationNotSupportedError);
+  });
+  it("rejects withdrawal from DRAFT and a withdrawal instant before publication", () => {
+    const draft = Property.create({ propertyId: PROPERTY_ID, tenantId: TENANT_A, ...input,
+      createdAt: "2026-08-25T12:00:00.000Z", updatedAt: "2026-08-25T12:00:00.000Z" });
+    expect(() => draft.withdraw("2026-08-25T15:00:00.000Z")).toThrow(PropertyNotPublishedError);
+    expect(() => publishedProperty().withdraw("2026-08-25T13:59:59.999Z")).toThrow(InvalidPropertyServerValueError);
+  });
+  it.each(["STANDALONE", "COMPOSITE", "UNIT"] as const)("withdraws a published %s Property independently", (structuralRole) => {
+    const published = publishedProperty();
+    const candidate = Property.rehydrate({ ...published.values, structuralRole });
+    expect(candidate.withdraw("2026-08-25T15:00:00.000Z").values).toMatchObject({
+      structuralRole,
+      status: "WITHDRAWN",
+      publishedAt: "2026-08-25T14:00:00.000Z",
+      withdrawnAt: "2026-08-25T15:00:00.000Z",
+    });
   });
   it("applique la norme Studio sans exiger de salon ni de chambre séparés", () => {
     const standard = resolvePropertyPhotoStandard({
@@ -186,6 +223,38 @@ describe("Property Domain and Application", () => {
     await expect(publish.execute(command)).rejects.toBeInstanceOf(PropertyPublicationRequirementsNotMetError);
     await expect(publish.execute({ ...command, authority: { ...command.authority, grants: [] } })).rejects.toBeInstanceOf(PropertyForbiddenError);
     await expect(publish.execute({ ...command, authority: { ...command.authority, tenantIds: [TENANT_B] } })).rejects.toBeInstanceOf(PropertyNotFoundError);
+  });
+  it("withdraws atomically and replays without another write or clock read", async () => {
+    const repository = new MemoryRepository();
+    repository.values.set(`${TENANT_A}:${PROPERTY_ID}`, publishedProperty());
+    let clockCalls = 0;
+    const withdraw = new WithdrawPropertyFromCatalog(repository, { now: () => {
+      clockCalls += 1; return "2026-08-25T15:00:00.000Z";
+    } });
+    const command = { authority: { ...AUTHORITY, grants: ["WITHDRAW_PROPERTY_FROM_CATALOG"] as const }, correlationId: PROPERTY_ID, propertyId: PROPERTY_ID };
+    await expect(withdraw.execute(command)).resolves.toMatchObject({
+      outcome: "WITHDRAWN", property: { status: "WITHDRAWN", publishedAt: "2026-08-25T14:00:00.000Z",
+        withdrawnAt: "2026-08-25T15:00:00.000Z", details: { rooms: 2 } },
+    });
+    const writesAfterWithdrawal = repository.updateWrites;
+    await expect(withdraw.execute(command)).resolves.toMatchObject({ outcome: "ALREADY_WITHDRAWN" });
+    expect(clockCalls).toBe(1);
+    expect(repository.updateWrites).toBe(writesAfterWithdrawal);
+  });
+  it("enforces withdrawal state, permission, resource hiding and tenant isolation", async () => {
+    const repository = new MemoryRepository();
+    repository.values.set(`${TENANT_A}:${PROPERTY_ID}`, publishedProperty());
+    const withdraw = new WithdrawPropertyFromCatalog(repository, { now: () => "2026-08-25T15:00:00.000Z" });
+    const command = { authority: { ...AUTHORITY, grants: ["WITHDRAW_PROPERTY_FROM_CATALOG"] as const }, correlationId: PROPERTY_ID, propertyId: PROPERTY_ID };
+    await expect(withdraw.execute({ ...command, authority: { ...command.authority, grants: [] } })).rejects.toBeInstanceOf(PropertyForbiddenError);
+    await expect(withdraw.execute({ ...command, authority: { ...command.authority, tenantIds: [] } })).rejects.toBeInstanceOf(PropertyForbiddenError);
+    await expect(withdraw.execute({ ...command, authority: { ...command.authority, tenantIds: [TENANT_A, TENANT_B] } })).rejects.toBeInstanceOf(PropertyForbiddenError);
+    await expect(withdraw.execute({ ...command, authority: { ...command.authority, tenantIds: [TENANT_B] } })).rejects.toBeInstanceOf(PropertyNotFoundError);
+    await expect(withdraw.execute({ ...command, propertyId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" })).rejects.toBeInstanceOf(PropertyNotFoundError);
+    repository.values.set(`${TENANT_A}:${PROPERTY_ID}`, Property.create({ propertyId: PROPERTY_ID, tenantId: TENANT_A, ...input,
+      createdAt: "2026-08-25T12:00:00.000Z", updatedAt: "2026-08-25T12:00:00.000Z" }));
+    await expect(withdraw.execute(command)).rejects.toBeInstanceOf(PropertyNotPublishedError);
+    expect(repository.updateWrites).toBe(0);
   });
   it("updates only normalized core information through the tenant-scoped operation", async () => {
     const { create, repository } = useCases();

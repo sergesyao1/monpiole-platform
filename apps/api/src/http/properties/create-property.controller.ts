@@ -25,7 +25,8 @@ export class CreatePropertyController {
   async execute(@Body() body: CreatePropertyRequestDto, @Req() request: RequestWithContext): Promise<PropertyResponse> {
     const context = request[REQUEST_CONTEXT]; if (context === undefined) throw new Error("Request context was not established");
     const authenticated = await requireAuthenticatedAuthority(this.authorityProvider, request);
-    return toPropertyResponse(await this.useCase.execute(toCreatePropertyCommand(body, context.correlationId, toPropertyAuthority(authenticated))));
+    const authority = toPropertyAuthority(authenticated);
+    return toPropertyResponse(await this.useCase.execute(toCreatePropertyCommand(body, context.correlationId, authority)), authority);
   }
 }
 export function problemContent() { return { "application/problem+json": { schema: { $ref: getSchemaPath(PropertyProblemDetailsDto) } } }; }

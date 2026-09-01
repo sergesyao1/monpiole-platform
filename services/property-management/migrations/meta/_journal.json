@@ -92,6 +92,13 @@
       "when": 1788204632162,
       "tag": "0012_property_geolocation",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1788252356097,
+      "tag": "0013_property_catalog_withdrawal",
+      "breakpoints": true
     }
   ]
 }

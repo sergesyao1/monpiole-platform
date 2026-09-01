@@ -1,11 +1,11 @@
-import type { CreatePropertyCommand, PropertyAuthority, PropertyView, PublishPropertyCommand, UpdatePropertyCoreInformationCommand, UpdatePropertyDetailsCommand } from "@monpiole/property-management";
+import type { CreatePropertyCommand, PropertyAuthority, PropertyView, PublishPropertyCommand, UpdatePropertyCoreInformationCommand, UpdatePropertyDetailsCommand, WithdrawPropertyFromCatalogCommand } from "@monpiole/property-management";
 import type { CreatePropertyRequest, PropertyPhoto, PropertyPhotoGalleryResponse, PropertyResponse, UpdatePropertyCoreInformationRequest, UpdatePropertyDetailsRequest } from "../../contracts/v1/properties/property.schema.js";
 import type { PropertyPhotoValues } from "@monpiole/property-management";
 
 export function toCreatePropertyCommand(request: CreatePropertyRequest, correlationId: string, authority: PropertyAuthority): CreatePropertyCommand {
   return { ...request, correlationId, authority };
 }
-export function toPropertyResponse(property: PropertyView): PropertyResponse {
+export function toPropertyResponse(property: PropertyView, authority: PropertyAuthority): PropertyResponse {
   const photos = (property.photos ?? []).map(toPropertyPhotoResponse);
   const primaryPhoto = photos.find((photo) => photo.isPrimary);
   const base = {
@@ -23,9 +23,17 @@ export function toPropertyResponse(property: PropertyView): PropertyResponse {
   };
   if (property.status === "PUBLISHED") {
     if (property.publishedAt === undefined) throw new Error("Published property is missing its publication instant");
-    return { ...base, status: "PUBLISHED", publishedAt: property.publishedAt };
+    const canWithdrawFromCatalog = authority.grants.includes("WITHDRAW_PROPERTY_FROM_CATALOG")
+      && authority.tenantIds.length === 1 && authority.tenantIds[0] === property.tenantId;
+    return { ...base, status: "PUBLISHED", publishedAt: property.publishedAt, canWithdrawFromCatalog };
   }
-  return { ...base, status: "DRAFT" };
+  if (property.status === "WITHDRAWN") {
+    if (property.publishedAt === undefined || property.withdrawnAt === undefined) {
+      throw new Error("Withdrawn property is missing lifecycle instants");
+    }
+    return { ...base, status: "WITHDRAWN", publishedAt: property.publishedAt, withdrawnAt: property.withdrawnAt, canWithdrawFromCatalog: false };
+  }
+  return { ...base, status: "DRAFT", canWithdrawFromCatalog: false };
 }
 
 export function toPropertyPhotoResponse(photo: PropertyPhotoValues): PropertyPhoto {
@@ -64,5 +72,13 @@ export function toPublishPropertyCommand(
   correlationId: string,
   authority: PropertyAuthority,
 ): PublishPropertyCommand {
+  return { propertyId, correlationId, authority };
+}
+
+export function toWithdrawPropertyFromCatalogCommand(
+  propertyId: string,
+  correlationId: string,
+  authority: PropertyAuthority,
+): WithdrawPropertyFromCatalogCommand {
   return { propertyId, correlationId, authority };
 }

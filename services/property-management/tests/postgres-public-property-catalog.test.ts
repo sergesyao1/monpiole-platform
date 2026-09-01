@@ -20,6 +20,7 @@ const PROPERTY_A = "11111111-1111-4111-8111-111111111111";
 const PROPERTY_B = "22222222-2222-4222-8222-222222222222";
 const PROPERTY_C = "33333333-3333-4333-8333-333333333333";
 const DRAFT_PROPERTY = "44444444-4444-4444-8444-444444444444";
+const WITHDRAWN_PROPERTY = "55555555-5555-4555-8555-555555555555";
 const migrationsFolder = fileURLToPath(new URL("../migrations", import.meta.url));
 
 let container: StartedTestContainer;
@@ -58,6 +59,7 @@ describe("PostgreSQL public Property catalog boundary", () => {
     await seedPublished(owner, TENANT_A, PROPERTY_A, "Maison A", "2026-08-31T12:00:00.000Z", "HOUSE", "SALE");
     await seedPublished(owner, TENANT_A, PROPERTY_B, "Maison B", "2026-08-31T11:00:00.000Z", "HOUSE", "SALE");
     await seedPublished(owner, TENANT_A, PROPERTY_C, "Maison C", "2026-08-31T10:00:00.000Z", "HOUSE", "SALE");
+    await seedWithdrawn(owner, TENANT_A, WITHDRAWN_PROPERTY, "2026-08-31T11:30:00.000Z");
     await seedDraft(owner, TENANT_A, DRAFT_PROPERTY);
     await seedPublished(owner, TENANT_B, randomUUID(), "Autre tenant", "2026-08-31T13:00:00.000Z", "HOUSE", "SALE");
     const catalog = new PostgresPublicPropertyCatalogQuery(reader);
@@ -73,6 +75,7 @@ describe("PostgreSQL public Property catalog boundary", () => {
   it("returns the same absence for missing, DRAFT and another tenant", async () => {
     await seedPublished(owner, TENANT_A, PROPERTY_A, "Maison", "2026-08-31T12:00:00.000Z", "HOUSE", "SALE");
     await seedDraft(owner, TENANT_A, DRAFT_PROPERTY);
+    await seedWithdrawn(owner, TENANT_A, WITHDRAWN_PROPERTY, "2026-08-31T11:30:00.000Z");
     const catalog = new PostgresPublicPropertyCatalogQuery(reader);
     await expect(catalog.retrieve(TENANT_A, PROPERTY_A)).resolves.toMatchObject({
       publicPropertyId: PROPERTY_A,
@@ -81,6 +84,7 @@ describe("PostgreSQL public Property catalog boundary", () => {
       location: { country: "CI", city: "Abidjan", district: "Cocody" },
     });
     await expect(catalog.retrieve(TENANT_A, DRAFT_PROPERTY)).resolves.toBeUndefined();
+    await expect(catalog.retrieve(TENANT_A, WITHDRAWN_PROPERTY)).resolves.toBeUndefined();
     await expect(catalog.retrieve(TENANT_B, PROPERTY_A)).resolves.toBeUndefined();
     await expect(catalog.retrieve(TENANT_A, randomUUID())).resolves.toBeUndefined();
   });
@@ -88,6 +92,7 @@ describe("PostgreSQL public Property catalog boundary", () => {
   it("serves only the content-backed primary photo of a PUBLISHED Property", async () => {
     await seedPublished(owner, TENANT_A, PROPERTY_A, "Maison", "2026-08-31T12:00:00.000Z", "HOUSE", "SALE");
     await seedDraft(owner, TENANT_A, DRAFT_PROPERTY);
+    await seedWithdrawn(owner, TENANT_A, WITHDRAWN_PROPERTY, "2026-08-31T11:30:00.000Z");
     const catalog = new PostgresPublicPropertyCatalogQuery(reader);
     await expect(catalog.retrievePrimaryPhoto(TENANT_A, PROPERTY_A)).resolves.toMatchObject({
       contentType: "image/png",
@@ -95,6 +100,7 @@ describe("PostgreSQL public Property catalog boundary", () => {
       contentSha256: "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6",
     });
     await expect(catalog.retrievePrimaryPhoto(TENANT_A, DRAFT_PROPERTY)).resolves.toBeUndefined();
+    await expect(catalog.retrievePrimaryPhoto(TENANT_A, WITHDRAWN_PROPERTY)).resolves.toBeUndefined();
     await expect(catalog.retrievePrimaryPhoto(TENANT_B, PROPERTY_A)).resolves.toBeUndefined();
   });
 
@@ -265,6 +271,16 @@ async function seedDraft(pool: Pool, tenantId: string, propertyId: string) {
      created_at,updated_at,correlation_id,actor_id)
     VALUES ($1,$2,'Brouillon','HOUSE','SALE','DRAFT','STANDALONE','CI','Abidjan','Cocody','Adresse privée',now(),now(),$3,'editor')`,
   [propertyId, tenantId, randomUUID()]);
+}
+
+async function seedWithdrawn(pool: Pool, tenantId: string, propertyId: string, publishedAt: string) {
+  await seedPublished(pool, tenantId, propertyId, "Bien retiré", publishedAt, "HOUSE", "SALE");
+  await pool.query(`UPDATE property_management.properties SET status='WITHDRAWN', withdrawn_at=$3,
+    withdrawn_by_actor_id='withdrawer', withdrawal_correlation_id=$4, updated_at=$3,
+    actor_id='withdrawer', correlation_id=$4
+    WHERE tenant_id=$1 AND property_id=$2`, [
+    tenantId, propertyId, "2026-08-31T12:30:00.000Z", randomUUID(),
+  ]);
 }
 
 async function seedLegacyPublished(pool: Pool, tenantId: string, propertyId: string) {

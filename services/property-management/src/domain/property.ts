@@ -22,7 +22,7 @@ export type PropertyType = typeof PROPERTY_TYPES[number];
 export type TransactionType = typeof TRANSACTION_TYPES[number];
 export const APARTMENT_SUBTYPES = ["STUDIO", "MULTI_ROOM"] as const;
 export type ApartmentSubtype = typeof APARTMENT_SUBTYPES[number];
-export const PROPERTY_STATUSES = ["DRAFT", "PUBLISHED"] as const;
+export const PROPERTY_STATUSES = ["DRAFT", "PUBLISHED", "WITHDRAWN"] as const;
 export type PropertyStatus = typeof PROPERTY_STATUSES[number];
 export const PROPERTY_STRUCTURAL_ROLES = ["STANDALONE", "COMPOSITE", "UNIT"] as const;
 export type PropertyStructuralRole = typeof PROPERTY_STRUCTURAL_ROLES[number];
@@ -44,6 +44,7 @@ export interface PropertyValues {
   readonly apartmentSubtype?: ApartmentSubtype;
   readonly status: PropertyStatus;
   readonly publishedAt?: string;
+  readonly withdrawnAt?: string;
   readonly structuralRole: PropertyStructuralRole;
   readonly location: PropertyLocation;
   readonly createdAt: string;
@@ -84,20 +85,20 @@ export class PersistedPropertyCorruptionError extends Error {
 export class Property {
   private constructor(readonly values: Readonly<PropertyValues>) {}
 
-  static create(input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt">): Property {
+  static create(input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt" | "withdrawnAt">): Property {
     return Property.createStandalone(input);
   }
 
-  static createStandalone(input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt">): Property {
+  static createStandalone(input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt" | "withdrawnAt">): Property {
     return Property.createWithStructuralRole(input, "STANDALONE");
   }
 
-  static createUnit(input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt">): Property {
+  static createUnit(input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt" | "withdrawnAt">): Property {
     return Property.createWithStructuralRole(input, "UNIT");
   }
 
   private static createWithStructuralRole(
-    input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt">,
+    input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt" | "withdrawnAt">,
     structuralRole: "STANDALONE" | "UNIT",
   ): Property {
     try {
@@ -139,6 +140,7 @@ export class Property {
     standardOverride?: PropertyPhotoStandardOverride,
   ): Property {
     if (this.values.status === "PUBLISHED") return this;
+    if (this.values.status === "WITHDRAWN") throw new PropertyRepublicationNotSupportedError();
     const missingRequirements: PropertyPublicationRequirement[] = [];
     if (this.values.details === undefined) missingRequirements.push("DETAILS");
     if (this.values.commercialTerms === undefined) missingRequirements.push("COMMERCIAL_TERMS");
@@ -159,6 +161,20 @@ export class Property {
       status: "PUBLISHED",
       publishedAt,
       updatedAt: publishedAt,
+    }));
+  }
+
+  withdraw(withdrawnAt: string): Property {
+    if (this.values.status === "WITHDRAWN") return this;
+    if (this.values.status === "DRAFT") throw new PropertyNotPublishedError();
+    if (!validInstant(withdrawnAt) || Date.parse(withdrawnAt) < Date.parse(this.values.publishedAt!)) {
+      throw new InvalidPropertyServerValueError("withdrawnAt");
+    }
+    return new Property(Object.freeze({
+      ...this.values,
+      status: "WITHDRAWN",
+      withdrawnAt,
+      updatedAt: withdrawnAt,
     }));
   }
 
@@ -201,6 +217,16 @@ export class PropertyPublicationRequirementsNotMetError extends Error {
   }
 }
 
+export class PropertyNotPublishedError extends Error {
+  readonly code = "PROPERTY_NOT_PUBLISHED";
+  constructor() { super("Property is not published"); }
+}
+
+export class PropertyRepublicationNotSupportedError extends Error {
+  readonly code = "PROPERTY_REPUBLICATION_NOT_SUPPORTED";
+  constructor() { super("Property republication is not supported"); }
+}
+
 function validate(input: PropertyValues): Readonly<PropertyValues> {
   if (!UUID_V4.test(input.propertyId)) throw new PropertyInvariantViolation("propertyId");
   if (!UUID_V4.test(input.tenantId)) throw new PropertyInvariantViolation("tenantId");
@@ -230,10 +256,19 @@ function validate(input: PropertyValues): Readonly<PropertyValues> {
     ? undefined
     : validateCommercialTerms(input.transactionType, input.commercialTerms);
   if ((details === undefined) !== (commercialTerms === undefined)) throw new PropertyInvariantViolation("details");
-  if (input.status === "DRAFT" && input.publishedAt !== undefined) throw new PropertyInvariantViolation("publishedAt");
+  if (input.status === "DRAFT" && (input.publishedAt !== undefined || input.withdrawnAt !== undefined)) {
+    throw new PropertyInvariantViolation(input.publishedAt !== undefined ? "publishedAt" : "withdrawnAt");
+  }
   if (input.status === "PUBLISHED") {
     if (details === undefined || commercialTerms === undefined) throw new PropertyInvariantViolation("status");
     if (input.publishedAt === undefined || !validInstant(input.publishedAt)) throw new PropertyInvariantViolation("publishedAt");
+    if (input.withdrawnAt !== undefined) throw new PropertyInvariantViolation("withdrawnAt");
+  }
+  if (input.status === "WITHDRAWN") {
+    if (details === undefined || commercialTerms === undefined) throw new PropertyInvariantViolation("status");
+    if (input.publishedAt === undefined || !validInstant(input.publishedAt)) throw new PropertyInvariantViolation("publishedAt");
+    if (input.withdrawnAt === undefined || !validInstant(input.withdrawnAt)
+      || Date.parse(input.withdrawnAt) < Date.parse(input.publishedAt)) throw new PropertyInvariantViolation("withdrawnAt");
   }
   return Object.freeze({ ...input, title, description, location, details, commercialTerms });
 }

@@ -13,7 +13,7 @@ const first: PropertyPhoto = { photoId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", 
 const second: PropertyPhoto = { ...first, photoId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", category: "LIVING_ROOM_OR_MAIN_ROOM",
   contentPath: `/v1/properties/${PROPERTY_ID}/photos/cccccccc-cccc-4ccc-8ccc-cccccccccccc/content`, isPrimary: false };
 const property: Property = { propertyId: PROPERTY_ID, title: "Maison Lagune", propertyType: "HOUSE", transactionType: "SALE",
-  status: "PUBLISHED", publishedAt: "2026-08-25T14:00:00.000Z", structuralRole: "STANDALONE",
+  status: "PUBLISHED", publishedAt: "2026-08-25T14:00:00.000Z", canWithdrawFromCatalog: true, structuralRole: "STANDALONE",
   location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Riviera" },
   createdAt: "2026-08-25T12:00:00.000Z", updatedAt: "2026-08-25T14:00:00.000Z",
   photos: [first, second], primaryPhoto: first };

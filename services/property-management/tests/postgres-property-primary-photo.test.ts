@@ -15,6 +15,7 @@ import {
   PostgresPropertyPhotoStandardRepository, InvalidPropertyPhotoContentError,
   PropertyPhotoNotFoundError, PropertyPrimaryPhotoDeletionForbiddenError,
   PropertyPublicationRequirementsNotMetError, PublishProperty, SelectPropertyPrimaryPhoto,
+  WithdrawPropertyFromCatalog,
   UpdatePropertyDetails, assessPropertyPhotoReadiness,
   type PropertyAuthority, type PropertyPhotoValues,
 } from "../src/index.js";
@@ -38,7 +39,7 @@ function connection(user: string, password: string, database = "property_photo_t
 
 const authority: PropertyAuthority = {
   actorId: "tenant-admin", authorityId: "tenant-admin",
-  grants: ["CREATE_PROPERTY", "UPDATE_PROPERTY_DETAILS", "PUBLISH_PROPERTY", "SELECT_PROPERTY_PRIMARY_PHOTO", "DELETE_PROPERTY_PHOTO", "RETRIEVE_PROPERTY_PHOTOS"],
+  grants: ["CREATE_PROPERTY", "UPDATE_PROPERTY_DETAILS", "PUBLISH_PROPERTY", "WITHDRAW_PROPERTY_FROM_CATALOG", "SELECT_PROPERTY_PRIMARY_PHOTO", "DELETE_PROPERTY_PHOTO", "RETRIEVE_PROPERTY_PHOTOS"],
   tenantIds: [TENANT_A],
 };
 
@@ -233,6 +234,21 @@ describe("PostgreSQL primary Property photo", () => {
       previous_photo_id: string | null; selected_photo_id: string; property_status: string; actor_id: string;
     }>("SELECT previous_photo_id, selected_photo_id, property_status, actor_id FROM property_management.property_primary_photo_audits WHERE selected_photo_id = $1", [PHOTO_B]));
     expect(audits).toEqual([{ previous_photo_id: PHOTO_A, selected_photo_id: PHOTO_B, property_status: "PUBLISHED", actor_id: "tenant-admin" }]);
+  });
+
+  it("autorise et audite le remplacement privé après retrait du catalogue", async () => {
+    const properties = await createReady(); await insertPhoto(PHOTO_A); await insertPhoto(PHOTO_B, PROPERTY_A, "LIVING_ROOM_OR_MAIN_ROOM");
+    await selector().execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_A, photoId: PHOTO_A });
+    await new PublishProperty(properties, { now: () => "2026-08-30T10:20:00.000Z" })
+      .execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_A });
+    await new WithdrawPropertyFromCatalog(properties, { now: () => "2026-08-30T10:30:00.000Z" })
+      .execute({ authority, correlationId: "11111111-1111-4111-8111-111111111111", propertyId: PROPERTY_A });
+    await new SelectPropertyPrimaryPhoto(new PostgresPropertyPhotoRepository(runtime), { now: () => "2026-08-30T10:40:00.000Z" })
+      .execute({ authority, correlationId: "22222222-2222-4222-8222-222222222222", propertyId: PROPERTY_A, photoId: PHOTO_B });
+    const audits = await withTenantPostgresTransaction(runtime, TENANT_A, (scope) => scope.query<{
+      previous_photo_id: string | null; selected_photo_id: string; property_status: string;
+    }>("SELECT previous_photo_id, selected_photo_id, property_status FROM property_management.property_primary_photo_audits WHERE selected_photo_id = $1", [PHOTO_B]));
+    expect(audits).toEqual([{ previous_photo_id: PHOTO_A, selected_photo_id: PHOTO_B, property_status: "WITHDRAWN" }]);
   });
 
   it("refuse la suppression principale sans remplacement et protège aussi la suppression SQL", async () => {

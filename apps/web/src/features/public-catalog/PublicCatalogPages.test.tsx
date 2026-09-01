@@ -116,7 +116,7 @@ describe("public Property catalog Web journey", () => {
     expect(screen.getByRole("link", { name: /Retour au catalogue/ })).toHaveAttribute("href", "/catalogue");
   });
 
-  it("renders the same non-disclosing not-found state for a missing public detail", async () => {
+  it("renders the same non-disclosing not-found state for a withdrawn or missing public detail", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json({
       type: "https://api.monpiole.example/problems/public-property-not-found",
       title: "Public Property not found",

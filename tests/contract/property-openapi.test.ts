@@ -67,11 +67,30 @@ describe("Property OpenAPI contract", () => {
     const responseRef = success.content["application/json"].schema.$ref.split("/").at(-1);
     const responseSchema = document.components.schemas[responseRef];
     const responseContract = JSON.stringify(responseSchema);
-    expect(responseSchema.oneOf ?? responseSchema.anyOf).toHaveLength(2);
+    expect(responseSchema.oneOf ?? responseSchema.anyOf).toHaveLength(3);
     expect(responseContract).toContain("DRAFT");
     expect(responseContract).toContain("PUBLISHED");
     expect(responseContract).toContain("publishedAt");
+    expect(responseContract).toContain("WITHDRAWN");
+    expect(responseContract).toContain("withdrawnAt");
+    expect(responseContract).toContain("canWithdrawFromCatalog");
     expect(publication.responses["409"].content).toHaveProperty("application/problem+json");
+  });
+  it("publishes the bodyless, authenticated and idempotent catalog withdrawal contract", async () => {
+    const document = JSON.parse(await readFile(path, "utf8"));
+    const withdrawal = document.paths["/v1/properties/{propertyId}/publication"]?.delete;
+    expect(withdrawal).toBeDefined();
+    expect(withdrawal.operationId).toBe("withdrawPropertyFromCatalog");
+    expect(withdrawal.security).toEqual([{ bearer: [] }]);
+    expect(withdrawal).not.toHaveProperty("requestBody");
+    expect(Object.keys(withdrawal.responses)).toEqual(expect.arrayContaining(["200", "400", "401", "403", "404", "409", "500"]));
+    expect(withdrawal.parameters).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "propertyId", in: "path", required: true, schema: { type: "string", format: "uuid" } }),
+    ]));
+    expect(withdrawal.responses["200"].headers).toEqual(expect.objectContaining({
+      "X-Correlation-Id": expect.any(Object), "X-Request-Id": expect.any(Object),
+    }));
+    expect(withdrawal.responses["409"].content).toHaveProperty("application/problem+json");
   });
   it("publishes authenticated gallery, atomic primary selection and guarded deletion contracts", async () => {
     const document = JSON.parse(await readFile(path, "utf8"));
@@ -151,18 +170,21 @@ describe("Property OpenAPI contract", () => {
     expect(ListPropertiesQuerySchema.parse({})).toEqual({ limit: 20 });
     expect(ListPropertiesQuerySchema.safeParse({ limit: 100, status: "DRAFT", type: "HOUSE", search: "Lagune" }).success).toBe(true);
     expect(ListPropertiesQuerySchema.safeParse({ status: "PUBLISHED" }).success).toBe(true);
+    expect(ListPropertiesQuerySchema.safeParse({ status: "WITHDRAWN" }).success).toBe(true);
     for (const query of [{ limit: 0 }, { limit: 101 }, { status: "ARCHIVED" }, { type: "CASTLE" }, { tenantId: "x" }]) {
       expect(ListPropertiesQuerySchema.safeParse(query).success).toBe(false);
     }
     expect(PropertyPortfolioResponseSchema.safeParse({ items: [], pageInfo: { nextCursor: null, hasNextPage: false } }).success).toBe(true);
   });
-  it("validates DRAFT and PUBLISHED Property representations as a closed discriminated union", () => {
+  it("validates DRAFT, PUBLISHED and WITHDRAWN Property representations as a closed discriminated union", () => {
     const base = { propertyId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", title: "Maison", propertyType: "HOUSE", transactionType: "SALE",
       structuralRole: "STANDALONE", location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Riviera" },
       createdAt: "2026-08-25T12:00:00.000Z", updatedAt: "2026-08-25T14:00:00.000Z", photos: [] };
-    expect(PropertyResponseSchema.safeParse({ ...base, status: "DRAFT" }).success).toBe(true);
-    expect(PropertyResponseSchema.safeParse({ ...base, status: "DRAFT", publishedAt: "2026-08-25T14:00:00.000Z" }).success).toBe(false);
+    expect(PropertyResponseSchema.safeParse({ ...base, status: "DRAFT", canWithdrawFromCatalog: false }).success).toBe(true);
+    expect(PropertyResponseSchema.safeParse({ ...base, status: "DRAFT", publishedAt: "2026-08-25T14:00:00.000Z", canWithdrawFromCatalog: false }).success).toBe(false);
     expect(PropertyResponseSchema.safeParse({ ...base, status: "PUBLISHED" }).success).toBe(false);
-    expect(PropertyResponseSchema.safeParse({ ...base, status: "PUBLISHED", publishedAt: "2026-08-25T14:00:00.000Z" }).success).toBe(true);
+    expect(PropertyResponseSchema.safeParse({ ...base, status: "PUBLISHED", publishedAt: "2026-08-25T14:00:00.000Z", canWithdrawFromCatalog: true }).success).toBe(true);
+    expect(PropertyResponseSchema.safeParse({ ...base, status: "WITHDRAWN", publishedAt: "2026-08-25T14:00:00.000Z", withdrawnAt: "2026-08-25T15:00:00.000Z", canWithdrawFromCatalog: false }).success).toBe(true);
+    expect(PropertyResponseSchema.safeParse({ ...base, status: "WITHDRAWN", publishedAt: "2026-08-25T14:00:00.000Z", canWithdrawFromCatalog: false }).success).toBe(false);
   });
 });

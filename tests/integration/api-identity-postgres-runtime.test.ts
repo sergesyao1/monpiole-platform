@@ -111,7 +111,7 @@ async function start() {
       grants: [
         "CREATE_TENANT", "BOOTSTRAP_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT",
         "CREATE_PROPERTY", "RETRIEVE_PROPERTY", "LIST_PROPERTIES", "UPDATE_PROPERTY_DETAILS", "UPDATE_PROPERTY_CORE_INFORMATION",
-        "PUBLISH_PROPERTY",
+        "PUBLISH_PROPERTY", "WITHDRAW_PROPERTY_FROM_CATALOG",
         "CREATE_PROPERTY_PHOTO", "RETRIEVE_PROPERTY_PHOTOS", "SELECT_PROPERTY_PRIMARY_PHOTO", "DELETE_PROPERTY_PHOTO",
         "RETRIEVE_PROPERTY_PHOTO_STANDARD", "MANAGE_PROPERTY_PHOTO_STANDARD",
         "CREATE_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNER", "LIST_PROPERTY_OWNERS", "UPDATE_PROPERTY_OWNER",
@@ -406,6 +406,40 @@ describe("API PostgreSQL Identity runtime composition", () => {
       FROM property_management.properties WHERE property_id = $1`, [property.propertyId])).rows[0]).toEqual({
       status: "PUBLISHED", has_published_at: true, published_by_actor_id: "runtime-test", has_publication_correlation: true,
     });
+    const withdrawal = await fetch(`${baseUrl}/v1/properties/${property.propertyId}/publication`, { method: "DELETE" });
+    const withdrawalBody = await withdrawal.json();
+    expect(withdrawal.status, JSON.stringify(withdrawalBody)).toBe(200);
+    expect(withdrawalBody).toMatchObject({
+      propertyId: property.propertyId,
+      status: "WITHDRAWN",
+      publishedAt: publicationBody.publishedAt,
+      withdrawnAt: expect.any(String),
+      canWithdrawFromCatalog: false,
+      details: { rooms: 3 },
+    });
+    const persistedWithdrawal = (await ownerPool.query(`SELECT status, withdrawn_at, withdrawn_by_actor_id,
+      withdrawal_correlation_id, published_at
+      FROM property_management.properties WHERE property_id = $1`, [property.propertyId])).rows[0];
+    expect(persistedWithdrawal).toMatchObject({
+      status: "WITHDRAWN",
+      withdrawn_by_actor_id: "runtime-test",
+      withdrawal_correlation_id: expect.any(String),
+    });
+    const replay = await fetch(`${baseUrl}/v1/properties/${property.propertyId}/publication`, { method: "DELETE" });
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toMatchObject({ status: "WITHDRAWN", withdrawnAt: withdrawalBody.withdrawnAt });
+    const persistedReplay = (await ownerPool.query(`SELECT withdrawn_at, withdrawn_by_actor_id, withdrawal_correlation_id
+      FROM property_management.properties WHERE property_id = $1`, [property.propertyId])).rows[0];
+    expect(persistedReplay).toEqual({
+      withdrawn_at: persistedWithdrawal.withdrawn_at,
+      withdrawn_by_actor_id: persistedWithdrawal.withdrawn_by_actor_id,
+      withdrawal_correlation_id: persistedWithdrawal.withdrawal_correlation_id,
+    });
+    const withdrawnPortfolio = await fetch(`${baseUrl}/v1/properties?status=WITHDRAWN`);
+    expect(withdrawnPortfolio.status).toBe(200);
+    expect(await withdrawnPortfolio.json()).toMatchObject({
+      items: [{ propertyId: property.propertyId, status: "WITHDRAWN", withdrawnAt: withdrawalBody.withdrawnAt }],
+    });
   });
 
   it("récupère les lectures et la gestion photo via le rôle monpiole_runtime migré", async () => {
@@ -598,6 +632,32 @@ describe("API PostgreSQL Identity runtime composition", () => {
     expect(runtime.composition.publicCatalogTenantResolver?.resolve("catalogue.runtime.test")).toBe(tenantId);
     await expect(runtime.composition.listPublicProperties?.execute({ tenantId })).resolves.toMatchObject({
       items: [{ publicPropertyId: propertyId, title: "Maison publique", primaryPhoto: { contentType: "image/png" } }],
+    });
+    await expect(runtime.composition.retrievePublicProperty?.execute({ tenantId, publicPropertyId: propertyId }))
+      .resolves.toMatchObject({ publicPropertyId: propertyId });
+    await expect(runtime.composition.retrievePublicPrimaryPhoto?.execute({ tenantId, publicPropertyId: propertyId }))
+      .resolves.toMatchObject({ contentType: "image/png" });
+    application = await createApiApplication({ logger: false }, {
+      ...runtime.composition,
+      authenticatedAuthorityProvider: { resolve: async () => ({
+        actorId: "runtime-withdrawer",
+        authorityId: "runtime-withdrawer",
+        grants: ["RETRIEVE_PROPERTY", "LIST_PROPERTIES", "WITHDRAW_PROPERTY_FROM_CATALOG"],
+        tenantIds: [tenantId],
+      }) },
+    });
+    await listen();
+    const withdrawal = await fetch(`${baseUrl}/v1/properties/${propertyId}/publication`, { method: "DELETE" });
+    expect(withdrawal.status).toBe(200);
+    expect(await withdrawal.json()).toMatchObject({ status: "WITHDRAWN", canWithdrawFromCatalog: false });
+    await expect(runtime.composition.listPublicProperties?.execute({ tenantId })).resolves.toMatchObject({ items: [] });
+    await expect(runtime.composition.retrievePublicProperty?.execute({ tenantId, publicPropertyId: propertyId }))
+      .rejects.toMatchObject({ code: "PUBLIC_PROPERTY_NOT_FOUND" });
+    await expect(runtime.composition.retrievePublicPrimaryPhoto?.execute({ tenantId, publicPropertyId: propertyId }))
+      .rejects.toMatchObject({ code: "PUBLIC_PROPERTY_NOT_FOUND" });
+    expect(await (await fetch(`${baseUrl}/v1/properties/${propertyId}`)).json()).toMatchObject({
+      status: "WITHDRAWN",
+      title: "Maison publique",
     });
     const databaseUsers = (await ownerPool.query(`SELECT DISTINCT usename FROM pg_stat_activity
       WHERE datname = current_database() AND usename IN ('monpiole_runtime', 'monpiole_public_catalog_reader')
