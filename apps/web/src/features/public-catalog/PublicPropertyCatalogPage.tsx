@@ -80,7 +80,7 @@ export function PublicPropertyCatalogPage() {
 
       <section className="public-catalog-section" aria-labelledby="catalogue-title">
         <div className="public-section-heading">
-          <div><p className="eyebrow">Sélection publiée</p><h2 id="catalogue-title">Biens disponibles</h2></div>
+          <div><p className="eyebrow">Sélection publiée</p><h2 id="catalogue-title">Biens publiés</h2></div>
         </div>
         <form className="public-catalog-filters" onSubmit={applyFilters}>
           <label>Type de bien

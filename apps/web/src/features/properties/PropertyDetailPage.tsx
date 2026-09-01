@@ -16,6 +16,7 @@ import { PropertyCompositionSection } from "./PropertyCompositionSection.js";
 import { PropertyPublicationSection } from "./PropertyPublicationSection.js";
 import { PropertyPhotoGallery } from "./PropertyPhotoGallery.js";
 import { PropertyGeolocationSection } from "./PropertyGeolocationSection.js";
+import { PropertyAvailabilitySection } from "./PropertyAvailabilitySection.js";
 
 function CommercialTermsSummary({ terms }: Readonly<{ terms: CommercialTerms }>) {
   if (terms.kind === "LONG_TERM_RENTAL") return <>{formatMinorAmount(terms.rentAmountMinor, terms.currency)} / mois</>;
@@ -95,6 +96,14 @@ export function PropertyDetailPage() {
         api={api}
         onPublished={setProperty}
         onWithdrawn={setProperty}
+        onReconnect={() => void session.login(`/properties/${propertyId}`)}
+      />
+
+      <PropertyAvailabilitySection
+        key={`${property.propertyId}:${property.structuralRole}`}
+        propertyId={property.propertyId}
+        transactionType={property.transactionType}
+        api={api}
         onReconnect={() => void session.login(`/properties/${propertyId}`)}
       />
 

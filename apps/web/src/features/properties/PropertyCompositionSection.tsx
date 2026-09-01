@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router";
 
 import type { PropertyApi } from "./property-api.js";
+import { PropertyAvailabilitySection } from "./PropertyAvailabilitySection.js";
 import { toPropertyUiError, type PropertyUiError } from "./property-errors.js";
 import {
   propertyTypeLabels,
@@ -102,7 +103,7 @@ export function PropertyCompositionSection({ property, api, onStructuralRoleChan
       setBuildings((current) => sortBuildings(uniqueBuildings([...current, building])));
       onStructuralRoleChange?.("COMPOSITE");
       form.reset();
-      setMessage("Immeuble ajouté avec succès.");
+      setMessage("Immeuble ajouté avec succès. La disponibilité de l’ensemble est désormais calculée unité par unité.");
     } catch (caught) {
       setError(toPropertyUiError(caught, "building"));
     } finally {
@@ -314,6 +315,13 @@ export function PropertyCompositionSection({ property, api, onStructuralRoleChan
                                 <Link to={`/properties/${unit.property.propertyId}`}>Ouvrir la fiche</Link>
                               </fieldset>
                             </form>
+                            <PropertyAvailabilitySection
+                              propertyId={unit.property.propertyId}
+                              transactionType={unit.property.transactionType}
+                              api={api}
+                              compact
+                              label={`Disponibilité de l’unité ${unit.unitCode}`}
+                            />
                           </article>
                         </li>
                       ))}

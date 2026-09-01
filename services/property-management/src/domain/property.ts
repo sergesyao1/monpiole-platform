@@ -26,6 +26,16 @@ export const PROPERTY_STATUSES = ["DRAFT", "PUBLISHED", "WITHDRAWN"] as const;
 export type PropertyStatus = typeof PROPERTY_STATUSES[number];
 export const PROPERTY_STRUCTURAL_ROLES = ["STANDALONE", "COMPOSITE", "UNIT"] as const;
 export type PropertyStructuralRole = typeof PROPERTY_STRUCTURAL_ROLES[number];
+export const PROPERTY_AVAILABILITY_STATUSES = ["AVAILABLE", "UNAVAILABLE"] as const;
+export type PropertyAvailabilityStatus = typeof PROPERTY_AVAILABILITY_STATUSES[number];
+export const PROPERTY_OCCUPANCY_STATUSES = ["VACANT", "OCCUPIED"] as const;
+export type PropertyOccupancyStatus = typeof PROPERTY_OCCUPANCY_STATUSES[number];
+
+export interface PropertyAvailabilitySnapshot {
+  readonly availabilityStatus: PropertyAvailabilityStatus;
+  readonly occupancyStatus: PropertyOccupancyStatus;
+  readonly updatedAt: string;
+}
 
 export interface PropertyLocation {
   readonly country: string;
@@ -52,6 +62,7 @@ export interface PropertyValues {
   readonly details?: PropertyDetails;
   readonly commercialTerms?: CommercialTerms;
   readonly photos?: readonly PropertyPhotoValues[];
+  readonly availability?: PropertyAvailabilitySnapshot;
 }
 
 export interface PropertyCoreInformation {
@@ -85,20 +96,20 @@ export class PersistedPropertyCorruptionError extends Error {
 export class Property {
   private constructor(readonly values: Readonly<PropertyValues>) {}
 
-  static create(input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt" | "withdrawnAt">): Property {
+  static create(input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt" | "withdrawnAt" | "availability">): Property {
     return Property.createStandalone(input);
   }
 
-  static createStandalone(input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt" | "withdrawnAt">): Property {
+  static createStandalone(input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt" | "withdrawnAt" | "availability">): Property {
     return Property.createWithStructuralRole(input, "STANDALONE");
   }
 
-  static createUnit(input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt" | "withdrawnAt">): Property {
+  static createUnit(input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt" | "withdrawnAt" | "availability">): Property {
     return Property.createWithStructuralRole(input, "UNIT");
   }
 
   private static createWithStructuralRole(
-    input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt" | "withdrawnAt">,
+    input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt" | "withdrawnAt" | "availability">,
     structuralRole: "STANDALONE" | "UNIT",
   ): Property {
     try {
@@ -189,17 +200,43 @@ export class Property {
     }
   }
 
+  defineAvailability(
+    availabilityStatus: PropertyAvailabilityStatus,
+    occupancyStatus: PropertyOccupancyStatus,
+    updatedAt: string,
+  ): Property {
+    if (this.values.structuralRole === "COMPOSITE") throw new PropertyAvailabilityDerivedFromUnitsError();
+    if (!PROPERTY_AVAILABILITY_STATUSES.includes(availabilityStatus)
+      || !PROPERTY_OCCUPANCY_STATUSES.includes(occupancyStatus)) {
+      throw new InvalidPropertyInputError("availability");
+    }
+    if (this.values.availability?.availabilityStatus === availabilityStatus
+      && this.values.availability.occupancyStatus === occupancyStatus) return this;
+    if (!validInstant(updatedAt)) throw new InvalidPropertyServerValueError("updatedAt");
+    return new Property(Object.freeze({
+      ...this.values,
+      availability: Object.freeze({ availabilityStatus, occupancyStatus, updatedAt }),
+      updatedAt,
+    }));
+  }
+
 
   becomeComposite(updatedAt: string): Property {
     if (this.values.structuralRole === "UNIT") throw new PropertyStructuralRoleConflictError();
     if (this.values.structuralRole === "COMPOSITE") return this;
     if (!validInstant(updatedAt)) throw new InvalidPropertyServerValueError("updatedAt");
-    return new Property(Object.freeze({ ...this.values, structuralRole: "COMPOSITE", updatedAt }));
+    const { availability: _availability, ...values } = this.values;
+    return new Property(Object.freeze({ ...values, structuralRole: "COMPOSITE", updatedAt }));
   }
 }
 
 export class PropertyStructuralRoleConflictError extends Error {
   readonly code = "PROPERTY_COMPOSITION_ROLE_CONFLICT";
+}
+
+export class PropertyAvailabilityDerivedFromUnitsError extends Error {
+  readonly code = "PROPERTY_AVAILABILITY_DERIVED_FROM_UNITS";
+  constructor() { super("Composite Property availability is derived from its Units"); }
 }
 
 export type PropertyPublicationRequirement =
@@ -242,6 +279,18 @@ function validate(input: PropertyValues): Readonly<PropertyValues> {
     && input.apartmentSubtype !== undefined) throw new PropertyInvariantViolation("apartmentSubtype");
   if (!PROPERTY_STATUSES.includes(input.status)) throw new PropertyInvariantViolation("status");
   if (!PROPERTY_STRUCTURAL_ROLES.includes(input.structuralRole)) throw new PropertyInvariantViolation("structuralRole");
+  if (input.structuralRole === "COMPOSITE" && input.availability !== undefined) {
+    throw new PropertyInvariantViolation("availability");
+  }
+  const availability = input.availability === undefined ? undefined : Object.freeze({
+    availabilityStatus: input.availability.availabilityStatus,
+    occupancyStatus: input.availability.occupancyStatus,
+    updatedAt: input.availability.updatedAt,
+  });
+  if (availability !== undefined
+    && (!PROPERTY_AVAILABILITY_STATUSES.includes(availability.availabilityStatus)
+      || !PROPERTY_OCCUPANCY_STATUSES.includes(availability.occupancyStatus)
+      || !validInstant(availability.updatedAt))) throw new PropertyInvariantViolation("availability");
   if (!COUNTRY.test(input.location.country)) throw new PropertyInvariantViolation("country");
   const location = Object.freeze({
     country: input.location.country,
@@ -270,7 +319,7 @@ function validate(input: PropertyValues): Readonly<PropertyValues> {
     if (input.withdrawnAt === undefined || !validInstant(input.withdrawnAt)
       || Date.parse(input.withdrawnAt) < Date.parse(input.publishedAt)) throw new PropertyInvariantViolation("withdrawnAt");
   }
-  return Object.freeze({ ...input, title, description, location, details, commercialTerms });
+  return Object.freeze({ ...input, title, description, location, details, commercialTerms, availability });
 }
 
 function normalizedRequired(value: string, field: "title" | "city" | "district" | "addressLine", maximum: number) {

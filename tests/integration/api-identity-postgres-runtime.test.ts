@@ -112,6 +112,7 @@ async function start() {
         "CREATE_TENANT", "BOOTSTRAP_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT",
         "CREATE_PROPERTY", "RETRIEVE_PROPERTY", "LIST_PROPERTIES", "UPDATE_PROPERTY_DETAILS", "UPDATE_PROPERTY_CORE_INFORMATION",
         "PUBLISH_PROPERTY", "WITHDRAW_PROPERTY_FROM_CATALOG",
+        "RETRIEVE_PROPERTY_AVAILABILITY", "UPDATE_PROPERTY_AVAILABILITY",
         "CREATE_PROPERTY_PHOTO", "RETRIEVE_PROPERTY_PHOTOS", "SELECT_PROPERTY_PRIMARY_PHOTO", "DELETE_PROPERTY_PHOTO",
         "RETRIEVE_PROPERTY_PHOTO_STANDARD", "MANAGE_PROPERTY_PHOTO_STANDARD",
         "CREATE_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNER", "LIST_PROPERTY_OWNERS", "UPDATE_PROPERTY_OWNER",
@@ -394,6 +395,36 @@ describe("API PostgreSQL Identity runtime composition", () => {
       }),
     });
     expect(updated.status).toBe(200);
+    const availabilityEndpoint = `${baseUrl}/v1/properties/${property.propertyId}/availability`;
+    const initialAvailability = await fetch(availabilityEndpoint);
+    expect(initialAvailability.status).toBe(200);
+    expect(await initialAvailability.json()).toEqual({
+      propertyId: property.propertyId, source: "DIRECT", structuralRole: "STANDALONE",
+      configured: false, canUpdateAvailability: true,
+    });
+    const configuredAvailability = await fetch(availabilityEndpoint, {
+      method: "PUT", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ availabilityStatus: "AVAILABLE", occupancyStatus: "OCCUPIED" }),
+    });
+    expect(configuredAvailability.status).toBe(200);
+    const configuredAvailabilityBody = await configuredAvailability.json();
+    expect(configuredAvailabilityBody).toMatchObject({
+      propertyId: property.propertyId, configured: true,
+      availabilityStatus: "AVAILABLE", occupancyStatus: "OCCUPIED", updatedAt: expect.any(String),
+    });
+    const replayedAvailability = await fetch(availabilityEndpoint, {
+      method: "PUT", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ availabilityStatus: "AVAILABLE", occupancyStatus: "OCCUPIED" }),
+    });
+    expect(replayedAvailability.status).toBe(200);
+    expect(await replayedAvailability.json()).toMatchObject({ updatedAt: configuredAvailabilityBody.updatedAt });
+    expect((await ownerPool.query(`SELECT availability_status, occupancy_status,
+      availability_updated_at IS NOT NULL AS has_availability_updated_at,
+      availability_updated_by_actor_id, availability_correlation_id IS NOT NULL AS has_availability_correlation
+      FROM property_management.properties WHERE property_id=$1`, [property.propertyId])).rows[0]).toEqual({
+      availability_status: "AVAILABLE", occupancy_status: "OCCUPIED", has_availability_updated_at: true,
+      availability_updated_by_actor_id: "runtime-test", has_availability_correlation: true,
+    });
     await insertStudioPhotoSet(tenantId, property.propertyId);
     expect((await ownerPool.query("SELECT commercial_kind, rent_amount_minor FROM property_management.properties WHERE property_id = $1", [property.propertyId])).rows[0])
       .toEqual({ commercial_kind: "LONG_TERM_RENTAL", rent_amount_minor: "300000" });

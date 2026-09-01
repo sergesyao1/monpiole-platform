@@ -10,6 +10,7 @@ import type {
   RetrievePropertyPhotoStandard, UpdatePropertyPhotoStandard,
   ListPublicProperties, RetrievePublicProperty, RetrievePublicPrimaryPhoto,
   RetrievePropertyGeolocation, UpdatePropertyGeolocation, RemovePropertyGeolocation,
+  RetrievePropertyAvailability, UpdatePropertyAvailability,
 } from "@monpiole/property-management";
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core";
 import {
@@ -72,6 +73,11 @@ import {
   AllowlistedPublicCatalogTenantResolver,
   type PublicCatalogTenantResolver,
 } from "./configuration/public-catalog.js";
+import {
+  PropertyAvailabilityController,
+  RETRIEVE_PROPERTY_AVAILABILITY_USE_CASE,
+  UPDATE_PROPERTY_AVAILABILITY_USE_CASE,
+} from "./http/properties/property-availability.controller.js";
 
 const StrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
@@ -101,6 +107,8 @@ export interface ApiComposition {
   readonly retrievePropertyGeolocation?: Pick<RetrievePropertyGeolocation, "execute">;
   readonly updatePropertyGeolocation?: Pick<UpdatePropertyGeolocation, "execute">;
   readonly removePropertyGeolocation?: Pick<RemovePropertyGeolocation, "execute">;
+  readonly retrievePropertyAvailability?: Pick<RetrievePropertyAvailability, "execute">;
+  readonly updatePropertyAvailability?: Pick<UpdatePropertyAvailability, "execute">;
   readonly publicCatalogTenantResolver?: PublicCatalogTenantResolver;
   readonly listPublicProperties?: Pick<ListPublicProperties, "execute">;
   readonly retrievePublicProperty?: Pick<RetrievePublicProperty, "execute">;
@@ -158,6 +166,8 @@ const unavailableUpdatePropertyPhotoStandard: Pick<UpdatePropertyPhotoStandard, 
 const unavailableRetrievePropertyGeolocation: Pick<RetrievePropertyGeolocation, "execute"> = { async execute() { throw new Error("Retrieve Property geolocation composition is unavailable"); } };
 const unavailableUpdatePropertyGeolocation: Pick<UpdatePropertyGeolocation, "execute"> = { async execute() { throw new Error("Update Property geolocation composition is unavailable"); } };
 const unavailableRemovePropertyGeolocation: Pick<RemovePropertyGeolocation, "execute"> = { async execute() { throw new Error("Remove Property geolocation composition is unavailable"); } };
+const unavailableRetrievePropertyAvailability: Pick<RetrievePropertyAvailability, "execute"> = { async execute() { throw new Error("Retrieve Property availability composition is unavailable"); } };
+const unavailableUpdatePropertyAvailability: Pick<UpdatePropertyAvailability, "execute"> = { async execute() { throw new Error("Update Property availability composition is unavailable"); } };
 const unavailableListPublicProperties: Pick<ListPublicProperties, "execute"> = { async execute() { throw new Error("Public Property catalog composition is unavailable"); } };
 const unavailableRetrievePublicProperty: Pick<RetrievePublicProperty, "execute"> = { async execute() { throw new Error("Public Property detail composition is unavailable"); } };
 const unavailableRetrievePublicPrimaryPhoto: Pick<RetrievePublicPrimaryPhoto, "execute"> = { async execute() { throw new Error("Public Property photo composition is unavailable"); } };
@@ -185,7 +195,7 @@ export class AppModule {
         CreatePropertyController, ListPropertiesController, RetrievePropertyController,
         UpdatePropertyCoreInformationController, UpdatePropertyDetailsController,
         PublishPropertyController,
-        PropertyPhotosController, PropertyPhotoStandardController, PropertyGeolocationController,
+        PropertyPhotosController, PropertyPhotoStandardController, PropertyGeolocationController, PropertyAvailabilityController,
         PublicPropertiesController,
         CreatePropertyOwnerController, ListPropertyOwnersController, RetrievePropertyOwnerController, UpdatePropertyOwnerController,
         AssignPropertyOwnerController, RetrievePropertyOwnershipsController, RemovePropertyOwnerController, PropertyCompositionController,
@@ -230,6 +240,8 @@ export class AppModule {
         { provide: RETRIEVE_PROPERTY_GEOLOCATION_USE_CASE, useValue: composition.retrievePropertyGeolocation ?? unavailableRetrievePropertyGeolocation },
         { provide: UPDATE_PROPERTY_GEOLOCATION_USE_CASE, useValue: composition.updatePropertyGeolocation ?? unavailableUpdatePropertyGeolocation },
         { provide: REMOVE_PROPERTY_GEOLOCATION_USE_CASE, useValue: composition.removePropertyGeolocation ?? unavailableRemovePropertyGeolocation },
+        { provide: RETRIEVE_PROPERTY_AVAILABILITY_USE_CASE, useValue: composition.retrievePropertyAvailability ?? unavailableRetrievePropertyAvailability },
+        { provide: UPDATE_PROPERTY_AVAILABILITY_USE_CASE, useValue: composition.updatePropertyAvailability ?? unavailableUpdatePropertyAvailability },
         { provide: PUBLIC_CATALOG_TENANT_RESOLVER, useValue: composition.publicCatalogTenantResolver ?? unavailablePublicCatalogTenantResolver },
         { provide: LIST_PUBLIC_PROPERTIES_USE_CASE, useValue: composition.listPublicProperties ?? unavailableListPublicProperties },
         { provide: RETRIEVE_PUBLIC_PROPERTY_USE_CASE, useValue: composition.retrievePublicProperty ?? unavailableRetrievePublicProperty },

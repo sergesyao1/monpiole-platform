@@ -7,6 +7,8 @@ export type ApartmentSubtype = "STUDIO" | "MULTI_ROOM";
 export type PropertyStatus = "DRAFT" | "PUBLISHED" | "WITHDRAWN";
 export type PropertyStructuralRole = "STANDALONE" | "COMPOSITE" | "UNIT";
 export type PropertyGeolocationPublicVisibility = "EXACT" | "APPROXIMATE" | "HIDDEN";
+export type PropertyAvailabilityStatus = "AVAILABLE" | "UNAVAILABLE";
+export type PropertyOccupancyStatus = "VACANT" | "OCCUPIED";
 export type PricingUnit = "NIGHT" | "WEEK";
 export type PropertyPhotoCategory =
   | "BUILDING_EXTERIOR_OR_ENTRANCE"
@@ -174,6 +176,29 @@ export interface UpdatePropertyGeolocationInput {
   readonly latitude: number;
   readonly longitude: number;
   readonly publicVisibility: PropertyGeolocationPublicVisibility;
+}
+
+export type PropertyAvailability =
+  | Readonly<{
+    propertyId: string; source: "DIRECT"; structuralRole: "STANDALONE" | "UNIT";
+    configured: false; canUpdateAvailability: boolean;
+  }>
+  | Readonly<{
+    propertyId: string; source: "DIRECT"; structuralRole: "STANDALONE" | "UNIT";
+    configured: true; availabilityStatus: PropertyAvailabilityStatus;
+    occupancyStatus: PropertyOccupancyStatus; updatedAt: string; canUpdateAvailability: boolean;
+  }>
+  | Readonly<{
+    propertyId: string; source: "DERIVED_FROM_UNITS"; structuralRole: "COMPOSITE";
+    availabilityStatus: PropertyAvailabilityStatus | "NOT_CONFIGURED";
+    totalUnitCount: number; configuredUnitCount: number; availableUnitCount: number;
+    unavailableUnitCount: number; vacantUnitCount: number; occupiedUnitCount: number;
+    unconfiguredUnitCount: number; canUpdateAvailability: false;
+  }>;
+
+export interface UpdatePropertyAvailabilityInput {
+  readonly availabilityStatus: PropertyAvailabilityStatus;
+  readonly occupancyStatus: PropertyOccupancyStatus;
 }
 
 export interface PropertyPhotoStandard {

@@ -234,7 +234,7 @@ describe("vertical slice Web Property", () => {
     fireEvent.change(screen.getByLabelText("Quote-part (%)"), { target: { value: "60" } });
     fireEvent.click(screen.getByRole("button", { name: "Affecter le propriétaire" }));
     expect(await screen.findByText("Sélectionnez un propriétaire disponible.")).toBeInTheDocument();
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(6));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(7));
   });
 
   it("affecte un propriétaire existant avec le bearer token", async () => {

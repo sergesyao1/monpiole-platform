@@ -301,3 +301,25 @@ Cette tranche n'ajoute aucune coordonnée aux trois routes du catalogue public.
 Elle ne charge aucun SDK cartographique, géocodeur, credential ou provider. Le
 contrat OpenAPI généré décrit les trois opérations privées, leurs validations,
 réponses Problem Details et en-têtes de traçage.
+
+## Property availability and occupancy — TASK-064
+
+La frontière privée authentifiée expose `GET` et `PUT
+/v1/properties/{propertyId}/availability`. `GET` requiert
+`RETRIEVE_PROPERTY_AVAILABILITY` et retourne soit l’absence ou le snapshot direct
+d’une Property `STANDALONE | UNIT`, soit les compteurs dérivés d’une Property
+`COMPOSITE`. `canUpdateAvailability` est une projection booléenne calculée depuis
+l’autorité interne ; aucun grant brut n’est sérialisé.
+
+`PUT` requiert `UPDATE_PROPERTY_AVAILABILITY`. Son body strict contient
+uniquement `availabilityStatus` (`AVAILABLE | UNAVAILABLE`) et
+`occupancyStatus` (`VACANT | OCCUPIED`). Une mutation de `COMPOSITE` retourne le
+Problem Details 409 stable `PROPERTY_AVAILABILITY_DERIVED_FROM_UNITS`; les
+erreurs d’authentification, d’autorisation et d’absence/cross-tenant conservent
+les conventions 401/403/404 non révélatrices. Le runtime PostgreSQL normal
+compose les deux use cases et l’adapter de synthèse tenant-scopé.
+
+Aucune route publique, aucun filtre `availableOnly`, aucun endpoint d’historique
+et aucun champ `availableFrom` ne sont ajoutés. Les réponses du catalogue public
+restent des listes blanches sans disponibilité ni occupation et continuent à
+filtrer seulement les Properties `PUBLISHED`.

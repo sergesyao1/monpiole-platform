@@ -8,6 +8,8 @@ import {
   Property,
   PropertyStructuralRoleConflictError,
   type ApartmentSubtype,
+  type PropertyAvailabilityStatus,
+  type PropertyOccupancyStatus,
   type PropertyStatus,
   type PropertyStructuralRole,
   type PropertyType,
@@ -107,6 +109,8 @@ export class PostgresPropertyRepository implements PropertyRepository {
       }
       const firstPublication = current.values.status === "DRAFT" && property.values.status === "PUBLISHED";
       const firstWithdrawal = current.values.status === "PUBLISHED" && property.values.status === "WITHDRAWN";
+      const availabilityChanged = current.values.availability?.availabilityStatus !== property.values.availability?.availabilityStatus
+        || current.values.availability?.occupancyStatus !== property.values.availability?.occupancyStatus;
       const details = property.values.details;
       const terms = property.values.commercialTerms;
       await scope.database().update(properties).set({
@@ -127,6 +131,9 @@ export class PostgresPropertyRepository implements PropertyRepository {
         salePriceAmountMinor: terms?.kind === "SALE" ? terms.salePriceAmountMinor : null,
         status: property.values.status, publishedAt: property.values.publishedAt ?? null,
         withdrawnAt: property.values.withdrawnAt ?? null,
+        availabilityStatus: property.values.availability?.availabilityStatus ?? null,
+        occupancyStatus: property.values.availability?.occupancyStatus ?? null,
+        availabilityUpdatedAt: property.values.availability?.updatedAt ?? null,
         ...(firstPublication ? {
           publishedByActorId: trace.actorId,
           publicationCorrelationId: trace.correlationId,
@@ -134,6 +141,10 @@ export class PostgresPropertyRepository implements PropertyRepository {
         ...(firstWithdrawal ? {
           withdrawnByActorId: trace.actorId,
           withdrawalCorrelationId: trace.correlationId,
+        } : {}),
+        ...(availabilityChanged ? {
+          availabilityUpdatedByActorId: property.values.availability === undefined ? null : trace.actorId,
+          availabilityCorrelationId: property.values.availability === undefined ? null : trace.correlationId,
         } : {}),
         updatedAt: property.values.updatedAt, correlationId: trace.correlationId, actorId: trace.actorId,
       }).where(and(eq(properties.tenantId, tenantId), eq(properties.propertyId, propertyId)));
@@ -169,6 +180,13 @@ export function toProperty(row: PropertyRow, photos: readonly PropertyPhotoValue
     createdAt: new Date(row.createdAt).toISOString(), updatedAt: new Date(row.updatedAt).toISOString(),
     ...(row.publishedAt === null ? {} : { publishedAt: new Date(row.publishedAt).toISOString() }),
     ...(row.withdrawnAt === null ? {} : { withdrawnAt: new Date(row.withdrawnAt).toISOString() }),
+    ...(row.availabilityStatus === null || row.occupancyStatus === null || row.availabilityUpdatedAt === null ? {} : {
+      availability: {
+        availabilityStatus: row.availabilityStatus as PropertyAvailabilityStatus,
+        occupancyStatus: row.occupancyStatus as PropertyOccupancyStatus,
+        updatedAt: new Date(row.availabilityUpdatedAt).toISOString(),
+      },
+    }),
     ...(details === undefined ? {} : { details }),
     ...(commercialTerms === undefined ? {} : { commercialTerms }),
     photos,

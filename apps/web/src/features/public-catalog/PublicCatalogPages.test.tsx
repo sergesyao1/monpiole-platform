@@ -40,6 +40,8 @@ describe("public Property catalog Web journey", () => {
     const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) => new Promise<Response>((resolve) => { resolveResponse = resolve; }));
     vi.stubGlobal("fetch", fetchMock);
     renderRoute("/catalogue");
+    expect(screen.getByRole("heading", { name: "Biens publiés" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Biens disponibles" })).not.toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Chargement des biens");
     resolveResponse?.(json(page([property])));
     expect(await screen.findByRole("heading", { name: "Maison des Lagunes" })).toBeInTheDocument();

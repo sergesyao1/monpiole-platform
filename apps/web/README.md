@@ -171,6 +171,24 @@ sélecteur cartographique, géocodeur ou appel provider n'est exécuté. Le form
 est conçu pour qu'un futur sélecteur puisse fournir les deux coordonnées sans
 changer le contrat métier.
 
+La section privée « Disponibilité et occupation » charge le contrat dédié de la
+Property et traduit les états en « Disponible / Indisponible » et « Libre /
+Occupé ». Une valeur directe absente est affichée « Non renseignée ». Le
+formulaire n’est rendu que lorsque `canUpdateAvailability` l’autorise ; après
+enregistrement, la réponse persistée remplace immédiatement l’état local. Les
+chargements, refus, erreurs réseau et nouvelles tentatives restent locaux à la
+section.
+
+Pour un ensemble immobilier, la fiche affiche la synthèse et les compteurs de
+ses Units sans proposer d’édition parent. Les Units chargées dans la composition
+exposent chacune leur propre lecture et formulaire. Après le premier immeuble,
+le message de succès explique que la disponibilité est désormais gérée unité
+par unité. En location courte durée, l’aide précise que « Disponible » accepte
+globalement des demandes sans garantir une date.
+
+Le catalogue anonyme emploie « Biens publiés ». Il n’affiche ni badge ni filtre
+de disponibilité et ne reçoit aucun champ availability/occupancy dans ses DTO.
+
 Les champs monétaires utilisent les décimales de la devise à la saisie comme au
 préremplissage : XOF n'est pas divisé par 100, EUR et USD le sont. L'affichage
 rend notamment `125000 XOF` sous la forme « 125 000 FCFA » et n'expose plus le

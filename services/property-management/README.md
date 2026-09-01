@@ -244,3 +244,36 @@ une RLS activée et forcée, et les traces de dernière mutation. Le runtime re�
 les seuls droits CRUD ; `monpiole_public_catalog_reader` n'a aucun privilège sur
 cette table. Géocodage, reverse geocoding, carte, PostGIS et recherches spatiales
 restent des capacités séparées.
+
+## Disponibilité et occupation — TASK-064
+
+La disponibilité commerciale (`AVAILABLE | UNAVAILABLE`) et l’occupation
+(`VACANT | OCCUPIED`) forment une paire indépendante du cycle de publication
+`DRAFT | PUBLISHED | WITHDRAWN` et du type de transaction. Les quatre
+combinaisons sont valides. Une absence de snapshot signifie « non configuré » ;
+elle n’est jamais déduite du statut de publication et aucun backfill n’est
+effectué.
+
+Une Property `STANDALONE` ou `UNIT` porte au plus un snapshot direct avec son
+instant de mise à jour. Une Property `COMPOSITE` ne porte aucun snapshot direct :
+sa lecture agrège en une requête toutes ses Units et retourne les compteurs total,
+configuré, disponible, indisponible, libre, occupé et non configuré. Le résumé
+est `AVAILABLE` dès qu’une Unit est disponible, `UNAVAILABLE` lorsque toutes les
+Units sont configurées et qu’aucune n’est disponible, et `NOT_CONFIGURED` dans
+les autres cas. Il n’existe pas de statut d’occupation unique du parent.
+
+`UpdatePropertyAvailability` réutilise le verrou de ligne tenant-scoped du
+repository Property. Deux remplacements concurrents sont sérialisés et la
+dernière écriture validée gagne sans produire de paire hybride. Le replay de la
+même paire est un no-op : il ne lit pas l’horloge et conserve l’instant, l’acteur
+et la corrélation initiaux du snapshot courant. La création du premier Building
+efface atomiquement tout snapshot direct du parent avant de le rendre
+`COMPOSITE`.
+
+La migration append-only `0014_property_availability_occupancy.sql` ajoute les
+cinq colonnes nullables du snapshot et de sa trace dans `properties`. Une CHECK
+nommée impose le tuple entièrement nul ou entièrement renseigné, borne les deux
+enums et interdit tout tuple sur `COMPOSITE`. La RLS, les index et les policies
+existants sont réutilisés. Le lecteur du catalogue public ne reçoit aucun droit
+sur ces colonnes ; la visibilité publique reste exactement `status =
+'PUBLISHED'`, même si le bien est occupé ou indisponible.

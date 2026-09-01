@@ -9,6 +9,15 @@ export { UpdatePropertyCoreInformation, type UpdatePropertyCoreInformationComman
 export { PublishProperty, type PublishPropertyCommand, type PublishPropertyResult } from "./application/publish-property.js";
 export { WithdrawPropertyFromCatalog, type WithdrawPropertyFromCatalogCommand, type WithdrawPropertyFromCatalogResult } from "./application/withdraw-property-from-catalog.js";
 export {
+  RetrievePropertyAvailability, UpdatePropertyAvailability,
+  type PropertyAvailabilityView, type RetrievePropertyAvailabilityQuery,
+  type UpdatePropertyAvailabilityCommand,
+} from "./application/manage-property-availability.js";
+export type {
+  PropertyAvailabilityQuery, PropertyAvailabilityReadModel,
+  DirectPropertyAvailability, CompositePropertyAvailability,
+} from "./application/property-availability-query.js";
+export {
   RetrievePropertyGeolocation, UpdatePropertyGeolocation, RemovePropertyGeolocation,
   type PropertyGeolocationView, type PropertyGeolocationClock,
   type RetrievePropertyGeolocationQuery, type UpdatePropertyGeolocationCommand,
@@ -59,7 +68,7 @@ export type {
   PropertyOwnerDirectoryItem, PropertyOwnerDirectoryPage,
 } from "./application/property-owner-directory-query.js";
 export { PropertyOwnershipPersistenceFailureError, type PropertyOwnershipRepository } from "./application/property-ownership-repository.js";
-export { Property, InvalidPropertyInputError, InvalidPropertyServerValueError, PersistedPropertyCorruptionError, PropertyStructuralRoleConflictError, PropertyPublicationRequirementsNotMetError, PropertyNotPublishedError, PropertyRepublicationNotSupportedError, PROPERTY_TYPES, TRANSACTION_TYPES, APARTMENT_SUBTYPES, PROPERTY_STATUSES, PROPERTY_STRUCTURAL_ROLES, type PropertyCoreInformation, type PropertyLocation, type PropertyType, type TransactionType, type ApartmentSubtype, type PropertyStatus, type PropertyStructuralRole, type PropertyPublicationRequirement } from "./domain/property.js";
+export { Property, InvalidPropertyInputError, InvalidPropertyServerValueError, PersistedPropertyCorruptionError, PropertyStructuralRoleConflictError, PropertyAvailabilityDerivedFromUnitsError, PropertyPublicationRequirementsNotMetError, PropertyNotPublishedError, PropertyRepublicationNotSupportedError, PROPERTY_TYPES, TRANSACTION_TYPES, APARTMENT_SUBTYPES, PROPERTY_STATUSES, PROPERTY_STRUCTURAL_ROLES, PROPERTY_AVAILABILITY_STATUSES, PROPERTY_OCCUPANCY_STATUSES, type PropertyCoreInformation, type PropertyLocation, type PropertyType, type TransactionType, type ApartmentSubtype, type PropertyStatus, type PropertyStructuralRole, type PropertyAvailabilityStatus, type PropertyOccupancyStatus, type PropertyAvailabilitySnapshot, type PropertyPublicationRequirement } from "./domain/property.js";
 export {
   PropertyGeolocation, InvalidPropertyGeolocationInputError,
   InvalidPropertyGeolocationServerValueError, PersistedPropertyGeolocationCorruptionError,
@@ -83,6 +92,7 @@ export {
   assertOwnershipShareCapacity, type PropertyOwnershipValues,
 } from "./domain/property-ownership.js";
 export { PostgresPropertyRepository } from "./infrastructure/persistence/postgres/postgres-property-repository.js";
+export { PostgresPropertyAvailabilityQuery } from "./infrastructure/persistence/postgres/postgres-property-availability-query.js";
 export { PostgresPropertyGeolocationRepository } from "./infrastructure/persistence/postgres/postgres-property-geolocation-repository.js";
 export { PostgresPropertyPhotoRepository } from "./infrastructure/persistence/postgres/postgres-property-photo-repository.js";
 export { PostgresPropertyPhotoStandardRepository } from "./infrastructure/persistence/postgres/postgres-property-photo-standard-repository.js";

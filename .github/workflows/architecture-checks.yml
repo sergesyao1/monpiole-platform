@@ -200,6 +200,8 @@ jobs:
         run: corepack pnpm package:persistence:migration:check
       - name: Validate Tenant Management migrations
         run: corepack pnpm service:tenant-management:migration:check
+      - name: Validate Property Management migrations
+        run: corepack pnpm service:property-management:migration:check
       - name: Test against Testcontainers PostgreSQL
         run: corepack pnpm package:persistence:test:integration
 

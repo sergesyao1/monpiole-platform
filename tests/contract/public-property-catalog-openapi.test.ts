@@ -45,7 +45,7 @@ describe("public Property catalog OpenAPI contract", () => {
     const document = JSON.parse(await readFile(openApiPath, "utf8"));
     const componentText = JSON.stringify(Object.fromEntries(Object.entries(document.components.schemas)
       .filter(([name]) => name.startsWith("PublicProperty"))));
-    expect(componentText).not.toMatch(/tenantId|addressLine|owner|ownership|actor|authority|correlation|publishedBy|withdrawnAt|canWithdrawFromCatalog|photoStandard|createdAt|updatedAt|photoId|contentSha256|contentByteSize|contentBase64|buildingId|unitPropertyId|latitude|longitude|publicVisibility/iu);
+    expect(componentText).not.toMatch(/tenantId|addressLine|owner|ownership|actor|authority|correlation|publishedBy|withdrawnAt|canWithdrawFromCatalog|photoStandard|createdAt|updatedAt|photoId|contentSha256|contentByteSize|contentBase64|buildingId|unitPropertyId|latitude|longitude|publicVisibility|availability|occupancy/iu);
     expect(componentText).toMatch(/publicPropertyId/u);
     expect(componentText).toMatch(/primaryPhoto/u);
   });
@@ -53,7 +53,7 @@ describe("public Property catalog OpenAPI contract", () => {
   it("validates strict whitelist DTOs and rejects authoritative fields", () => {
     expect(ListPublicPropertiesQuerySchema.parse({})).toEqual({ limit: 20 });
     expect(ListPublicPropertiesQuerySchema.safeParse({ limit: 50, type: "HOUSE", transactionType: "SALE" }).success).toBe(true);
-    for (const invalid of [{ tenantId: PROPERTY_ID }, { status: "PUBLISHED" }, { search: "Lagune" }, { limit: 51 }]) {
+    for (const invalid of [{ tenantId: PROPERTY_ID }, { status: "PUBLISHED" }, { search: "Lagune" }, { availableOnly: true }, { limit: 51 }]) {
       expect(ListPublicPropertiesQuerySchema.safeParse(invalid).success).toBe(false);
     }
     const summary = {
@@ -71,6 +71,7 @@ describe("public Property catalog OpenAPI contract", () => {
     expect(PublicPropertyDetailSchema.safeParse({ ...summary, description: null, details: { rooms: 4 } }).success).toBe(true);
     expect(PublicPropertyDetailSchema.safeParse({ ...summary, description: null, details: { rooms: 4 }, tenantId: PROPERTY_ID }).success).toBe(false);
     expect(PublicPropertyDetailSchema.safeParse({ ...summary, description: null, details: { rooms: 4 }, withdrawnAt: "2026-09-01T10:00:00.000Z" }).success).toBe(false);
+    expect(PublicPropertyDetailSchema.safeParse({ ...summary, description: null, details: { rooms: 4 }, availabilityStatus: "AVAILABLE", occupancyStatus: "VACANT" }).success).toBe(false);
     expect(PublicPropertyDetailSchema.safeParse({ ...summary, description: null, details: { rooms: 4 }, location: { ...summary.location, addressLine: "privée" } }).success).toBe(false);
   });
 });

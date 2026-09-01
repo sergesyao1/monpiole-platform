@@ -278,6 +278,140 @@
         ],
         "type": "object"
       },
+      "CompositePropertyAvailability": {
+        "additionalProperties": false,
+        "properties": {
+          "availabilityStatus": {
+            "enum": [
+              "AVAILABLE",
+              "NOT_CONFIGURED",
+              "UNAVAILABLE"
+            ],
+            "type": "string"
+          },
+          "availableUnitCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "canUpdateAvailability": {
+            "const": false,
+            "type": "boolean"
+          },
+          "configuredUnitCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "occupiedUnitCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "propertyId": {
+            "$ref": "#/components/schemas/PropertyId"
+          },
+          "source": {
+            "const": "DERIVED_FROM_UNITS",
+            "type": "string"
+          },
+          "structuralRole": {
+            "const": "COMPOSITE",
+            "type": "string"
+          },
+          "totalUnitCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unavailableUnitCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unconfiguredUnitCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "vacantUnitCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "availabilityStatus",
+          "availableUnitCount",
+          "canUpdateAvailability",
+          "configuredUnitCount",
+          "occupiedUnitCount",
+          "propertyId",
+          "source",
+          "structuralRole",
+          "totalUnitCount",
+          "unavailableUnitCount",
+          "unconfiguredUnitCount",
+          "vacantUnitCount"
+        ],
+        "type": "object"
+      },
+      "ConfiguredDirectPropertyAvailability": {
+        "additionalProperties": false,
+        "properties": {
+          "availabilityStatus": {
+            "enum": [
+              "AVAILABLE",
+              "UNAVAILABLE"
+            ],
+            "type": "string"
+          },
+          "canUpdateAvailability": {
+            "type": "boolean"
+          },
+          "configured": {
+            "const": true,
+            "type": "boolean"
+          },
+          "occupancyStatus": {
+            "enum": [
+              "OCCUPIED",
+              "VACANT"
+            ],
+            "type": "string"
+          },
+          "propertyId": {
+            "$ref": "#/components/schemas/PropertyId"
+          },
+          "source": {
+            "const": "DIRECT",
+            "type": "string"
+          },
+          "structuralRole": {
+            "enum": [
+              "STANDALONE",
+              "UNIT"
+            ],
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "availabilityStatus",
+          "canUpdateAvailability",
+          "configured",
+          "occupancyStatus",
+          "propertyId",
+          "source",
+          "structuralRole",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
       "ContractBaselineRequest": {
         "additionalProperties": false,
         "properties": {
@@ -786,6 +920,19 @@
         "format": "uuid",
         "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
         "type": "string"
+      },
+      "PropertyAvailabilityResponse": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/UnconfiguredDirectPropertyAvailability"
+          },
+          {
+            "$ref": "#/components/schemas/ConfiguredDirectPropertyAvailability"
+          },
+          {
+            "$ref": "#/components/schemas/CompositePropertyAvailability"
+          }
+        ]
       },
       "PropertyGeolocationResponse": {
         "anyOf": [
@@ -2793,6 +2940,40 @@
         "pattern": "^[a-z0-9][a-z0-9_-]{2,63}$",
         "type": "string"
       },
+      "UnconfiguredDirectPropertyAvailability": {
+        "additionalProperties": false,
+        "properties": {
+          "canUpdateAvailability": {
+            "type": "boolean"
+          },
+          "configured": {
+            "const": false,
+            "type": "boolean"
+          },
+          "propertyId": {
+            "$ref": "#/components/schemas/PropertyId"
+          },
+          "source": {
+            "const": "DIRECT",
+            "type": "string"
+          },
+          "structuralRole": {
+            "enum": [
+              "STANDALONE",
+              "UNIT"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "canUpdateAvailability",
+          "configured",
+          "propertyId",
+          "source",
+          "structuralRole"
+        ],
+        "type": "object"
+      },
       "UnitMutationDto": {
         "additionalProperties": false,
         "properties": {
@@ -2879,6 +3060,30 @@
         "required": [
           "property",
           "unitCode"
+        ],
+        "type": "object"
+      },
+      "UpdatePropertyAvailabilityRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "availabilityStatus": {
+            "enum": [
+              "AVAILABLE",
+              "UNAVAILABLE"
+            ],
+            "type": "string"
+          },
+          "occupancyStatus": {
+            "enum": [
+              "OCCUPIED",
+              "VACANT"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "availabilityStatus",
+          "occupancyStatus"
         ],
         "type": "object"
       },
@@ -3959,6 +4164,380 @@
         "summary": "Update property title, description and location",
         "tags": [
           "Properties"
+        ]
+      }
+    },
+    "/v1/properties/{propertyId}/availability": {
+      "get": {
+        "operationId": "retrievePropertyAvailability",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "propertyId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertyAvailabilityResponse"
+                }
+              }
+            },
+            "description": "Direct snapshot or current composite summary",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid Property identifier",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication required",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden Property authority",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Property not found",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Safe internal failure",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Retrieve direct or Unit-derived Property availability",
+        "tags": [
+          "Property availability"
+        ]
+      },
+      "put": {
+        "operationId": "updatePropertyAvailability",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "propertyId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePropertyAvailabilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfiguredDirectPropertyAvailability"
+                }
+              }
+            },
+            "description": "Configured direct availability snapshot",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid Property identifier or strict body",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication required",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden Property authority",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Property not found",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Composite availability is derived from Units",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Safe internal failure",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create or replace a direct Property availability snapshot",
+        "tags": [
+          "Property availability"
         ]
       }
     },

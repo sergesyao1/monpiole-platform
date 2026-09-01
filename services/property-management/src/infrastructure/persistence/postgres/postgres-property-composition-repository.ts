@@ -18,7 +18,17 @@ export class PostgresPropertyCompositionRepository implements PropertyCompositio
       const locked = (await scope.database().select().from(properties).where(and(eq(properties.tenantId, tenantId), eq(properties.propertyId, propertyId))).for("update").limit(1))[0];
       if (locked === undefined) return undefined;
       const lockedParent = toProperty(locked).becomeComposite(building.values.updatedAt);
-      if (lockedParent.values.structuralRole !== locked.structuralRole) await scope.database().update(properties).set({ structuralRole: "COMPOSITE", updatedAt: building.values.updatedAt, correlationId: trace.correlationId, actorId: trace.actorId }).where(and(eq(properties.tenantId, tenantId), eq(properties.propertyId, propertyId)));
+      if (lockedParent.values.structuralRole !== locked.structuralRole) await scope.database().update(properties).set({
+        structuralRole: "COMPOSITE",
+        availabilityStatus: null,
+        occupancyStatus: null,
+        availabilityUpdatedAt: null,
+        availabilityUpdatedByActorId: null,
+        availabilityCorrelationId: null,
+        updatedAt: building.values.updatedAt,
+        correlationId: trace.correlationId,
+        actorId: trace.actorId,
+      }).where(and(eq(properties.tenantId, tenantId), eq(properties.propertyId, propertyId)));
       await scope.database().insert(propertyBuildings).values({ ...building.values, correlationId: trace.correlationId, actorId: trace.actorId });
       return building;
     }), "building");

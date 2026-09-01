@@ -99,6 +99,13 @@
       "when": 1788252356097,
       "tag": "0013_property_catalog_withdrawal",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1788258560162,
+      "tag": "0014_property_availability_occupancy",
+      "breakpoints": true
     }
   ]
 }

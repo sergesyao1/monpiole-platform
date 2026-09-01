@@ -6,6 +6,7 @@ import type {
   BuildingInput, CompositionPage, PropertyBuilding, PropertyUnit, UnitInput,
   PropertyPhoto, PropertyPhotoCategory, PropertyPhotoStandard,
   PropertyGeolocation, UpdatePropertyGeolocationInput,
+  PropertyAvailability, UpdatePropertyAvailabilityInput,
 } from "./property-model.js";
 
 export interface PropertyApi {
@@ -19,6 +20,8 @@ export interface PropertyApi {
   retrievePropertyGeolocation(propertyId: string): Promise<PropertyGeolocation>;
   updatePropertyGeolocation(propertyId: string, input: UpdatePropertyGeolocationInput): Promise<PropertyGeolocation>;
   removePropertyGeolocation(propertyId: string): Promise<void>;
+  retrievePropertyAvailability(propertyId: string): Promise<PropertyAvailability>;
+  updatePropertyAvailability(propertyId: string, input: UpdatePropertyAvailabilityInput): Promise<PropertyAvailability>;
   listPropertyPhotos(propertyId: string): Promise<{ readonly photos: readonly PropertyPhoto[] }>;
   registerPropertyPhoto(propertyId: string, input: Readonly<{
     category: PropertyPhotoCategory; contentType: PropertyPhoto["contentType"]; contentBase64: string;
@@ -70,6 +73,12 @@ export function createPropertyApi(tokens: AccessTokenProvider): PropertyApi {
     ),
     removePropertyGeolocation: (propertyId) => request<void>(
       `/v1/properties/${encodeURIComponent(propertyId)}/geolocation`, { method: "DELETE" },
+    ),
+    retrievePropertyAvailability: (propertyId) => request<PropertyAvailability>(
+      `/v1/properties/${encodeURIComponent(propertyId)}/availability`,
+    ),
+    updatePropertyAvailability: (propertyId, input) => request<PropertyAvailability>(
+      `/v1/properties/${encodeURIComponent(propertyId)}/availability`, { method: "PUT", body: input },
     ),
     listPropertyPhotos: (propertyId) => request<{ readonly photos: readonly PropertyPhoto[] }>(
       `/v1/properties/${encodeURIComponent(propertyId)}/photos`,

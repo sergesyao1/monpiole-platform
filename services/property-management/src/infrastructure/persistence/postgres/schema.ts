@@ -20,6 +20,10 @@ export const properties = propertyManagement.table("properties", {
   publishedByActorId: text("published_by_actor_id"), publicationCorrelationId: uuid("publication_correlation_id"),
   withdrawnAt: timestamp("withdrawn_at", { withTimezone: true, mode: "string" }),
   withdrawnByActorId: text("withdrawn_by_actor_id"), withdrawalCorrelationId: uuid("withdrawal_correlation_id"),
+  availabilityStatus: text("availability_status"), occupancyStatus: text("occupancy_status"),
+  availabilityUpdatedAt: timestamp("availability_updated_at", { withTimezone: true, mode: "string" }),
+  availabilityUpdatedByActorId: text("availability_updated_by_actor_id"),
+  availabilityCorrelationId: uuid("availability_correlation_id"),
   photoStandardVersion: integer("photo_standard_version"),
   usableSurfaceSquareMeters: doublePrecision("usable_surface_square_meters"),
   rooms: integer("rooms"), bedrooms: integer("bedrooms"), bathrooms: integer("bathrooms"),
@@ -80,6 +84,17 @@ export const properties = propertyManagement.table("properties", {
       ))
   `),
   check("properties_structural_role_check", sql`${table.structuralRole} IN ('STANDALONE', 'COMPOSITE', 'UNIT')`),
+  check("properties_availability_occupancy_check", sql`
+    (${table.availabilityStatus} IS NULL AND ${table.occupancyStatus} IS NULL
+      AND ${table.availabilityUpdatedAt} IS NULL AND ${table.availabilityUpdatedByActorId} IS NULL
+      AND ${table.availabilityCorrelationId} IS NULL)
+    OR
+    (${table.structuralRole} IN ('STANDALONE', 'UNIT')
+      AND ${table.availabilityStatus} IN ('AVAILABLE', 'UNAVAILABLE')
+      AND ${table.occupancyStatus} IN ('VACANT', 'OCCUPIED')
+      AND ${table.availabilityUpdatedAt} IS NOT NULL AND ${table.availabilityUpdatedByActorId} IS NOT NULL
+      AND ${table.availabilityCorrelationId} IS NOT NULL)
+  `),
   check("properties_publication_state_check", sql`
     (${table.status} = 'DRAFT' AND ${table.publishedAt} IS NULL AND ${table.publishedByActorId} IS NULL
       AND ${table.publicationCorrelationId} IS NULL AND ${table.withdrawnAt} IS NULL

@@ -61,6 +61,7 @@ export function toPropertyAuthority(authority: AuthenticatedAuthority): Property
       || grant === "CREATE_PROPERTY_BUILDING" || grant === "RETRIEVE_PROPERTY_COMPOSITION" || grant === "UPDATE_PROPERTY_BUILDING"
       || grant === "CREATE_PROPERTY_UNIT" || grant === "UPDATE_PROPERTY_UNIT_STRUCTURE"
       || grant === "PUBLISH_PROPERTY" || grant === "WITHDRAW_PROPERTY_FROM_CATALOG"
+      || grant === "RETRIEVE_PROPERTY_AVAILABILITY" || grant === "UPDATE_PROPERTY_AVAILABILITY"
       || grant === "RETRIEVE_PROPERTY_GEOLOCATION" || grant === "UPDATE_PROPERTY_GEOLOCATION" || grant === "REMOVE_PROPERTY_GEOLOCATION"
       || grant === "CREATE_PROPERTY_PHOTO" || grant === "RETRIEVE_PROPERTY_PHOTOS"
       || grant === "SELECT_PROPERTY_PRIMARY_PHOTO" || grant === "DELETE_PROPERTY_PHOTO"
