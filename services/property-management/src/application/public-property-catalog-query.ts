@@ -32,17 +32,22 @@ export type PublicPropertyCommercialTerms =
     rentPeriod: "MONTH";
     securityDepositAmountMinor?: number;
     chargesAmountMinor?: number;
+    agencyFeeAmountMinor?: number;
   }>
   | Readonly<{
     kind: "SHORT_TERM_RENTAL";
     currency: string;
     rateAmountMinor: number;
     pricingUnit: "NIGHT" | "WEEK";
+    cleaningFeeAmountMinor?: number;
+    securityDepositAmountMinor?: number;
+    minimumStayNights?: number;
   }>
   | Readonly<{
     kind: "SALE";
     currency: string;
     salePriceAmountMinor: number;
+    agencyFeeAmountMinor?: number;
   }>;
 
 export interface PublicPropertyPrimaryPhotoReference {

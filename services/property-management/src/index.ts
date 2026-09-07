@@ -5,6 +5,7 @@ export {
   MAX_PROPERTY_PORTFOLIO_LIMIT, MAX_PROPERTY_PORTFOLIO_SEARCH_LENGTH, type ListPropertiesQuery,
 } from "./application/list-properties.js";
 export { UpdatePropertyDetails, type UpdatePropertyDetailsCommand } from "./application/update-property-details.js";
+export { SetPropertyPricing, type SetPropertyPricingCommand } from "./application/set-property-pricing.js";
 export { UpdatePropertyCoreInformation, type UpdatePropertyCoreInformationCommand } from "./application/update-property-core-information.js";
 export { PublishProperty, type PublishPropertyCommand, type PublishPropertyResult } from "./application/publish-property.js";
 export { WithdrawPropertyFromCatalog, type WithdrawPropertyFromCatalogCommand, type WithdrawPropertyFromCatalogResult } from "./application/withdraw-property-from-catalog.js";
@@ -79,7 +80,12 @@ export {
 export { assessPropertyPhotoReadiness, resolvePropertyPhotoStandard, validatePropertyPhotoStandardOverride, rehydratePropertyPhoto, PersistedPropertyPhotoCorruptionError, InvalidPropertyPhotoContentError, InvalidPropertyPhotoStandardError, PropertyPhotoNotFoundError, PropertyPrimaryPhotoDeletionForbiddenError, PROPERTY_PHOTO_CATEGORIES, MINIMUM_PROPERTY_PHOTO_COUNT, APARTMENT_LONG_TERM_MINIMUM_PHOTO_COUNT, type PropertyPhotoValues, type PropertyPhotoCategory, type PropertyPhotoStatus, type PropertyPhotoReadiness, type PropertyPhotoStandard, type PropertyPhotoStandardOverride } from "./domain/property-photo.js";
 export { PropertyBuilding, InvalidPropertyCompositionInputError, InvalidPropertyCompositionServerValueError, normalizeStructuralCode, type PropertyBuildingValues } from "./domain/property-building.js";
 export { PropertyBuildingUnit, type PropertyBuildingUnitValues } from "./domain/property-building-unit.js";
-export { InvalidPropertyDetailsError, IncompatibleCommercialTermsError, type PropertyDetails, type CommercialTerms, type LongTermRentalTerms, type ShortTermRentalTerms, type SaleTerms } from "./domain/property-details.js";
+export {
+  InvalidPropertyDetailsError, IncompatibleCommercialTermsError,
+  SUPPORTED_PROPERTY_CURRENCIES, MAXIMUM_STAY_NIGHTS,
+  type PropertyDetails, type CommercialTerms, type PropertyPricing,
+  type LongTermRentalTerms, type ShortTermRentalTerms, type SaleTerms,
+} from "./domain/property-details.js";
 export {
   PropertyOwner, InvalidPropertyOwnerInputError, InvalidPropertyOwnerServerValueError,
   PersistedPropertyOwnerCorruptionError, PropertyOwnerTypeChangeNotAllowedError, PROPERTY_OWNER_TYPES,

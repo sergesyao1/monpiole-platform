@@ -48,6 +48,9 @@ describe("public Property catalog OpenAPI contract", () => {
     expect(componentText).not.toMatch(/tenantId|addressLine|owner|ownership|actor|authority|correlation|publishedBy|withdrawnAt|canWithdrawFromCatalog|photoStandard|createdAt|updatedAt|photoId|contentSha256|contentByteSize|contentBase64|buildingId|unitPropertyId|latitude|longitude|publicVisibility|availability|occupancy/iu);
     expect(componentText).toMatch(/publicPropertyId/u);
     expect(componentText).toMatch(/primaryPhoto/u);
+    for (const field of ["agencyFeeAmountMinor", "cleaningFeeAmountMinor", "securityDepositAmountMinor", "minimumStayNights"]) {
+      expect(componentText).toContain(field);
+    }
   });
 
   it("validates strict whitelist DTOs and rejects authoritative fields", () => {
@@ -63,7 +66,7 @@ describe("public Property catalog OpenAPI contract", () => {
       transactionType: "SALE",
       structuralRole: "STANDALONE",
       location: { country: "CI", city: "Abidjan", district: "Cocody" },
-      commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 1 },
+      commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 1, agencyFeeAmountMinor: 0 },
       primaryPhoto: null,
       publishedAt: "2026-08-31T10:00:00.000Z",
     };
@@ -73,5 +76,9 @@ describe("public Property catalog OpenAPI contract", () => {
     expect(PublicPropertyDetailSchema.safeParse({ ...summary, description: null, details: { rooms: 4 }, withdrawnAt: "2026-09-01T10:00:00.000Z" }).success).toBe(false);
     expect(PublicPropertyDetailSchema.safeParse({ ...summary, description: null, details: { rooms: 4 }, availabilityStatus: "AVAILABLE", occupancyStatus: "VACANT" }).success).toBe(false);
     expect(PublicPropertyDetailSchema.safeParse({ ...summary, description: null, details: { rooms: 4 }, location: { ...summary.location, addressLine: "privée" } }).success).toBe(false);
+    expect(PublicPropertyDetailSchema.safeParse({ ...summary, description: null, details: { rooms: 4 }, commercialTerms: {
+      kind: "SHORT_TERM_RENTAL", currency: "USD", rateAmountMinor: 0, pricingUnit: "NIGHT",
+      cleaningFeeAmountMinor: 0, securityDepositAmountMinor: 0, minimumStayNights: 1,
+    } }).success).toBe(true);
   });
 });

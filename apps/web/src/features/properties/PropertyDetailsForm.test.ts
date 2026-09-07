@@ -20,39 +20,35 @@ function formData(values: Record<string, string>) {
   return data;
 }
 
-describe("variantes commerciales Property", () => {
-  it("construit les conditions de location courte durée", () => {
+describe("caractéristiques Property", () => {
+  it("construit les caractéristiques indépendamment de la tarification", () => {
     const input = detailsInputFromForm(baseProperty, formData({
-      currency: "XOF", rateAmountMinor: "45000", pricingUnit: "NIGHT",
+      usableSurfaceSquareMeters: "75.5", rooms: "3", bedrooms: "2", bathrooms: "1", furnished: "on",
     }));
 
-    expect(input.commercialTerms).toEqual({
-      kind: "SHORT_TERM_RENTAL", currency: "XOF", rateAmountMinor: 45000, pricingUnit: "NIGHT",
-    });
+    expect(input).toEqual({ details: {
+      usableSurfaceSquareMeters: 75.5, rooms: 3, bedrooms: 2, bathrooms: 1, furnished: true,
+    } });
   });
 
-  it("construit les conditions de vente", () => {
-    const input = detailsInputFromForm(
-      { ...baseProperty, transactionType: "SALE" },
-      formData({ currency: "XOF", salePriceAmountMinor: "125000000" }),
-    );
+  it("n'envoie pas la tarification historique lors d'une mise à jour des caractéristiques", () => {
+    const input = detailsInputFromForm({ ...baseProperty, commercialTerms: {
+      kind: "SHORT_TERM_RENTAL", currency: "EUR", rateAmountMinor: 0, pricingUnit: "NIGHT",
+    } }, formData({ rooms: "2" }));
 
-    expect(input.commercialTerms).toEqual({
-      kind: "SALE", currency: "XOF", salePriceAmountMinor: 125000000,
-    });
+    expect(input).toEqual({ details: {
+      usableSurfaceSquareMeters: undefined, rooms: 2, bedrooms: undefined,
+      bathrooms: undefined, furnished: false,
+    } });
+    expect(input).not.toHaveProperty("commercialTerms");
   });
 
-  it.each([
-    ["XOF", "125000", 125000],
-    ["EUR", "1250.00", 125000],
-    ["USD", "1250.00", 125000],
-  ] as const)("convertit la saisie %s selon les décimales de la devise", (currency, entered, expectedMinor) => {
-    const input = detailsInputFromForm(
-      { ...baseProperty, transactionType: "SALE" },
-      formData({ currency, salePriceAmountMinor: entered }),
-    );
-    expect(input.commercialTerms).toEqual({
-      kind: "SALE", currency, salePriceAmountMinor: expectedMinor,
+  it("conserve les champs numériques facultatifs absents", () => {
+    expect(detailsInputFromForm(baseProperty, formData({}))).toEqual({
+      details: {
+        usableSurfaceSquareMeters: undefined, rooms: undefined, bedrooms: undefined,
+        bathrooms: undefined, furnished: false,
+      },
     });
   });
 });

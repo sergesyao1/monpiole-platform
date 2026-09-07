@@ -5,10 +5,12 @@ import { ApiProblem } from "../../infrastructure/http/problem-details.js";
 import { createPublicPropertyApi } from "./public-property-api.js";
 import {
   formatPublicPropertyPrice,
+  formatPublicMinorAmount,
   propertyStructuralRoleLabels,
   propertyTypeLabels,
   transactionTypeLabels,
   type PublicPropertyDetail,
+  type PublicPropertyCommercialTerms,
 } from "./public-property-model.js";
 import { PublicCatalogLayout } from "./PublicCatalogLayout.js";
 import { Button, LoadingState, StatusBadge, buttonClassName } from "../../ui/index.js";
@@ -82,9 +84,33 @@ function PublicPropertyDetailView({ property, backPath }: Readonly<{ property: P
           {property.details.bathrooms !== undefined ? <div><dt>Salles d’eau</dt><dd>{property.details.bathrooms}</dd></div> : null}
           {property.details.furnished !== undefined ? <div><dt>Meublé</dt><dd>{property.details.furnished ? "Oui" : "Non"}</dd></div> : null}
         </dl></section>
+        <section><h2>Conditions financières</h2><PublicPricingDetails terms={property.commercialTerms} /></section>
       </div>
     </article>
   );
+}
+
+function PublicPricingDetails({ terms }: Readonly<{ terms: PublicPropertyCommercialTerms }>) {
+  if (terms.kind === "LONG_TERM_RENTAL") return <dl className="public-details-list">
+    <PriceRow label="Loyer mensuel" amount={terms.rentAmountMinor} currency={terms.currency} />
+    {terms.securityDepositAmountMinor === undefined ? null : <PriceRow label="Dépôt de garantie" amount={terms.securityDepositAmountMinor} currency={terms.currency} />}
+    {terms.chargesAmountMinor === undefined ? null : <PriceRow label="Charges" amount={terms.chargesAmountMinor} currency={terms.currency} />}
+    {terms.agencyFeeAmountMinor === undefined ? null : <PriceRow label="Frais d’agence" amount={terms.agencyFeeAmountMinor} currency={terms.currency} />}
+  </dl>;
+  if (terms.kind === "SHORT_TERM_RENTAL") return <dl className="public-details-list">
+    <PriceRow label={`Tarif par ${terms.pricingUnit === "NIGHT" ? "nuit" : "semaine"}`} amount={terms.rateAmountMinor} currency={terms.currency} />
+    {terms.cleaningFeeAmountMinor === undefined ? null : <PriceRow label="Frais de ménage" amount={terms.cleaningFeeAmountMinor} currency={terms.currency} />}
+    {terms.securityDepositAmountMinor === undefined ? null : <PriceRow label="Dépôt de garantie" amount={terms.securityDepositAmountMinor} currency={terms.currency} />}
+    {terms.minimumStayNights === undefined ? null : <div><dt>Durée minimale</dt><dd>{terms.minimumStayNights} nuit{terms.minimumStayNights > 1 ? "s" : ""}</dd></div>}
+  </dl>;
+  return <dl className="public-details-list">
+    <PriceRow label="Prix de vente" amount={terms.salePriceAmountMinor} currency={terms.currency} />
+    {terms.agencyFeeAmountMinor === undefined ? null : <PriceRow label="Frais d’agence" amount={terms.agencyFeeAmountMinor} currency={terms.currency} />}
+  </dl>;
+}
+
+function PriceRow({ label, amount, currency }: Readonly<{ label: string; amount: number; currency: string }>) {
+  return <div><dt>{label}</dt><dd>{formatPublicMinorAmount(amount, currency)}</dd></div>;
 }
 
 function isCatalogSearch(value: unknown): value is { readonly catalogSearch: string } {

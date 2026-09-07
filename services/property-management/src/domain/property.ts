@@ -1,7 +1,9 @@
 import {
   IncompatibleCommercialTermsError,
   InvalidPropertyDetailsError,
+  sameCommercialTerms,
   validateCommercialTerms,
+  validatePersistedCommercialTerms,
   validatePropertyDetails,
   type CommercialTerms,
   type PropertyDetails,
@@ -123,9 +125,9 @@ export class Property {
     }
   }
 
-  static rehydrate(input: PropertyValues): Property {
+  static rehydrate(input: PropertyValues, options: Readonly<{ allowLegacyPricing?: boolean }> = {}): Property {
     try {
-      return new Property(validate(input));
+      return new Property(validate(input, options.allowLegacyPricing ?? false));
     } catch (error) {
       if (error instanceof PropertyInvariantViolation || error instanceof InvalidPropertyDetailsError) {
         throw new PersistedPropertyCorruptionError(error.field);
@@ -135,14 +137,23 @@ export class Property {
     }
   }
 
-  defineDetails(details: PropertyDetails, commercialTerms: CommercialTerms, updatedAt: string): Property {
+  defineDetails(details: PropertyDetails, commercialTerms: CommercialTerms | undefined, updatedAt: string): Property {
     if (!validInstant(updatedAt)) throw new InvalidPropertyServerValueError("updatedAt");
     return new Property(Object.freeze({
       ...this.values,
       details: validatePropertyDetails(details),
-      commercialTerms: validateCommercialTerms(this.values.transactionType, commercialTerms),
+      commercialTerms: commercialTerms === undefined
+        ? this.values.commercialTerms
+        : validateCommercialTerms(this.values.transactionType, commercialTerms),
       updatedAt,
     }));
+  }
+
+  setPricing(pricing: CommercialTerms, updatedAt: string): Property {
+    const validated = validateCommercialTerms(this.values.transactionType, pricing);
+    if (sameCommercialTerms(this.values.commercialTerms, validated)) return this;
+    if (!validInstant(updatedAt)) throw new InvalidPropertyServerValueError("updatedAt");
+    return new Property(Object.freeze({ ...this.values, commercialTerms: validated, updatedAt }));
   }
 
   publish(
@@ -155,6 +166,14 @@ export class Property {
     const missingRequirements: PropertyPublicationRequirement[] = [];
     if (this.values.details === undefined) missingRequirements.push("DETAILS");
     if (this.values.commercialTerms === undefined) missingRequirements.push("COMMERCIAL_TERMS");
+    else {
+      try {
+        validateCommercialTerms(this.values.transactionType, this.values.commercialTerms);
+      } catch (error) {
+        if (!(error instanceof InvalidPropertyDetailsError)) throw error;
+        missingRequirements.push("COMMERCIAL_TERMS");
+      }
+    }
     if (this.values.propertyType === "APARTMENT" && this.values.transactionType === "LONG_TERM_RENTAL"
       && this.values.apartmentSubtype === undefined) missingRequirements.push("APARTMENT_SUBTYPE");
     const photoReadiness = assessPropertyPhotoReadiness(photos, resolvePropertyPhotoStandard({
@@ -264,7 +283,7 @@ export class PropertyRepublicationNotSupportedError extends Error {
   constructor() { super("Property republication is not supported"); }
 }
 
-function validate(input: PropertyValues): Readonly<PropertyValues> {
+function validate(input: PropertyValues, allowLegacyPricing = false): Readonly<PropertyValues> {
   if (!UUID_V4.test(input.propertyId)) throw new PropertyInvariantViolation("propertyId");
   if (!UUID_V4.test(input.tenantId)) throw new PropertyInvariantViolation("tenantId");
   const title = normalizedRequired(input.title, "title", 200);
@@ -303,8 +322,7 @@ function validate(input: PropertyValues): Readonly<PropertyValues> {
   const details = input.details === undefined ? undefined : validatePropertyDetails(input.details);
   const commercialTerms = input.commercialTerms === undefined
     ? undefined
-    : validateCommercialTerms(input.transactionType, input.commercialTerms);
-  if ((details === undefined) !== (commercialTerms === undefined)) throw new PropertyInvariantViolation("details");
+    : validatePersistedCommercialTerms(input.transactionType, input.commercialTerms, allowLegacyPricing);
   if (input.status === "DRAFT" && (input.publishedAt !== undefined || input.withdrawnAt !== undefined)) {
     throw new PropertyInvariantViolation(input.publishedAt !== undefined ? "publishedAt" : "withdrawnAt");
   }

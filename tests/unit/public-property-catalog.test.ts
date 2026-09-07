@@ -24,7 +24,7 @@ function detail(): PublicPropertyCatalogDetail {
     structuralRole: "STANDALONE",
     location: { country: "CI", city: "Abidjan", district: "Cocody" },
     details: { rooms: 5, bedrooms: 3 },
-    commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 125_000_000 },
+    commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 125_000_000, agencyFeeAmountMinor: 5_000_000 },
     primaryPhoto: { contentType: "image/webp" },
     publishedAt: PUBLISHED_AT,
   };

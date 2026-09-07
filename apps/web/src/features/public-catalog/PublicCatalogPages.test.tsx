@@ -14,7 +14,7 @@ const property = {
   transactionType: "SALE",
   structuralRole: "STANDALONE",
   location: { country: "CI", city: "Abidjan", district: "Cocody" },
-  commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 125_000_000 },
+  commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 125_000_000, agencyFeeAmountMinor: 5_000_000 },
   primaryPhoto: { url: `/v1/public/properties/${PROPERTY_ID}/primary-photo`, contentType: "image/png" },
   publishedAt: "2026-08-31T10:00:00.000Z",
 } as const;
@@ -114,6 +114,9 @@ describe("public Property catalog Web journey", () => {
     expect(screen.getByText("Une maison ouverte sur le jardin.")).toBeInTheDocument();
     expect(screen.getByText("140 m²")).toBeInTheDocument();
     expect(screen.getByText("Non")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Conditions financières" })).toBeInTheDocument();
+    expect(screen.getByText("Frais d’agence")).toBeInTheDocument();
+    expect(screen.getByText(/^5[\s ]000[\s ]000\s*FCFA$/u)).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Aucune photo disponible pour Maison des Lagunes" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Retour au catalogue/ })).toHaveAttribute("href", "/catalogue");
   });

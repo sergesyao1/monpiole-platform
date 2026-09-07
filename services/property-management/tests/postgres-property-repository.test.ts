@@ -25,6 +25,7 @@ import {
   WithdrawPropertyFromCatalog, PostgresPublicPropertyCatalogQuery,
   PostgresPropertyAvailabilityQuery, RetrievePropertyAvailability, UpdatePropertyAvailability,
   PropertyAvailabilityDerivedFromUnitsError,
+  SetPropertyPricing,
 } from "../src/index.js";
 
 const IMAGE = "postgres@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687";
@@ -60,6 +61,7 @@ afterEach(async () => owner.query("TRUNCATE property_management.property_primary
 afterAll(async () => { await runtime?.end(); await owner?.end(); await container?.stop(); });
 
 function authority(tenantId: string) { return { actorId: "actor", authorityId: "authority", grants: ["CREATE_PROPERTY", "RETRIEVE_PROPERTY"] as const, tenantIds: [tenantId] }; }
+function pricingAuthority(tenantId: string) { return { actorId: "pricing-actor", authorityId: "pricing-authority", grants: ["UPDATE_PROPERTY_PRICING"] as const, tenantIds: [tenantId] }; }
 async function insertLegacyPrimaryPhoto(tenantId: string, propertyId: string) {
   await withTenantPostgresTransaction(runtime, tenantId, (scope) => scope.query(
     `INSERT INTO property_management.property_photos
@@ -98,6 +100,143 @@ async function create(repository = new PostgresPropertyRepository(runtime), tena
 }
 
 describe("Property PostgreSQL persistence", () => {
+  it("migre 0014 vers 0015, préserve les prix legacy et refuse leur publication sans mise en conformité", async () => {
+    const previousMigrations = await migrationsThrough(14);
+    await owner.query("CREATE DATABASE property_pricing_upgrade_test");
+    const upgrade = new Pool({ connectionString: connection("owner", "synthetic-owner", "property_pricing_upgrade_test") });
+    const publishedId = "22222222-2222-4222-8222-222222222222";
+    try {
+      await migrate(drizzle(upgrade), { migrationsFolder: previousMigrations });
+      await upgrade.query("BEGIN");
+      await upgrade.query(`INSERT INTO property_management.properties
+        (property_id,tenant_id,title,property_type,transaction_type,status,structural_role,country,city,district,address_line,
+         created_at,updated_at,correlation_id,actor_id,rooms,commercial_kind,currency,sale_price_amount_minor)
+        VALUES ($1,$2,'Legacy draft','HOUSE','SALE','DRAFT','STANDALONE','CI','Abidjan','Cocody','Riviera',
+          now(),now(),$3,'legacy',4,'SALE','EUR',0)`, [PROPERTY_ID, TENANT_A, CORRELATION]);
+      await upgrade.query(`INSERT INTO property_management.properties
+        (property_id,tenant_id,title,property_type,transaction_type,status,structural_role,country,city,district,address_line,
+         created_at,updated_at,correlation_id,actor_id,published_at,published_by_actor_id,publication_correlation_id,
+         rooms,commercial_kind,currency,sale_price_amount_minor)
+        VALUES ($1,$2,'Legacy published','HOUSE','SALE','PUBLISHED','STANDALONE','CI','Abidjan','Cocody','Riviera',
+          now(),now(),$3,'legacy',now(),'legacy',$3,4,'SALE','USD',0)`, [publishedId, TENANT_A, PUBLICATION_CORRELATION]);
+      await upgrade.query(`INSERT INTO property_management.property_photos
+        (photo_id,tenant_id,property_id,category,status,is_primary,content_base64,content_type,
+         content_byte_size,content_sha256,registered_at,available_at)
+        VALUES ($1,$2,$3,'OTHER','AVAILABLE',true,'iVBORw0KGgo=','image/png',8,
+          '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',now(),now())`,
+      [randomUUID(), TENANT_A, publishedId]);
+      await upgrade.query("COMMIT");
+
+      await migrate(drizzle(upgrade), { migrationsFolder });
+
+      expect((await upgrade.query(`SELECT property_id,currency,sale_price_amount_minor,pricing_version,
+        agency_fee_amount_minor,cleaning_fee_amount_minor,minimum_stay_nights
+        FROM property_management.properties ORDER BY property_id`)).rows).toEqual([
+        {
+          property_id: publishedId, currency: "USD", sale_price_amount_minor: "0", pricing_version: 1,
+          agency_fee_amount_minor: null, cleaning_fee_amount_minor: null, minimum_stay_nights: null,
+        },
+        {
+          property_id: PROPERTY_ID, currency: "EUR", sale_price_amount_minor: "0", pricing_version: 1,
+          agency_fee_amount_minor: null, cleaning_fee_amount_minor: null, minimum_stay_nights: null,
+        },
+      ]);
+      await upgrade.query("UPDATE property_management.properties SET title='Legacy draft renamed' WHERE property_id=$1", [PROPERTY_ID]);
+      expect((await upgrade.query("SELECT pricing_version FROM property_management.properties WHERE property_id=$1", [PROPERTY_ID])).rows[0])
+        .toEqual({ pricing_version: 1 });
+      await expect(upgrade.query(`UPDATE property_management.properties SET status='PUBLISHED', published_at=now(),
+        published_by_actor_id='publisher', publication_correlation_id=$2 WHERE property_id=$1`,
+      [PROPERTY_ID, randomUUID()])).rejects.toMatchObject({ code: "23514", constraint: "properties_commercial_terms_check" });
+      expect((await upgrade.query("SELECT status,pricing_version FROM property_management.properties WHERE property_id=$1", [PROPERTY_ID])).rows[0])
+        .toEqual({ status: "DRAFT", pricing_version: 1 });
+
+      const upgradeReader = new Pool({ connectionString: connection("monpiole_public_catalog_reader", "synthetic-public-reader", "property_pricing_upgrade_test") });
+      try {
+        const catalog = new PostgresPublicPropertyCatalogQuery(upgradeReader);
+        await expect(catalog.retrieve(TENANT_A, publishedId)).resolves.toMatchObject({
+          publicPropertyId: publishedId,
+          commercialTerms: { kind: "SALE", currency: "USD", salePriceAmountMinor: 0 },
+        });
+      } finally {
+        await upgradeReader.end();
+      }
+    } catch (error) {
+      await upgrade.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      await upgrade.end();
+      await rm(previousMigrations, { recursive: true, force: true });
+    }
+  });
+
+  it("persiste la tarification avancée v2, la relit et rejoue sans nouvelle écriture", async () => {
+    const repository = new PostgresPropertyRepository(runtime);
+    await create(repository, TENANT_A, "LONG_TERM_RENTAL");
+    await new UpdatePropertyDetails(repository, { now: () => "2026-09-01T11:00:00.000Z" }).execute({
+      authority: { actorId: "details", authorityId: "details", grants: ["UPDATE_PROPERTY_DETAILS"], tenantIds: [TENANT_A] },
+      correlationId: CORRELATION, propertyId: PROPERTY_ID, details: { rooms: 3, bedrooms: 2 },
+    });
+    let clockCalls = 0;
+    const pricing = new SetPropertyPricing(repository, { now: () => {
+      clockCalls += 1;
+      return "2026-09-01T12:00:00.000Z";
+    } });
+    const command = {
+      authority: pricingAuthority(TENANT_A), correlationId: CORRELATION, propertyId: PROPERTY_ID,
+      pricing: {
+        kind: "LONG_TERM_RENTAL" as const, currency: "XOF", rentAmountMinor: 300_000, rentPeriod: "MONTH" as const,
+        securityDepositAmountMinor: 600_000, chargesAmountMinor: 25_000, agencyFeeAmountMinor: 300_000,
+      },
+    };
+    await pricing.execute(command);
+    await pricing.execute(command);
+    expect(clockCalls).toBe(1);
+    expect((await owner.query(`SELECT commercial_kind,currency,rent_amount_minor,security_deposit_amount_minor,
+      charges_amount_minor,agency_fee_amount_minor,
+      cleaning_fee_amount_minor,minimum_stay_nights,pricing_version,updated_at,actor_id,correlation_id
+      FROM property_management.properties WHERE property_id=$1`, [PROPERTY_ID])).rows[0]).toMatchObject({
+      commercial_kind: "LONG_TERM_RENTAL", currency: "XOF", rent_amount_minor: "300000",
+      security_deposit_amount_minor: "600000", charges_amount_minor: "25000",
+      agency_fee_amount_minor: "300000", cleaning_fee_amount_minor: null, minimum_stay_nights: null,
+      pricing_version: 2, actor_id: "pricing-actor", correlation_id: CORRELATION,
+    });
+    await expect(new RetrieveProperty(repository).execute({ authority: authority(TENANT_A), propertyId: PROPERTY_ID }))
+      .resolves.toMatchObject({ details: { rooms: 3, bedrooms: 2 }, commercialTerms: {
+        kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 300_000, agencyFeeAmountMinor: 300_000,
+      } });
+    await expect(new UpdatePropertyAvailability(repository, { now: () => "2026-09-01T13:00:00.000Z" }).execute({
+      authority: availabilityAuthority(TENANT_A), correlationId: CORRELATION, propertyId: PROPERTY_ID,
+      availabilityStatus: "AVAILABLE", occupancyStatus: "VACANT",
+    })).resolves.toMatchObject({ configured: true, availabilityStatus: "AVAILABLE", occupancyStatus: "VACANT" });
+    await expect(new RetrieveProperty(repository).execute({ authority: authority(TENANT_A), propertyId: PROPERTY_ID }))
+      .resolves.toMatchObject({ details: { rooms: 3, bedrooms: 2 }, commercialTerms: {
+        kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 300_000, agencyFeeAmountMinor: 300_000,
+      } });
+  });
+
+  it("applique les contraintes v2 et conserve RLS et privilèges runtime/public minimaux", async () => {
+    await create();
+    await expect(owner.query(`UPDATE property_management.properties
+      SET commercial_kind='SALE',currency='EUR',sale_price_amount_minor=1 WHERE property_id=$1`, [PROPERTY_ID]))
+      .rejects.toMatchObject({ code: "23514", constraint: "properties_commercial_terms_check" });
+    await expect(owner.query(`UPDATE property_management.properties
+      SET commercial_kind='SALE',currency='XOF',sale_price_amount_minor=0 WHERE property_id=$1`, [PROPERTY_ID]))
+      .rejects.toMatchObject({ code: "23514", constraint: "properties_commercial_terms_check" });
+    await owner.query(`UPDATE property_management.properties
+      SET commercial_kind='SALE',currency='XOF',sale_price_amount_minor=1,agency_fee_amount_minor=0
+      WHERE property_id=$1`, [PROPERTY_ID]);
+    expect((await owner.query("SELECT pricing_version FROM property_management.properties WHERE property_id=$1", [PROPERTY_ID])).rows[0])
+      .toEqual({ pricing_version: 2 });
+    expect((await owner.query(`SELECT relrowsecurity,relforcerowsecurity FROM pg_class
+      WHERE oid='property_management.properties'::regclass`)).rows[0]).toEqual({ relrowsecurity: true, relforcerowsecurity: true });
+    expect((await owner.query(`SELECT
+      has_column_privilege('monpiole_runtime','property_management.properties','agency_fee_amount_minor','SELECT') AS runtime_select,
+      has_column_privilege('monpiole_runtime','property_management.properties','pricing_version','UPDATE') AS runtime_update,
+      has_column_privilege('monpiole_public_catalog_reader','property_management.properties','agency_fee_amount_minor','SELECT') AS public_fee,
+      has_column_privilege('monpiole_public_catalog_reader','property_management.properties','pricing_version','SELECT') AS public_version`)).rows[0])
+      .toEqual({ runtime_select: true, runtime_update: true, public_fee: true, public_version: false });
+  });
+
   it("migre 0012 vers 0013 sans altérer les DRAFT/PUBLISHED historiques", async () => {
     const previousMigrations = await migrationsThrough(12);
     await owner.query("CREATE DATABASE property_withdrawal_upgrade_test");
@@ -264,7 +403,7 @@ describe("Property PostgreSQL persistence", () => {
     await new UpdatePropertyDetails(repository, { now: () => "2026-08-25T13:00:00.000Z" }).execute({
       authority: { ...authority(TENANT_A), grants: ["UPDATE_PROPERTY_DETAILS"] }, correlationId: CORRELATION,
       propertyId: PROPERTY_ID, details: { rooms: 0 },
-      commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 0 },
+      commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 1 },
     });
     const publish = new PublishProperty(repository, { now: () => "2026-08-25T14:00:00.000Z" });
     const command = { authority: { ...authority(TENANT_A), actorId: "publisher", grants: ["PUBLISH_PROPERTY"] as const },

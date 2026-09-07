@@ -21,7 +21,7 @@ const draft = {
   createdAt: "2026-08-25T12:00:00.000Z", updatedAt: "2026-08-25T12:00:00.000Z",
 } satisfies Property;
 const ready = {
-  ...draft, details: { rooms: 1 }, commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 0 },
+  ...draft, details: { rooms: 1 }, commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 1 },
   photos: [primaryPhoto], primaryPhoto,
 } satisfies Property;
 const photo = (photoId: string, category: typeof primaryPhoto.category | "MAIN_LIVING_SLEEPING_AREA" | "KITCHEN_OR_KITCHENETTE" | "BATHROOM_OR_SHOWER_ROOM" | "OTHER") => ({

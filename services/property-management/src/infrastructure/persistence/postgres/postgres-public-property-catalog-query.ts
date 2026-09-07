@@ -128,7 +128,8 @@ const PUBLIC_PROPERTY_COLUMNS = `
   p.usable_surface_square_meters, p.rooms, p.bedrooms, p.bathrooms, p.furnished,
   p.commercial_kind, p.currency, p.rent_amount_minor, p.rent_period,
   p.security_deposit_amount_minor, p.charges_amount_minor, p.rate_amount_minor,
-  p.pricing_unit, p.sale_price_amount_minor, p.published_at,
+  p.pricing_unit, p.sale_price_amount_minor, p.agency_fee_amount_minor,
+  p.cleaning_fee_amount_minor, p.minimum_stay_nights, p.published_at,
   ph.content_type AS primary_photo_content_type
 `;
 
@@ -157,6 +158,9 @@ interface PublicPropertyRow extends Record<string, unknown> {
   readonly rate_amount_minor: string | null;
   readonly pricing_unit: "NIGHT" | "WEEK" | null;
   readonly sale_price_amount_minor: string | null;
+  readonly agency_fee_amount_minor: string | null;
+  readonly cleaning_fee_amount_minor: string | null;
+  readonly minimum_stay_nights: number | null;
   readonly published_at: string;
   readonly primary_photo_content_type: "image/jpeg" | "image/png" | "image/webp" | null;
 }
@@ -204,6 +208,7 @@ function toCommercialTerms(row: PublicPropertyRow): PublicPropertyCommercialTerm
         ? {}
         : { securityDepositAmountMinor: Number(row.security_deposit_amount_minor) }),
       ...(row.charges_amount_minor === null ? {} : { chargesAmountMinor: Number(row.charges_amount_minor) }),
+      ...(row.agency_fee_amount_minor === null ? {} : { agencyFeeAmountMinor: Number(row.agency_fee_amount_minor) }),
     };
   }
   if (row.commercial_kind === "SHORT_TERM_RENTAL") {
@@ -212,11 +217,17 @@ function toCommercialTerms(row: PublicPropertyRow): PublicPropertyCommercialTerm
       currency: row.currency,
       rateAmountMinor: Number(row.rate_amount_minor),
       pricingUnit: row.pricing_unit!,
+      ...(row.cleaning_fee_amount_minor === null ? {} : { cleaningFeeAmountMinor: Number(row.cleaning_fee_amount_minor) }),
+      ...(row.security_deposit_amount_minor === null
+        ? {}
+        : { securityDepositAmountMinor: Number(row.security_deposit_amount_minor) }),
+      ...(row.minimum_stay_nights === null ? {} : { minimumStayNights: row.minimum_stay_nights }),
     };
   }
   return {
     kind: "SALE",
     currency: row.currency,
     salePriceAmountMinor: Number(row.sale_price_amount_minor),
+    ...(row.agency_fee_amount_minor === null ? {} : { agencyFeeAmountMinor: Number(row.agency_fee_amount_minor) }),
   };
 }

@@ -38,9 +38,17 @@ export interface PublicPropertyDetails {
 }
 
 export type PublicPropertyCommercialTerms =
-  | Readonly<{ kind: "LONG_TERM_RENTAL"; currency: string; rentAmountMinor: number; rentPeriod: "MONTH"; securityDepositAmountMinor?: number; chargesAmountMinor?: number }>
-  | Readonly<{ kind: "SHORT_TERM_RENTAL"; currency: string; rateAmountMinor: number; pricingUnit: PricingUnit }>
-  | Readonly<{ kind: "SALE"; currency: string; salePriceAmountMinor: number }>;
+  | Readonly<{
+    kind: "LONG_TERM_RENTAL"; currency: string; rentAmountMinor: number; rentPeriod: "MONTH";
+    securityDepositAmountMinor?: number; chargesAmountMinor?: number; agencyFeeAmountMinor?: number;
+  }>
+  | Readonly<{
+    kind: "SHORT_TERM_RENTAL"; currency: string; rateAmountMinor: number; pricingUnit: PricingUnit;
+    cleaningFeeAmountMinor?: number; securityDepositAmountMinor?: number; minimumStayNights?: number;
+  }>
+  | Readonly<{
+    kind: "SALE"; currency: string; salePriceAmountMinor: number; agencyFeeAmountMinor?: number;
+  }>;
 
 export interface PublicPropertyPrimaryPhoto {
   readonly url: `/v1/public/properties/${string}/primary-photo`;
@@ -77,14 +85,14 @@ export interface PublicPropertyCatalogCriteria {
 }
 
 export function formatPublicPropertyPrice(terms: PublicPropertyCommercialTerms): string {
-  if (terms.kind === "SALE") return formatMinorAmount(terms.salePriceAmountMinor, terms.currency);
+  if (terms.kind === "SALE") return formatPublicMinorAmount(terms.salePriceAmountMinor, terms.currency);
   if (terms.kind === "LONG_TERM_RENTAL") {
-    return `${formatMinorAmount(terms.rentAmountMinor, terms.currency)} / mois`;
+    return `${formatPublicMinorAmount(terms.rentAmountMinor, terms.currency)} / mois`;
   }
-  return `${formatMinorAmount(terms.rateAmountMinor, terms.currency)} / ${pricingUnitLabels[terms.pricingUnit].toLowerCase()}`;
+  return `${formatPublicMinorAmount(terms.rateAmountMinor, terms.currency)} / ${pricingUnitLabels[terms.pricingUnit].toLowerCase()}`;
 }
 
-function formatMinorAmount(amount: number, currency: string): string {
+export function formatPublicMinorAmount(amount: number, currency: string): string {
   const digits = currencyFractionDigits(currency);
   const formatted = new Intl.NumberFormat("fr-FR", { style: "currency", currency }).format(amount / (10 ** digits));
   return currency === "XOF" ? formatted.replace(/F\s*CFA/u, "FCFA") : formatted;

@@ -5,6 +5,7 @@ import {
   CreatePropertyRequestSchema, ListPropertiesQuerySchema, PropertyPortfolioResponseSchema,
   PropertyResponseSchema, RetrievePropertyPathSchema, UpdatePropertyCoreInformationRequestSchema, UpdatePropertyDetailsRequestSchema,
   PropertyPhotoGalleryResponseSchema, PropertyPhotoPathSchema, PropertyPhotoStandardSchema, RegisterPropertyPhotoRequestSchema,
+  SetPropertyPricingRequestSchema,
 } from "../../contracts/v1/properties/property.schema.js";
 
 export class CreatePropertyRequestDto extends createZodDto(CreatePropertyRequestSchema) {}
@@ -12,6 +13,7 @@ export class PropertyResponseDto extends createZodDto(PropertyResponseSchema as 
 export class RetrievePropertyPathDto extends createZodDto(RetrievePropertyPathSchema) {}
 export class PropertyProblemDetailsDto extends createZodDto(ProblemDetailsSchema) {}
 export class UpdatePropertyDetailsRequestDto extends createZodDto(UpdatePropertyDetailsRequestSchema) {}
+export class SetPropertyPricingRequestDto extends createZodDto(SetPropertyPricingRequestSchema as unknown as z.ZodObject) {}
 export class UpdatePropertyCoreInformationRequestDto extends createZodDto(UpdatePropertyCoreInformationRequestSchema) {}
 export class ListPropertiesQueryDto extends createZodDto(ListPropertiesQuerySchema) {}
 export class PropertyPortfolioResponseDto extends createZodDto(PropertyPortfolioResponseSchema) {}

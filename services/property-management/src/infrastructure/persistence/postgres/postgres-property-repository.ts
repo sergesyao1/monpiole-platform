@@ -15,7 +15,7 @@ import {
   type PropertyType,
   type TransactionType,
 } from "../../../domain/property.js";
-import type { CommercialTerms, PropertyDetails } from "../../../domain/property-details.js";
+import { sameCommercialTerms, type CommercialTerms, type PropertyDetails } from "../../../domain/property-details.js";
 import {
   rehydratePropertyPhoto,
   validatePropertyPhotoStandardOverride,
@@ -113,6 +113,7 @@ export class PostgresPropertyRepository implements PropertyRepository {
         || current.values.availability?.occupancyStatus !== property.values.availability?.occupancyStatus;
       const details = property.values.details;
       const terms = property.values.commercialTerms;
+      const pricingChanged = terms !== undefined && !sameCommercialTerms(current.values.commercialTerms, terms);
       await scope.database().update(properties).set({
         title: property.values.title, description: property.values.description ?? null,
         apartmentSubtype: property.values.apartmentSubtype ?? null,
@@ -126,9 +127,16 @@ export class PostgresPropertyRepository implements PropertyRepository {
         rentPeriod: terms?.kind === "LONG_TERM_RENTAL" ? terms.rentPeriod : null,
         securityDepositAmountMinor: terms?.kind === "LONG_TERM_RENTAL" ? terms.securityDepositAmountMinor ?? null : null,
         chargesAmountMinor: terms?.kind === "LONG_TERM_RENTAL" ? terms.chargesAmountMinor ?? null : null,
+        agencyFeeAmountMinor: terms?.kind === "LONG_TERM_RENTAL" || terms?.kind === "SALE" ? terms.agencyFeeAmountMinor ?? null : null,
         rateAmountMinor: terms?.kind === "SHORT_TERM_RENTAL" ? terms.rateAmountMinor : null,
         pricingUnit: terms?.kind === "SHORT_TERM_RENTAL" ? terms.pricingUnit : null,
+        cleaningFeeAmountMinor: terms?.kind === "SHORT_TERM_RENTAL" ? terms.cleaningFeeAmountMinor ?? null : null,
+        minimumStayNights: terms?.kind === "SHORT_TERM_RENTAL" ? terms.minimumStayNights ?? null : null,
+        ...(terms?.kind === "SHORT_TERM_RENTAL"
+          ? { securityDepositAmountMinor: terms.securityDepositAmountMinor ?? null }
+          : {}),
         salePriceAmountMinor: terms?.kind === "SALE" ? terms.salePriceAmountMinor : null,
+        pricingVersion: terms === undefined ? null : pricingChanged ? 2 : row.pricingVersion,
         status: property.values.status, publishedAt: property.values.publishedAt ?? null,
         withdrawnAt: property.values.withdrawnAt ?? null,
         availabilityStatus: property.values.availability?.availabilityStatus ?? null,
@@ -190,7 +198,7 @@ export function toProperty(row: PropertyRow, photos: readonly PropertyPhotoValue
     ...(details === undefined ? {} : { details }),
     ...(commercialTerms === undefined ? {} : { commercialTerms }),
     photos,
-  });
+  }, { allowLegacyPricing: row.pricingVersion === 1 });
 }
 
 type PropertyPhotoRow = typeof propertyPhotos.$inferSelect;
@@ -206,7 +214,8 @@ function toPropertyPhoto(row: PropertyPhotoRow): PropertyPhotoValues {
 }
 
 function toDetails(row: PropertyRow): PropertyDetails | undefined {
-  if (row.commercialKind === null) return undefined;
+  if (row.usableSurfaceSquareMeters === null && row.rooms === null && row.bedrooms === null
+    && row.bathrooms === null && row.furnished === null) return undefined;
   return {
     ...(row.usableSurfaceSquareMeters === null ? {} : { usableSurfaceSquareMeters: row.usableSurfaceSquareMeters }),
     ...(row.rooms === null ? {} : { rooms: row.rooms }), ...(row.bedrooms === null ? {} : { bedrooms: row.bedrooms }),
@@ -222,15 +231,20 @@ function toCommercialTerms(row: PropertyRow): CommercialTerms | undefined {
     if (row.rentAmountMinor === null || row.rentPeriod !== "MONTH") throw new Error("Persisted long-term terms are invalid");
     return { kind: "LONG_TERM_RENTAL", currency: row.currency, rentAmountMinor: row.rentAmountMinor, rentPeriod: "MONTH",
       ...(row.securityDepositAmountMinor === null ? {} : { securityDepositAmountMinor: row.securityDepositAmountMinor }),
-      ...(row.chargesAmountMinor === null ? {} : { chargesAmountMinor: row.chargesAmountMinor }) };
+      ...(row.chargesAmountMinor === null ? {} : { chargesAmountMinor: row.chargesAmountMinor }),
+      ...(row.agencyFeeAmountMinor === null ? {} : { agencyFeeAmountMinor: row.agencyFeeAmountMinor }) };
   }
   if (row.commercialKind === "SHORT_TERM_RENTAL") {
     if (row.rateAmountMinor === null || (row.pricingUnit !== "NIGHT" && row.pricingUnit !== "WEEK")) throw new Error("Persisted short-term terms are invalid");
-    return { kind: "SHORT_TERM_RENTAL", currency: row.currency, rateAmountMinor: row.rateAmountMinor, pricingUnit: row.pricingUnit };
+    return { kind: "SHORT_TERM_RENTAL", currency: row.currency, rateAmountMinor: row.rateAmountMinor, pricingUnit: row.pricingUnit,
+      ...(row.cleaningFeeAmountMinor === null ? {} : { cleaningFeeAmountMinor: row.cleaningFeeAmountMinor }),
+      ...(row.securityDepositAmountMinor === null ? {} : { securityDepositAmountMinor: row.securityDepositAmountMinor }),
+      ...(row.minimumStayNights === null ? {} : { minimumStayNights: row.minimumStayNights }) };
   }
   if (row.commercialKind === "SALE") {
     if (row.salePriceAmountMinor === null) throw new Error("Persisted sale terms are invalid");
-    return { kind: "SALE", currency: row.currency, salePriceAmountMinor: row.salePriceAmountMinor };
+    return { kind: "SALE", currency: row.currency, salePriceAmountMinor: row.salePriceAmountMinor,
+      ...(row.agencyFeeAmountMinor === null ? {} : { agencyFeeAmountMinor: row.agencyFeeAmountMinor }) };
   }
   throw new Error("Persisted commercial kind is invalid");
 }

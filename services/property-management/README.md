@@ -277,3 +277,37 @@ enums et interdit tout tuple sur `COMPOSITE`. La RLS, les index et les policies
 existants sont réutilisés. Le lecteur du catalogue public ne reçoit aucun droit
 sur ces colonnes ; la visibilité publique reste exactement `status =
 'PUBLISHED'`, même si le bien est occupé ou indisponible.
+
+## Tarification avancée des biens — TASK-066
+
+La tarification est indépendante des caractéristiques physiques. Une écriture
+de caractéristiques peut donc conserver une tarification existante, tandis que
+`SetPropertyPricing` remplace atomiquement la variante financière complète avec
+le grant dédié `UPDATE_PROPERTY_PRICING`. Le replay d'une valeur strictement
+identique est un no-op et conserve l'instant et la trace de la première écriture.
+
+Les nouvelles écritures utilisent exclusivement `XOF`, imposent un prix
+principal entier strictement positif et bornent les montants facultatifs à des
+entiers positifs ou nuls compatibles JavaScript. La location longue durée ajoute
+les frais d'agence ; la courte durée ajoute frais de ménage, dépôt de garantie
+et durée minimale ; la vente ajoute les frais d'agence. Une nouvelle publication
+réapplique les mêmes règles strictes, y compris lorsqu'elle part d'une ligne
+historique.
+
+La migration append-only `0015_property_advanced_pricing.sql` ajoute ces champs
+et une `pricing_version` interne. Le `DEFAULT 1` temporaire marque sans DML toutes
+les lignes antérieures comme legacy, puis le défaut est retiré. Cette stratégie
+évite les événements de triggers différés qui rendraient un `ALTER TABLE`
+ultérieur impossible dans la transaction Drizzle. Les lignes historiques v1
+restent lisibles avec une devise ISO différente de XOF ou un prix principal nul ;
+un trigger passe toute nouvelle tarification, modification financière ou
+nouvelle publication en v2, où la CHECK PostgreSQL applique les règles strictes.
+Une ligne publiée historiquement reste lisible et retirable sans réécriture
+forcée de son prix.
+
+La RLS tenant activée et forcée ainsi que les policies existantes restent en
+place. `monpiole_runtime` reçoit `SELECT`, `INSERT` et `UPDATE` uniquement sur les
+nouvelles colonnes. Le lecteur public reçoit seulement `SELECT` sur les trois
+champs avancés utiles au catalogue, jamais sur `pricing_version` et jamais de
+droit d'écriture. Les endpoints publics existants exposent les nouvelles
+conditions financières sans adresse exacte, autorité, trace ni version interne.

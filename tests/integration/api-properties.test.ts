@@ -116,7 +116,7 @@ describe("Property HTTP vertical slice", () => {
   const body = { title: "Apartment", propertyType: "APARTMENT", transactionType: "LONG_TERM_RENTAL", apartmentSubtype: "STUDIO", location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Riviera" } };
   const post = (value: unknown = body) => fetch(`${baseUrl}/v1/properties`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(value) });
   const putDetails = () => fetch(`${baseUrl}/v1/properties/${PROPERTY_ID}/details`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({
-    details: { rooms: 2 }, commercialTerms: { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 0, rentPeriod: "MONTH" },
+    details: { rooms: 2 }, commercialTerms: { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 1, rentPeriod: "MONTH" },
   }) });
   const publish = (propertyId = PROPERTY_ID) => fetch(`${baseUrl}/v1/properties/${propertyId}/publication`, { method: "PUT" });
   const withdraw = (propertyId = PROPERTY_ID, init: RequestInit = {}) => fetch(`${baseUrl}/v1/properties/${propertyId}/publication`, { ...init, method: "DELETE" });

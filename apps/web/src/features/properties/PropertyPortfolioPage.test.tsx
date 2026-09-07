@@ -94,7 +94,8 @@ describe("portefeuille immobilier Web", () => {
     renderPortfolio();
     fireEvent.click(await screen.findByRole("link", { name: `Consulter ${firstProperty.title}` }));
     expect(await screen.findByRole("heading", { name: firstProperty.title })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Détails et conditions commerciales" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Caractéristiques du bien" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Tarification du bien" })).toBeInTheDocument();
   });
 
   it("charge explicitement la page suivante, conserve le curseur opaque, déduplique et détecte la fin", async () => {

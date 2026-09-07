@@ -29,9 +29,13 @@ describe("Property OpenAPI contract", () => {
     expect(Object.keys(update.responses)).toEqual(expect.arrayContaining(["200", "400", "401", "403", "404", "500"]));
     const requestRef = update.requestBody.content["application/json"].schema.$ref.split("/").at(-1);
     const request = document.components.schemas[requestRef];
-    expect(request.required).toEqual(expect.arrayContaining(["details", "commercialTerms"]));
+    expect(request.required).toContain("details");
+    expect(request.required).not.toContain("commercialTerms");
     expect(request.properties).not.toHaveProperty("tenantId");
-    const terms = request.properties.commercialTerms;
+    const termsReference = request.properties.commercialTerms;
+    const terms = termsReference.$ref === undefined
+      ? termsReference
+      : document.components.schemas[termsReference.$ref.split("/").at(-1)];
     expect(terms.oneOf ?? terms.anyOf).toHaveLength(3);
     const serialized = JSON.stringify(terms);
     for (const kind of ["LONG_TERM_RENTAL", "SHORT_TERM_RENTAL", "SALE"]) expect(serialized).toContain(kind);
@@ -146,6 +150,7 @@ describe("Property OpenAPI contract", () => {
   it("rejects mixed commercial variants and authoritative transport fields", () => {
     const base = { details: { rooms: 2 }, commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 1 } };
     expect(UpdatePropertyDetailsRequestSchema.safeParse(base).success).toBe(true);
+    expect(UpdatePropertyDetailsRequestSchema.safeParse({ details: { rooms: 2 } }).success).toBe(true);
     expect(UpdatePropertyDetailsRequestSchema.safeParse({ ...base, commercialTerms: { ...base.commercialTerms, rentAmountMinor: 1 } }).success).toBe(false);
     expect(UpdatePropertyDetailsRequestSchema.safeParse({ ...base, tenantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }).success).toBe(false);
   });

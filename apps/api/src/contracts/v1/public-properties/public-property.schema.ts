@@ -25,12 +25,18 @@ export const PublicPropertyCommercialTermsSchema = z.discriminatedUnion("kind", 
     kind: z.literal("LONG_TERM_RENTAL"), currency: CurrencySchema,
     rentAmountMinor: AmountMinorSchema, rentPeriod: z.literal("MONTH"),
     securityDepositAmountMinor: AmountMinorSchema.optional(), chargesAmountMinor: AmountMinorSchema.optional(),
+    agencyFeeAmountMinor: AmountMinorSchema.optional(),
   }).strict(),
   z.object({
     kind: z.literal("SHORT_TERM_RENTAL"), currency: CurrencySchema,
     rateAmountMinor: AmountMinorSchema, pricingUnit: z.enum(["NIGHT", "WEEK"]),
+    cleaningFeeAmountMinor: AmountMinorSchema.optional(), securityDepositAmountMinor: AmountMinorSchema.optional(),
+    minimumStayNights: z.number().int().min(1).max(2_147_483_647).optional(),
   }).strict(),
-  z.object({ kind: z.literal("SALE"), currency: CurrencySchema, salePriceAmountMinor: AmountMinorSchema }).strict(),
+  z.object({
+    kind: z.literal("SALE"), currency: CurrencySchema, salePriceAmountMinor: AmountMinorSchema,
+    agencyFeeAmountMinor: AmountMinorSchema.optional(),
+  }).strict(),
 ]).meta({ id: "PublicPropertyCommercialTerms" });
 export const PublicPropertyPrimaryPhotoSchema = z.object({
   url: z.string().regex(/^\/v1\/public\/properties\/[0-9a-f-]+\/primary-photo$/u),

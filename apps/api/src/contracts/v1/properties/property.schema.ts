@@ -25,18 +25,44 @@ export const PropertyDetailsSchema = z.object({
 
 const CurrencySchema = z.string().regex(/^[A-Z]{3}$/);
 const AmountMinorSchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+const PositiveAmountMinorSchema = AmountMinorSchema.min(1);
 export const CommercialTermsSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("LONG_TERM_RENTAL"), currency: CurrencySchema,
     rentAmountMinor: AmountMinorSchema, rentPeriod: z.literal("MONTH"),
     securityDepositAmountMinor: AmountMinorSchema.optional(), chargesAmountMinor: AmountMinorSchema.optional(),
+    agencyFeeAmountMinor: AmountMinorSchema.optional(),
   }).strict(),
   z.object({
     kind: z.literal("SHORT_TERM_RENTAL"), currency: CurrencySchema,
     rateAmountMinor: AmountMinorSchema, pricingUnit: z.enum(["NIGHT", "WEEK"]),
+    cleaningFeeAmountMinor: AmountMinorSchema.optional(), securityDepositAmountMinor: AmountMinorSchema.optional(),
+    minimumStayNights: z.number().int().min(1).max(2_147_483_647).optional(),
   }).strict(),
-  z.object({ kind: z.literal("SALE"), currency: CurrencySchema, salePriceAmountMinor: AmountMinorSchema }).strict(),
+  z.object({
+    kind: z.literal("SALE"), currency: CurrencySchema, salePriceAmountMinor: AmountMinorSchema,
+    agencyFeeAmountMinor: AmountMinorSchema.optional(),
+  }).strict(),
 ]);
+
+export const PropertyPricingSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("LONG_TERM_RENTAL"), currency: z.literal("XOF"),
+    rentAmountMinor: PositiveAmountMinorSchema, rentPeriod: z.literal("MONTH"),
+    securityDepositAmountMinor: AmountMinorSchema.optional(), chargesAmountMinor: AmountMinorSchema.optional(),
+    agencyFeeAmountMinor: AmountMinorSchema.optional(),
+  }).strict(),
+  z.object({
+    kind: z.literal("SHORT_TERM_RENTAL"), currency: z.literal("XOF"),
+    rateAmountMinor: PositiveAmountMinorSchema, pricingUnit: z.enum(["NIGHT", "WEEK"]),
+    cleaningFeeAmountMinor: AmountMinorSchema.optional(), securityDepositAmountMinor: AmountMinorSchema.optional(),
+    minimumStayNights: z.number().int().min(1).max(2_147_483_647).optional(),
+  }).strict(),
+  z.object({
+    kind: z.literal("SALE"), currency: z.literal("XOF"), salePriceAmountMinor: PositiveAmountMinorSchema,
+    agencyFeeAmountMinor: AmountMinorSchema.optional(),
+  }).strict(),
+]).meta({ id: "PropertyPricing" });
 
 export const CreatePropertyRequestSchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -115,8 +141,9 @@ export const PropertyResponseSchema = z.discriminatedUnion("status", [
 export const RetrievePropertyPathSchema = z.object({ propertyId: PropertyIdSchema }).strict().meta({ id: "RetrievePropertyPath" });
 export const UpdatePropertyDetailsRequestSchema = z.object({
   details: PropertyDetailsSchema,
-  commercialTerms: CommercialTermsSchema,
+  commercialTerms: PropertyPricingSchema.optional(),
 }).strict().meta({ id: "UpdatePropertyDetailsRequest" });
+export const SetPropertyPricingRequestSchema = PropertyPricingSchema.meta({ id: "SetPropertyPricingRequest" });
 export const ListPropertiesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().min(1).max(512).optional(),
@@ -147,6 +174,7 @@ export type CreatePropertyRequest = z.output<typeof CreatePropertyRequestSchema>
 export type UpdatePropertyCoreInformationRequest = z.output<typeof UpdatePropertyCoreInformationRequestSchema>;
 export type PropertyResponse = z.output<typeof PropertyResponseSchema>;
 export type UpdatePropertyDetailsRequest = z.output<typeof UpdatePropertyDetailsRequestSchema>;
+export type SetPropertyPricingRequest = z.output<typeof SetPropertyPricingRequestSchema>;
 export type ListPropertiesQuery = z.output<typeof ListPropertiesQuerySchema>;
 export type PropertyPortfolioResponse = z.output<typeof PropertyPortfolioResponseSchema>;
 export type PropertyPhoto = z.output<typeof PropertyPhotoSchema>;

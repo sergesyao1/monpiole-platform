@@ -1,5 +1,5 @@
-import type { CreatePropertyCommand, PropertyAuthority, PropertyView, PublishPropertyCommand, UpdatePropertyCoreInformationCommand, UpdatePropertyDetailsCommand, WithdrawPropertyFromCatalogCommand } from "@monpiole/property-management";
-import type { CreatePropertyRequest, PropertyPhoto, PropertyPhotoGalleryResponse, PropertyResponse, UpdatePropertyCoreInformationRequest, UpdatePropertyDetailsRequest } from "../../contracts/v1/properties/property.schema.js";
+import type { CreatePropertyCommand, PropertyAuthority, PropertyView, PublishPropertyCommand, SetPropertyPricingCommand, UpdatePropertyCoreInformationCommand, UpdatePropertyDetailsCommand, WithdrawPropertyFromCatalogCommand } from "@monpiole/property-management";
+import type { CreatePropertyRequest, PropertyPhoto, PropertyPhotoGalleryResponse, PropertyResponse, SetPropertyPricingRequest, UpdatePropertyCoreInformationRequest, UpdatePropertyDetailsRequest } from "../../contracts/v1/properties/property.schema.js";
 import type { PropertyPhotoValues } from "@monpiole/property-management";
 
 export function toCreatePropertyCommand(request: CreatePropertyRequest, correlationId: string, authority: PropertyAuthority): CreatePropertyCommand {
@@ -56,6 +56,15 @@ export function toUpdatePropertyDetailsCommand(
   authority: PropertyAuthority,
 ): UpdatePropertyDetailsCommand {
   return { propertyId, ...request, correlationId, authority };
+}
+
+export function toSetPropertyPricingCommand(
+  propertyId: string,
+  pricing: SetPropertyPricingRequest,
+  correlationId: string,
+  authority: PropertyAuthority,
+): SetPropertyPricingCommand {
+  return { propertyId, pricing, correlationId, authority };
 }
 
 export function toUpdatePropertyCoreInformationCommand(

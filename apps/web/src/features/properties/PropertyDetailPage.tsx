@@ -4,6 +4,7 @@ import { Link, useLocation, useParams } from "react-router";
 import { useSession } from "../../auth/session.js";
 import { createPropertyApi } from "./property-api.js";
 import { PropertyDetailsForm } from "./PropertyDetailsForm.js";
+import { PropertyPricingForm } from "./PropertyPricingForm.js";
 import { PropertyCoreInformationForm } from "./PropertyCoreInformationForm.js";
 import { PropertyFeedback } from "./PropertyFeedback.js";
 import { toPropertyUiError, type PropertyUiError } from "./property-errors.js";
@@ -43,6 +44,7 @@ export function PropertyDetailPage() {
   const [photoStandard, setPhotoStandard] = useState<PropertyPhotoStandard>({ minimumCount: 1, additionalRequiredCategories: [] });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingPricing, setSavingPricing] = useState(false);
   const [savingCoreInformation, setSavingCoreInformation] = useState(false);
   const locationState = location.state as PropertyLocationState | null;
   const [saved, setSaved] = useState(Boolean(locationState?.created));
@@ -75,6 +77,13 @@ export function PropertyDetailPage() {
     finally { setSavingCoreInformation(false); }
   }
 
+  async function savePricing(input: Parameters<typeof api.setPropertyPricing>[1]) {
+    setSavingPricing(true); setSaved(false); setError(undefined);
+    try { setProperty(await api.setPropertyPricing(propertyId, input)); setSaved(true); }
+    catch (caught) { setError(toPropertyUiError(caught)); }
+    finally { setSavingPricing(false); }
+  }
+
   if (loading) return <div className="standalone-state"><LoadingState label="Chargement du bien…" /></div>;
   if (error?.kind === "not-found") return <div className="standalone-state"><p className="error-code">404</p><h1>Bien introuvable</h1><p>{error.message}</p><Link className={buttonClassName("secondary", "inline-action")} to="/properties">Retour aux biens</Link></div>;
   if (!property) return <div className="standalone-state"><PropertyFeedback error={error ?? toPropertyUiError(undefined)} onReconnect={() => void session.login(`/properties/${propertyId}`)} /></div>;
@@ -103,6 +112,7 @@ export function PropertyDetailPage() {
       <nav aria-label="Sections de la fiche" className="property-context-nav">
         <a href="#property-overview">Vue d’ensemble</a>
         <a href="#property-availability">Disponibilité</a>
+        <a href="#property-pricing">Tarification</a>
         <a href="#property-publication">Publication</a>
         <a href="#property-photos">Photos</a>
         <a href="#property-information">Informations</a>
@@ -132,6 +142,11 @@ export function PropertyDetailPage() {
         onReconnect={() => void session.login(`/properties/${propertyId}`)}
       /></div>
 
+      <section className="content-panel" id="property-pricing" aria-labelledby="property-pricing-title">
+        <div className="section-heading"><div><p className="eyebrow">Conditions financières</p><h2 id="property-pricing-title">Tarification du bien</h2></div></div>
+        <PropertyPricingForm property={property} saving={savingPricing} onSave={savePricing} />
+      </section>
+
       <div id="property-publication"><PropertyPublicationSection
           property={property}
           photoStandard={photoStandard}
@@ -159,7 +174,7 @@ export function PropertyDetailPage() {
       </section>
 
       <section className="content-panel" aria-labelledby="property-details-title">
-        <div className="section-heading"><div><p className="eyebrow">Description métier</p><h2 id="property-details-title">Détails et conditions commerciales</h2></div></div>
+        <div className="section-heading"><div><p className="eyebrow">Description métier</p><h2 id="property-details-title">Caractéristiques du bien</h2></div></div>
         <PropertyDetailsForm property={property} saving={saving} onSave={saveDetails} />
       </section>
 

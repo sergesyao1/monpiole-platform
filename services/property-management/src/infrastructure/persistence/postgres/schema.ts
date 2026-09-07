@@ -1,5 +1,5 @@
 import {
-  bigint, boolean, check, doublePrecision, foreignKey, index, integer, numeric, pgPolicy, pgSchema,
+  bigint, boolean, check, doublePrecision, foreignKey, index, integer, numeric, pgPolicy, pgSchema, smallint,
   primaryKey, text, timestamp, uniqueIndex, uuid,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -33,6 +33,10 @@ export const properties = propertyManagement.table("properties", {
   chargesAmountMinor: bigint("charges_amount_minor", { mode: "number" }),
   rateAmountMinor: bigint("rate_amount_minor", { mode: "number" }), pricingUnit: text("pricing_unit"),
   salePriceAmountMinor: bigint("sale_price_amount_minor", { mode: "number" }),
+  agencyFeeAmountMinor: bigint("agency_fee_amount_minor", { mode: "number" }),
+  cleaningFeeAmountMinor: bigint("cleaning_fee_amount_minor", { mode: "number" }),
+  minimumStayNights: integer("minimum_stay_nights"),
+  pricingVersion: smallint("pricing_version"),
 }, (table) => [
   uniqueIndex("properties_tenant_property_unique").on(table.tenantId, table.propertyId),
   index("properties_tenant_created_property_idx").on(table.tenantId, table.createdAt.desc(), table.propertyId.desc()),
@@ -61,26 +65,41 @@ export const properties = propertyManagement.table("properties", {
   `),
   check("properties_commercial_terms_check", sql`
     (${table.commercialKind} IS NULL AND ${table.currency} IS NULL
-      AND ${table.usableSurfaceSquareMeters} IS NULL AND ${table.rooms} IS NULL AND ${table.bedrooms} IS NULL AND ${table.bathrooms} IS NULL AND ${table.furnished} IS NULL
       AND ${table.rentAmountMinor} IS NULL AND ${table.rentPeriod} IS NULL AND ${table.securityDepositAmountMinor} IS NULL
-      AND ${table.chargesAmountMinor} IS NULL AND ${table.rateAmountMinor} IS NULL AND ${table.pricingUnit} IS NULL AND ${table.salePriceAmountMinor} IS NULL)
+      AND ${table.chargesAmountMinor} IS NULL AND ${table.rateAmountMinor} IS NULL AND ${table.pricingUnit} IS NULL
+      AND ${table.salePriceAmountMinor} IS NULL AND ${table.agencyFeeAmountMinor} IS NULL
+      AND ${table.cleaningFeeAmountMinor} IS NULL AND ${table.minimumStayNights} IS NULL
+      AND (${table.pricingVersion} IS NULL OR ${table.pricingVersion} = 1))
     OR
-    ((${table.usableSurfaceSquareMeters} IS NOT NULL OR ${table.rooms} IS NOT NULL OR ${table.bedrooms} IS NOT NULL OR ${table.bathrooms} IS NOT NULL OR ${table.furnished} IS NOT NULL)
-      AND ${table.currency} ~ '^[A-Z]{3}$'
+    (${table.pricingVersion} IN (1, 2)
+      AND ((${table.pricingVersion} = 1 AND ${table.currency} ~ '^[A-Z]{3}$')
+        OR (${table.pricingVersion} = 2 AND ${table.currency} = 'XOF'))
+      AND (${table.pricingVersion} = 2 OR (${table.agencyFeeAmountMinor} IS NULL
+        AND ${table.cleaningFeeAmountMinor} IS NULL AND ${table.minimumStayNights} IS NULL
+        AND (${table.commercialKind} <> 'SHORT_TERM_RENTAL' OR ${table.securityDepositAmountMinor} IS NULL)))
       AND (
         (${table.commercialKind} = 'LONG_TERM_RENTAL' AND ${table.transactionType} = 'LONG_TERM_RENTAL'
-          AND ${table.rentAmountMinor} BETWEEN 0 AND 9007199254740991 AND ${table.rentPeriod} = 'MONTH'
+          AND ${table.rentAmountMinor} BETWEEN CASE WHEN ${table.pricingVersion} = 1 THEN 0 ELSE 1 END AND 9007199254740991
+          AND ${table.rentPeriod} = 'MONTH'
           AND (${table.securityDepositAmountMinor} IS NULL OR ${table.securityDepositAmountMinor} BETWEEN 0 AND 9007199254740991)
           AND (${table.chargesAmountMinor} IS NULL OR ${table.chargesAmountMinor} BETWEEN 0 AND 9007199254740991)
-          AND ${table.rateAmountMinor} IS NULL AND ${table.pricingUnit} IS NULL AND ${table.salePriceAmountMinor} IS NULL)
+          AND (${table.agencyFeeAmountMinor} IS NULL OR ${table.agencyFeeAmountMinor} BETWEEN 0 AND 9007199254740991)
+          AND ${table.rateAmountMinor} IS NULL AND ${table.pricingUnit} IS NULL AND ${table.salePriceAmountMinor} IS NULL
+          AND ${table.cleaningFeeAmountMinor} IS NULL AND ${table.minimumStayNights} IS NULL)
         OR (${table.commercialKind} = 'SHORT_TERM_RENTAL' AND ${table.transactionType} = 'SHORT_TERM_RENTAL'
-          AND ${table.rateAmountMinor} BETWEEN 0 AND 9007199254740991 AND ${table.pricingUnit} IN ('NIGHT', 'WEEK')
-          AND ${table.rentAmountMinor} IS NULL AND ${table.rentPeriod} IS NULL AND ${table.securityDepositAmountMinor} IS NULL
-          AND ${table.chargesAmountMinor} IS NULL AND ${table.salePriceAmountMinor} IS NULL)
+          AND ${table.rateAmountMinor} BETWEEN CASE WHEN ${table.pricingVersion} = 1 THEN 0 ELSE 1 END AND 9007199254740991
+          AND ${table.pricingUnit} IN ('NIGHT', 'WEEK')
+          AND (${table.securityDepositAmountMinor} IS NULL OR ${table.securityDepositAmountMinor} BETWEEN 0 AND 9007199254740991)
+          AND (${table.cleaningFeeAmountMinor} IS NULL OR ${table.cleaningFeeAmountMinor} BETWEEN 0 AND 9007199254740991)
+          AND (${table.minimumStayNights} IS NULL OR ${table.minimumStayNights} >= 1)
+          AND ${table.rentAmountMinor} IS NULL AND ${table.rentPeriod} IS NULL
+          AND ${table.chargesAmountMinor} IS NULL AND ${table.salePriceAmountMinor} IS NULL AND ${table.agencyFeeAmountMinor} IS NULL)
         OR (${table.commercialKind} = 'SALE' AND ${table.transactionType} = 'SALE'
-          AND ${table.salePriceAmountMinor} BETWEEN 0 AND 9007199254740991
+          AND ${table.salePriceAmountMinor} BETWEEN CASE WHEN ${table.pricingVersion} = 1 THEN 0 ELSE 1 END AND 9007199254740991
+          AND (${table.agencyFeeAmountMinor} IS NULL OR ${table.agencyFeeAmountMinor} BETWEEN 0 AND 9007199254740991)
           AND ${table.rentAmountMinor} IS NULL AND ${table.rentPeriod} IS NULL AND ${table.securityDepositAmountMinor} IS NULL
-          AND ${table.chargesAmountMinor} IS NULL AND ${table.rateAmountMinor} IS NULL AND ${table.pricingUnit} IS NULL)
+          AND ${table.chargesAmountMinor} IS NULL AND ${table.rateAmountMinor} IS NULL AND ${table.pricingUnit} IS NULL
+          AND ${table.cleaningFeeAmountMinor} IS NULL AND ${table.minimumStayNights} IS NULL)
       ))
   `),
   check("properties_structural_role_check", sql`${table.structuralRole} IN ('STANDALONE', 'COMPOSITE', 'UNIT')`),

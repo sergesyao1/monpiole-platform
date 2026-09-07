@@ -105,7 +105,7 @@ describe("Property Domain and Application", () => {
   it("publishes an eligible Property once with the publication instant as its mutation instant", () => {
     const property = Property.create({ propertyId: PROPERTY_ID, tenantId: TENANT_A, ...input,
       createdAt: "2026-08-25T12:00:00.000Z", updatedAt: "2026-08-25T12:00:00.000Z" })
-      .defineDetails({ rooms: 1 }, { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 0, rentPeriod: "MONTH" }, "2026-08-25T13:00:00.000Z");
+      .defineDetails({ rooms: 1 }, { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 1, rentPeriod: "MONTH" }, "2026-08-25T13:00:00.000Z");
     const published = property.publish("2026-08-25T14:00:00.000Z", STUDIO_PHOTOS);
     expect(published.values).toMatchObject({ status: "PUBLISHED", publishedAt: "2026-08-25T14:00:00.000Z", updatedAt: "2026-08-25T14:00:00.000Z" });
     expect(published.publish("not-an-instant")).toBe(published);
@@ -164,7 +164,7 @@ describe("Property Domain and Application", () => {
     });
     const property = Property.create({ propertyId: PROPERTY_ID, tenantId: TENANT_A, ...input,
       createdAt: "2026-08-25T12:00:00.000Z", updatedAt: "2026-08-25T12:00:00.000Z" })
-      .defineDetails({ rooms: 1 }, { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 0, rentPeriod: "MONTH" }, "2026-08-25T13:00:00.000Z");
+      .defineDetails({ rooms: 1 }, { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 1, rentPeriod: "MONTH" }, "2026-08-25T13:00:00.000Z");
     const sevenPhotos = [PRIMARY_PHOTO, ...[1, 2, 3, 4, 5, 6].map((number) => ({
       ...PRIMARY_PHOTO, photoId: `${number}${number}${number}${number}${number}${number}${number}${number}-${number}${number}${number}${number}-4${number}${number}${number}-8${number}${number}${number}-${String(number).repeat(12)}`,
       category: "OTHER" as const, isPrimary: false,
@@ -202,7 +202,7 @@ describe("Property Domain and Application", () => {
     await create.execute({ ...input, authority: AUTHORITY, correlationId: PROPERTY_ID });
     await new UpdatePropertyDetails(repository, { now: () => "2026-08-25T13:00:00.000Z" }).execute({
       authority: { ...AUTHORITY, grants: ["UPDATE_PROPERTY_DETAILS"] }, correlationId: PROPERTY_ID, propertyId: PROPERTY_ID,
-      details: { rooms: 2 }, commercialTerms: { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 0, rentPeriod: "MONTH" },
+      details: { rooms: 2 }, commercialTerms: { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 1, rentPeriod: "MONTH" },
     });
     const stored = repository.values.get(`${TENANT_A}:${PROPERTY_ID}`)!;
     repository.values.set(`${TENANT_A}:${PROPERTY_ID}`, Property.rehydrate({ ...stored.values, photos: STUDIO_PHOTOS }));

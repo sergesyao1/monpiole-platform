@@ -34,7 +34,7 @@ function summary(): PublicPropertyCatalogItem {
     transactionType: "SALE",
     structuralRole: "STANDALONE",
     location: { country: "CI", city: "Abidjan", district: "Cocody" },
-    commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 125_000_000 },
+    commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 125_000_000, agencyFeeAmountMinor: 5_000_000 },
     primaryPhoto: { contentType: "image/png" },
     publishedAt: PUBLISHED_AT,
   };

@@ -85,9 +85,11 @@ export interface PropertyDetails {
 }
 
 export type CommercialTerms =
-  | Readonly<{ kind: "LONG_TERM_RENTAL"; currency: string; rentAmountMinor: number; rentPeriod: "MONTH"; securityDepositAmountMinor?: number; chargesAmountMinor?: number }>
-  | Readonly<{ kind: "SHORT_TERM_RENTAL"; currency: string; rateAmountMinor: number; pricingUnit: PricingUnit }>
-  | Readonly<{ kind: "SALE"; currency: string; salePriceAmountMinor: number }>;
+  | Readonly<{ kind: "LONG_TERM_RENTAL"; currency: string; rentAmountMinor: number; rentPeriod: "MONTH"; securityDepositAmountMinor?: number; chargesAmountMinor?: number; agencyFeeAmountMinor?: number }>
+  | Readonly<{ kind: "SHORT_TERM_RENTAL"; currency: string; rateAmountMinor: number; pricingUnit: PricingUnit; cleaningFeeAmountMinor?: number; securityDepositAmountMinor?: number; minimumStayNights?: number }>
+  | Readonly<{ kind: "SALE"; currency: string; salePriceAmountMinor: number; agencyFeeAmountMinor?: number }>;
+
+export type PropertyPricingInput = CommercialTerms & Readonly<{ currency: "XOF" }>;
 
 interface PropertyBase {
   readonly propertyId: string;
@@ -143,7 +145,7 @@ export interface CreatePropertyInput {
 
 export interface UpdatePropertyDetailsInput {
   readonly details: PropertyDetails;
-  readonly commercialTerms: CommercialTerms;
+  readonly commercialTerms?: PropertyPricingInput;
 }
 
 export interface UpdatePropertyCoreInformationInput {

@@ -66,6 +66,7 @@ describe("PostgreSQL public Property catalog boundary", () => {
 
     const first = await catalog.list({ tenantId: TENANT_A, limit: 1, propertyType: "HOUSE", transactionType: "SALE" });
     expect(first.items.map((item) => item.publicPropertyId)).toEqual([PROPERTY_A]);
+    expect(first.items[0]?.commercialTerms).toMatchObject({ agencyFeeAmountMinor: 5_000_000 });
     expect(first.nextCursor).toEqual({ publishedAt: "2026-08-31T12:00:00.000Z", publicPropertyId: PROPERTY_A });
     const second = await catalog.list({ tenantId: TENANT_A, limit: 1, cursor: first.nextCursor });
     expect(second.items.map((item) => item.publicPropertyId)).toEqual([PROPERTY_B]);
@@ -150,7 +151,8 @@ describe("PostgreSQL public Property catalog boundary", () => {
       "apartment_subtype", "status", "structural_role", "country", "city", "district", "published_at",
       "usable_surface_square_meters", "rooms", "bedrooms", "bathrooms", "furnished", "commercial_kind",
       "currency", "rent_amount_minor", "rent_period", "security_deposit_amount_minor", "charges_amount_minor",
-      "rate_amount_minor", "pricing_unit", "sale_price_amount_minor",
+      "rate_amount_minor", "pricing_unit", "sale_price_amount_minor", "agency_fee_amount_minor",
+      "cleaning_fee_amount_minor", "minimum_stay_nights",
     ];
     const photoColumns = [
       "tenant_id", "property_id", "status", "is_primary", "content_base64", "content_type",
@@ -166,12 +168,14 @@ describe("PostgreSQL public Property catalog boundary", () => {
       has_table_privilege(current_user, 'property_management.properties', 'SELECT') AS whole_property_select,
       has_column_privilege(current_user, 'property_management.properties', 'title', 'SELECT') AS title_select,
       has_column_privilege(current_user, 'property_management.properties', 'address_line', 'SELECT') AS address_select,
+      has_column_privilege(current_user, 'property_management.properties', 'pricing_version', 'SELECT') AS pricing_version_select,
       has_table_privilege(current_user, 'property_management.property_owners', 'SELECT') AS owners_select`)).rows[0]).toEqual({
       schema_usage: true,
       schema_create: false,
       whole_property_select: false,
       title_select: true,
       address_select: false,
+      pricing_version_select: false,
       owners_select: false,
     });
     await expect(reader.query("SELECT address_line FROM property_management.properties")).rejects.toThrow(/permission denied/iu);
@@ -238,16 +242,16 @@ async function seedPublished(
     await client.query("BEGIN");
     const subtype = propertyType === "APARTMENT" ? "STUDIO" : null;
     const terms = transactionType === "SALE"
-      ? ["SALE", "XOF", null, null, 125_000_000]
-      : ["LONG_TERM_RENTAL", "XOF", 350_000, "MONTH", null];
+      ? ["SALE", "XOF", null, null, 125_000_000, 5_000_000]
+      : ["LONG_TERM_RENTAL", "XOF", 350_000, "MONTH", null, 350_000];
     await client.query(`INSERT INTO property_management.properties
       (property_id, tenant_id, title, description, property_type, transaction_type, apartment_subtype,
        status, structural_role, country, city, district, address_line, created_at, updated_at,
        correlation_id, actor_id, published_at, published_by_actor_id, publication_correlation_id,
        usable_surface_square_meters, rooms, bedrooms, bathrooms, furnished,
-       commercial_kind, currency, rent_amount_minor, rent_period, sale_price_amount_minor)
+       commercial_kind, currency, rent_amount_minor, rent_period, sale_price_amount_minor, agency_fee_amount_minor)
       VALUES ($1,$2,$3,'Description publique',$4,$5,$6,'PUBLISHED','STANDALONE','CI','Abidjan','Cocody',
-        'Adresse privée',$7,$7,$8,'publisher',$7,'publisher',$8,120,4,3,2,true,$9,$10,$11,$12,$13)`, [
+        'Adresse privée',$7,$7,$8,'publisher',$7,'publisher',$8,120,4,3,2,true,$9,$10,$11,$12,$13,$14)`, [
       propertyId, tenantId, title, propertyType, transactionType, subtype, publishedAt, randomUUID(), ...terms,
     ]);
     await client.query(`INSERT INTO property_management.property_photos

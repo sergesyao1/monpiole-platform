@@ -11,7 +11,7 @@ import { PostgresPool, postgresConfigurationFromEnvironment } from "@monpiole/pe
 import {
   CreateProperty, CreatePropertyOwner, ListProperties, ListPropertyOwners, PostgresPropertyOwnerDirectoryQuery,
   PostgresPropertyOwnerRepository, PostgresPropertyPortfolioQuery, PostgresPropertyRepository,
-  RetrieveProperty, RetrievePropertyOwner, UpdatePropertyCoreInformation, UpdatePropertyDetails, UpdatePropertyOwner,
+  RetrieveProperty, RetrievePropertyOwner, SetPropertyPricing, UpdatePropertyCoreInformation, UpdatePropertyDetails, UpdatePropertyOwner,
   AssignPropertyOwner, PostgresPropertyOwnershipRepository, RetrievePropertyOwnerships, RemovePropertyOwner,
   CreatePropertyBuilding, ListPropertyBuildings, UpdatePropertyBuilding, CreatePropertyUnit, ListPropertyUnits, UpdatePropertyUnitStructure, PostgresPropertyCompositionRepository,
   PublishProperty, WithdrawPropertyFromCatalog,
@@ -108,6 +108,7 @@ export function createPostgresApiRuntime(
     retrieveProperty: new RetrieveProperty(propertyRepository),
     listProperties: new ListProperties(new PostgresPropertyPortfolioQuery(pool)),
     updatePropertyDetails: new UpdatePropertyDetails(propertyRepository, { now: () => new Date().toISOString() }),
+    setPropertyPricing: new SetPropertyPricing(propertyRepository, { now: () => new Date().toISOString() }),
     updatePropertyCoreInformation: new UpdatePropertyCoreInformation(propertyRepository, { now: () => new Date().toISOString() }),
     publishProperty: new PublishProperty(propertyRepository, { now: () => new Date().toISOString() }),
     withdrawPropertyFromCatalog: new WithdrawPropertyFromCatalog(propertyRepository, { now: () => new Date().toISOString() }),

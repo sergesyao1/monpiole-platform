@@ -3,7 +3,7 @@ import type { ActivateTenant, CreateTenant, PlatformAuthorityAuthorizer } from "
 import type { ActivateTenantAdministrator, BootstrapTenantAdministrator } from "@monpiole/identity";
 import type {
   CreateProperty, CreatePropertyOwner, ListProperties, ListPropertyOwners, RetrieveProperty, RetrievePropertyOwner,
-  UpdatePropertyCoreInformation, UpdatePropertyDetails, UpdatePropertyOwner, AssignPropertyOwner,
+  SetPropertyPricing, UpdatePropertyCoreInformation, UpdatePropertyDetails, UpdatePropertyOwner, AssignPropertyOwner,
   RetrievePropertyOwnerships, RemovePropertyOwner, CreatePropertyBuilding, ListPropertyBuildings, UpdatePropertyBuilding,
   CreatePropertyUnit, ListPropertyUnits, UpdatePropertyUnitStructure, PublishProperty, WithdrawPropertyFromCatalog,
   ListPropertyPhotos, RegisterPropertyPhoto, RetrievePropertyPhotoContent, SelectPropertyPrimaryPhoto, DeletePropertyPhoto,
@@ -43,6 +43,7 @@ import { CREATE_PROPERTY_USE_CASE, CreatePropertyController } from "./http/prope
 import { RETRIEVE_PROPERTY_USE_CASE, RetrievePropertyController } from "./http/properties/retrieve-property.controller.js";
 import { LIST_PROPERTIES_USE_CASE, ListPropertiesController } from "./http/properties/list-properties.controller.js";
 import { UPDATE_PROPERTY_DETAILS_USE_CASE, UpdatePropertyDetailsController } from "./http/properties/update-property-details.controller.js";
+import { SET_PROPERTY_PRICING_USE_CASE, SetPropertyPricingController } from "./http/properties/set-property-pricing.controller.js";
 import { UPDATE_PROPERTY_CORE_INFORMATION_USE_CASE, UpdatePropertyCoreInformationController } from "./http/properties/update-property-core-information.controller.js";
 import { CREATE_PROPERTY_OWNER_USE_CASE, CreatePropertyOwnerController } from "./http/properties/create-property-owner.controller.js";
 import { RETRIEVE_PROPERTY_OWNER_USE_CASE, RetrievePropertyOwnerController } from "./http/properties/retrieve-property-owner.controller.js";
@@ -94,6 +95,7 @@ export interface ApiComposition {
   readonly retrieveProperty?: Pick<RetrieveProperty, "execute">;
   readonly listProperties?: Pick<ListProperties, "execute">;
   readonly updatePropertyDetails?: Pick<UpdatePropertyDetails, "execute">;
+  readonly setPropertyPricing?: Pick<SetPropertyPricing, "execute">;
   readonly updatePropertyCoreInformation?: Pick<UpdatePropertyCoreInformation, "execute">;
   readonly publishProperty?: Pick<PublishProperty, "execute">;
   readonly withdrawPropertyFromCatalog?: Pick<WithdrawPropertyFromCatalog, "execute">;
@@ -153,6 +155,7 @@ const unavailableCreateProperty: Pick<CreateProperty, "execute"> = { async execu
 const unavailableRetrieveProperty: Pick<RetrieveProperty, "execute"> = { async execute() { throw new Error("Retrieve Property composition is unavailable"); } };
 const unavailableListProperties: Pick<ListProperties, "execute"> = { async execute() { throw new Error("List Properties composition is unavailable"); } };
 const unavailableUpdatePropertyDetails: Pick<UpdatePropertyDetails, "execute"> = { async execute() { throw new Error("Update Property Details composition is unavailable"); } };
+const unavailableSetPropertyPricing: Pick<SetPropertyPricing, "execute"> = { async execute() { throw new Error("Set Property Pricing composition is unavailable"); } };
 const unavailableUpdatePropertyCoreInformation: Pick<UpdatePropertyCoreInformation, "execute"> = { async execute() { throw new Error("Update Property Core Information composition is unavailable"); } };
 const unavailablePublishProperty: Pick<PublishProperty, "execute"> = { async execute() { throw new Error("Publish Property composition is unavailable"); } };
 const unavailableWithdrawPropertyFromCatalog: Pick<WithdrawPropertyFromCatalog, "execute"> = { async execute() { throw new Error("Withdraw Property from catalog composition is unavailable"); } };
@@ -193,7 +196,7 @@ export class AppModule {
         ActivateAdministratorController,
         ActivateTenantController,
         CreatePropertyController, ListPropertiesController, RetrievePropertyController,
-        UpdatePropertyCoreInformationController, UpdatePropertyDetailsController,
+        UpdatePropertyCoreInformationController, UpdatePropertyDetailsController, SetPropertyPricingController,
         PublishPropertyController,
         PropertyPhotosController, PropertyPhotoStandardController, PropertyGeolocationController, PropertyAvailabilityController,
         PublicPropertiesController,
@@ -227,6 +230,7 @@ export class AppModule {
         { provide: RETRIEVE_PROPERTY_USE_CASE, useValue: composition.retrieveProperty ?? unavailableRetrieveProperty },
         { provide: LIST_PROPERTIES_USE_CASE, useValue: composition.listProperties ?? unavailableListProperties },
         { provide: UPDATE_PROPERTY_DETAILS_USE_CASE, useValue: composition.updatePropertyDetails ?? unavailableUpdatePropertyDetails },
+        { provide: SET_PROPERTY_PRICING_USE_CASE, useValue: composition.setPropertyPricing ?? unavailableSetPropertyPricing },
         { provide: UPDATE_PROPERTY_CORE_INFORMATION_USE_CASE, useValue: composition.updatePropertyCoreInformation ?? unavailableUpdatePropertyCoreInformation },
         { provide: PUBLISH_PROPERTY_USE_CASE, useValue: composition.publishProperty ?? unavailablePublishProperty },
         { provide: WITHDRAW_PROPERTY_FROM_CATALOG_USE_CASE, useValue: composition.withdrawPropertyFromCatalog ?? unavailableWithdrawPropertyFromCatalog },

@@ -100,11 +100,17 @@ describe("vertical slice Web Property", () => {
     expect(await screen.findByRole("option", { name: "Awa Koné — déjà affecté" })).toBeDisabled();
   });
 
-  it("met à jour les détails et les conditions commerciales discriminées", async () => {
-    const updated = { ...property, details: { rooms: 4, bedrooms: 3, furnished: true }, commercialTerms: { kind: "LONG_TERM_RENTAL" as const, currency: "XOF", rentAmountMinor: 350000, rentPeriod: "MONTH" as const } };
+  it("met à jour séparément les caractéristiques et la tarification avancée", async () => {
+    const detailsUpdated = { ...property, details: { rooms: 4, bedrooms: 3, furnished: false } };
+    const pricingUpdated = { ...detailsUpdated, commercialTerms: {
+      kind: "LONG_TERM_RENTAL" as const, currency: "XOF" as const, rentAmountMinor: 350000,
+      rentPeriod: "MONTH" as const, securityDepositAmountMinor: 700000,
+      chargesAmountMinor: 25000, agencyFeeAmountMinor: 350000,
+    } };
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (init?.method === "PUT") return json(updated);
+      if (url.endsWith(`/v1/properties/${PROPERTY_ID}/details`) && init?.method === "PUT") return json(detailsUpdated);
+      if (url.endsWith(`/v1/properties/${PROPERTY_ID}/pricing`) && init?.method === "PUT") return json(pricingUpdated);
       if (url.endsWith("/owners")) return json([]);
       if (url.includes("/v1/property-owners?")) return json(ownerPage());
       return json(property);
@@ -115,14 +121,24 @@ describe("vertical slice Web Property", () => {
     expect(await screen.findByText("Aucun propriétaire n’est disponible. Créez-en un depuis l’annuaire.")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Pièces"), { target: { value: "4" } });
     fireEvent.change(screen.getByLabelText("Chambres"), { target: { value: "3" } });
-    fireEvent.change(screen.getByLabelText("Loyer mensuel"), { target: { value: "350000" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer les caractéristiques" }));
+    await screen.findByText("Les informations du bien sont à jour.");
+    fireEvent.change(screen.getByLabelText("Loyer mensuel (FCFA)"), { target: { value: "350000" } });
+    fireEvent.change(screen.getByLabelText("Dépôt de garantie (FCFA)"), { target: { value: "700000" } });
+    fireEvent.change(screen.getByLabelText("Charges (FCFA)"), { target: { value: "25000" } });
+    fireEvent.change(screen.getByLabelText("Frais d’agence (FCFA)"), { target: { value: "350000" } });
     expect(screen.queryByText(/unité mineure/iu)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Enregistrer les détails" }));
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer la tarification" }));
     expect(await screen.findByText("Les informations du bien sont à jour.")).toBeInTheDocument();
-    const updateCall = fetchMock.mock.calls.find(([, init]) => init?.method === "PUT");
-    expect(JSON.parse(String(updateCall?.[1]?.body))).toMatchObject({
+    const detailsCall = fetchMock.mock.calls.find(([input, init]) => String(input).endsWith("/details") && init?.method === "PUT");
+    expect(JSON.parse(String(detailsCall?.[1]?.body))).toEqual({
       details: { rooms: 4, bedrooms: 3, furnished: false },
-      commercialTerms: { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 350000, rentPeriod: "MONTH" },
+    });
+    const pricingCall = fetchMock.mock.calls.find(([input, init]) => String(input).endsWith("/pricing") && init?.method === "PUT");
+    expect(new Headers(pricingCall?.[1]?.headers).get("authorization")).toBe("Bearer property-test-token");
+    expect(JSON.parse(String(pricingCall?.[1]?.body))).toEqual({
+      kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 350000, rentPeriod: "MONTH",
+      securityDepositAmountMinor: 700000, chargesAmountMinor: 25000, agencyFeeAmountMinor: 350000,
     });
   });
 
@@ -158,7 +174,7 @@ describe("vertical slice Web Property", () => {
       contentSha256: "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6", isPrimary: true,
       registeredAt: property.createdAt, availableAt: property.createdAt };
     const ready = { ...property, details: { rooms: 1 }, commercialTerms: {
-      kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 0, rentPeriod: "MONTH",
+      kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 1, rentPeriod: "MONTH",
     }, photos: [primaryPhoto], primaryPhoto } satisfies Property;
     const published: Property = { ...ready, status: "PUBLISHED", publishedAt: "2026-08-27T12:00:00.000Z", canWithdrawFromCatalog: true, updatedAt: "2026-08-27T12:00:00.000Z" };
     const withdrawn: Property = { ...published, status: "WITHDRAWN", withdrawnAt: "2026-08-27T13:00:00.000Z", canWithdrawFromCatalog: false, updatedAt: "2026-08-27T13:00:00.000Z" };

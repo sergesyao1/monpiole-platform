@@ -1744,6 +1744,130 @@
         ],
         "type": "object"
       },
+      "PropertyPricing": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "agencyFeeAmountMinor": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "chargesAmountMinor": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "currency": {
+                "const": "XOF",
+                "type": "string"
+              },
+              "kind": {
+                "const": "LONG_TERM_RENTAL",
+                "type": "string"
+              },
+              "rentAmountMinor": {
+                "maximum": 9007199254740991,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "rentPeriod": {
+                "const": "MONTH",
+                "type": "string"
+              },
+              "securityDepositAmountMinor": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "currency",
+              "kind",
+              "rentAmountMinor",
+              "rentPeriod"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "cleaningFeeAmountMinor": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "currency": {
+                "const": "XOF",
+                "type": "string"
+              },
+              "kind": {
+                "const": "SHORT_TERM_RENTAL",
+                "type": "string"
+              },
+              "minimumStayNights": {
+                "maximum": 2147483647,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "pricingUnit": {
+                "enum": [
+                  "NIGHT",
+                  "WEEK"
+                ],
+                "type": "string"
+              },
+              "rateAmountMinor": {
+                "maximum": 9007199254740991,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "securityDepositAmountMinor": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "currency",
+              "kind",
+              "pricingUnit",
+              "rateAmountMinor"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "agencyFeeAmountMinor": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "currency": {
+                "const": "XOF",
+                "type": "string"
+              },
+              "kind": {
+                "const": "SALE",
+                "type": "string"
+              },
+              "salePriceAmountMinor": {
+                "maximum": 9007199254740991,
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "currency",
+              "kind",
+              "salePriceAmountMinor"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "PropertyResponse": {
         "oneOf": [
           {
@@ -1765,6 +1889,11 @@
                   {
                     "additionalProperties": false,
                     "properties": {
+                      "agencyFeeAmountMinor": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
                       "chargesAmountMinor": {
                         "maximum": 9007199254740991,
                         "minimum": 0,
@@ -1804,6 +1933,11 @@
                   {
                     "additionalProperties": false,
                     "properties": {
+                      "cleaningFeeAmountMinor": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
                       "currency": {
                         "pattern": "^[A-Z]{3}$",
                         "type": "string"
@@ -1811,6 +1945,11 @@
                       "kind": {
                         "const": "SHORT_TERM_RENTAL",
                         "type": "string"
+                      },
+                      "minimumStayNights": {
+                        "maximum": 2147483647,
+                        "minimum": 1,
+                        "type": "integer"
                       },
                       "pricingUnit": {
                         "enum": [
@@ -1820,6 +1959,11 @@
                         "type": "string"
                       },
                       "rateAmountMinor": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "securityDepositAmountMinor": {
                         "maximum": 9007199254740991,
                         "minimum": 0,
                         "type": "integer"
@@ -1836,6 +1980,11 @@
                   {
                     "additionalProperties": false,
                     "properties": {
+                      "agencyFeeAmountMinor": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
                       "currency": {
                         "pattern": "^[A-Z]{3}$",
                         "type": "string"
@@ -2010,6 +2159,11 @@
                   {
                     "additionalProperties": false,
                     "properties": {
+                      "agencyFeeAmountMinor": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
                       "chargesAmountMinor": {
                         "maximum": 9007199254740991,
                         "minimum": 0,
@@ -2049,6 +2203,11 @@
                   {
                     "additionalProperties": false,
                     "properties": {
+                      "cleaningFeeAmountMinor": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
                       "currency": {
                         "pattern": "^[A-Z]{3}$",
                         "type": "string"
@@ -2056,6 +2215,11 @@
                       "kind": {
                         "const": "SHORT_TERM_RENTAL",
                         "type": "string"
+                      },
+                      "minimumStayNights": {
+                        "maximum": 2147483647,
+                        "minimum": 1,
+                        "type": "integer"
                       },
                       "pricingUnit": {
                         "enum": [
@@ -2065,6 +2229,11 @@
                         "type": "string"
                       },
                       "rateAmountMinor": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "securityDepositAmountMinor": {
                         "maximum": 9007199254740991,
                         "minimum": 0,
                         "type": "integer"
@@ -2081,6 +2250,11 @@
                   {
                     "additionalProperties": false,
                     "properties": {
+                      "agencyFeeAmountMinor": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
                       "currency": {
                         "pattern": "^[A-Z]{3}$",
                         "type": "string"
@@ -2262,6 +2436,11 @@
                   {
                     "additionalProperties": false,
                     "properties": {
+                      "agencyFeeAmountMinor": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
                       "chargesAmountMinor": {
                         "maximum": 9007199254740991,
                         "minimum": 0,
@@ -2301,6 +2480,11 @@
                   {
                     "additionalProperties": false,
                     "properties": {
+                      "cleaningFeeAmountMinor": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
                       "currency": {
                         "pattern": "^[A-Z]{3}$",
                         "type": "string"
@@ -2308,6 +2492,11 @@
                       "kind": {
                         "const": "SHORT_TERM_RENTAL",
                         "type": "string"
+                      },
+                      "minimumStayNights": {
+                        "maximum": 2147483647,
+                        "minimum": 1,
+                        "type": "integer"
                       },
                       "pricingUnit": {
                         "enum": [
@@ -2317,6 +2506,11 @@
                         "type": "string"
                       },
                       "rateAmountMinor": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "securityDepositAmountMinor": {
                         "maximum": 9007199254740991,
                         "minimum": 0,
                         "type": "integer"
@@ -2333,6 +2527,11 @@
                   {
                     "additionalProperties": false,
                     "properties": {
+                      "agencyFeeAmountMinor": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
                       "currency": {
                         "pattern": "^[A-Z]{3}$",
                         "type": "string"
@@ -2548,6 +2747,11 @@
           {
             "additionalProperties": false,
             "properties": {
+              "agencyFeeAmountMinor": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
               "chargesAmountMinor": {
                 "maximum": 9007199254740991,
                 "minimum": 0,
@@ -2587,6 +2791,11 @@
           {
             "additionalProperties": false,
             "properties": {
+              "cleaningFeeAmountMinor": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
               "currency": {
                 "pattern": "^[A-Z]{3}$",
                 "type": "string"
@@ -2594,6 +2803,11 @@
               "kind": {
                 "const": "SHORT_TERM_RENTAL",
                 "type": "string"
+              },
+              "minimumStayNights": {
+                "maximum": 2147483647,
+                "minimum": 1,
+                "type": "integer"
               },
               "pricingUnit": {
                 "enum": [
@@ -2603,6 +2817,11 @@
                 "type": "string"
               },
               "rateAmountMinor": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "securityDepositAmountMinor": {
                 "maximum": 9007199254740991,
                 "minimum": 0,
                 "type": "integer"
@@ -2619,6 +2838,11 @@
           {
             "additionalProperties": false,
             "properties": {
+              "agencyFeeAmountMinor": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
               "currency": {
                 "pattern": "^[A-Z]{3}$",
                 "type": "string"
@@ -2936,6 +3160,9 @@
         "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
         "type": "string"
       },
+      "SetPropertyPricingRequest": {
+        "$ref": "#/components/schemas/PropertyPricing"
+      },
       "TenantId": {
         "pattern": "^[a-z0-9][a-z0-9_-]{2,63}$",
         "type": "string"
@@ -3148,103 +3375,7 @@
         "additionalProperties": false,
         "properties": {
           "commercialTerms": {
-            "oneOf": [
-              {
-                "additionalProperties": false,
-                "properties": {
-                  "chargesAmountMinor": {
-                    "maximum": 9007199254740991,
-                    "minimum": 0,
-                    "type": "integer"
-                  },
-                  "currency": {
-                    "pattern": "^[A-Z]{3}$",
-                    "type": "string"
-                  },
-                  "kind": {
-                    "const": "LONG_TERM_RENTAL",
-                    "type": "string"
-                  },
-                  "rentAmountMinor": {
-                    "maximum": 9007199254740991,
-                    "minimum": 0,
-                    "type": "integer"
-                  },
-                  "rentPeriod": {
-                    "const": "MONTH",
-                    "type": "string"
-                  },
-                  "securityDepositAmountMinor": {
-                    "maximum": 9007199254740991,
-                    "minimum": 0,
-                    "type": "integer"
-                  }
-                },
-                "required": [
-                  "currency",
-                  "kind",
-                  "rentAmountMinor",
-                  "rentPeriod"
-                ],
-                "type": "object"
-              },
-              {
-                "additionalProperties": false,
-                "properties": {
-                  "currency": {
-                    "pattern": "^[A-Z]{3}$",
-                    "type": "string"
-                  },
-                  "kind": {
-                    "const": "SHORT_TERM_RENTAL",
-                    "type": "string"
-                  },
-                  "pricingUnit": {
-                    "enum": [
-                      "NIGHT",
-                      "WEEK"
-                    ],
-                    "type": "string"
-                  },
-                  "rateAmountMinor": {
-                    "maximum": 9007199254740991,
-                    "minimum": 0,
-                    "type": "integer"
-                  }
-                },
-                "required": [
-                  "currency",
-                  "kind",
-                  "pricingUnit",
-                  "rateAmountMinor"
-                ],
-                "type": "object"
-              },
-              {
-                "additionalProperties": false,
-                "properties": {
-                  "currency": {
-                    "pattern": "^[A-Z]{3}$",
-                    "type": "string"
-                  },
-                  "kind": {
-                    "const": "SALE",
-                    "type": "string"
-                  },
-                  "salePriceAmountMinor": {
-                    "maximum": 9007199254740991,
-                    "minimum": 0,
-                    "type": "integer"
-                  }
-                },
-                "required": [
-                  "currency",
-                  "kind",
-                  "salePriceAmountMinor"
-                ],
-                "type": "object"
-              }
-            ]
+            "$ref": "#/components/schemas/PropertyPricing"
           },
           "details": {
             "additionalProperties": false,
@@ -3276,7 +3407,6 @@
           }
         },
         "required": [
-          "commercialTerms",
           "details"
         ],
         "type": "object"
@@ -5902,7 +6032,7 @@
             "bearer": []
           }
         ],
-        "summary": "Define property details and commercial terms",
+        "summary": "Update property details",
         "tags": [
           "Properties"
         ]
@@ -7324,6 +7454,117 @@
         "summary": "Atomically select or replace the primary Property photo",
         "tags": [
           "Property photos"
+        ]
+      }
+    },
+    "/v1/properties/{propertyId}/pricing": {
+      "put": {
+        "operationId": "setPropertyPricing",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "propertyId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetPropertyPricingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertyResponse"
+                }
+              }
+            },
+            "description": "Property pricing updated",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid or incompatible pricing"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden property authority"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Property not found"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Safe internal failure"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Set strict property pricing",
+        "tags": [
+          "Properties"
         ]
       }
     },

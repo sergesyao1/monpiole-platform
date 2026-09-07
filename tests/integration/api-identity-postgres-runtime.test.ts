@@ -110,7 +110,7 @@ async function start() {
       actorId: "runtime-test", authorityId: "platform-test",
       grants: [
         "CREATE_TENANT", "BOOTSTRAP_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT",
-        "CREATE_PROPERTY", "RETRIEVE_PROPERTY", "LIST_PROPERTIES", "UPDATE_PROPERTY_DETAILS", "UPDATE_PROPERTY_CORE_INFORMATION",
+        "CREATE_PROPERTY", "RETRIEVE_PROPERTY", "LIST_PROPERTIES", "UPDATE_PROPERTY_DETAILS", "UPDATE_PROPERTY_CORE_INFORMATION", "UPDATE_PROPERTY_PRICING",
         "PUBLISH_PROPERTY", "WITHDRAW_PROPERTY_FROM_CATALOG",
         "RETRIEVE_PROPERTY_AVAILABILITY", "UPDATE_PROPERTY_AVAILABILITY",
         "CREATE_PROPERTY_PHOTO", "RETRIEVE_PROPERTY_PHOTOS", "SELECT_PROPERTY_PRIMARY_PHOTO", "DELETE_PROPERTY_PHOTO",
@@ -329,7 +329,7 @@ describe("API PostgreSQL Identity runtime composition", () => {
     expect(unitResponse.status).toBe(201); const oidcUnit = await unitResponse.json() as { property: { propertyId: string } };
     expect((await fetch(`${baseUrl}/v1/properties/${root.propertyId}/details`, {
       method: "PUT", headers: authenticatedHeaders, body: JSON.stringify({
-        details: { rooms: 1 }, commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 0 },
+        details: { rooms: 1 }, commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 1 },
       }),
     })).status).toBe(200);
     await insertPrimaryPhoto("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", root.propertyId);
@@ -391,10 +391,20 @@ describe("API PostgreSQL Identity runtime composition", () => {
     const updated = await fetch(`${baseUrl}/v1/properties/${property.propertyId}/details`, {
       method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({
         details: { usableSurfaceSquareMeters: 72, rooms: 3, bedrooms: 2, bathrooms: 1 },
-        commercialTerms: { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 300_000, rentPeriod: "MONTH" },
       }),
     });
     expect(updated.status).toBe(200);
+    const pricing = await fetch(`${baseUrl}/v1/properties/${property.propertyId}/pricing`, {
+      method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 300_000, rentPeriod: "MONTH",
+        securityDepositAmountMinor: 600_000, chargesAmountMinor: 25_000, agencyFeeAmountMinor: 300_000,
+      }),
+    });
+    expect(pricing.status).toBe(200);
+    expect(await pricing.json()).toMatchObject({ commercialTerms: {
+      kind: "LONG_TERM_RENTAL", rentAmountMinor: 300_000, securityDepositAmountMinor: 600_000,
+      chargesAmountMinor: 25_000, agencyFeeAmountMinor: 300_000,
+    } });
     const availabilityEndpoint = `${baseUrl}/v1/properties/${property.propertyId}/availability`;
     const initialAvailability = await fetch(availabilityEndpoint);
     expect(initialAvailability.status).toBe(200);
@@ -426,8 +436,13 @@ describe("API PostgreSQL Identity runtime composition", () => {
       availability_updated_by_actor_id: "runtime-test", has_availability_correlation: true,
     });
     await insertStudioPhotoSet(tenantId, property.propertyId);
-    expect((await ownerPool.query("SELECT commercial_kind, rent_amount_minor FROM property_management.properties WHERE property_id = $1", [property.propertyId])).rows[0])
-      .toEqual({ commercial_kind: "LONG_TERM_RENTAL", rent_amount_minor: "300000" });
+    expect((await ownerPool.query(`SELECT commercial_kind, rent_amount_minor, security_deposit_amount_minor,
+      charges_amount_minor, agency_fee_amount_minor, pricing_version FROM property_management.properties
+      WHERE property_id = $1`, [property.propertyId])).rows[0]).toEqual({
+      commercial_kind: "LONG_TERM_RENTAL", rent_amount_minor: "300000",
+      security_deposit_amount_minor: "600000", charges_amount_minor: "25000",
+      agency_fee_amount_minor: "300000", pricing_version: 2,
+    });
     const publication = await fetch(`${baseUrl}/v1/properties/${property.propertyId}/publication`, { method: "PUT" });
     const publicationBody = await publication.json();
     expect(publication.status, JSON.stringify(publicationBody)).toBe(200);

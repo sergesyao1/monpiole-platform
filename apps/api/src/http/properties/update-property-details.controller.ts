@@ -18,7 +18,7 @@ export class UpdatePropertyDetailsController {
     @Inject(AUTHENTICATED_AUTHORITY_PROVIDER) private readonly authorityProvider: AuthenticatedAuthorityProvider,
   ) {}
   @Put() @HttpCode(200) @TenantContext("not-applicable")
-  @ApiOperation({ operationId: "updatePropertyDetails", summary: "Define property details and commercial terms" }) @ApiSecurity("bearer")
+  @ApiOperation({ operationId: "updatePropertyDetails", summary: "Update property details" }) @ApiSecurity("bearer")
   @ApiParam({ name: "propertyId", required: true, schema: { type: "string", format: "uuid" } })
   @ApiOkResponse({ description: "Property details updated", type: PropertyResponseDto, headers: responseHeaders() })
   @ApiResponse({ status: 400, description: "Invalid or incompatible details", content: problemContent() })
