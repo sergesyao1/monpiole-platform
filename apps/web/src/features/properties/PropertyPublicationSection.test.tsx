@@ -10,6 +10,7 @@ import type { Property } from "./property-model.js";
 
 const PROPERTY_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const primaryPhoto = { photoId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", category: "BUILDING_EXTERIOR_OR_ENTRANCE" as const,
+  mediaKind: "IMAGE" as const, position: 0,
   status: "AVAILABLE" as const, contentPath: `/v1/properties/${PROPERTY_ID}/photos/cccccccc-cccc-4ccc-8ccc-cccccccccccc/content` as const,
   contentType: "image/png" as const, contentByteSize: 8,
   contentSha256: "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6", isPrimary: true,

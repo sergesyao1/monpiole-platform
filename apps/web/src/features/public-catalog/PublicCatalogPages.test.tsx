@@ -106,6 +106,7 @@ describe("public Property catalog Web journey", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json({
       ...property,
       primaryPhoto: null,
+      gallery: [],
       description: "Une maison ouverte sur le jardin.",
       details: { usableSurfaceSquareMeters: 140, rooms: 5, bedrooms: 3, bathrooms: 2, furnished: false },
     })));
@@ -119,6 +120,25 @@ describe("public Property catalog Web journey", () => {
     expect(screen.getByText(/^5[\s ]000[\s ]000\s*FCFA$/u)).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Aucune photo disponible pour Maison des Lagunes" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Retour au catalogue/ })).toHaveAttribute("href", "/catalogue");
+  });
+
+  it("renders the ordered public gallery from safe media URLs", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json({
+      ...property,
+      description: null,
+      details: {},
+      gallery: [
+        { mediaId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", kind: "IMAGE", category: "OTHER", position: 0, isPrimary: true,
+          url: `/v1/public/properties/${PROPERTY_ID}/media/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/content`, contentType: "image/png" },
+        { mediaId: "ffffffff-ffff-4fff-8fff-ffffffffffff", kind: "IMAGE", category: "OTHER", position: 1, isPrimary: false,
+          url: `/v1/public/properties/${PROPERTY_ID}/media/ffffffff-ffff-4fff-8fff-ffffffffffff/content`, contentType: "image/png" },
+      ],
+    })));
+    renderRoute(`/catalogue/${PROPERTY_ID}`);
+    const gallery = await screen.findByRole("list", { name: "Galerie de Maison des Lagunes" });
+    expect(gallery.querySelectorAll("img")).toHaveLength(2);
+    expect(screen.getByAltText("Photo principale 1 de Maison des Lagunes")).toHaveAttribute("src", expect.stringContaining("/media/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/content"));
+    expect(screen.getByText("Image principale")).toBeInTheDocument();
   });
 
   it("renders the same non-disclosing not-found state for a withdrawn or missing public detail", async () => {

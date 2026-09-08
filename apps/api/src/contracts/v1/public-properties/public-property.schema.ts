@@ -42,6 +42,18 @@ export const PublicPropertyPrimaryPhotoSchema = z.object({
   url: z.string().regex(/^\/v1\/public\/properties\/[0-9a-f-]+\/primary-photo$/u),
   contentType: z.enum(["image/jpeg", "image/png", "image/webp"]),
 }).strict().meta({ id: "PublicPropertyPrimaryPhoto" });
+export const PublicPropertyMediaSchema = z.object({
+  mediaId: PublicPropertyIdSchema,
+  kind: z.literal("IMAGE"),
+  category: z.enum([
+    "BUILDING_EXTERIOR_OR_ENTRANCE", "MAIN_LIVING_SLEEPING_AREA", "LIVING_ROOM_OR_MAIN_ROOM",
+    "KITCHEN_OR_KITCHENETTE", "BEDROOM_OR_SLEEPING_AREA", "BATHROOM_OR_SHOWER_ROOM", "OTHER",
+  ]),
+  position: z.number().int().nonnegative(),
+  isPrimary: z.boolean(),
+  url: z.string().regex(/^\/v1\/public\/properties\/[0-9a-f-]+\/media\/[0-9a-f-]+\/content$/u),
+  contentType: z.enum(["image/jpeg", "image/png", "image/webp"]),
+}).strict().meta({ id: "PublicPropertyMedia" });
 
 const PublicPropertySummaryShape = {
   publicPropertyId: PublicPropertyIdSchema,
@@ -60,6 +72,7 @@ export const PublicPropertyDetailSchema = z.object({
   ...PublicPropertySummaryShape,
   description: z.string().max(5_000).nullable(),
   details: PublicPropertyDetailsSchema,
+  gallery: z.array(PublicPropertyMediaSchema),
 }).strict().meta({ id: "PublicPropertyDetail" });
 export const PublicPropertyCatalogResponseSchema = z.object({
   items: z.array(PublicPropertySummarySchema),
@@ -73,6 +86,9 @@ export const ListPublicPropertiesQuerySchema = z.object({
 }).strict().meta({ id: "ListPublicPropertiesQuery" });
 export const PublicPropertyPathSchema = z.object({ publicPropertyId: PublicPropertyIdSchema })
   .strict().meta({ id: "PublicPropertyPath" });
+export const PublicPropertyMediaPathSchema = z.object({
+  publicPropertyId: PublicPropertyIdSchema, mediaId: PublicPropertyIdSchema,
+}).strict().meta({ id: "PublicPropertyMediaPath" });
 
 export type PublicPropertySummary = z.output<typeof PublicPropertySummarySchema>;
 export type PublicPropertyDetail = z.output<typeof PublicPropertyDetailSchema>;

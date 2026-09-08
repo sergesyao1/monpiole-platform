@@ -65,6 +65,7 @@ export function toPropertyAuthority(authority: AuthenticatedAuthority): Property
       || grant === "RETRIEVE_PROPERTY_GEOLOCATION" || grant === "UPDATE_PROPERTY_GEOLOCATION" || grant === "REMOVE_PROPERTY_GEOLOCATION"
       || grant === "CREATE_PROPERTY_PHOTO" || grant === "RETRIEVE_PROPERTY_PHOTOS"
       || grant === "SELECT_PROPERTY_PRIMARY_PHOTO" || grant === "DELETE_PROPERTY_PHOTO"
+      || grant === "REORDER_PROPERTY_PHOTOS"
       || grant === "RETRIEVE_PROPERTY_PHOTO_STANDARD" || grant === "MANAGE_PROPERTY_PHOTO_STANDARD"
       || grant === "ASSIGN_PROPERTY_OWNER" || grant === "RETRIEVE_PROPERTY_OWNERSHIP" || grant === "REMOVE_PROPERTY_OWNER"),
     tenantIds: authority.tenantIds,

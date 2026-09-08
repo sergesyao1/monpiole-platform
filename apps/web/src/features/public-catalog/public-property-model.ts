@@ -55,6 +55,16 @@ export interface PublicPropertyPrimaryPhoto {
   readonly contentType: "image/jpeg" | "image/png" | "image/webp";
 }
 
+export interface PublicPropertyMedia {
+  readonly mediaId: string;
+  readonly kind: "IMAGE";
+  readonly category: string;
+  readonly position: number;
+  readonly isPrimary: boolean;
+  readonly url: `/v1/public/properties/${string}/media/${string}/content`;
+  readonly contentType: "image/jpeg" | "image/png" | "image/webp";
+}
+
 export interface PublicPropertySummary {
   readonly publicPropertyId: string;
   readonly title: string;
@@ -71,6 +81,7 @@ export interface PublicPropertySummary {
 export interface PublicPropertyDetail extends PublicPropertySummary {
   readonly description: string | null;
   readonly details: PublicPropertyDetails;
+  readonly gallery: readonly PublicPropertyMedia[];
 }
 
 export interface PublicPropertyCatalogPage {

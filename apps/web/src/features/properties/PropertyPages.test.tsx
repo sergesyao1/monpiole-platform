@@ -168,6 +168,7 @@ describe("vertical slice Web Property", () => {
   });
   it("publie depuis la fiche avec le client authentifié bodyless et reflète immédiatement le résultat", async () => {
     const primaryPhoto = { photoId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", category: "BUILDING_EXTERIOR_OR_ENTRANCE" as const,
+      mediaKind: "IMAGE" as const, position: 0,
       status: "AVAILABLE" as const,
       contentPath: `/v1/properties/${PROPERTY_ID}/photos/dddddddd-dddd-4ddd-8ddd-dddddddddddd/content` as const,
       contentType: "image/png" as const, contentByteSize: 8,

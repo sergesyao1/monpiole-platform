@@ -43,21 +43,21 @@ function connectionString(user: string, password: string): string {
 async function insertPrimaryPhoto(tenantId: string, propertyId: string) {
   await ownerPool.query(`INSERT INTO property_management.property_photos
     (photo_id, tenant_id, property_id, category, status, is_primary, content_base64, content_type,
-     content_byte_size, content_sha256, registered_at, available_at)
+     content_byte_size, content_sha256, registered_at, available_at, media_kind, gallery_position)
     VALUES ($1,$2,$3,'BUILDING_EXTERIOR_OR_ENTRANCE','AVAILABLE',true,'iVBORw0KGgo=','image/png',8,
-      '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',now(),now())`,
+      '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',now(),now(),'IMAGE',0)`,
   [randomUUID(), tenantId, propertyId]);
 }
 
 async function insertStudioPhotoSet(tenantId: string, propertyId: string) {
   await insertPrimaryPhoto(tenantId, propertyId);
-  for (const category of ["MAIN_LIVING_SLEEPING_AREA", "KITCHEN_OR_KITCHENETTE", "BATHROOM_OR_SHOWER_ROOM", "OTHER", "OTHER"]) {
+  for (const [index, category] of ["MAIN_LIVING_SLEEPING_AREA", "KITCHEN_OR_KITCHENETTE", "BATHROOM_OR_SHOWER_ROOM", "OTHER", "OTHER"].entries()) {
     await ownerPool.query(`INSERT INTO property_management.property_photos
       (photo_id, tenant_id, property_id, category, status, is_primary, content_base64, content_type,
-       content_byte_size, content_sha256, registered_at, available_at)
+       content_byte_size, content_sha256, registered_at, available_at, media_kind, gallery_position)
       VALUES ($1,$2,$3,$4,'AVAILABLE',false,'iVBORw0KGgo=','image/png',8,
-        '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',now(),now())`,
-    [randomUUID(), tenantId, propertyId, category]);
+        '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',now(),now(),'IMAGE',$5)`,
+    [randomUUID(), tenantId, propertyId, category, index + 1]);
   }
 }
 
@@ -113,7 +113,7 @@ async function start() {
         "CREATE_PROPERTY", "RETRIEVE_PROPERTY", "LIST_PROPERTIES", "UPDATE_PROPERTY_DETAILS", "UPDATE_PROPERTY_CORE_INFORMATION", "UPDATE_PROPERTY_PRICING",
         "PUBLISH_PROPERTY", "WITHDRAW_PROPERTY_FROM_CATALOG",
         "RETRIEVE_PROPERTY_AVAILABILITY", "UPDATE_PROPERTY_AVAILABILITY",
-        "CREATE_PROPERTY_PHOTO", "RETRIEVE_PROPERTY_PHOTOS", "SELECT_PROPERTY_PRIMARY_PHOTO", "DELETE_PROPERTY_PHOTO",
+        "CREATE_PROPERTY_PHOTO", "RETRIEVE_PROPERTY_PHOTOS", "SELECT_PROPERTY_PRIMARY_PHOTO", "DELETE_PROPERTY_PHOTO", "REORDER_PROPERTY_PHOTOS",
         "RETRIEVE_PROPERTY_PHOTO_STANDARD", "MANAGE_PROPERTY_PHOTO_STANDARD",
         "CREATE_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNER", "LIST_PROPERTY_OWNERS", "UPDATE_PROPERTY_OWNER",
         "ASSIGN_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNERSHIP", "REMOVE_PROPERTY_OWNER",
@@ -656,9 +656,9 @@ describe("API PostgreSQL Identity runtime composition", () => {
           100,4,'SALE','XOF',125000000)`, [propertyId, tenantId, randomUUID()]);
       await client.query(`INSERT INTO property_management.property_photos
         (photo_id,tenant_id,property_id,category,status,is_primary,content_base64,content_type,
-         content_byte_size,content_sha256,registered_at,available_at)
+         content_byte_size,content_sha256,registered_at,available_at,media_kind,gallery_position)
         VALUES ($1,$2,$3,'BUILDING_EXTERIOR_OR_ENTRANCE','AVAILABLE',true,'iVBORw0KGgo=','image/png',8,
-          '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',now(),now())`,
+          '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',now(),now(),'IMAGE',0)`,
       [randomUUID(), tenantId, propertyId]);
       await client.query("COMMIT");
     } catch (error) {

@@ -3,7 +3,7 @@ import {
   ApiExtraModels, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags,
 } from "@nestjs/swagger";
 import type {
-  ListPublicProperties, RetrievePublicPrimaryPhoto, RetrievePublicProperty,
+  ListPublicProperties, RetrievePublicPrimaryPhoto, RetrievePublicProperty, RetrievePublicPropertyMedia,
 } from "@monpiole/property-management";
 import { ZodSerializerDto } from "nestjs-zod";
 
@@ -22,6 +22,7 @@ import {
   ListPublicPropertiesQueryDto,
   PublicPropertyCatalogResponseDto,
   PublicPropertyDetailDto,
+  PublicPropertyMediaPathDto,
   PublicPropertyPathDto,
   PublicPropertyProblemDetailsDto,
 } from "./public-property.dto.js";
@@ -31,6 +32,7 @@ export const PUBLIC_CATALOG_TENANT_RESOLVER = Symbol("monpiole.public-catalog-te
 export const LIST_PUBLIC_PROPERTIES_USE_CASE = Symbol("monpiole.list-public-properties-use-case");
 export const RETRIEVE_PUBLIC_PROPERTY_USE_CASE = Symbol("monpiole.retrieve-public-property-use-case");
 export const RETRIEVE_PUBLIC_PRIMARY_PHOTO_USE_CASE = Symbol("monpiole.retrieve-public-primary-photo-use-case");
+export const RETRIEVE_PUBLIC_PROPERTY_MEDIA_USE_CASE = Symbol("monpiole.retrieve-public-property-media-use-case");
 
 interface BinaryResponse {
   setHeader(name: string, value: string | number): void;
@@ -46,6 +48,7 @@ export class PublicPropertiesController {
     @Inject(LIST_PUBLIC_PROPERTIES_USE_CASE) private readonly listProperties: Pick<ListPublicProperties, "execute">,
     @Inject(RETRIEVE_PUBLIC_PROPERTY_USE_CASE) private readonly retrieveProperty: Pick<RetrievePublicProperty, "execute">,
     @Inject(RETRIEVE_PUBLIC_PRIMARY_PHOTO_USE_CASE) private readonly retrievePrimaryPhoto: Pick<RetrievePublicPrimaryPhoto, "execute">,
+    @Inject(RETRIEVE_PUBLIC_PROPERTY_MEDIA_USE_CASE) private readonly retrieveMedia: Pick<RetrievePublicPropertyMedia, "execute">,
     @Inject(PUBLIC_CATALOG_TENANT_RESOLVER) private readonly tenantResolver: PublicCatalogTenantResolver,
   ) {}
 
@@ -137,6 +140,44 @@ export class PublicPropertiesController {
     response.setHeader("Content-Type", photo.contentType);
     response.setHeader("Content-Length", photo.contentByteSize);
     response.status(200).end(photo.content);
+  }
+
+  @Get(":publicPropertyId/media/:mediaId/content")
+  @TenantContext("not-applicable")
+  @ApiOperation({ operationId: "retrievePublicPropertyMedia", summary: "Retrieve one ordered public gallery image", security: [] })
+  @ApiParam({ name: "publicPropertyId", required: true, schema: { type: "string", format: "uuid" } })
+  @ApiParam({ name: "mediaId", required: true, schema: { type: "string", format: "uuid" } })
+  @ApiResponse({ status: 200, description: "Content-backed public gallery image", content: {
+    "image/jpeg": { schema: { type: "string", format: "binary" } },
+    "image/png": { schema: { type: "string", format: "binary" } },
+    "image/webp": { schema: { type: "string", format: "binary" } },
+  }, headers: responseHeaders() })
+  @ApiResponse({ status: 304, description: "The cached gallery image is still current", headers: responseHeaders() })
+  @ApiResponse({ status: 400, description: "Invalid public Property or media identifier", content: problemContent() })
+  @ApiResponse({ status: 404, description: "Public Property media not found", content: problemContent() })
+  @ApiResponse({ status: 500, description: "Safe internal failure", content: problemContent() })
+  async media(
+    @Headers("host") host: string | undefined,
+    @Headers("if-none-match") ifNoneMatch: string | undefined,
+    @Param() path: PublicPropertyMediaPathDto,
+    @Res() response: BinaryResponse,
+  ): Promise<void> {
+    const tenantId = requirePublicCatalogTenant(this.tenantResolver, host);
+    const media = await this.retrieveMedia.execute({
+      tenantId, publicPropertyId: path.publicPropertyId, mediaId: path.mediaId,
+    });
+    const etag = `"${media.contentSha256}"`;
+    response.setHeader("Cache-Control", "public, max-age=300");
+    response.setHeader("Vary", "Host, Origin");
+    response.setHeader("ETag", etag);
+    response.setHeader("X-Content-Type-Options", "nosniff");
+    if (matchesEtag(ifNoneMatch, etag)) {
+      response.status(304).end();
+      return;
+    }
+    response.setHeader("Content-Type", media.contentType);
+    response.setHeader("Content-Length", media.contentByteSize);
+    response.status(200).end(media.content);
   }
 }
 

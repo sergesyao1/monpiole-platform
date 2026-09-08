@@ -76,6 +76,15 @@ function PublicPropertyDetailView({ property, backPath }: Readonly<{ property: P
         </div>
       </div>
       <div className="public-detail-sections">
+        {property.gallery.length > 0 ? <section className="public-gallery-section">
+          <h2>Galerie</h2>
+          <ul className="public-gallery" aria-label={`Galerie de ${property.title}`}>
+            {property.gallery.map((media, index) => <li key={media.mediaId}>
+              <img src={api.photoUrl(media.url)} alt={`${media.isPrimary ? "Photo principale" : "Photo"} ${index + 1} de ${property.title}`} />
+              {media.isPrimary ? <StatusBadge tone="info">Image principale</StatusBadge> : null}
+            </li>)}
+          </ul>
+        </section> : null}
         <section><h2>À propos de ce bien</h2><p>{property.description ?? "Aucune description complémentaire n’est disponible."}</p></section>
         <section><h2>Caractéristiques</h2><dl className="public-details-list">
           {property.details.usableSurfaceSquareMeters !== undefined ? <div><dt>Surface utile</dt><dd>{property.details.usableSurfaceSquareMeters} m²</dd></div> : null}

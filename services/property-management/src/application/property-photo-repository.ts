@@ -38,4 +38,5 @@ export interface PropertyPhotoRepository {
     trace: PropertyPhotoSelectionTrace,
   ): Promise<readonly PropertyPhotoValues[] | undefined>;
   delete(tenantId: string, propertyId: string, photoId: string): Promise<boolean | undefined>;
+  reorder(tenantId: string, propertyId: string, orderedPhotoIds: readonly string[]): Promise<readonly PropertyPhotoValues[] | undefined>;
 }

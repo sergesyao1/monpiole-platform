@@ -43,6 +43,9 @@ export function toPropertyUiError(error: unknown, resource: PropertyErrorResourc
     if (error.problem.code === "PROPERTY_PRIMARY_PHOTO_DELETION_FORBIDDEN") {
       return { kind: "conflict", message: "Sélectionnez une photo remplaçante avant de supprimer la photo principale." };
     }
+    if (error.problem.code === "PROPERTY_PUBLISHED_PHOTO_MUTATION_FORBIDDEN") {
+      return { kind: "conflict", message: "Cette suppression rendrait la galerie du bien publié non conforme. Ajoutez d’abord une image remplaçante." };
+    }
     if (error.problem.code === "PROPERTY_BUILDING_CODE_CONFLICT") return { kind: "conflict", message: "Ce code d’immeuble est déjà utilisé pour ce bien." };
     if (error.problem.code === "PROPERTY_UNIT_CODE_CONFLICT") return { kind: "conflict", message: "Ce code d’unité est déjà utilisé dans cet immeuble." };
     if (error.problem.code === "PROPERTY_COMPOSITION_ROLE_CONFLICT") return { kind: "conflict", message: "Une unité ne peut pas contenir d’immeuble." };

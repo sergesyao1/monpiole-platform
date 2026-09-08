@@ -5,10 +5,10 @@ import { PropertyPhotoGalleryResponseSchema } from "../../apps/api/src/contracts
 import { ProblemDetailsSchema } from "../../apps/api/src/contracts/v1/common/problem-details.schema.js";
 import {
   DeletePropertyPhoto, ListPropertyPhotos, PropertyPrimaryPhotoDeletionForbiddenError,
-  RegisterPropertyPhoto, RetrievePropertyPhotoContent, SelectPropertyPrimaryPhoto,
+  RegisterPropertyPhoto, ReorderPropertyPhotos, RetrievePropertyPhotoContent, SelectPropertyPrimaryPhoto,
   RetrievePropertyPhotoStandard, UpdatePropertyPhotoStandard,
   type PropertyPhotoStandardRepository,
-  type PropertyPhotoRegistration, type PropertyPhotoRepository, type PropertyPhotoValues,
+  type PropertyPhotoRegistration, type PropertyPhotoRepository, type PropertyPhotoValues, validatePropertyPhotoOrder,
 } from "../../services/property-management/src/index.js";
 
 const TENANT = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -17,15 +17,16 @@ const OTHER_PROPERTY = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const PHOTO_A = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const PHOTO_B = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 const PHOTO_C = "ffffffff-ffff-4fff-8fff-ffffffffffff";
-const photo = (photoId: string, propertyId = PROPERTY, isPrimary = false): PropertyPhotoValues => ({
+const photo = (photoId: string, propertyId = PROPERTY, isPrimary = false, position = 0): PropertyPhotoValues => ({
   photoId, tenantId: TENANT, propertyId, category: photoId === PHOTO_A ? "BUILDING_EXTERIOR_OR_ENTRANCE" : "LIVING_ROOM_OR_MAIN_ROOM",
+  mediaKind: "IMAGE", position,
   status: "AVAILABLE", contentType: "image/png", contentByteSize: 8,
   contentSha256: "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6", isPrimary,
   registeredAt: "2026-08-30T10:00:00.000Z", availableAt: "2026-08-30T10:01:00.000Z",
 });
 
 class MemoryPhotos implements PropertyPhotoRepository {
-  values: PropertyPhotoValues[] = [photo(PHOTO_A, PROPERTY, true), photo(PHOTO_B), photo("11111111-1111-4111-8111-111111111111", OTHER_PROPERTY)];
+  values: PropertyPhotoValues[] = [photo(PHOTO_A, PROPERTY, true), photo(PHOTO_B, PROPERTY, false, 1), photo("11111111-1111-4111-8111-111111111111", OTHER_PROPERTY)];
   async list(tenantId: string, propertyId: string) {
     if (tenantId !== TENANT || ![PROPERTY, OTHER_PROPERTY].includes(propertyId)) return undefined;
     return this.values.filter((item) => item.tenantId === tenantId && item.propertyId === propertyId);
@@ -34,6 +35,7 @@ class MemoryPhotos implements PropertyPhotoRepository {
     if (tenantId !== TENANT || propertyId !== PROPERTY) return undefined;
     this.values.push({
       photoId: registration.photoId, tenantId, propertyId, category: registration.category,
+      mediaKind: "IMAGE", position: this.values.filter((item) => item.propertyId === propertyId).length,
       status: "AVAILABLE", contentType: registration.contentType, contentByteSize: 8,
       contentSha256: "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6",
       isPrimary: false, registeredAt: registration.registeredAt, availableAt: registration.registeredAt,
@@ -55,7 +57,19 @@ class MemoryPhotos implements PropertyPhotoRepository {
     const target = this.values.find((item) => item.tenantId === tenantId && item.propertyId === propertyId && item.photoId === photoId);
     if (target === undefined) return false;
     if (target.isPrimary) throw new PropertyPrimaryPhotoDeletionForbiddenError();
-    this.values = this.values.filter((item) => item !== target); return true;
+    this.values = this.values.filter((item) => item !== target)
+      .map((item) => item.propertyId === propertyId && item.position > target.position ? { ...item, position: item.position - 1 } : item);
+    return true;
+  }
+  async reorder(tenantId: string, propertyId: string, orderedPhotoIds: readonly string[]) {
+    const gallery = await this.list(tenantId, propertyId);
+    if (gallery === undefined) return undefined;
+    const order = validatePropertyPhotoOrder(gallery, orderedPhotoIds);
+    const positions = new Map(order.map((photoId, position) => [photoId, position]));
+    this.values = this.values.map((item) => item.propertyId === propertyId
+      ? { ...item, position: positions.get(item.photoId)! }
+      : item);
+    return this.list(tenantId, propertyId).then((photos) => [...photos!].sort((left, right) => left.position - right.position));
   }
 }
 
@@ -76,13 +90,14 @@ describe("Property photos HTTP API", () => {
     application = await createApiApplication({ logger: false }, {
       authenticatedAuthorityProvider: { resolve: async () => ({
         actorId: "actor", authorityId: "authority", tenantIds: [TENANT],
-        grants: granted ? ["CREATE_PROPERTY_PHOTO", "RETRIEVE_PROPERTY_PHOTOS", "SELECT_PROPERTY_PRIMARY_PHOTO", "DELETE_PROPERTY_PHOTO", "RETRIEVE_PROPERTY_PHOTO_STANDARD", "MANAGE_PROPERTY_PHOTO_STANDARD"] : [],
+        grants: granted ? ["CREATE_PROPERTY_PHOTO", "RETRIEVE_PROPERTY_PHOTOS", "SELECT_PROPERTY_PRIMARY_PHOTO", "DELETE_PROPERTY_PHOTO", "REORDER_PROPERTY_PHOTOS", "RETRIEVE_PROPERTY_PHOTO_STANDARD", "MANAGE_PROPERTY_PHOTO_STANDARD"] : [],
       }) },
       listPropertyPhotos: new ListPropertyPhotos(repository),
       registerPropertyPhoto: new RegisterPropertyPhoto(repository, { generate: () => PHOTO_C }, { now: () => "2026-08-30T10:20:00.000Z" }),
       retrievePropertyPhotoContent: new RetrievePropertyPhotoContent(repository),
       selectPropertyPrimaryPhoto: new SelectPropertyPrimaryPhoto(repository, { now: () => "2026-08-30T10:10:00.000Z" }),
       deletePropertyPhoto: new DeletePropertyPhoto(repository),
+      reorderPropertyPhotos: new ReorderPropertyPhotos(repository),
       retrievePropertyPhotoStandard: new RetrievePropertyPhotoStandard(standards),
       updatePropertyPhotoStandard: new UpdatePropertyPhotoStandard(standards, { now: () => "2026-08-30T10:30:00.000Z" }),
     });
@@ -127,6 +142,23 @@ describe("Property photos HTTP API", () => {
     expect(ProblemDetailsSchema.parse(await deletion.json()).code).toBe("PROPERTY_PRIMARY_PHOTO_DELETION_FORBIDDEN");
   });
 
+  it("réordonne toute la galerie et rejoue le même ordre sans divergence", async () => {
+    await start();
+    const requestOrder = () => fetch(`${baseUrl}/v1/properties/${PROPERTY}/photos/order`, {
+      method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ photoIds: [PHOTO_B, PHOTO_A] }),
+    });
+    for (const response of [await requestOrder(), await requestOrder()]) {
+      expect(response.status).toBe(200);
+      expect(PropertyPhotoGalleryResponseSchema.parse(await response.json()).photos.map((item) => item.photoId)).toEqual([PHOTO_B, PHOTO_A]);
+    }
+    expect((await fetch(`${baseUrl}/v1/properties/${PROPERTY}/photos/order`, {
+      method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ photoIds: [PHOTO_A, PHOTO_A] }),
+    })).status).toBe(400);
+    expect((await fetch(`${baseUrl}/v1/properties/${PROPERTY}/photos/order`, {
+      method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ photoIds: [PHOTO_A, PHOTO_C] }),
+    })).status).toBe(400);
+  });
+
   it("applique les permissions métier", async () => {
     await start(false);
     expect((await fetch(`${baseUrl}/v1/properties/${PROPERTY}/photos`)).status).toBe(403);
@@ -136,6 +168,9 @@ describe("Property photos HTTP API", () => {
     })).status).toBe(403);
     expect((await fetch(`${baseUrl}/v1/properties/${PROPERTY}/photos/${PHOTO_B}/primary`, { method: "PUT" })).status).toBe(403);
     expect((await fetch(`${baseUrl}/v1/properties/${PROPERTY}/photos/${PHOTO_B}`, { method: "DELETE" })).status).toBe(403);
+    expect((await fetch(`${baseUrl}/v1/properties/${PROPERTY}/photos/order`, {
+      method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ photoIds: [PHOTO_A, PHOTO_B] }),
+    })).status).toBe(403);
     expect((await fetch(`${baseUrl}/v1/property-photo-standard`)).status).toBe(403);
     expect((await fetch(`${baseUrl}/v1/property-photo-standard`, {
       method: "PUT", headers: { "content-type": "application/json" },

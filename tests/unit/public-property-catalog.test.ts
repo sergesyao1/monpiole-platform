@@ -6,6 +6,7 @@ import {
   PublicPropertyNotFoundError,
   RetrievePublicPrimaryPhoto,
   RetrievePublicProperty,
+  RetrievePublicPropertyMedia,
   type PublicPropertyCatalogDetail,
   type PublicPropertyCatalogQuery,
 } from "../../services/property-management/src/index.js";
@@ -27,6 +28,10 @@ function detail(): PublicPropertyCatalogDetail {
     commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 125_000_000, agencyFeeAmountMinor: 5_000_000 },
     primaryPhoto: { contentType: "image/webp" },
     publishedAt: PUBLISHED_AT,
+    gallery: [{
+      mediaId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", kind: "IMAGE",
+      category: "BUILDING_EXTERIOR_OR_ENTRANCE", position: 0, isPrimary: true, contentType: "image/webp",
+    }],
   };
 }
 
@@ -39,6 +44,10 @@ function query(overrides: Partial<PublicPropertyCatalogQuery> = {}): PublicPrope
       contentType: "image/webp" as const,
       contentByteSize: 3,
       contentSha256: "a".repeat(64),
+    })),
+    retrieveMedia: vi.fn(async () => ({
+      content: new Uint8Array([1, 2, 3]), contentType: "image/webp" as const,
+      contentByteSize: 3, contentSha256: "a".repeat(64),
     })),
     ...overrides,
   };
@@ -107,5 +116,17 @@ describe("public Property catalog application", () => {
     const absent = query({ retrievePrimaryPhoto: vi.fn(async () => undefined) });
     await expect(new RetrievePublicPrimaryPhoto(absent).execute({ tenantId: TENANT_ID, publicPropertyId: PROPERTY_ID }))
       .rejects.toBeInstanceOf(PublicPropertyNotFoundError);
+  });
+
+  it("retrieves an allowlisted public gallery media and validates its identifier", async () => {
+    const catalog = query();
+    const mediaId = detail().gallery[0]!.mediaId;
+    await expect(new RetrievePublicPropertyMedia(catalog).execute({
+      tenantId: TENANT_ID, publicPropertyId: PROPERTY_ID, mediaId,
+    })).resolves.toMatchObject({ contentType: "image/webp", contentByteSize: 3 });
+    expect(catalog.retrieveMedia).toHaveBeenCalledWith(TENANT_ID, PROPERTY_ID, mediaId);
+    await expect(new RetrievePublicPropertyMedia(catalog).execute({
+      tenantId: TENANT_ID, publicPropertyId: PROPERTY_ID, mediaId: "not-an-id",
+    })).rejects.toMatchObject({ field: "mediaId" });
   });
 });

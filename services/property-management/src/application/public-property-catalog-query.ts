@@ -4,6 +4,7 @@ import type {
   PropertyType,
   TransactionType,
 } from "../domain/property.js";
+import type { PropertyPhotoCategory } from "../domain/property-photo.js";
 
 export interface PublicPropertyCatalogCursor {
   readonly publishedAt: string;
@@ -54,6 +55,15 @@ export interface PublicPropertyPrimaryPhotoReference {
   readonly contentType: "image/jpeg" | "image/png" | "image/webp";
 }
 
+export interface PublicPropertyMediaReference {
+  readonly mediaId: string;
+  readonly kind: "IMAGE";
+  readonly category: PropertyPhotoCategory;
+  readonly position: number;
+  readonly isPrimary: boolean;
+  readonly contentType: "image/jpeg" | "image/png" | "image/webp";
+}
+
 export interface PublicPropertyCatalogItem {
   readonly publicPropertyId: string;
   readonly title: string;
@@ -70,6 +80,7 @@ export interface PublicPropertyCatalogItem {
 export interface PublicPropertyCatalogDetail extends PublicPropertyCatalogItem {
   readonly description: string | null;
   readonly details: PublicPropertyDetails;
+  readonly gallery: readonly PublicPropertyMediaReference[];
 }
 
 export interface PublicPropertyCatalogCriteria {
@@ -91,9 +102,11 @@ export interface PublicPrimaryPhotoContent {
   readonly contentByteSize: number;
   readonly contentSha256: string;
 }
+export type PublicPropertyMediaContent = PublicPrimaryPhotoContent;
 
 export interface PublicPropertyCatalogQuery {
   list(criteria: PublicPropertyCatalogCriteria): Promise<PublicPropertyCatalogPage>;
   retrieve(tenantId: string, publicPropertyId: string): Promise<PublicPropertyCatalogDetail | undefined>;
   retrievePrimaryPhoto(tenantId: string, publicPropertyId: string): Promise<PublicPrimaryPhotoContent | undefined>;
+  retrieveMedia(tenantId: string, publicPropertyId: string, mediaId: string): Promise<PublicPropertyMediaContent | undefined>;
 }

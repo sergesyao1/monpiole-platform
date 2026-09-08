@@ -14,6 +14,7 @@ export interface PropertyPhotoGalleryApi {
   }>): Promise<{ readonly photos: readonly PropertyPhoto[] }>;
   retrievePropertyPhotoContent(photo: PropertyPhoto): Promise<Blob>;
   selectPropertyPrimaryPhoto(propertyId: string, photoId: string): Promise<{ readonly photos: readonly PropertyPhoto[] }>;
+  reorderPropertyPhotos(propertyId: string, photoIds: readonly string[]): Promise<{ readonly photos: readonly PropertyPhoto[] }>;
   deletePropertyPhoto(propertyId: string, photoId: string): Promise<void>;
 }
 
@@ -25,6 +26,7 @@ export function PropertyPhotoGallery({ property, api, onPhotosChanged, onReconne
 }>) {
   const [busyPhotoId, setBusyPhotoId] = useState<string>();
   const [error, setError] = useState<PropertyUiError>();
+  const [success, setSuccess] = useState<string>();
   const inFlight = useRef(false);
   const photos = property.photos ?? [];
 
@@ -39,7 +41,7 @@ export function PropertyPhotoGallery({ property, api, onPhotosChanged, onReconne
       setError({ kind: "validation", message: "Choisissez une image JPEG, PNG ou WebP." });
       return;
     }
-    inFlight.current = true; setBusyPhotoId("upload"); setError(undefined);
+    inFlight.current = true; setBusyPhotoId("upload"); setError(undefined); setSuccess(undefined);
     try {
       const result = await api.registerPropertyPhoto(property.propertyId, {
         category: category as PropertyPhoto["category"],
@@ -48,14 +50,18 @@ export function PropertyPhotoGallery({ property, api, onPhotosChanged, onReconne
       });
       onPhotosChanged(result.photos);
       form.reset();
+      setSuccess("Photo ajoutée à la galerie.");
     } catch (caught) { setError(toPropertyUiError(caught)); }
     finally { inFlight.current = false; setBusyPhotoId(undefined); }
   }
 
   async function selectPrimary(photoId: string) {
     if (inFlight.current) return;
-    inFlight.current = true; setBusyPhotoId(photoId); setError(undefined);
-    try { onPhotosChanged((await api.selectPropertyPrimaryPhoto(property.propertyId, photoId)).photos); }
+    inFlight.current = true; setBusyPhotoId(photoId); setError(undefined); setSuccess(undefined);
+    try {
+      onPhotosChanged((await api.selectPropertyPrimaryPhoto(property.propertyId, photoId)).photos);
+      setSuccess("Photo principale mise à jour.");
+    }
     catch (caught) { setError(toPropertyUiError(caught)); }
     finally { inFlight.current = false; setBusyPhotoId(undefined); }
   }
@@ -63,10 +69,27 @@ export function PropertyPhotoGallery({ property, api, onPhotosChanged, onReconne
   async function deletePhoto(photo: PropertyPhoto) {
     if (inFlight.current || photo.isPrimary) return;
     if (!window.confirm("Supprimer définitivement cette photo ?")) return;
-    inFlight.current = true; setBusyPhotoId(photo.photoId); setError(undefined);
+    inFlight.current = true; setBusyPhotoId(photo.photoId); setError(undefined); setSuccess(undefined);
     try {
       await api.deletePropertyPhoto(property.propertyId, photo.photoId);
-      onPhotosChanged(photos.filter((candidate) => candidate.photoId !== photo.photoId));
+      onPhotosChanged(photos.filter((candidate) => candidate.photoId !== photo.photoId)
+        .map((candidate, position) => ({ ...candidate, position })));
+      setSuccess("Photo supprimée de la galerie.");
+    } catch (caught) { setError(toPropertyUiError(caught)); }
+    finally { inFlight.current = false; setBusyPhotoId(undefined); }
+  }
+
+  async function movePhoto(photoId: string, direction: -1 | 1) {
+    if (inFlight.current) return;
+    const currentIndex = photos.findIndex((photo) => photo.photoId === photoId);
+    const targetIndex = currentIndex + direction;
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= photos.length) return;
+    const ordered = [...photos];
+    [ordered[currentIndex], ordered[targetIndex]] = [ordered[targetIndex]!, ordered[currentIndex]!];
+    inFlight.current = true; setBusyPhotoId(`order-${photoId}`); setError(undefined); setSuccess(undefined);
+    try {
+      onPhotosChanged((await api.reorderPropertyPhotos(property.propertyId, ordered.map((photo) => photo.photoId))).photos);
+      setSuccess("Ordre de la galerie enregistré.");
     } catch (caught) { setError(toPropertyUiError(caught)); }
     finally { inFlight.current = false; setBusyPhotoId(undefined); }
   }
@@ -78,6 +101,7 @@ export function PropertyPhotoGallery({ property, api, onPhotosChanged, onReconne
         <StatusBadge tone="info">{photos.length} photo{photos.length > 1 ? "s" : ""}</StatusBadge>
       </div>
       {error && <PropertyFeedback error={error} onReconnect={onReconnect} />}
+      {success && <p className="form-success" role="status">{success}</p>}
       <form className="property-photo-upload" onSubmit={(event) => void uploadPhoto(event)}>
         <Field label="Vue photographiée"><select name="category" defaultValue="OTHER">
           {Object.entries(propertyPhotoCategoryLabels).map(([category, label]) => (
@@ -91,7 +115,7 @@ export function PropertyPhotoGallery({ property, api, onPhotosChanged, onReconne
         <EmptyState title="Aucune photo" description="Ajoutez une photo puis choisissez celle qui représentera le bien avant sa première publication." />
       ) : (
         <ul className="property-photo-grid">
-          {photos.map((photo) => (
+          {photos.map((photo, index) => (
             <li key={photo.photoId} className={photo.isPrimary ? "is-primary" : undefined}>
               <div className="property-photo-preview">
                 <PrivatePropertyPhoto photo={photo} api={api} />
@@ -99,6 +123,12 @@ export function PropertyPhotoGallery({ property, api, onPhotosChanged, onReconne
               </div>
               <div className="property-photo-actions">
                 <span>{propertyPhotoCategoryLabels[photo.category]}</span>
+                <div className="property-photo-order-actions" aria-label={`Position de la photo ${index + 1}`}>
+                  <Button variant="secondary" disabled={busyPhotoId !== undefined || index === 0}
+                    onClick={() => void movePhoto(photo.photoId, -1)}>Monter la photo</Button>
+                  <Button variant="secondary" disabled={busyPhotoId !== undefined || index === photos.length - 1}
+                    onClick={() => void movePhoto(photo.photoId, 1)}>Descendre la photo</Button>
+                </div>
                 {!photo.isPrimary && (
                   <Button variant="secondary" disabled={busyPhotoId !== undefined}
                     onClick={() => void selectPrimary(photo.photoId)}>

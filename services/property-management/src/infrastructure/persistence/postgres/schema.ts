@@ -169,6 +169,7 @@ export const propertyGeolocations = propertyManagement.table("property_geolocati
 export const propertyPhotos = propertyManagement.table("property_photos", {
   photoId: uuid("photo_id").primaryKey(), tenantId: uuid("tenant_id").notNull(),
   propertyId: uuid("property_id").notNull(), category: text("category").notNull(),
+  mediaKind: text("media_kind").notNull().default("IMAGE"), galleryPosition: integer("gallery_position"),
   status: text("status").notNull(), url: text("url"), isPrimary: boolean("is_primary").notNull().default(false),
   contentBase64: text("content_base64"), contentType: text("content_type"),
   contentByteSize: bigint("content_byte_size", { mode: "number" }), contentSha256: text("content_sha256"),
@@ -178,6 +179,8 @@ export const propertyPhotos = propertyManagement.table("property_photos", {
   uniqueIndex("property_photos_tenant_property_photo_unique").on(table.tenantId, table.propertyId, table.photoId),
   uniqueIndex("property_photos_one_primary_per_property_idx")
     .on(table.tenantId, table.propertyId).where(sql`${table.isPrimary}`),
+  uniqueIndex("property_photos_gallery_position_unique_idx")
+    .on(table.tenantId, table.propertyId, table.galleryPosition).where(sql`${table.galleryPosition} IS NOT NULL`),
   foreignKey({
     name: "property_photos_property_tenant_fk",
     columns: [table.tenantId, table.propertyId], foreignColumns: [properties.tenantId, properties.propertyId],
@@ -189,6 +192,11 @@ export const propertyPhotos = propertyManagement.table("property_photos", {
     'EXTERIOR', 'INTERIOR', 'LIVING_ROOM', 'KITCHEN', 'BEDROOM', 'BATHROOM', 'OTHER'
   )`),
   check("property_photos_status_check", sql`${table.status} IN ('PENDING', 'AVAILABLE')`),
+  check("property_photos_media_kind_check", sql`${table.mediaKind} = 'IMAGE'`),
+  check("property_photos_gallery_position_check", sql`
+    (${table.contentBase64} IS NULL AND ${table.galleryPosition} IS NULL)
+    OR (${table.contentBase64} IS NOT NULL AND ${table.galleryPosition} IS NOT NULL AND ${table.galleryPosition} >= 0)
+  `),
   check("property_photos_url_check", sql`${table.url} IS NULL OR (char_length(${table.url}) BETWEEN 1 AND 2048 AND ${table.url} ~ '^https://')`),
   check("property_photos_content_check", sql`
     (${table.contentBase64} IS NULL AND ${table.contentType} IS NULL
@@ -203,17 +211,18 @@ export const propertyPhotos = propertyManagement.table("property_photos", {
     using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
     withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
   }),
-  pgPolicy("property_photos_public_catalog_primary_select", {
+  pgPolicy("property_photos_public_catalog_media_select", {
     as: "restrictive",
     for: "select",
     to: "monpiole_public_catalog_reader",
     using: sql`
       ${table.status} = 'AVAILABLE'
-      AND ${table.isPrimary} = TRUE
       AND ${table.contentBase64} IS NOT NULL
       AND ${table.contentType} IS NOT NULL
       AND ${table.contentByteSize} IS NOT NULL
       AND ${table.contentSha256} IS NOT NULL
+      AND ${table.mediaKind} = 'IMAGE'
+      AND ${table.galleryPosition} IS NOT NULL
       AND EXISTS (
         SELECT 1
         FROM ${properties} AS "public_catalog_property"

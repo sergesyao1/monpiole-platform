@@ -5,6 +5,7 @@ import type {
   PublicPropertyCatalogPage,
   PublicPropertyCatalogQuery,
   PublicPrimaryPhotoContent,
+  PublicPropertyMediaContent,
 } from "./public-property-catalog-query.js";
 
 export const DEFAULT_PUBLIC_PROPERTY_CATALOG_LIMIT = 20;
@@ -24,11 +25,14 @@ export interface RetrievePublicPropertyQuery {
   readonly tenantId: string;
   readonly publicPropertyId: string;
 }
+export interface RetrievePublicPropertyMediaQuery extends RetrievePublicPropertyQuery {
+  readonly mediaId: string;
+}
 
 export class InvalidPublicPropertyCatalogQueryError extends Error {
   readonly code = "INVALID_PUBLIC_PROPERTY_CATALOG_QUERY";
 
-  constructor(readonly field: "tenant" | "limit" | "cursor" | "type" | "transactionType" | "publicPropertyId") {
+  constructor(readonly field: "tenant" | "limit" | "cursor" | "type" | "transactionType" | "publicPropertyId" | "mediaId") {
     super(`Invalid public Property catalog query ${field}`);
   }
 }
@@ -87,6 +91,18 @@ export class RetrievePublicPrimaryPhoto {
     const photo = await this.catalog.retrievePrimaryPhoto(query.tenantId, query.publicPropertyId);
     if (photo === undefined) throw new PublicPropertyNotFoundError();
     return photo;
+  }
+}
+
+export class RetrievePublicPropertyMedia {
+  constructor(private readonly catalog: PublicPropertyCatalogQuery) {}
+
+  async execute(query: RetrievePublicPropertyMediaQuery): Promise<PublicPropertyMediaContent> {
+    assertIdentifiers(query);
+    if (!UUID.test(query.mediaId)) throw new InvalidPublicPropertyCatalogQueryError("mediaId");
+    const media = await this.catalog.retrieveMedia(query.tenantId, query.publicPropertyId, query.mediaId);
+    if (media === undefined) throw new PublicPropertyNotFoundError();
+    return media;
   }
 }
 

@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, Inject, Param, Post, Put, Req,
 import { ApiCreatedResponse, ApiExtraModels, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiParam, ApiResponse, ApiSecurity, ApiTags } from "@nestjs/swagger";
 import type {
   DeletePropertyPhoto, ListPropertyPhotos, RegisterPropertyPhoto,
-  RetrievePropertyPhotoContent, SelectPropertyPrimaryPhoto,
+  ReorderPropertyPhotos, RetrievePropertyPhotoContent, SelectPropertyPrimaryPhoto,
 } from "@monpiole/property-management";
 import { ZodSerializerDto } from "nestjs-zod";
 
@@ -13,7 +13,7 @@ import { TenantContext } from "../request-context/request-context.decorator.js";
 import { problemContent, responseHeaders } from "./create-property.controller.js";
 import {
   PropertyPhotoGalleryResponseDto, PropertyPhotoPathDto, PropertyProblemDetailsDto,
-  RegisterPropertyPhotoRequestDto, RetrievePropertyPathDto,
+  RegisterPropertyPhotoRequestDto, ReorderPropertyPhotosRequestDto, RetrievePropertyPathDto,
 } from "./property.dto.js";
 import { toPropertyPhotoGalleryResponse } from "./property.mapper.js";
 
@@ -22,6 +22,7 @@ export const REGISTER_PROPERTY_PHOTO_USE_CASE = Symbol("monpiole.register-proper
 export const RETRIEVE_PROPERTY_PHOTO_CONTENT_USE_CASE = Symbol("monpiole.retrieve-property-photo-content-use-case");
 export const SELECT_PROPERTY_PRIMARY_PHOTO_USE_CASE = Symbol("monpiole.select-property-primary-photo-use-case");
 export const DELETE_PROPERTY_PHOTO_USE_CASE = Symbol("monpiole.delete-property-photo-use-case");
+export const REORDER_PROPERTY_PHOTOS_USE_CASE = Symbol("monpiole.reorder-property-photos-use-case");
 
 @ApiTags("Property photos") @ApiExtraModels(PropertyProblemDetailsDto)
 @Controller("v1/properties/:propertyId/photos")
@@ -32,6 +33,7 @@ export class PropertyPhotosController {
     @Inject(RETRIEVE_PROPERTY_PHOTO_CONTENT_USE_CASE) private readonly retrieveContent: Pick<RetrievePropertyPhotoContent, "execute">,
     @Inject(SELECT_PROPERTY_PRIMARY_PHOTO_USE_CASE) private readonly selectPrimary: Pick<SelectPropertyPrimaryPhoto, "execute">,
     @Inject(DELETE_PROPERTY_PHOTO_USE_CASE) private readonly deletePhoto: Pick<DeletePropertyPhoto, "execute">,
+    @Inject(REORDER_PROPERTY_PHOTOS_USE_CASE) private readonly reorderPhotos: Pick<ReorderPropertyPhotos, "execute">,
     @Inject(AUTHENTICATED_AUTHORITY_PROVIDER) private readonly authorityProvider: AuthenticatedAuthorityProvider,
   ) {}
 
@@ -127,6 +129,28 @@ export class PropertyPhotosController {
     }));
   }
 
+  @Put("order") @HttpCode(200) @TenantContext("not-applicable")
+  @ApiOperation({ operationId: "reorderPropertyPhotos", summary: "Atomically replace the complete Property gallery order" })
+  @ApiSecurity("bearer")
+  @ApiParam({ name: "propertyId", required: true, schema: { type: "string", format: "uuid" } })
+  @ApiOkResponse({ type: PropertyPhotoGalleryResponseDto, headers: responseHeaders() })
+  @ApiResponse({ status: 400, description: "Invalid, duplicate, incomplete or foreign photo order", content: problemContent() })
+  @ApiResponse({ status: 401, description: "Authentication required", content: problemContent() })
+  @ApiResponse({ status: 403, description: "Forbidden", content: problemContent() })
+  @ApiResponse({ status: 404, description: "Property not found", content: problemContent() })
+  @ApiResponse({ status: 500, description: "Safe internal failure", content: problemContent() })
+  @ZodSerializerDto(PropertyPhotoGalleryResponseDto)
+  async reorder(
+    @Param() path: RetrievePropertyPathDto,
+    @Body() body: ReorderPropertyPhotosRequestDto,
+    @Req() request: RequestWithContext,
+  ): Promise<PropertyPhotoGalleryResponse> {
+    const authenticated = await requireAuthenticatedAuthority(this.authorityProvider, request);
+    return toPropertyPhotoGalleryResponse(await this.reorderPhotos.execute({
+      propertyId: path.propertyId, photoIds: body.photoIds, authority: toPropertyAuthority(authenticated),
+    }));
+  }
+
   @Delete(":photoId") @HttpCode(204) @TenantContext("not-applicable")
   @ApiOperation({ operationId: "deletePropertyPhoto", summary: "Delete a non-primary Property photo" })
   @ApiSecurity("bearer")
@@ -137,7 +161,7 @@ export class PropertyPhotosController {
   @ApiResponse({ status: 401, description: "Authentication required", content: problemContent() })
   @ApiResponse({ status: 403, description: "Forbidden", content: problemContent() })
   @ApiResponse({ status: 404, description: "Property or photo not found", content: problemContent() })
-  @ApiResponse({ status: 409, description: "Primary photo requires a replacement", content: problemContent() })
+  @ApiResponse({ status: 409, description: "Primary replacement required or published photo standard would be violated", content: problemContent() })
   @ApiResponse({ status: 500, description: "Safe internal failure", content: problemContent() })
   async remove(@Param() path: PropertyPhotoPathDto, @Req() request: RequestWithContext): Promise<void> {
     const authenticated = await requireAuthenticatedAuthority(this.authorityProvider, request);

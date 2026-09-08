@@ -95,6 +95,8 @@ export const PropertyPhotoCategorySchema = z.enum([
 ]);
 export const PropertyPhotoSchema = z.object({
   photoId: PropertyIdSchema,
+  mediaKind: z.literal("IMAGE"),
+  position: z.number().int().nonnegative(),
   category: PropertyPhotoCategorySchema,
   status: z.literal("AVAILABLE"),
   contentPath: z.string().regex(/^\/v1\/properties\/[0-9a-f-]+\/photos\/[0-9a-f-]+\/content$/u),
@@ -114,6 +116,13 @@ export const RegisterPropertyPhotoRequestSchema = z.object({
   contentType: z.enum(["image/jpeg", "image/png", "image/webp"]),
   contentBase64: z.string().min(1),
 }).strict().meta({ id: "RegisterPropertyPhotoRequest" });
+export const ReorderPropertyPhotosRequestSchema = z.object({
+  photoIds: z.array(PropertyIdSchema).min(1).superRefine((photoIds, context) => {
+    if (new Set(photoIds).size !== photoIds.length) {
+      context.addIssue({ code: "custom", message: "Photo identifiers must be unique" });
+    }
+  }),
+}).strict().meta({ id: "ReorderPropertyPhotosRequest" });
 export const PropertyPhotoStandardSchema = z.object({
   minimumCount: z.number().int().min(1),
   additionalRequiredCategories: z.array(PropertyPhotoCategorySchema),
@@ -180,4 +189,5 @@ export type PropertyPortfolioResponse = z.output<typeof PropertyPortfolioRespons
 export type PropertyPhoto = z.output<typeof PropertyPhotoSchema>;
 export type PropertyPhotoGalleryResponse = z.output<typeof PropertyPhotoGalleryResponseSchema>;
 export type RegisterPropertyPhotoRequest = z.output<typeof RegisterPropertyPhotoRequestSchema>;
+export type ReorderPropertyPhotosRequest = z.output<typeof ReorderPropertyPhotosRequestSchema>;
 export type PropertyPhotoStandard = z.output<typeof PropertyPhotoStandardSchema>;

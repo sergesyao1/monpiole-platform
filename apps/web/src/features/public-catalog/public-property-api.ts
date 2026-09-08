@@ -8,7 +8,7 @@ import type {
 export interface PublicPropertyApi {
   list(criteria?: PublicPropertyCatalogCriteria): Promise<PublicPropertyCatalogPage>;
   retrieve(publicPropertyId: string): Promise<PublicPropertyDetail>;
-  photoUrl(path: `/v1/public/properties/${string}/primary-photo`): string;
+  photoUrl(path: `/v1/public/properties/${string}/primary-photo` | `/v1/public/properties/${string}/media/${string}/content`): string;
 }
 
 export function createPublicPropertyApi(): PublicPropertyApi {

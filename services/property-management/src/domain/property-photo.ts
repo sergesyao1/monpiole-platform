@@ -12,11 +12,15 @@ export const PROPERTY_PHOTO_CATEGORIES = [
 ] as const;
 export type PropertyPhotoCategory = typeof PROPERTY_PHOTO_CATEGORIES[number];
 export type PropertyPhotoStatus = "AVAILABLE";
+export const PROPERTY_MEDIA_KINDS = ["IMAGE"] as const;
+export type PropertyMediaKind = typeof PROPERTY_MEDIA_KINDS[number];
 
 export interface PropertyPhotoValues {
   readonly photoId: string;
   readonly tenantId: string;
   readonly propertyId: string;
+  readonly mediaKind: PropertyMediaKind;
+  readonly position: number;
   readonly category: PropertyPhotoCategory;
   readonly status: PropertyPhotoStatus;
   readonly contentType: "image/jpeg" | "image/png" | "image/webp";
@@ -123,7 +127,8 @@ export function rehydratePropertyPhoto(values: PropertyPhotoValues): PropertyPho
   if (!UUID_V4.test(values.photoId) || !UUID_V4.test(values.tenantId) || !UUID_V4.test(values.propertyId)) {
     throw new PersistedPropertyPhotoCorruptionError("identifier");
   }
-  if (!PROPERTY_PHOTO_CATEGORIES.includes(values.category) || values.status !== "AVAILABLE") {
+  if (!PROPERTY_PHOTO_CATEGORIES.includes(values.category) || values.status !== "AVAILABLE"
+    || values.mediaKind !== "IMAGE" || !Number.isSafeInteger(values.position) || values.position < 0) {
     throw new PersistedPropertyPhotoCorruptionError("classification");
   }
   if (!["image/jpeg", "image/png", "image/webp"].includes(values.contentType)
@@ -156,8 +161,42 @@ export class InvalidPropertyPhotoContentError extends Error {
 }
 
 export class PropertyPhotoNotFoundError extends Error { readonly code = "PROPERTY_PHOTO_NOT_FOUND"; }
+export class InvalidPropertyPhotoOrderError extends Error {
+  readonly code = "INVALID_PROPERTY_PHOTO_ORDER";
+}
+export class PropertyPublishedPhotoMutationForbiddenError extends Error {
+  readonly code = "PROPERTY_PUBLISHED_PHOTO_MUTATION_FORBIDDEN";
+}
 export class PropertyPrimaryPhotoDeletionForbiddenError extends Error {
   readonly code = "PROPERTY_PRIMARY_PHOTO_DELETION_FORBIDDEN";
+}
+
+export function validatePropertyPhotoOrder(
+  photos: readonly PropertyPhotoValues[],
+  orderedPhotoIds: readonly string[],
+): readonly string[] {
+  const current = new Set(photos.map((photo) => photo.photoId));
+  const proposed = new Set(orderedPhotoIds);
+  if (orderedPhotoIds.length === 0 || orderedPhotoIds.length !== photos.length
+    || proposed.size !== orderedPhotoIds.length || proposed.size !== current.size
+    || orderedPhotoIds.some((photoId) => !UUID_V4.test(photoId) || !current.has(photoId))) {
+    throw new InvalidPropertyPhotoOrderError();
+  }
+  return Object.freeze([...orderedPhotoIds]);
+}
+
+export function assertPublishedPropertyPhotoMutation(
+  propertyStatus: string,
+  photoStandardVersion: number | null,
+  photos: readonly PropertyPhotoValues[],
+  standard: PropertyPhotoStandard,
+): void {
+  if (propertyStatus !== "PUBLISHED" || photoStandardVersion !== 1) return;
+  const readiness = assessPropertyPhotoReadiness(photos, standard);
+  if (readiness.primaryPhoto === undefined || readiness.availableCount < readiness.minimumCount
+    || readiness.missingRequiredCategories.length > 0) {
+    throw new PropertyPublishedPhotoMutationForbiddenError();
+  }
 }
 
 function validInstant(value: string) {

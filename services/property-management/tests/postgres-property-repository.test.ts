@@ -66,9 +66,9 @@ async function insertLegacyPrimaryPhoto(tenantId: string, propertyId: string) {
   await withTenantPostgresTransaction(runtime, tenantId, (scope) => scope.query(
     `INSERT INTO property_management.property_photos
       (photo_id, tenant_id, property_id, category, status, is_primary, content_base64, content_type,
-       content_byte_size, content_sha256, registered_at, available_at)
+       content_byte_size, content_sha256, registered_at, available_at, media_kind, gallery_position)
      VALUES ($1,$2,$3,'BUILDING_EXTERIOR_OR_ENTRANCE','AVAILABLE',true,'iVBORw0KGgo=','image/png',8,
-       '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',$4,$4)`,
+       '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',$4,$4,'IMAGE',0)`,
     [randomUUID(), tenantId, propertyId, "2026-08-25T12:01:00.000Z"],
   ));
 }
@@ -78,14 +78,14 @@ async function insertStudioPhotoSet(tenantId: string, propertyId: string) {
     "MAIN_LIVING_SLEEPING_AREA", "KITCHEN_OR_KITCHENETTE", "BATHROOM_OR_SHOWER_ROOM", "OTHER", "OTHER",
   ];
   await withTenantPostgresTransaction(runtime, tenantId, async (scope) => {
-    for (const category of categories) {
+    for (const [index, category] of categories.entries()) {
       await scope.query(
         `INSERT INTO property_management.property_photos
           (photo_id, tenant_id, property_id, category, status, is_primary, content_base64, content_type,
-           content_byte_size, content_sha256, registered_at, available_at)
+          content_byte_size, content_sha256, registered_at, available_at, media_kind, gallery_position)
          VALUES ($1,$2,$3,$4,'AVAILABLE',false,'iVBORw0KGgo=','image/png',8,
-           '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',$5,$5)`,
-        [randomUUID(), tenantId, propertyId, category, "2026-08-25T12:01:00.000Z"],
+           '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',$5,$5,'IMAGE',$6)`,
+        [randomUUID(), tenantId, propertyId, category, "2026-08-25T12:01:00.000Z", index + 1],
       );
     }
   });

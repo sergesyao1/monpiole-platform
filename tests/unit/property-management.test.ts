@@ -13,16 +13,17 @@ const TENANT_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const PROPERTY_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const PHOTO_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const PRIMARY_PHOTO = { photoId: PHOTO_ID, tenantId: TENANT_A, propertyId: PROPERTY_ID, category: "BUILDING_EXTERIOR_OR_ENTRANCE" as const,
+  mediaKind: "IMAGE" as const, position: 0,
   status: "AVAILABLE" as const, contentType: "image/png" as const, contentByteSize: 8,
   contentSha256: "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6", isPrimary: true,
   registeredAt: "2026-08-25T12:30:00.000Z", availableAt: "2026-08-25T12:31:00.000Z" };
 const STUDIO_PHOTOS = [
   PRIMARY_PHOTO,
-  { ...PRIMARY_PHOTO, photoId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", category: "MAIN_LIVING_SLEEPING_AREA" as const, isPrimary: false },
-  { ...PRIMARY_PHOTO, photoId: "ffffffff-ffff-4fff-8fff-ffffffffffff", category: "KITCHEN_OR_KITCHENETTE" as const, isPrimary: false },
-  { ...PRIMARY_PHOTO, photoId: "11111111-1111-4111-8111-111111111111", category: "BATHROOM_OR_SHOWER_ROOM" as const, isPrimary: false },
-  { ...PRIMARY_PHOTO, photoId: "22222222-2222-4222-8222-222222222222", category: "OTHER" as const, isPrimary: false },
-  { ...PRIMARY_PHOTO, photoId: "33333333-3333-4333-8333-333333333333", category: "OTHER" as const, isPrimary: false },
+  { ...PRIMARY_PHOTO, photoId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", category: "MAIN_LIVING_SLEEPING_AREA" as const, isPrimary: false, position: 1 },
+  { ...PRIMARY_PHOTO, photoId: "ffffffff-ffff-4fff-8fff-ffffffffffff", category: "KITCHEN_OR_KITCHENETTE" as const, isPrimary: false, position: 2 },
+  { ...PRIMARY_PHOTO, photoId: "11111111-1111-4111-8111-111111111111", category: "BATHROOM_OR_SHOWER_ROOM" as const, isPrimary: false, position: 3 },
+  { ...PRIMARY_PHOTO, photoId: "22222222-2222-4222-8222-222222222222", category: "OTHER" as const, isPrimary: false, position: 4 },
+  { ...PRIMARY_PHOTO, photoId: "33333333-3333-4333-8333-333333333333", category: "OTHER" as const, isPrimary: false, position: 5 },
 ];
 const AUTHORITY = { actorId: "actor", authorityId: "authority", grants: ["CREATE_PROPERTY", "RETRIEVE_PROPERTY"] as const, tenantIds: [TENANT_A] };
 const input = { title: "  Apartment Cocody  ", description: "  Balcony  ", propertyType: "APARTMENT" as const,

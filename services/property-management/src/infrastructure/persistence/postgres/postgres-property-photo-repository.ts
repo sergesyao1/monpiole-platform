@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { withTenantPostgresTransaction } from "@monpiole/persistence";
-import { and, asc, eq, isNotNull } from "drizzle-orm";
+import { and, asc, eq, isNotNull, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { Pool } from "pg";
 
@@ -11,10 +11,12 @@ import type {
   PropertyPhotoSelectionTrace,
 } from "../../../application/property-photo-repository.js";
 import {
-  InvalidPropertyPhotoContentError, PropertyPrimaryPhotoDeletionForbiddenError, rehydratePropertyPhoto,
+  assertPublishedPropertyPhotoMutation, InvalidPropertyPhotoContentError,
+  PropertyPrimaryPhotoDeletionForbiddenError, rehydratePropertyPhoto, resolvePropertyPhotoStandard,
+  validatePropertyPhotoOrder,
   type PropertyPhotoCategory, type PropertyPhotoValues,
 } from "../../../domain/property-photo.js";
-import { properties, propertyPhotos, propertyPrimaryPhotoAudits } from "./schema.js";
+import { properties, propertyPhotos, propertyPhotoStandards, propertyPrimaryPhotoAudits } from "./schema.js";
 
 export class PostgresPropertyPhotoRepository implements PropertyPhotoRepository {
   constructor(private readonly pool: Pool) {}
@@ -41,8 +43,10 @@ export class PostgresPropertyPhotoRepository implements PropertyPhotoRepository 
       )).limit(1).for("update"))[0];
       if (property === undefined) return undefined;
       const content = persistedContent(registration.contentBase64, registration.contentType);
+      const gallery = await listInScope(database, tenantId, propertyId);
       await database.insert(propertyPhotos).values({
         photoId: registration.photoId, tenantId, propertyId, category: registration.category,
+        mediaKind: "IMAGE", galleryPosition: gallery.length,
         status: "AVAILABLE", url: null, isPrimary: false,
         contentBase64: content.contentBase64, contentType: content.contentType,
         contentByteSize: content.contentByteSize, contentSha256: content.contentSha256,
@@ -60,7 +64,7 @@ export class PostgresPropertyPhotoRepository implements PropertyPhotoRepository 
       }).from(propertyPhotos).where(and(
         eq(propertyPhotos.tenantId, tenantId), eq(propertyPhotos.propertyId, propertyId),
         eq(propertyPhotos.photoId, photoId), eq(propertyPhotos.status, "AVAILABLE"),
-        isNotNull(propertyPhotos.contentBase64),
+        isNotNull(propertyPhotos.contentBase64), isNotNull(propertyPhotos.galleryPosition),
       )).limit(1))[0];
       if (row?.contentBase64 === null || row?.contentType === null
         || row?.contentByteSize === null || row?.contentSha256 === null) return undefined;
@@ -87,7 +91,8 @@ export class PostgresPropertyPhotoRepository implements PropertyPhotoRepository 
       if (property === undefined) return undefined;
       const target = (await database.select({ photoId: propertyPhotos.photoId }).from(propertyPhotos).where(and(
         eq(propertyPhotos.tenantId, tenantId), eq(propertyPhotos.propertyId, propertyId),
-        eq(propertyPhotos.photoId, photoId), eq(propertyPhotos.status, "AVAILABLE"), isNotNull(propertyPhotos.contentBase64),
+        eq(propertyPhotos.photoId, photoId), eq(propertyPhotos.status, "AVAILABLE"),
+        isNotNull(propertyPhotos.contentBase64), isNotNull(propertyPhotos.galleryPosition),
       )).limit(1))[0];
       if (target === undefined) return undefined;
       const previous = (await database.select({ photoId: propertyPhotos.photoId }).from(propertyPhotos).where(and(
@@ -112,19 +117,76 @@ export class PostgresPropertyPhotoRepository implements PropertyPhotoRepository 
   delete(tenantId: string, propertyId: string, photoId: string): Promise<boolean | undefined> {
     return withTenantPostgresTransaction(this.pool, tenantId, async (scope) => {
       const database = scope.database();
+      const property = (await database.select({
+        propertyId: properties.propertyId, status: properties.status,
+        photoStandardVersion: properties.photoStandardVersion, propertyType: properties.propertyType,
+        transactionType: properties.transactionType, apartmentSubtype: properties.apartmentSubtype,
+      }).from(properties).where(and(
+        eq(properties.tenantId, tenantId), eq(properties.propertyId, propertyId),
+      )).limit(1).for("update"))[0];
+      if (property === undefined) return undefined;
+      const photo = (await database.select({
+        isPrimary: propertyPhotos.isPrimary, galleryPosition: propertyPhotos.galleryPosition,
+      }).from(propertyPhotos).where(and(
+        eq(propertyPhotos.tenantId, tenantId), eq(propertyPhotos.propertyId, propertyId),
+        eq(propertyPhotos.photoId, photoId), eq(propertyPhotos.status, "AVAILABLE"),
+        isNotNull(propertyPhotos.contentBase64), isNotNull(propertyPhotos.galleryPosition),
+      )).limit(1).for("update"))[0];
+      if (photo === undefined) return false;
+      if (photo.isPrimary) throw new PropertyPrimaryPhotoDeletionForbiddenError();
+      const gallery = await listInScope(database, tenantId, propertyId);
+      const tenantStandard = (await database.select({
+        minimumCount: propertyPhotoStandards.minimumPhotoCount,
+        additionalRequiredCategories: propertyPhotoStandards.additionalRequiredCategories,
+      }).from(propertyPhotoStandards).where(eq(propertyPhotoStandards.tenantId, tenantId)).limit(1))[0];
+      assertPublishedPropertyPhotoMutation(
+        property.status,
+        property.photoStandardVersion,
+        gallery.filter((candidate) => candidate.photoId !== photoId),
+        resolvePropertyPhotoStandard({
+          propertyType: property.propertyType,
+          transactionType: property.transactionType,
+          ...(property.apartmentSubtype === null ? {} : { apartmentSubtype: property.apartmentSubtype as "STUDIO" | "MULTI_ROOM" }),
+        }, tenantStandard === undefined ? undefined : {
+          minimumCount: tenantStandard.minimumCount,
+          additionalRequiredCategories: tenantStandard.additionalRequiredCategories as PropertyPhotoCategory[],
+        }),
+      );
+      await database.delete(propertyPhotos).where(and(
+        eq(propertyPhotos.tenantId, tenantId), eq(propertyPhotos.propertyId, propertyId), eq(propertyPhotos.photoId, photoId),
+      ));
+      await compactGalleryAfter(database, tenantId, propertyId, photo.galleryPosition!, gallery.length);
+      return true;
+    });
+  }
+
+  reorder(
+    tenantId: string,
+    propertyId: string,
+    orderedPhotoIds: readonly string[],
+  ): Promise<readonly PropertyPhotoValues[] | undefined> {
+    return withTenantPostgresTransaction(this.pool, tenantId, async (scope) => {
+      const database = scope.database();
       const property = (await database.select({ propertyId: properties.propertyId }).from(properties).where(and(
         eq(properties.tenantId, tenantId), eq(properties.propertyId, propertyId),
       )).limit(1).for("update"))[0];
       if (property === undefined) return undefined;
-      const photo = (await database.select({ isPrimary: propertyPhotos.isPrimary }).from(propertyPhotos).where(and(
-        eq(propertyPhotos.tenantId, tenantId), eq(propertyPhotos.propertyId, propertyId), eq(propertyPhotos.photoId, photoId),
-      )).limit(1).for("update"))[0];
-      if (photo === undefined) return false;
-      if (photo.isPrimary) throw new PropertyPrimaryPhotoDeletionForbiddenError();
-      await database.delete(propertyPhotos).where(and(
-        eq(propertyPhotos.tenantId, tenantId), eq(propertyPhotos.propertyId, propertyId), eq(propertyPhotos.photoId, photoId),
+      const gallery = await listInScope(database, tenantId, propertyId);
+      const order = validatePropertyPhotoOrder(gallery, orderedPhotoIds);
+      if (gallery.every((photo, position) => photo.photoId === order[position])) return gallery;
+      await database.update(propertyPhotos).set({
+        galleryPosition: sql`${propertyPhotos.galleryPosition} + ${gallery.length}`,
+      }).where(and(
+        eq(propertyPhotos.tenantId, tenantId), eq(propertyPhotos.propertyId, propertyId),
+        isNotNull(propertyPhotos.galleryPosition),
       ));
-      return true;
+      for (const [position, orderedPhotoId] of order.entries()) {
+        await database.update(propertyPhotos).set({ galleryPosition: position }).where(and(
+          eq(propertyPhotos.tenantId, tenantId), eq(propertyPhotos.propertyId, propertyId),
+          eq(propertyPhotos.photoId, orderedPhotoId),
+        ));
+      }
+      return listInScope(database, tenantId, propertyId);
     });
   }
 }
@@ -133,15 +195,38 @@ async function listInScope(database: NodePgDatabase, tenantId: string, propertyI
   const rows = await database.select().from(propertyPhotos).where(and(
     eq(propertyPhotos.tenantId, tenantId), eq(propertyPhotos.propertyId, propertyId),
     eq(propertyPhotos.status, "AVAILABLE"), isNotNull(propertyPhotos.contentBase64),
-  )).orderBy(asc(propertyPhotos.registeredAt), asc(propertyPhotos.photoId));
+    isNotNull(propertyPhotos.galleryPosition),
+  )).orderBy(asc(propertyPhotos.galleryPosition), asc(propertyPhotos.photoId));
   return rows.map((row) => rehydratePropertyPhoto({
     photoId: row.photoId, tenantId: row.tenantId, propertyId: row.propertyId,
+    mediaKind: row.mediaKind as PropertyPhotoValues["mediaKind"], position: row.galleryPosition!,
     category: row.category as PropertyPhotoCategory, status: "AVAILABLE",
     contentType: row.contentType as PropertyPhotoValues["contentType"],
     contentByteSize: row.contentByteSize!, contentSha256: row.contentSha256!,
     isPrimary: row.isPrimary, registeredAt: new Date(row.registeredAt).toISOString(),
     availableAt: new Date(row.availableAt!).toISOString(),
   }));
+}
+
+async function compactGalleryAfter(
+  database: NodePgDatabase,
+  tenantId: string,
+  propertyId: string,
+  deletedPosition: number,
+  previousLength: number,
+): Promise<void> {
+  await database.update(propertyPhotos).set({
+    galleryPosition: sql`${propertyPhotos.galleryPosition} + ${previousLength}`,
+  }).where(and(
+    eq(propertyPhotos.tenantId, tenantId), eq(propertyPhotos.propertyId, propertyId),
+    sql`${propertyPhotos.galleryPosition} > ${deletedPosition}`,
+  ));
+  await database.update(propertyPhotos).set({
+    galleryPosition: sql`${propertyPhotos.galleryPosition} - ${previousLength + 1}`,
+  }).where(and(
+    eq(propertyPhotos.tenantId, tenantId), eq(propertyPhotos.propertyId, propertyId),
+    sql`${propertyPhotos.galleryPosition} > ${deletedPosition + previousLength}`,
+  ));
 }
 
 function persistedContent(

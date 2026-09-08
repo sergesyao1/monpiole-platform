@@ -6,9 +6,9 @@ import type {
   SetPropertyPricing, UpdatePropertyCoreInformation, UpdatePropertyDetails, UpdatePropertyOwner, AssignPropertyOwner,
   RetrievePropertyOwnerships, RemovePropertyOwner, CreatePropertyBuilding, ListPropertyBuildings, UpdatePropertyBuilding,
   CreatePropertyUnit, ListPropertyUnits, UpdatePropertyUnitStructure, PublishProperty, WithdrawPropertyFromCatalog,
-  ListPropertyPhotos, RegisterPropertyPhoto, RetrievePropertyPhotoContent, SelectPropertyPrimaryPhoto, DeletePropertyPhoto,
+  ListPropertyPhotos, RegisterPropertyPhoto, RetrievePropertyPhotoContent, SelectPropertyPrimaryPhoto, DeletePropertyPhoto, ReorderPropertyPhotos,
   RetrievePropertyPhotoStandard, UpdatePropertyPhotoStandard,
-  ListPublicProperties, RetrievePublicProperty, RetrievePublicPrimaryPhoto,
+  ListPublicProperties, RetrievePublicProperty, RetrievePublicPrimaryPhoto, RetrievePublicPropertyMedia,
   RetrievePropertyGeolocation, UpdatePropertyGeolocation, RemovePropertyGeolocation,
   RetrievePropertyAvailability, UpdatePropertyAvailability,
 } from "@monpiole/property-management";
@@ -59,7 +59,7 @@ import {
 } from "./http/authentication/platform-tenant-creation-authorization-probe.controller.js";
 import { PropertyCompositionController, CREATE_PROPERTY_BUILDING, LIST_PROPERTY_BUILDINGS, UPDATE_PROPERTY_BUILDING, CREATE_PROPERTY_UNIT, LIST_PROPERTY_UNITS, UPDATE_PROPERTY_UNIT } from "./http/properties/property-composition.controller.js";
 import { PUBLISH_PROPERTY_USE_CASE, WITHDRAW_PROPERTY_FROM_CATALOG_USE_CASE, PublishPropertyController } from "./http/properties/publish-property.controller.js";
-import { DELETE_PROPERTY_PHOTO_USE_CASE, LIST_PROPERTY_PHOTOS_USE_CASE, REGISTER_PROPERTY_PHOTO_USE_CASE, RETRIEVE_PROPERTY_PHOTO_CONTENT_USE_CASE, SELECT_PROPERTY_PRIMARY_PHOTO_USE_CASE, PropertyPhotosController } from "./http/properties/property-photos.controller.js";
+import { DELETE_PROPERTY_PHOTO_USE_CASE, LIST_PROPERTY_PHOTOS_USE_CASE, REGISTER_PROPERTY_PHOTO_USE_CASE, REORDER_PROPERTY_PHOTOS_USE_CASE, RETRIEVE_PROPERTY_PHOTO_CONTENT_USE_CASE, SELECT_PROPERTY_PRIMARY_PHOTO_USE_CASE, PropertyPhotosController } from "./http/properties/property-photos.controller.js";
 import { PropertyPhotoStandardController, RETRIEVE_PROPERTY_PHOTO_STANDARD_USE_CASE, UPDATE_PROPERTY_PHOTO_STANDARD_USE_CASE } from "./http/properties/property-photo-standard.controller.js";
 import {
   PropertyGeolocationController, REMOVE_PROPERTY_GEOLOCATION_USE_CASE,
@@ -68,6 +68,7 @@ import {
 import {
   LIST_PUBLIC_PROPERTIES_USE_CASE, PUBLIC_CATALOG_TENANT_RESOLVER,
   RETRIEVE_PUBLIC_PRIMARY_PHOTO_USE_CASE, RETRIEVE_PUBLIC_PROPERTY_USE_CASE,
+  RETRIEVE_PUBLIC_PROPERTY_MEDIA_USE_CASE,
   PublicPropertiesController,
 } from "./http/public-properties/public-properties.controller.js";
 import {
@@ -104,6 +105,7 @@ export interface ApiComposition {
   readonly retrievePropertyPhotoContent?: Pick<RetrievePropertyPhotoContent, "execute">;
   readonly selectPropertyPrimaryPhoto?: Pick<SelectPropertyPrimaryPhoto, "execute">;
   readonly deletePropertyPhoto?: Pick<DeletePropertyPhoto, "execute">;
+  readonly reorderPropertyPhotos?: Pick<ReorderPropertyPhotos, "execute">;
   readonly retrievePropertyPhotoStandard?: Pick<RetrievePropertyPhotoStandard, "execute">;
   readonly updatePropertyPhotoStandard?: Pick<UpdatePropertyPhotoStandard, "execute">;
   readonly retrievePropertyGeolocation?: Pick<RetrievePropertyGeolocation, "execute">;
@@ -115,6 +117,7 @@ export interface ApiComposition {
   readonly listPublicProperties?: Pick<ListPublicProperties, "execute">;
   readonly retrievePublicProperty?: Pick<RetrievePublicProperty, "execute">;
   readonly retrievePublicPrimaryPhoto?: Pick<RetrievePublicPrimaryPhoto, "execute">;
+  readonly retrievePublicPropertyMedia?: Pick<RetrievePublicPropertyMedia, "execute">;
   readonly createPropertyOwner?: Pick<CreatePropertyOwner, "execute">;
   readonly retrievePropertyOwner?: Pick<RetrievePropertyOwner, "execute">;
   readonly listPropertyOwners?: Pick<ListPropertyOwners, "execute">;
@@ -164,6 +167,7 @@ const unavailableRegisterPropertyPhoto: Pick<RegisterPropertyPhoto, "execute"> =
 const unavailableRetrievePropertyPhotoContent: Pick<RetrievePropertyPhotoContent, "execute"> = { async execute() { throw new Error("Retrieve Property photo content composition is unavailable"); } };
 const unavailableSelectPropertyPrimaryPhoto: Pick<SelectPropertyPrimaryPhoto, "execute"> = { async execute() { throw new Error("Select primary Property photo composition is unavailable"); } };
 const unavailableDeletePropertyPhoto: Pick<DeletePropertyPhoto, "execute"> = { async execute() { throw new Error("Delete Property photo composition is unavailable"); } };
+const unavailableReorderPropertyPhotos: Pick<ReorderPropertyPhotos, "execute"> = { async execute() { throw new Error("Reorder Property photos composition is unavailable"); } };
 const unavailableRetrievePropertyPhotoStandard: Pick<RetrievePropertyPhotoStandard, "execute"> = { async execute() { throw new Error("Retrieve Property photo standard composition is unavailable"); } };
 const unavailableUpdatePropertyPhotoStandard: Pick<UpdatePropertyPhotoStandard, "execute"> = { async execute() { throw new Error("Update Property photo standard composition is unavailable"); } };
 const unavailableRetrievePropertyGeolocation: Pick<RetrievePropertyGeolocation, "execute"> = { async execute() { throw new Error("Retrieve Property geolocation composition is unavailable"); } };
@@ -174,6 +178,7 @@ const unavailableUpdatePropertyAvailability: Pick<UpdatePropertyAvailability, "e
 const unavailableListPublicProperties: Pick<ListPublicProperties, "execute"> = { async execute() { throw new Error("Public Property catalog composition is unavailable"); } };
 const unavailableRetrievePublicProperty: Pick<RetrievePublicProperty, "execute"> = { async execute() { throw new Error("Public Property detail composition is unavailable"); } };
 const unavailableRetrievePublicPrimaryPhoto: Pick<RetrievePublicPrimaryPhoto, "execute"> = { async execute() { throw new Error("Public Property photo composition is unavailable"); } };
+const unavailableRetrievePublicPropertyMedia: Pick<RetrievePublicPropertyMedia, "execute"> = { async execute() { throw new Error("Public Property media composition is unavailable"); } };
 const unavailablePublicCatalogTenantResolver = new AllowlistedPublicCatalogTenantResolver(new Map());
 const unavailableCreatePropertyOwner: Pick<CreatePropertyOwner, "execute"> = { async execute() { throw new Error("Create Property Owner composition is unavailable"); } };
 const unavailableRetrievePropertyOwner: Pick<RetrievePropertyOwner, "execute"> = { async execute() { throw new Error("Retrieve Property Owner composition is unavailable"); } };
@@ -239,6 +244,7 @@ export class AppModule {
         { provide: RETRIEVE_PROPERTY_PHOTO_CONTENT_USE_CASE, useValue: composition.retrievePropertyPhotoContent ?? unavailableRetrievePropertyPhotoContent },
         { provide: SELECT_PROPERTY_PRIMARY_PHOTO_USE_CASE, useValue: composition.selectPropertyPrimaryPhoto ?? unavailableSelectPropertyPrimaryPhoto },
         { provide: DELETE_PROPERTY_PHOTO_USE_CASE, useValue: composition.deletePropertyPhoto ?? unavailableDeletePropertyPhoto },
+        { provide: REORDER_PROPERTY_PHOTOS_USE_CASE, useValue: composition.reorderPropertyPhotos ?? unavailableReorderPropertyPhotos },
         { provide: RETRIEVE_PROPERTY_PHOTO_STANDARD_USE_CASE, useValue: composition.retrievePropertyPhotoStandard ?? unavailableRetrievePropertyPhotoStandard },
         { provide: UPDATE_PROPERTY_PHOTO_STANDARD_USE_CASE, useValue: composition.updatePropertyPhotoStandard ?? unavailableUpdatePropertyPhotoStandard },
         { provide: RETRIEVE_PROPERTY_GEOLOCATION_USE_CASE, useValue: composition.retrievePropertyGeolocation ?? unavailableRetrievePropertyGeolocation },
@@ -250,6 +256,7 @@ export class AppModule {
         { provide: LIST_PUBLIC_PROPERTIES_USE_CASE, useValue: composition.listPublicProperties ?? unavailableListPublicProperties },
         { provide: RETRIEVE_PUBLIC_PROPERTY_USE_CASE, useValue: composition.retrievePublicProperty ?? unavailableRetrievePublicProperty },
         { provide: RETRIEVE_PUBLIC_PRIMARY_PHOTO_USE_CASE, useValue: composition.retrievePublicPrimaryPhoto ?? unavailableRetrievePublicPrimaryPhoto },
+        { provide: RETRIEVE_PUBLIC_PROPERTY_MEDIA_USE_CASE, useValue: composition.retrievePublicPropertyMedia ?? unavailableRetrievePublicPropertyMedia },
         { provide: CREATE_PROPERTY_OWNER_USE_CASE, useValue: composition.createPropertyOwner ?? unavailableCreatePropertyOwner },
         { provide: RETRIEVE_PROPERTY_OWNER_USE_CASE, useValue: composition.retrievePropertyOwner ?? unavailableRetrievePropertyOwner },
         { provide: LIST_PROPERTY_OWNERS_USE_CASE, useValue: composition.listPropertyOwners ?? unavailableListPropertyOwners },

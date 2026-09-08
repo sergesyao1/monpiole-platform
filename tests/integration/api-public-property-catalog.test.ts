@@ -41,7 +41,10 @@ function summary(): PublicPropertyCatalogItem {
 }
 
 function detail(): PublicPropertyCatalogDetail {
-  return { ...summary(), description: "Vue sur la lagune", details: { rooms: 5, bedrooms: 3, bathrooms: 2 } };
+  return {
+    ...summary(), description: "Vue sur la lagune", details: { rooms: 5, bedrooms: 3, bathrooms: 2 },
+    gallery: [{ mediaId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", kind: "IMAGE", category: "OTHER", position: 0, isPrimary: true, contentType: "image/png" }],
+  };
 }
 
 describe("public Property catalog HTTP vertical slice", () => {
@@ -73,11 +76,19 @@ describe("public Property catalog HTTP vertical slice", () => {
         contentSha256: "a".repeat(64),
       };
     }) };
+    const retrievePublicPropertyMedia = { execute: vi.fn(async ({ publicPropertyId }: { publicPropertyId: string }) => {
+      if (publicPropertyId === OTHER_PROPERTY_ID) throw new PublicPropertyNotFoundError();
+      return {
+        content: new Uint8Array([1, 2, 3]), contentType: "image/png" as const, contentByteSize: 3,
+        contentSha256: "a".repeat(64),
+      };
+    }) };
     const composition = {
       publicCatalogTenantResolver: allowlist.resolver,
       listPublicProperties,
       retrievePublicProperty,
       retrievePublicPrimaryPhoto,
+      retrievePublicPropertyMedia,
       ...overrides,
     };
     application = await createApiApplication({ logger: false }, composition);
@@ -85,7 +96,7 @@ describe("public Property catalog HTTP vertical slice", () => {
     const address = application.getHttpServer().address();
     if (address === null || typeof address === "string") throw new Error("API did not bind");
     baseUrl = `http://127.0.0.1:${address.port}`;
-    return { listPublicProperties, retrievePublicProperty, retrievePublicPrimaryPhoto };
+    return { listPublicProperties, retrievePublicProperty, retrievePublicPrimaryPhoto, retrievePublicPropertyMedia };
   }
 
   async function requestApi(path: string, headers: Readonly<Record<string, string>>): Promise<Response> {
@@ -154,6 +165,10 @@ describe("public Property catalog HTTP vertical slice", () => {
     expect(response.status).toBe(200);
     const body = PublicPropertyDetailSchema.parse(await response.json());
     expect(body).toMatchObject({ publicPropertyId: PROPERTY_ID, description: "Vue sur la lagune", details: { rooms: 5 } });
+    expect(body.gallery).toEqual([{
+      mediaId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", kind: "IMAGE", category: "OTHER", position: 0,
+      isPrimary: true, url: `/v1/public/properties/${PROPERTY_ID}/media/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/content`, contentType: "image/png",
+    }]);
     expect(calls.retrievePublicProperty.execute).toHaveBeenCalledWith({ tenantId: TENANT_B, publicPropertyId: PROPERTY_ID });
     expect(response.headers.get("vary")).toContain("Host");
   });
@@ -194,5 +209,20 @@ describe("public Property catalog HTTP vertical slice", () => {
     const missing = await requestApi(`/v1/public/properties/${OTHER_PROPERTY_ID}/primary-photo`, { host: "catalogue.test" });
     expect(missing.status).toBe(404);
     expect(missing.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("serves public gallery media with the same Host, cache and non-disclosure boundary", async () => {
+    const calls = await start();
+    const mediaId = detail().gallery[0]!.mediaId;
+    const response = await requestApi(`/v1/public/properties/${PROPERTY_ID}/media/${mediaId}/content`, { host: "autre.test" });
+    expect(response.status).toBe(200);
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
+    expect(response.headers.get("cache-control")).toBe("public, max-age=300");
+    expect(calls.retrievePublicPropertyMedia.execute).toHaveBeenCalledWith({
+      tenantId: TENANT_B, publicPropertyId: PROPERTY_ID, mediaId,
+    });
+    const missing = await requestApi(`/v1/public/properties/${OTHER_PROPERTY_ID}/media/${mediaId}/content`, { host: "catalogue.test" });
+    expect(missing.status).toBe(404);
+    expect(ProblemDetailsSchema.parse(await missing.json()).code).toBe("PUBLIC_PROPERTY_NOT_FOUND");
   });
 });

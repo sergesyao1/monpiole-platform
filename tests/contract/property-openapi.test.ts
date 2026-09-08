@@ -102,16 +102,20 @@ describe("Property OpenAPI contract", () => {
     const registration = document.paths["/v1/properties/{propertyId}/photos"]?.post;
     const content = document.paths["/v1/properties/{propertyId}/photos/{photoId}/content"]?.get;
     const selection = document.paths["/v1/properties/{propertyId}/photos/{photoId}/primary"]?.put;
+    const reorder = document.paths["/v1/properties/{propertyId}/photos/order"]?.put;
     const deletion = document.paths["/v1/properties/{propertyId}/photos/{photoId}"]?.delete;
     expect(gallery?.operationId).toBe("listPropertyPhotos");
     expect(registration?.operationId).toBe("registerPropertyPhoto");
     expect(content?.operationId).toBe("retrievePropertyPhotoContent");
     expect(selection?.operationId).toBe("selectPropertyPrimaryPhoto");
+    expect(reorder?.operationId).toBe("reorderPropertyPhotos");
     expect(deletion?.operationId).toBe("deletePropertyPhoto");
-    for (const operation of [gallery, registration, content, selection, deletion]) expect(operation.security).toEqual([{ bearer: [] }]);
+    for (const operation of [gallery, registration, content, selection, reorder, deletion]) expect(operation.security).toEqual([{ bearer: [] }]);
     expect(registration.requestBody.content["application/json"]).toBeDefined();
     expect(Object.keys(content.responses["200"].content)).toEqual(expect.arrayContaining(["image/jpeg", "image/png", "image/webp"]));
     expect(selection).not.toHaveProperty("requestBody");
+    expect(reorder.requestBody.content["application/json"]).toBeDefined();
+    expect(Object.keys(reorder.responses)).toEqual(expect.arrayContaining(["200", "400", "401", "403", "404", "500"]));
     expect(Object.keys(selection.responses)).toEqual(expect.arrayContaining(["200", "400", "401", "403", "404", "500"]));
     expect(Object.keys(deletion.responses)).toEqual(expect.arrayContaining(["204", "400", "401", "403", "404", "409", "500"]));
     expect(selection.parameters).toEqual(expect.arrayContaining([
@@ -120,6 +124,7 @@ describe("Property OpenAPI contract", () => {
     ]));
     expect(PropertyPhotoGalleryResponseSchema.safeParse({ photos: [{
       photoId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", category: "BUILDING_EXTERIOR_OR_ENTRANCE", status: "AVAILABLE",
+      mediaKind: "IMAGE", position: 0,
       contentPath: "/v1/properties/cccccccc-cccc-4ccc-8ccc-cccccccccccc/photos/dddddddd-dddd-4ddd-8ddd-dddddddddddd/content",
       contentType: "image/png", contentByteSize: 8,
       contentSha256: "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6", isPrimary: true,

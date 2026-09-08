@@ -18,10 +18,12 @@ describe("public Property catalog OpenAPI contract", () => {
     const list = document.paths["/v1/public/properties"]?.get;
     const detail = document.paths["/v1/public/properties/{publicPropertyId}"]?.get;
     const photo = document.paths["/v1/public/properties/{publicPropertyId}/primary-photo"]?.get;
+    const media = document.paths["/v1/public/properties/{publicPropertyId}/media/{mediaId}/content"]?.get;
     expect(list?.operationId).toBe("listPublicProperties");
     expect(detail?.operationId).toBe("retrievePublicProperty");
     expect(photo?.operationId).toBe("retrievePublicPropertyPrimaryPhoto");
-    for (const operation of [list, detail, photo]) {
+    expect(media?.operationId).toBe("retrievePublicPropertyMedia");
+    for (const operation of [list, detail, photo, media]) {
       expect(operation.security).toEqual([]);
       expect(operation.responses).not.toHaveProperty("401");
       expect(operation.responses).not.toHaveProperty("403");
@@ -29,6 +31,7 @@ describe("public Property catalog OpenAPI contract", () => {
     }
     expect(Object.keys(list.responses)).toEqual(expect.arrayContaining(["200", "400", "404", "500"]));
     expect(Object.keys(photo.responses)).toEqual(expect.arrayContaining(["200", "304", "400", "404", "500"]));
+    expect(Object.keys(media.responses)).toEqual(expect.arrayContaining(["200", "304", "400", "404", "500"]));
   });
 
   it("publishes only limit, cursor, type and transactionType as bounded list inputs", async () => {
@@ -48,6 +51,8 @@ describe("public Property catalog OpenAPI contract", () => {
     expect(componentText).not.toMatch(/tenantId|addressLine|owner|ownership|actor|authority|correlation|publishedBy|withdrawnAt|canWithdrawFromCatalog|photoStandard|createdAt|updatedAt|photoId|contentSha256|contentByteSize|contentBase64|buildingId|unitPropertyId|latitude|longitude|publicVisibility|availability|occupancy/iu);
     expect(componentText).toMatch(/publicPropertyId/u);
     expect(componentText).toMatch(/primaryPhoto/u);
+    expect(componentText).toMatch(/gallery/u);
+    expect(componentText).toMatch(/mediaId/u);
     for (const field of ["agencyFeeAmountMinor", "cleaningFeeAmountMinor", "securityDepositAmountMinor", "minimumStayNights"]) {
       expect(componentText).toContain(field);
     }
@@ -71,12 +76,13 @@ describe("public Property catalog OpenAPI contract", () => {
       publishedAt: "2026-08-31T10:00:00.000Z",
     };
     expect(PublicPropertyCatalogResponseSchema.safeParse({ items: [summary], pageInfo: { nextCursor: null, hasNextPage: false } }).success).toBe(true);
-    expect(PublicPropertyDetailSchema.safeParse({ ...summary, description: null, details: { rooms: 4 } }).success).toBe(true);
-    expect(PublicPropertyDetailSchema.safeParse({ ...summary, description: null, details: { rooms: 4 }, tenantId: PROPERTY_ID }).success).toBe(false);
-    expect(PublicPropertyDetailSchema.safeParse({ ...summary, description: null, details: { rooms: 4 }, withdrawnAt: "2026-09-01T10:00:00.000Z" }).success).toBe(false);
-    expect(PublicPropertyDetailSchema.safeParse({ ...summary, description: null, details: { rooms: 4 }, availabilityStatus: "AVAILABLE", occupancyStatus: "VACANT" }).success).toBe(false);
-    expect(PublicPropertyDetailSchema.safeParse({ ...summary, description: null, details: { rooms: 4 }, location: { ...summary.location, addressLine: "privée" } }).success).toBe(false);
-    expect(PublicPropertyDetailSchema.safeParse({ ...summary, description: null, details: { rooms: 4 }, commercialTerms: {
+    const detail = { ...summary, description: null, details: { rooms: 4 }, gallery: [] };
+    expect(PublicPropertyDetailSchema.safeParse(detail).success).toBe(true);
+    expect(PublicPropertyDetailSchema.safeParse({ ...detail, tenantId: PROPERTY_ID }).success).toBe(false);
+    expect(PublicPropertyDetailSchema.safeParse({ ...detail, withdrawnAt: "2026-09-01T10:00:00.000Z" }).success).toBe(false);
+    expect(PublicPropertyDetailSchema.safeParse({ ...detail, availabilityStatus: "AVAILABLE", occupancyStatus: "VACANT" }).success).toBe(false);
+    expect(PublicPropertyDetailSchema.safeParse({ ...detail, location: { ...summary.location, addressLine: "privée" } }).success).toBe(false);
+    expect(PublicPropertyDetailSchema.safeParse({ ...detail, commercialTerms: {
       kind: "SHORT_TERM_RENTAL", currency: "USD", rateAmountMinor: 0, pricingUnit: "NIGHT",
       cleaningFeeAmountMinor: 0, securityDepositAmountMinor: 0, minimumStayNights: 1,
     } }).success).toBe(true);

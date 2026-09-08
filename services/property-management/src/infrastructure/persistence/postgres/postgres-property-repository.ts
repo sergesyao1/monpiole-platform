@@ -55,7 +55,8 @@ export class PostgresPropertyRepository implements PropertyRepository {
       const photoRows = await scope.database().select().from(propertyPhotos).where(and(
         eq(propertyPhotos.tenantId, tenantId), eq(propertyPhotos.propertyId, propertyId),
         eq(propertyPhotos.status, "AVAILABLE"), isNotNull(propertyPhotos.contentBase64),
-      )).orderBy(asc(propertyPhotos.registeredAt), asc(propertyPhotos.photoId));
+        isNotNull(propertyPhotos.galleryPosition),
+      )).orderBy(asc(propertyPhotos.galleryPosition), asc(propertyPhotos.photoId));
       const property = toProperty(row, photoRows.map(toPropertyPhoto));
       if (property.values.structuralRole === "UNIT") {
         const relations = await scope.database().select().from(propertyBuildingUnits).where(and(
@@ -85,7 +86,8 @@ export class PostgresPropertyRepository implements PropertyRepository {
       const photoRows = await scope.database().select().from(propertyPhotos).where(and(
         eq(propertyPhotos.tenantId, tenantId), eq(propertyPhotos.propertyId, propertyId),
         eq(propertyPhotos.status, "AVAILABLE"), isNotNull(propertyPhotos.contentBase64),
-      )).orderBy(asc(propertyPhotos.registeredAt), asc(propertyPhotos.photoId));
+        isNotNull(propertyPhotos.galleryPosition),
+      )).orderBy(asc(propertyPhotos.galleryPosition), asc(propertyPhotos.photoId));
       const photos = photoRows.map(toPropertyPhoto);
       const standardRow = (await scope.database().select().from(propertyPhotoStandards).where(
         eq(propertyPhotoStandards.tenantId, tenantId),
@@ -205,6 +207,7 @@ type PropertyPhotoRow = typeof propertyPhotos.$inferSelect;
 function toPropertyPhoto(row: PropertyPhotoRow): PropertyPhotoValues {
   return rehydratePropertyPhoto({
     photoId: row.photoId, tenantId: row.tenantId, propertyId: row.propertyId,
+    mediaKind: row.mediaKind as PropertyPhotoValues["mediaKind"], position: row.galleryPosition!,
     category: row.category as PropertyPhotoCategory, status: "AVAILABLE",
     contentType: row.contentType as PropertyPhotoValues["contentType"],
     contentByteSize: row.contentByteSize!, contentSha256: row.contentSha256!,

@@ -9,6 +9,7 @@ import type {
   PublicPropertyCatalogQuery,
   PublicPropertyCommercialTerms,
   PublicPropertyDetails,
+  PublicPropertyMediaReference,
   PublicPrimaryPhotoContent,
 } from "../../../application/public-property-catalog-query.js";
 import type {
@@ -88,7 +89,25 @@ export class PostgresPublicPropertyCatalogQuery implements PublicPropertyCatalog
         LIMIT 1
       `, [tenantId, publicPropertyId]);
       const row = rows[0];
-      return row === undefined ? undefined : { ...toCatalogItem(row), description: row.description, details: toDetails(row) };
+      if (row === undefined) return undefined;
+      const galleryRows = await scope.query<PublicMediaRow>(`
+        SELECT ph.photo_id, ph.media_kind, ph.category, ph.gallery_position, ph.is_primary, ph.content_type
+        FROM property_management.property_photos AS ph
+        WHERE ph.tenant_id = $1::uuid
+          AND ph.property_id = $2::uuid
+          AND ph.status = 'AVAILABLE'
+          AND ph.media_kind = 'IMAGE'
+          AND ph.gallery_position IS NOT NULL
+          AND ph.content_base64 IS NOT NULL
+          AND ph.content_type IS NOT NULL
+          AND ph.content_byte_size IS NOT NULL
+          AND ph.content_sha256 IS NOT NULL
+        ORDER BY ph.gallery_position, ph.photo_id
+      `, [tenantId, publicPropertyId]);
+      return {
+        ...toCatalogItem(row), description: row.description, details: toDetails(row),
+        gallery: galleryRows.map(toPublicMediaReference),
+      };
     });
   }
 
@@ -118,6 +137,31 @@ export class PostgresPublicPropertyCatalogQuery implements PublicPropertyCatalog
         contentByteSize: Number(row.content_byte_size),
         contentSha256: row.content_sha256,
       };
+    });
+  }
+
+
+  retrieveMedia(tenantId: string, publicPropertyId: string, mediaId: string): Promise<PublicPrimaryPhotoContent | undefined> {
+    return withTenantPostgresTransaction(this.pool, tenantId, async (scope) => {
+      const rows = await scope.query<PublicPhotoRow>(`
+        SELECT ph.content_base64, ph.content_type, ph.content_byte_size, ph.content_sha256
+        FROM property_management.property_photos AS ph
+        INNER JOIN property_management.properties AS p
+          ON p.tenant_id = ph.tenant_id AND p.property_id = ph.property_id
+        WHERE p.tenant_id = $1::uuid
+          AND p.property_id = $2::uuid
+          AND p.status = 'PUBLISHED'
+          AND ph.photo_id = $3::uuid
+          AND ph.status = 'AVAILABLE'
+          AND ph.media_kind = 'IMAGE'
+          AND ph.gallery_position IS NOT NULL
+          AND ph.content_base64 IS NOT NULL
+          AND ph.content_type IS NOT NULL
+          AND ph.content_byte_size IS NOT NULL
+          AND ph.content_sha256 IS NOT NULL
+        LIMIT 1
+      `, [tenantId, publicPropertyId, mediaId]);
+      return rows[0] === undefined ? undefined : toPublicContent(rows[0]);
     });
   }
 }
@@ -170,6 +214,29 @@ interface PublicPhotoRow extends Record<string, unknown> {
   readonly content_type: "image/jpeg" | "image/png" | "image/webp";
   readonly content_byte_size: string;
   readonly content_sha256: string;
+}
+
+interface PublicMediaRow extends Record<string, unknown> {
+  readonly photo_id: string;
+  readonly media_kind: "IMAGE";
+  readonly category: PublicPropertyMediaReference["category"];
+  readonly gallery_position: number;
+  readonly is_primary: boolean;
+  readonly content_type: PublicPropertyMediaReference["contentType"];
+}
+
+function toPublicMediaReference(row: PublicMediaRow): PublicPropertyMediaReference {
+  return {
+    mediaId: row.photo_id, kind: row.media_kind, category: row.category,
+    position: row.gallery_position, isPrimary: row.is_primary, contentType: row.content_type,
+  };
+}
+
+function toPublicContent(row: PublicPhotoRow): PublicPrimaryPhotoContent {
+  return {
+    content: Buffer.from(row.content_base64, "base64"), contentType: row.content_type,
+    contentByteSize: Number(row.content_byte_size), contentSha256: row.content_sha256,
+  };
 }
 
 function toCatalogItem(row: PublicPropertyRow): PublicPropertyCatalogItem {

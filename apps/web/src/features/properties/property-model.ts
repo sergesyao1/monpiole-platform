@@ -21,6 +21,8 @@ export type PropertyPhotoCategory =
 
 export interface PropertyPhoto {
   readonly photoId: string;
+  readonly mediaKind: "IMAGE";
+  readonly position: number;
   readonly category: PropertyPhotoCategory;
   readonly status: "AVAILABLE";
   readonly contentPath: `/v1/${string}`;

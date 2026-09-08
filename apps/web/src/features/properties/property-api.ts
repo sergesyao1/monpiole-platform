@@ -30,6 +30,7 @@ export interface PropertyApi {
   }>): Promise<{ readonly photos: readonly PropertyPhoto[] }>;
   retrievePropertyPhotoContent(photo: PropertyPhoto): Promise<Blob>;
   selectPropertyPrimaryPhoto(propertyId: string, photoId: string): Promise<{ readonly photos: readonly PropertyPhoto[] }>;
+  reorderPropertyPhotos(propertyId: string, photoIds: readonly string[]): Promise<{ readonly photos: readonly PropertyPhoto[] }>;
   deletePropertyPhoto(propertyId: string, photoId: string): Promise<void>;
   retrievePropertyPhotoStandard(): Promise<PropertyPhotoStandard>;
   updatePropertyPhotoStandard(input: PropertyPhotoStandard): Promise<PropertyPhotoStandard>;
@@ -94,6 +95,9 @@ export function createPropertyApi(tokens: AccessTokenProvider): PropertyApi {
     retrievePropertyPhotoContent: (photo) => requestBinary(photo.contentPath),
     selectPropertyPrimaryPhoto: (propertyId, photoId) => request<{ readonly photos: readonly PropertyPhoto[] }>(
       `/v1/properties/${encodeURIComponent(propertyId)}/photos/${encodeURIComponent(photoId)}/primary`, { method: "PUT" },
+    ),
+    reorderPropertyPhotos: (propertyId, photoIds) => request<{ readonly photos: readonly PropertyPhoto[] }>(
+      `/v1/properties/${encodeURIComponent(propertyId)}/photos/order`, { method: "PUT", body: { photoIds } },
     ),
     deletePropertyPhoto: (propertyId, photoId) => request<void>(
       `/v1/properties/${encodeURIComponent(propertyId)}/photos/${encodeURIComponent(photoId)}`, { method: "DELETE" },

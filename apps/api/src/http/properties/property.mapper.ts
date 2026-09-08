@@ -38,7 +38,8 @@ export function toPropertyResponse(property: PropertyView, authority: PropertyAu
 
 export function toPropertyPhotoResponse(photo: PropertyPhotoValues): PropertyPhoto {
   return {
-    photoId: photo.photoId, category: photo.category, status: photo.status,
+    photoId: photo.photoId, mediaKind: photo.mediaKind, position: photo.position,
+    category: photo.category, status: photo.status,
     contentPath: `/v1/properties/${photo.propertyId}/photos/${photo.photoId}/content`,
     contentType: photo.contentType, contentByteSize: photo.contentByteSize, contentSha256: photo.contentSha256,
     isPrimary: photo.isPrimary, registeredAt: photo.registeredAt, availableAt: photo.availableAt,

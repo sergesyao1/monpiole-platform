@@ -14,6 +14,7 @@ import {
   CreateProperty, PostgresPropertyPhotoRepository, PostgresPropertyRepository,
   PostgresPropertyPhotoStandardRepository, InvalidPropertyPhotoContentError,
   PropertyPhotoNotFoundError, PropertyPrimaryPhotoDeletionForbiddenError,
+  PropertyPublishedPhotoMutationForbiddenError, ReorderPropertyPhotos,
   PropertyPublicationRequirementsNotMetError, PublishProperty, SelectPropertyPrimaryPhoto,
   WithdrawPropertyFromCatalog,
   UpdatePropertyDetails, assessPropertyPhotoReadiness,
@@ -39,7 +40,7 @@ function connection(user: string, password: string, database = "property_photo_t
 
 const authority: PropertyAuthority = {
   actorId: "tenant-admin", authorityId: "tenant-admin",
-  grants: ["CREATE_PROPERTY", "UPDATE_PROPERTY_DETAILS", "PUBLISH_PROPERTY", "WITHDRAW_PROPERTY_FROM_CATALOG", "SELECT_PROPERTY_PRIMARY_PHOTO", "DELETE_PROPERTY_PHOTO", "RETRIEVE_PROPERTY_PHOTOS"],
+  grants: ["CREATE_PROPERTY", "UPDATE_PROPERTY_DETAILS", "PUBLISH_PROPERTY", "WITHDRAW_PROPERTY_FROM_CATALOG", "SELECT_PROPERTY_PRIMARY_PHOTO", "DELETE_PROPERTY_PHOTO", "RETRIEVE_PROPERTY_PHOTOS", "REORDER_PROPERTY_PHOTOS"],
   tenantIds: [TENANT_A],
 };
 
@@ -92,8 +93,13 @@ async function createApartmentReady(subtype: "STUDIO" | "MULTI_ROOM") {
 
 async function insertPhoto(photoId: string, propertyId = PROPERTY_A, category: PropertyPhotoValues["category"] = "BUILDING_EXTERIOR_OR_ENTRANCE") {
   await withTenantPostgresTransaction(runtime, TENANT_A, async (scope) => {
+    const count = await scope.query<{ count: string }>(
+      "SELECT count(*)::text AS count FROM property_management.property_photos WHERE property_id=$1 AND gallery_position IS NOT NULL",
+      [propertyId],
+    );
     await scope.database().insert(propertyPhotos).values({
       photoId, tenantId: TENANT_A, propertyId, category, status: "AVAILABLE",
+      mediaKind: "IMAGE", galleryPosition: Number(count[0]?.count ?? "0"),
       url: null, isPrimary: false, contentBase64: "iVBORw0KGgo=", contentType: "image/png",
       contentByteSize: 8, contentSha256: "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6",
       registeredAt: NOW, availableAt: "2026-08-30T10:01:00.000Z",
@@ -106,6 +112,41 @@ function selector() {
 }
 
 describe("PostgreSQL primary Property photo", () => {
+  it("migre 0015 vers 0016 sans perdre les lignes legacy ni l’ordre déterministe", async () => {
+    const previousMigrations = await migrationsThrough(15);
+    await owner.query("CREATE DATABASE property_media_upgrade_test");
+    const upgrade = new Pool({ connectionString: connection("owner", "synthetic-owner", "property_media_upgrade_test") });
+    try {
+      await migrate(drizzle(upgrade), { migrationsFolder: previousMigrations });
+      await upgrade.query(`INSERT INTO property_management.properties
+        (property_id,tenant_id,title,property_type,transaction_type,status,structural_role,country,city,district,address_line,
+         created_at,updated_at,correlation_id,actor_id)
+        VALUES ($1,$2,'Galerie historique','HOUSE','SALE','DRAFT','STANDALONE','CI','Abidjan','Cocody','Riviera',now(),now(),$3,'legacy')`,
+      [PROPERTY_A, TENANT_A, CORRELATION]);
+      await upgrade.query(`INSERT INTO property_management.property_photos
+        (photo_id,tenant_id,property_id,category,status,url,is_primary,registered_at,available_at)
+        VALUES ($1,$2,$3,'OTHER','AVAILABLE','https://legacy.example/photo.jpg',true,'2026-08-30T09:00:00Z','2026-08-30T09:00:00Z')`,
+      [PHOTO_A, TENANT_A, PROPERTY_A]);
+      for (const [photoId, registeredAt] of [[PHOTO_B, "2026-08-30T10:00:00Z"], ["11111111-1111-4111-8111-111111111111", "2026-08-30T09:30:00Z"]]) {
+        await upgrade.query(`INSERT INTO property_management.property_photos
+          (photo_id,tenant_id,property_id,category,status,is_primary,content_base64,content_type,content_byte_size,content_sha256,registered_at,available_at)
+          VALUES ($1,$2,$3,'OTHER','AVAILABLE',false,'iVBORw0KGgo=','image/png',8,
+            '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',$4,$4)`,
+        [photoId, TENANT_A, PROPERTY_A, registeredAt]);
+      }
+      await migrate(drizzle(upgrade), { migrationsFolder });
+      expect((await upgrade.query(`SELECT photo_id,media_kind,gallery_position,is_primary,url
+        FROM property_management.property_photos ORDER BY gallery_position NULLS LAST,photo_id`)).rows).toEqual([
+        { photo_id: "11111111-1111-4111-8111-111111111111", media_kind: "IMAGE", gallery_position: 0, is_primary: false, url: null },
+        { photo_id: PHOTO_B, media_kind: "IMAGE", gallery_position: 1, is_primary: false, url: null },
+        { photo_id: PHOTO_A, media_kind: "IMAGE", gallery_position: null, is_primary: true, url: "https://legacy.example/photo.jpg" },
+      ]);
+    } finally {
+      await upgrade.end();
+      await rm(previousMigrations, { recursive: true, force: true });
+    }
+  });
+
   it("applique 0010 et accorde exactement les privilèges photo nécessaires à monpiole_runtime", async () => {
     const privileges = (await owner.query(`SELECT table_name, privilege_type
       FROM information_schema.table_privileges
@@ -164,7 +205,7 @@ describe("PostgreSQL primary Property photo", () => {
     await expect(repository.register(TENANT_A, PROPERTY_A, {
       photoId: PHOTO_A, category: "BUILDING_EXTERIOR_OR_ENTRANCE", contentType: "image/png",
       contentBase64: "iVBORw0KGgo=", registeredAt: NOW, correlationId: CORRELATION, actorId: "tenant-admin",
-    })).resolves.toEqual([expect.objectContaining({ photoId: PHOTO_A, contentByteSize: 8 })]);
+    })).resolves.toEqual([expect.objectContaining({ photoId: PHOTO_A, mediaKind: "IMAGE", position: 0, isPrimary: false, contentByteSize: 8 })]);
     await expect(repository.retrieveContent(TENANT_A, PROPERTY_A, PHOTO_A)).resolves.toMatchObject({
       contentBase64: "iVBORw0KGgo=", contentType: "image/png", contentByteSize: 8,
     });
@@ -172,6 +213,61 @@ describe("PostgreSQL primary Property photo", () => {
       photoId: PHOTO_B, category: "OTHER", contentType: "image/jpeg",
       contentBase64: "iVBORw0KGgo=", registeredAt: NOW, correlationId: CORRELATION, actorId: "tenant-admin",
     })).rejects.toBeInstanceOf(InvalidPropertyPhotoContentError);
+  });
+
+  it("réordonne transactionnellement, rejoue sans divergence et compacte après suppression", async () => {
+    await createReady(); await insertPhoto(PHOTO_A); await insertPhoto(PHOTO_B);
+    const repository = new PostgresPropertyPhotoRepository(runtime);
+    const reorder = new ReorderPropertyPhotos(repository);
+    const command = { authority, propertyId: PROPERTY_A, photoIds: [PHOTO_B, PHOTO_A] };
+    await expect(reorder.execute(command)).resolves.toMatchObject([
+      { photoId: PHOTO_B, position: 0 }, { photoId: PHOTO_A, position: 1 },
+    ]);
+    await expect(reorder.execute(command)).resolves.toMatchObject([
+      { photoId: PHOTO_B, position: 0 }, { photoId: PHOTO_A, position: 1 },
+    ]);
+    await expect(reorder.execute({ ...command, photoIds: [PHOTO_A, PHOTO_A] })).rejects.toMatchObject({ code: "INVALID_PROPERTY_PHOTO_ORDER" });
+    await expect(reorder.execute({ ...command, photoIds: [PHOTO_A, "11111111-1111-4111-8111-111111111111"] }))
+      .rejects.toMatchObject({ code: "INVALID_PROPERTY_PHOTO_ORDER" });
+    await repository.delete(TENANT_A, PROPERTY_A, PHOTO_B);
+    await expect(repository.list(TENANT_A, PROPERTY_A)).resolves.toMatchObject([{ photoId: PHOTO_A, position: 0 }]);
+  });
+
+  it("contraint les positions et sérialise deux réorganisations concurrentes", async () => {
+    await createReady(); await insertPhoto(PHOTO_A); await insertPhoto(PHOTO_B);
+    await expect(withTenantPostgresTransaction(runtime, TENANT_A, (scope) => scope.query(
+      "UPDATE property_management.property_photos SET gallery_position=0 WHERE photo_id=$1", [PHOTO_B],
+    ))).rejects.toMatchObject({ code: "23505", constraint: "property_photos_gallery_position_unique_idx" });
+    await expect(withTenantPostgresTransaction(runtime, TENANT_A, (scope) => scope.query(
+      `INSERT INTO property_management.property_photos
+        (photo_id,tenant_id,property_id,category,status,is_primary,content_base64,content_type,content_byte_size,content_sha256,registered_at,available_at)
+       VALUES ($1,$2,$3,'OTHER','AVAILABLE',false,'iVBORw0KGgo=','image/png',8,
+         '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',now(),now())`,
+      [randomUUID(), TENANT_A, PROPERTY_A],
+    ))).rejects.toMatchObject({ code: "23514", constraint: "property_photos_gallery_position_check" });
+    const reorder = new ReorderPropertyPhotos(new PostgresPropertyPhotoRepository(runtime));
+    await Promise.all([
+      reorder.execute({ authority, propertyId: PROPERTY_A, photoIds: [PHOTO_B, PHOTO_A] }),
+      reorder.execute({ authority, propertyId: PROPERTY_A, photoIds: [PHOTO_A, PHOTO_B] }),
+    ]);
+    const gallery = await new PostgresPropertyPhotoRepository(runtime).list(TENANT_A, PROPERTY_A);
+    expect(gallery?.map((photo) => photo.position)).toEqual([0, 1]);
+    expect(new Set(gallery?.map((photo) => photo.photoId)).size).toBe(2);
+  });
+
+  it("refuse de rendre invalide la galerie d’un bien publié", async () => {
+    const properties = await createReady();
+    await new PostgresPropertyPhotoStandardRepository(runtime).save(TENANT_A, {
+      minimumCount: 2, additionalRequiredCategories: ["OTHER"],
+    }, { updatedAt: NOW, correlationId: CORRELATION, actorId: "tenant-admin" });
+    await insertPhoto(PHOTO_A); await insertPhoto(PHOTO_B, PROPERTY_A, "OTHER");
+    await selector().execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_A, photoId: PHOTO_A });
+    await new PublishProperty(properties, { now: () => "2026-08-30T10:20:00.000Z" })
+      .execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_A });
+    const repository = new PostgresPropertyPhotoRepository(runtime);
+    await expect(repository.delete(TENANT_A, PROPERTY_A, PHOTO_B))
+      .rejects.toBeInstanceOf(PropertyPublishedPhotoMutationForbiddenError);
+    await expect(repository.list(TENANT_A, PROPERTY_A)).resolves.toHaveLength(2);
   });
 
   it("refuse aussi une insertion SQL directe déjà publiée sans contenu photo", async () => {
@@ -268,6 +364,7 @@ describe("PostgreSQL primary Property photo", () => {
 
   it("compte la photo principale dans le minimum et dans sa catégorie", () => {
     const photo: PropertyPhotoValues = { photoId: PHOTO_A, tenantId: TENANT_A, propertyId: PROPERTY_A,
+      mediaKind: "IMAGE", position: 0,
       category: "BUILDING_EXTERIOR_OR_ENTRANCE", status: "AVAILABLE", contentType: "image/png", contentByteSize: 8,
       contentSha256: "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6", isPrimary: true,
       registeredAt: NOW, availableAt: NOW };
@@ -350,6 +447,22 @@ describe("PostgreSQL primary Property photo", () => {
       UNION ALL SELECT 'standard' FROM property_management.property_photo_standards WHERE tenant_id = $1
       UNION ALL SELECT 'audit' FROM property_management.property_primary_photo_audits WHERE tenant_id = $1`, [TENANT_B]));
     expect(hiddenRows).toEqual([]);
+    await withTenantPostgresTransaction(runtime, TENANT_A, (scope) => scope.query(
+      "UPDATE property_management.property_photos SET gallery_position=1 WHERE photo_id=$1", [PHOTO_B],
+    ));
+    await withTenantPostgresTransaction(runtime, TENANT_A, (scope) => scope.query(
+      "DELETE FROM property_management.property_photos WHERE photo_id=$1", [PHOTO_B],
+    ));
+    await expect(new PostgresPropertyPhotoRepository(runtime).list(TENANT_B, PROPERTY_B))
+      .resolves.toMatchObject([{ photoId: PHOTO_B, position: 0 }]);
+    await expect(withTenantPostgresTransaction(runtime, TENANT_A, (scope) => scope.query(
+      `INSERT INTO property_management.property_photos
+        (photo_id,tenant_id,property_id,category,status,is_primary,content_base64,content_type,content_byte_size,content_sha256,
+         registered_at,available_at,media_kind,gallery_position)
+       VALUES ($1,$2,$3,'OTHER','AVAILABLE',false,'iVBORw0KGgo=','image/png',8,
+         '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',now(),now(),'IMAGE',1)`,
+      [randomUUID(), TENANT_B, PROPERTY_B],
+    ))).rejects.toMatchObject({ code: "42501" });
     await expect(withTenantPostgresTransaction(runtime, TENANT_A, (scope) => scope.query(
       `INSERT INTO property_management.property_photo_standards
         (tenant_id, minimum_photo_count, additional_required_categories, updated_at, correlation_id, actor_id)
@@ -389,7 +502,7 @@ describe("PostgreSQL primary Property photo", () => {
       ORDER BY tablename`)).rows).toEqual([
       { tablename: "property_photo_standards", policyname: "property_photo_standards_tenant_isolation", cmd: "ALL", roles: "{public}", tenant_qual: true, tenant_check: true },
       { tablename: "property_photos", policyname: "property_photos_tenant_isolation", cmd: "ALL", roles: "{public}", tenant_qual: true, tenant_check: true },
-      { tablename: "property_photos", policyname: "property_photos_public_catalog_primary_select", cmd: "SELECT", roles: "{monpiole_public_catalog_reader}", tenant_qual: false, tenant_check: null },
+      { tablename: "property_photos", policyname: "property_photos_public_catalog_media_select", cmd: "SELECT", roles: "{monpiole_public_catalog_reader}", tenant_qual: false, tenant_check: null },
       { tablename: "property_primary_photo_audits", policyname: "property_primary_photo_audits_tenant_isolation", cmd: "ALL", roles: "{public}", tenant_qual: true, tenant_check: true },
     ]);
   });
@@ -399,19 +512,15 @@ async function migrationsThrough(lastIndex: number) {
   const folder = await mkdtemp(join(tmpdir(), `monpiole-property-000${lastIndex}-`));
   const meta = join(folder, "meta");
   await mkdir(meta);
+  const journal = JSON.parse(await readFile(join(migrationsFolder, "meta", "_journal.json"), "utf8")) as {
+    readonly entries: readonly { readonly idx: number; readonly tag: string }[];
+  };
   for (let index = 0; index <= lastIndex; index += 1) {
     const prefix = String(index).padStart(4, "0");
-    const migrationName = index === 6
-      ? `${prefix}_property_composition.sql`
-      : index === 7
-        ? `${prefix}_property_publication.sql`
-        : `${prefix}_property_management_baseline.sql`;
+    const migrationName = `${journal.entries.find((entry) => entry.idx === index)!.tag}.sql`;
     await copyFile(join(migrationsFolder, migrationName), join(folder, migrationName));
     await copyFile(join(migrationsFolder, "meta", `${prefix}_snapshot.json`), join(meta, `${prefix}_snapshot.json`));
   }
-  const journal = JSON.parse(await readFile(join(migrationsFolder, "meta", "_journal.json"), "utf8")) as {
-    readonly entries: readonly { readonly idx: number }[];
-  };
   await writeFile(join(meta, "_journal.json"), `${JSON.stringify({ ...journal, entries: journal.entries.filter((entry) => entry.idx <= lastIndex) }, null, 2)}\n`, "utf8");
   return folder;
 }

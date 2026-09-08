@@ -77,3 +77,13 @@ export class DeletePropertyPhoto {
     if (deleted === undefined || !deleted) throw new PropertyPhotoNotFoundError();
   }
 }
+
+export class ReorderPropertyPhotos {
+  constructor(private readonly photos: PropertyPhotoRepository) {}
+  async execute(command: PropertyPhotoCommand & { readonly photoIds: readonly string[] }): Promise<readonly PropertyPhotoValues[]> {
+    const tenantId = authorizedTenant(command.authority, "REORDER_PROPERTY_PHOTOS");
+    const reordered = await this.photos.reorder(tenantId, command.propertyId, command.photoIds);
+    if (reordered === undefined) throw new PropertyNotFoundError();
+    return reordered;
+  }
+}

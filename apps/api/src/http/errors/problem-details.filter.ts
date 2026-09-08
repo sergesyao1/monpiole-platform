@@ -172,7 +172,12 @@ function businessProblem(exception: unknown) {
     status: 409, type: "https://api.monpiole.example/problems/property-primary-photo-deletion-forbidden",
     title: "Property primary photo deletion forbidden", code: "PROPERTY_PRIMARY_PHOTO_DELETION_FORBIDDEN",
   };
-  if (code === "INVALID_PROPERTY_PHOTO_CONTENT" || code === "INVALID_PROPERTY_PHOTO_STANDARD") return {
+  if (code === "PROPERTY_PUBLISHED_PHOTO_MUTATION_FORBIDDEN") return {
+    status: 409, type: "https://api.monpiole.example/problems/property-published-photo-mutation-forbidden",
+    title: "Published Property photo mutation forbidden", code: "PROPERTY_PUBLISHED_PHOTO_MUTATION_FORBIDDEN",
+  };
+  if (code === "INVALID_PROPERTY_PHOTO_CONTENT" || code === "INVALID_PROPERTY_PHOTO_STANDARD"
+    || code === "INVALID_PROPERTY_PHOTO_ORDER") return {
     status: 400, type: "https://api.monpiole.example/problems/invalid-request",
     title: "Invalid request", code: "INVALID_REQUEST",
   };

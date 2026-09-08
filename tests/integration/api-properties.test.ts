@@ -3,7 +3,7 @@ import { request } from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   CreateProperty, ListPublicProperties, Property, PublishProperty, RetrieveProperty,
-  RetrievePublicPrimaryPhoto, RetrievePublicProperty, UpdatePropertyCoreInformation,
+  RetrievePublicPrimaryPhoto, RetrievePublicProperty, RetrievePublicPropertyMedia, UpdatePropertyCoreInformation,
   UpdatePropertyDetails, WithdrawPropertyFromCatalog,
   type PropertyRepository, type PublicPropertyCatalogItem, type PublicPropertyCatalogQuery,
 } from "../../services/property-management/src/index.js";
@@ -16,17 +16,18 @@ import { AllowlistedPublicCatalogTenantResolver } from "../../apps/api/src/confi
 const TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"; const TENANT_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const PROPERTY_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const PRIMARY_PHOTO = { photoId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", tenantId: TENANT_A, propertyId: PROPERTY_ID,
+  mediaKind: "IMAGE" as const, position: 0,
   category: "BUILDING_EXTERIOR_OR_ENTRANCE" as const, status: "AVAILABLE" as const,
   contentType: "image/png" as const, contentByteSize: 8,
   contentSha256: "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6",
   isPrimary: true, registeredAt: "2026-08-25T12:30:00.000Z", availableAt: "2026-08-25T12:31:00.000Z" };
 const STUDIO_PHOTOS = [
   PRIMARY_PHOTO,
-  { ...PRIMARY_PHOTO, photoId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", category: "MAIN_LIVING_SLEEPING_AREA" as const, isPrimary: false },
-  { ...PRIMARY_PHOTO, photoId: "ffffffff-ffff-4fff-8fff-ffffffffffff", category: "KITCHEN_OR_KITCHENETTE" as const, isPrimary: false },
-  { ...PRIMARY_PHOTO, photoId: "11111111-1111-4111-8111-111111111111", category: "BATHROOM_OR_SHOWER_ROOM" as const, isPrimary: false },
-  { ...PRIMARY_PHOTO, photoId: "22222222-2222-4222-8222-222222222222", category: "OTHER" as const, isPrimary: false },
-  { ...PRIMARY_PHOTO, photoId: "33333333-3333-4333-8333-333333333333", category: "OTHER" as const, isPrimary: false },
+  { ...PRIMARY_PHOTO, photoId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", category: "MAIN_LIVING_SLEEPING_AREA" as const, isPrimary: false, position: 1 },
+  { ...PRIMARY_PHOTO, photoId: "ffffffff-ffff-4fff-8fff-ffffffffffff", category: "KITCHEN_OR_KITCHENETTE" as const, isPrimary: false, position: 2 },
+  { ...PRIMARY_PHOTO, photoId: "11111111-1111-4111-8111-111111111111", category: "BATHROOM_OR_SHOWER_ROOM" as const, isPrimary: false, position: 3 },
+  { ...PRIMARY_PHOTO, photoId: "22222222-2222-4222-8222-222222222222", category: "OTHER" as const, isPrimary: false, position: 4 },
+  { ...PRIMARY_PHOTO, photoId: "33333333-3333-4333-8333-333333333333", category: "OTHER" as const, isPrimary: false, position: 5 },
 ];
 class MemoryRepository implements PropertyRepository {
   values = new Map<string, Property>(); async saveStandalone(p: Property) { this.values.set(`${p.values.tenantId}:${p.values.propertyId}`, p); }
@@ -53,7 +54,13 @@ class MemoryPublicPropertyCatalog implements PublicPropertyCatalogQuery {
     if (property === undefined) return undefined;
     const item = toPublicItem(property);
     if (item === undefined) return undefined;
-    return { ...item, description: property.values.description ?? null, details: property.values.details ?? {} };
+    return {
+      ...item, description: property.values.description ?? null, details: property.values.details ?? {},
+      gallery: (property.values.photos ?? []).map((photo) => ({
+        mediaId: photo.photoId, kind: photo.mediaKind, category: photo.category,
+        position: photo.position, isPrimary: photo.isPrimary, contentType: photo.contentType,
+      })),
+    };
   }
 
   async retrievePrimaryPhoto(tenantId: string, publicPropertyId: string) {
@@ -65,6 +72,15 @@ class MemoryPublicPropertyCatalog implements PublicPropertyCatalogQuery {
       contentType: item.primaryPhoto.contentType,
       contentByteSize: 8,
       contentSha256: PRIMARY_PHOTO.contentSha256,
+    };
+  }
+  async retrieveMedia(tenantId: string, publicPropertyId: string, mediaId: string) {
+    const property = this.repository.values.get(`${tenantId}:${publicPropertyId}`);
+    const media = property?.values.photos?.find((photo) => photo.photoId === mediaId);
+    if (property?.values.status !== "PUBLISHED" || media === undefined) return undefined;
+    return {
+      content: new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]), contentType: media.contentType,
+      contentByteSize: media.contentByteSize, contentSha256: media.contentSha256,
     };
   }
 }
@@ -108,6 +124,7 @@ describe("Property HTTP vertical slice", () => {
       listPublicProperties: new ListPublicProperties(publicCatalog),
       retrievePublicProperty: new RetrievePublicProperty(publicCatalog),
       retrievePublicPrimaryPhoto: new RetrievePublicPrimaryPhoto(publicCatalog),
+      retrievePublicPropertyMedia: new RetrievePublicPropertyMedia(publicCatalog),
     }); await application.listen(0, "127.0.0.1"); const address = application.getHttpServer().address();
     if (address === null || typeof address === "string") throw new Error("API did not bind"); baseUrl = `http://127.0.0.1:${address.port}`;
   }

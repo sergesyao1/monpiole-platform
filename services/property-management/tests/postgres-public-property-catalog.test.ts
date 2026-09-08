@@ -21,6 +21,7 @@ const PROPERTY_B = "22222222-2222-4222-8222-222222222222";
 const PROPERTY_C = "33333333-3333-4333-8333-333333333333";
 const DRAFT_PROPERTY = "44444444-4444-4444-8444-444444444444";
 const WITHDRAWN_PROPERTY = "55555555-5555-4555-8555-555555555555";
+const MEDIA_A = "66666666-6666-4666-8666-666666666666";
 const migrationsFolder = fileURLToPath(new URL("../migrations", import.meta.url));
 
 let container: StartedTestContainer;
@@ -105,6 +106,29 @@ describe("PostgreSQL public Property catalog boundary", () => {
     await expect(catalog.retrievePrimaryPhoto(TENANT_B, PROPERTY_A)).resolves.toBeUndefined();
   });
 
+  it("returns the complete ordered gallery and never serves media from a withdrawn or foreign Property", async () => {
+    await seedPublished(owner, TENANT_A, PROPERTY_A, "Maison", "2026-08-31T12:00:00.000Z", "HOUSE", "SALE");
+    await owner.query(`INSERT INTO property_management.property_photos
+      (photo_id,tenant_id,property_id,category,status,is_primary,content_base64,content_type,
+       content_byte_size,content_sha256,registered_at,available_at,media_kind,gallery_position)
+      VALUES ($1,$2,$3,'OTHER','AVAILABLE',false,'iVBORw0KGgo=','image/png',8,
+        '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',now(),now(),'IMAGE',1)`,
+    [MEDIA_A, TENANT_A, PROPERTY_A]);
+    await seedWithdrawn(owner, TENANT_A, WITHDRAWN_PROPERTY, "2026-08-31T11:30:00.000Z");
+    const withdrawnMediaId = (await owner.query(
+      "SELECT photo_id FROM property_management.property_photos WHERE property_id=$1", [WITHDRAWN_PROPERTY],
+    )).rows[0].photo_id as string;
+    const catalog = new PostgresPublicPropertyCatalogQuery(reader);
+    const detail = await catalog.retrieve(TENANT_A, PROPERTY_A);
+    expect(detail?.gallery).toMatchObject([
+      { kind: "IMAGE", position: 0, isPrimary: true },
+      { mediaId: MEDIA_A, kind: "IMAGE", position: 1, isPrimary: false, category: "OTHER" },
+    ]);
+    await expect(catalog.retrieveMedia(TENANT_A, PROPERTY_A, MEDIA_A)).resolves.toMatchObject({ contentType: "image/png", contentByteSize: 8 });
+    await expect(catalog.retrieveMedia(TENANT_B, PROPERTY_A, MEDIA_A)).resolves.toBeUndefined();
+    await expect(catalog.retrieveMedia(TENANT_A, WITHDRAWN_PROPERTY, withdrawnMediaId)).resolves.toBeUndefined();
+  });
+
   it("proves forced RLS, restrictive role-targeted policies and the partial index", async () => {
     expect((await owner.query(`SELECT relname, relrowsecurity, relforcerowsecurity
       FROM pg_class JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace
@@ -118,7 +142,7 @@ describe("PostgreSQL public Property catalog boundary", () => {
       WHERE schemaname = 'property_management' AND policyname LIKE '%public_catalog%'
       ORDER BY tablename`)).rows).toEqual([
       { tablename: "properties", policyname: "properties_public_catalog_published_select", permissive: "RESTRICTIVE", cmd: "SELECT", roles: "{monpiole_public_catalog_reader}" },
-      { tablename: "property_photos", policyname: "property_photos_public_catalog_primary_select", permissive: "RESTRICTIVE", cmd: "SELECT", roles: "{monpiole_public_catalog_reader}" },
+      { tablename: "property_photos", policyname: "property_photos_public_catalog_media_select", permissive: "RESTRICTIVE", cmd: "SELECT", roles: "{monpiole_public_catalog_reader}" },
     ]);
     expect((await owner.query(`SELECT indexname, indexdef FROM pg_indexes
       WHERE schemaname = 'property_management' AND indexname = 'properties_public_catalog_idx'`)).rows[0])
@@ -156,7 +180,7 @@ describe("PostgreSQL public Property catalog boundary", () => {
     ];
     const photoColumns = [
       "tenant_id", "property_id", "status", "is_primary", "content_base64", "content_type",
-      "content_byte_size", "content_sha256",
+      "content_byte_size", "content_sha256", "photo_id", "category", "media_kind", "gallery_position",
     ];
     expect(columnPrivileges).toEqual([
       ...propertyColumns.map((column) => `properties.${column}:SELECT`),
@@ -256,9 +280,9 @@ async function seedPublished(
     ]);
     await client.query(`INSERT INTO property_management.property_photos
       (photo_id, tenant_id, property_id, category, status, is_primary, content_base64, content_type,
-       content_byte_size, content_sha256, registered_at, available_at)
+       content_byte_size, content_sha256, registered_at, available_at, media_kind, gallery_position)
       VALUES ($1,$2,$3,'BUILDING_EXTERIOR_OR_ENTRANCE','AVAILABLE',true,'iVBORw0KGgo=','image/png',8,
-        '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',$4,$4)`,
+        '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',$4,$4,'IMAGE',0)`,
     [randomUUID(), tenantId, propertyId, publishedAt]);
     await client.query("COMMIT");
   } catch (error) {

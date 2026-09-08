@@ -29,7 +29,7 @@ export {
   type PropertyGeolocationRepository, type PropertyGeolocationResolution,
   type PropertyGeolocationMutationTrace,
 } from "./application/property-geolocation-repository.js";
-export { RegisterPropertyPhoto, RetrievePropertyPhotoContent, ListPropertyPhotos, SelectPropertyPrimaryPhoto, DeletePropertyPhoto, type PropertyPhotoCommand } from "./application/manage-property-photos.js";
+export { RegisterPropertyPhoto, RetrievePropertyPhotoContent, ListPropertyPhotos, SelectPropertyPrimaryPhoto, DeletePropertyPhoto, ReorderPropertyPhotos, type PropertyPhotoCommand } from "./application/manage-property-photos.js";
 export type { PropertyPhotoRepository, PropertyPhotoRegistration, PropertyPhotoContent, PropertyPhotoSelectionTrace } from "./application/property-photo-repository.js";
 export { RetrievePropertyPhotoStandard, UpdatePropertyPhotoStandard } from "./application/manage-property-photo-standard.js";
 export type { PropertyPhotoStandardRepository, PropertyPhotoStandardTrace } from "./application/property-photo-standard-repository.js";
@@ -52,16 +52,16 @@ export type {
   PropertyPortfolioItem, PropertyPortfolioPage,
 } from "./application/property-portfolio-query.js";
 export {
-  ListPublicProperties, RetrievePublicProperty, RetrievePublicPrimaryPhoto,
+  ListPublicProperties, RetrievePublicProperty, RetrievePublicPrimaryPhoto, RetrievePublicPropertyMedia,
   InvalidPublicPropertyCatalogQueryError, PublicPropertyNotFoundError,
   DEFAULT_PUBLIC_PROPERTY_CATALOG_LIMIT, MAX_PUBLIC_PROPERTY_CATALOG_LIMIT,
-  type ListPublicPropertiesQuery, type RetrievePublicPropertyQuery,
+  type ListPublicPropertiesQuery, type RetrievePublicPropertyQuery, type RetrievePublicPropertyMediaQuery,
 } from "./application/public-property-catalog.js";
 export type {
   PublicPropertyCatalogQuery, PublicPropertyCatalogCriteria, PublicPropertyCatalogCursor,
   PublicPropertyCatalogItem, PublicPropertyCatalogDetail, PublicPropertyCatalogPage,
   PublicPropertyLocation, PublicPropertyDetails, PublicPropertyCommercialTerms,
-  PublicPropertyPrimaryPhotoReference, PublicPrimaryPhotoContent,
+  PublicPropertyPrimaryPhotoReference, PublicPropertyMediaReference, PublicPrimaryPhotoContent, PublicPropertyMediaContent,
 } from "./application/public-property-catalog-query.js";
 export { PropertyOwnerPersistenceFailureError, type PropertyOwnerRepository } from "./application/property-owner-repository.js";
 export type {
@@ -77,7 +77,7 @@ export {
   type PropertyGeolocationValues, type PropertyGeolocationPublicVisibility,
   type PropertyPublicPosition,
 } from "./domain/property-geolocation.js";
-export { assessPropertyPhotoReadiness, resolvePropertyPhotoStandard, validatePropertyPhotoStandardOverride, rehydratePropertyPhoto, PersistedPropertyPhotoCorruptionError, InvalidPropertyPhotoContentError, InvalidPropertyPhotoStandardError, PropertyPhotoNotFoundError, PropertyPrimaryPhotoDeletionForbiddenError, PROPERTY_PHOTO_CATEGORIES, MINIMUM_PROPERTY_PHOTO_COUNT, APARTMENT_LONG_TERM_MINIMUM_PHOTO_COUNT, type PropertyPhotoValues, type PropertyPhotoCategory, type PropertyPhotoStatus, type PropertyPhotoReadiness, type PropertyPhotoStandard, type PropertyPhotoStandardOverride } from "./domain/property-photo.js";
+export { assessPropertyPhotoReadiness, resolvePropertyPhotoStandard, validatePropertyPhotoStandardOverride, validatePropertyPhotoOrder, assertPublishedPropertyPhotoMutation, rehydratePropertyPhoto, PersistedPropertyPhotoCorruptionError, InvalidPropertyPhotoContentError, InvalidPropertyPhotoStandardError, InvalidPropertyPhotoOrderError, PropertyPhotoNotFoundError, PropertyPrimaryPhotoDeletionForbiddenError, PropertyPublishedPhotoMutationForbiddenError, PROPERTY_PHOTO_CATEGORIES, PROPERTY_MEDIA_KINDS, MINIMUM_PROPERTY_PHOTO_COUNT, APARTMENT_LONG_TERM_MINIMUM_PHOTO_COUNT, type PropertyPhotoValues, type PropertyPhotoCategory, type PropertyPhotoStatus, type PropertyMediaKind, type PropertyPhotoReadiness, type PropertyPhotoStandard, type PropertyPhotoStandardOverride } from "./domain/property-photo.js";
 export { PropertyBuilding, InvalidPropertyCompositionInputError, InvalidPropertyCompositionServerValueError, normalizeStructuralCode, type PropertyBuildingValues } from "./domain/property-building.js";
 export { PropertyBuildingUnit, type PropertyBuildingUnitValues } from "./domain/property-building-unit.js";
 export {

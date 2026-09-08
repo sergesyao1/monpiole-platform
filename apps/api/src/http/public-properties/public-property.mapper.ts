@@ -38,5 +38,9 @@ export function toPublicPropertyDetail(item: PublicPropertyCatalogDetail): Publi
       ...(item.details.bathrooms === undefined ? {} : { bathrooms: item.details.bathrooms }),
       ...(item.details.furnished === undefined ? {} : { furnished: item.details.furnished }),
     },
+    gallery: item.gallery.map((media) => ({
+      ...media,
+      url: `/v1/public/properties/${item.publicPropertyId}/media/${media.mediaId}/content`,
+    })),
   };
 }
