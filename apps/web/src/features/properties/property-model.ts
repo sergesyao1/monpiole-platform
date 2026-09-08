@@ -245,6 +245,91 @@ export interface PropertyOwnerDirectoryCriteria {
   readonly search?: string;
 }
 
+export interface PropertyClient {
+  readonly clientId: string;
+  readonly displayName: string;
+  readonly email?: string;
+  readonly phoneNumber?: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface PropertyClientInput {
+  readonly displayName: string;
+  readonly email?: string;
+  readonly phoneNumber?: string;
+}
+
+export interface PropertyClientDirectoryPage {
+  readonly items: readonly PropertyClient[];
+  readonly pageInfo: Readonly<{ readonly nextCursor: string | null; readonly hasNextPage: boolean }>;
+  readonly canCreateClient: boolean;
+}
+
+export type PropertyContractType = "LEASE" | "MANAGEMENT" | "OTHER";
+export type PropertyContractStatus = "DRAFT" | "ACTIVE" | "ENDED" | "CANCELLED";
+export interface PropertyContractInput {
+  readonly clientId: string;
+  readonly contractType: PropertyContractType;
+  readonly reference: string;
+  readonly startDate?: string;
+  readonly endDate?: string;
+  readonly notes?: string;
+}
+export interface PropertyContract extends PropertyContractInput {
+  readonly contractId: string;
+  readonly propertyId: string;
+  readonly status: PropertyContractStatus;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly activatedAt?: string;
+  readonly endedAt?: string;
+  readonly cancelledAt?: string;
+  readonly client: Pick<PropertyClient, "clientId" | "displayName" | "email" | "phoneNumber">;
+  readonly capabilities: Readonly<{
+    canUpdate: boolean; canActivate: boolean; canEnd: boolean; canCancel: boolean;
+  }>;
+}
+export interface PropertyContractDirectoryPage {
+  readonly items: readonly PropertyContract[];
+  readonly pageInfo: Readonly<{ readonly nextCursor: string | null; readonly hasNextPage: boolean }>;
+  readonly canCreateContract: boolean;
+}
+export const propertyContractTypeLabels: Readonly<Record<PropertyContractType, string>> = {
+  LEASE: "Bail", MANAGEMENT: "Mandat de gestion", OTHER: "Autre contrat",
+};
+export const propertyContractStatusLabels: Readonly<Record<PropertyContractStatus, string>> = {
+  DRAFT: "Brouillon", ACTIVE: "Actif", ENDED: "Terminé", CANCELLED: "Annulé",
+};
+
+export type PropertyPublicationRequirement = "DETAILS" | "COMMERCIAL_TERMS" | "APARTMENT_SUBTYPE"
+  | "PRIMARY_PHOTO" | "PHOTO_MINIMUM" | "PHOTO_REQUIRED_VIEWS";
+export interface PropertyPublicationReadiness {
+  readonly ready: boolean;
+  readonly missingRequirements: readonly PropertyPublicationRequirement[];
+}
+export interface PropertyWorkspaceOwnerSummary {
+  readonly ownerId: string;
+  readonly displayName: string;
+  readonly ownershipShare: number;
+}
+export interface PropertyWorkspace {
+  readonly property: Property;
+  readonly availability: PropertyAvailability;
+  readonly publicationReadiness: PropertyPublicationReadiness;
+  readonly owners: readonly PropertyWorkspaceOwnerSummary[];
+  readonly composition: Readonly<{ buildingCount: number; unitCount: number }>;
+  readonly contracts: Readonly<{
+    totalCount: number; draftCount: number; activeCount: number; endedCount: number; cancelledCount: number;
+  }>;
+  readonly capabilities: Readonly<{
+    canUpdateCoreInformation: boolean; canUpdateDetails: boolean; canUpdatePricing: boolean;
+    canUpdateAvailability: boolean; canManagePhotos: boolean; canPublish: boolean;
+    canWithdrawFromCatalog: boolean; canManageOwners: boolean; canManageComposition: boolean;
+    canViewContracts: boolean; canCreateContract: boolean;
+  }>;
+}
+
 export function formatMinorAmount(amount: number, currency: string): string {
   const formatted = new Intl.NumberFormat("fr-FR", { style: "currency", currency }).format(amount / currencyMinorFactor(currency));
   return currency === "XOF" ? formatted.replace(/F\s*CFA/u, "FCFA") : formatted;
@@ -281,22 +366,4 @@ export function formatPublicationDate(value: string): string {
   return new Intl.DateTimeFormat("fr-FR", {
     dateStyle: "long", timeStyle: "short", timeZone: "UTC",
   }).format(new Date(value));
-}
-
-export function propertyPhotoRequirements(
-  property: Pick<Property, "propertyType" | "transactionType" | "apartmentSubtype">,
-  organization: PropertyPhotoStandard = { minimumCount: 1, additionalRequiredCategories: [] },
-): Readonly<{ minimumCount: number; requiredCategories: readonly PropertyPhotoCategory[] }> {
-  const apartmentLongTerm = property.propertyType === "APARTMENT" && property.transactionType === "LONG_TERM_RENTAL";
-  const monPioleRequired: readonly PropertyPhotoCategory[] = !apartmentLongTerm
-    ? []
-    : property.apartmentSubtype === "STUDIO"
-      ? ["BUILDING_EXTERIOR_OR_ENTRANCE", "MAIN_LIVING_SLEEPING_AREA", "KITCHEN_OR_KITCHENETTE", "BATHROOM_OR_SHOWER_ROOM"]
-      : property.apartmentSubtype === "MULTI_ROOM"
-        ? ["BUILDING_EXTERIOR_OR_ENTRANCE", "LIVING_ROOM_OR_MAIN_ROOM", "KITCHEN_OR_KITCHENETTE", "BEDROOM_OR_SLEEPING_AREA", "BATHROOM_OR_SHOWER_ROOM"]
-        : [];
-  return {
-    minimumCount: Math.max(apartmentLongTerm ? 6 : 1, organization.minimumCount),
-    requiredCategories: [...new Set([...monPioleRequired, ...organization.additionalRequiredCategories])],
-  };
 }

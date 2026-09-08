@@ -27,6 +27,7 @@ interface PropertyAvailabilitySectionProps {
   readonly compact?: boolean;
   readonly label?: string;
   readonly onReconnect?: () => void;
+  readonly initialAvailability?: PropertyAvailability;
 }
 
 export function PropertyAvailabilitySection({
@@ -36,11 +37,12 @@ export function PropertyAvailabilitySection({
   compact = false,
   label,
   onReconnect,
+  initialAvailability,
 }: Readonly<PropertyAvailabilitySectionProps>) {
-  const [availability, setAvailability] = useState<PropertyAvailability>();
+  const [availability, setAvailability] = useState<PropertyAvailability | undefined>(initialAvailability);
   const [availabilityStatus, setAvailabilityStatus] = useState<PropertyAvailabilityStatus>("AVAILABLE");
   const [occupancyStatus, setOccupancyStatus] = useState<PropertyOccupancyStatus>("VACANT");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(initialAvailability === undefined);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<PropertyUiError>();
@@ -62,7 +64,18 @@ export function PropertyAvailabilitySection({
     }
   }, [api, propertyId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (initialAvailability !== undefined) {
+      setAvailability(initialAvailability);
+      setLoading(false);
+      if (initialAvailability.source === "DIRECT" && initialAvailability.configured) {
+        setAvailabilityStatus(initialAvailability.availabilityStatus);
+        setOccupancyStatus(initialAvailability.occupancyStatus);
+      }
+      return;
+    }
+    void load();
+  }, [initialAvailability, load]);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

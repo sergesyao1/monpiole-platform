@@ -235,6 +235,32 @@ function businessProblem(exception: unknown) {
     status: 404, type: "https://api.monpiole.example/problems/property-ownership-not-found",
     title: "Property ownership not found", code: "PROPERTY_OWNERSHIP_NOT_FOUND",
   };
+  if (code === "PROPERTY_CLIENT_NOT_FOUND") return {
+    status: 404, type: "https://api.monpiole.example/problems/property-client-not-found",
+    title: "Property client not found", code,
+  };
+  if (code === "INVALID_PROPERTY_CLIENT_INPUT" || code === "INVALID_PROPERTY_CLIENT_DIRECTORY_QUERY") return {
+    status: 400, type: "https://api.monpiole.example/problems/invalid-request",
+    title: "Invalid request", code: "INVALID_REQUEST",
+  };
+  if (code === "PROPERTY_CONTRACT_NOT_FOUND") return {
+    status: 404, type: "https://api.monpiole.example/problems/property-contract-not-found",
+    title: "Property contract not found", code,
+  };
+  if (code === "INVALID_PROPERTY_CONTRACT_INPUT" || code === "INVALID_PROPERTY_CONTRACT_LIST_QUERY") return {
+    status: 400, type: "https://api.monpiole.example/problems/invalid-request",
+    title: "Invalid request", code: "INVALID_REQUEST",
+  };
+  if (code === "PROPERTY_CONTRACT_REFERENCE_CONFLICT") return {
+    status: 409, type: "https://api.monpiole.example/problems/property-contract-reference-conflict",
+    title: "Property contract reference conflict", code,
+  };
+  if (code === "PROPERTY_CONTRACT_TRANSITION_NOT_ALLOWED"
+    || code === "PROPERTY_CONTRACT_UPDATE_NOT_ALLOWED"
+    || code === "PROPERTY_CONTRACT_PROPERTY_NOT_ELIGIBLE") return {
+    status: 409, type: "https://api.monpiole.example/problems/property-contract-conflict",
+    title: "Property contract conflict", code,
+  };
   return undefined;
 }
 

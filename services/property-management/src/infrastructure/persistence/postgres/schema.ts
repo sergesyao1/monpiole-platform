@@ -1,5 +1,5 @@
 import {
-  bigint, boolean, check, doublePrecision, foreignKey, index, integer, numeric, pgPolicy, pgSchema, smallint,
+  bigint, boolean, check, date, doublePrecision, foreignKey, index, integer, numeric, pgPolicy, pgSchema, smallint,
   primaryKey, text, timestamp, uniqueIndex, uuid,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -363,6 +363,102 @@ export const propertyOwnerships = propertyManagement.table("property_ownerships"
   index("property_ownerships_tenant_owner_idx").on(table.tenantId, table.ownerId),
   check("property_ownerships_share_check", sql`${table.ownershipShare} > 0 AND ${table.ownershipShare} <= 100`),
   pgPolicy("property_ownerships_tenant_isolation", {
+    using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+    withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+  }),
+]).enableRLS();
+
+export const propertyClients = propertyManagement.table("property_clients", {
+  clientId: uuid("client_id").primaryKey(), tenantId: uuid("tenant_id").notNull(),
+  displayName: text("display_name").notNull(), email: text("email"), phoneNumber: text("phone_number"),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
+  correlationId: uuid("correlation_id").notNull(), actorId: text("actor_id").notNull(),
+}, (table) => [
+  uniqueIndex("property_clients_tenant_client_unique").on(table.tenantId, table.clientId),
+  index("property_clients_tenant_created_client_idx").on(table.tenantId, table.createdAt.desc(), table.clientId.desc()),
+  check("property_clients_display_name_check", sql`char_length(btrim(${table.displayName})) BETWEEN 1 AND 200`),
+  check("property_clients_contact_check", sql`
+    (${table.phoneNumber} IS NULL OR char_length(btrim(${table.phoneNumber})) BETWEEN 1 AND 100)
+    AND (${table.email} IS NULL OR (char_length(${table.email}) BETWEEN 3 AND 320
+      AND ${table.email} = lower(${table.email})
+      AND ${table.email} ~ '^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$'))
+  `),
+  check("property_clients_timestamps_check", sql`${table.updatedAt} >= ${table.createdAt}`),
+  pgPolicy("property_clients_tenant_isolation", {
+    using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+    withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+  }),
+]).enableRLS();
+
+export const propertyContracts = propertyManagement.table("property_contracts", {
+  contractId: uuid("contract_id").primaryKey(), tenantId: uuid("tenant_id").notNull(),
+  propertyId: uuid("property_id").notNull(), clientId: uuid("client_id").notNull(),
+  contractType: text("contract_type").notNull(), status: text("status").notNull(), reference: text("reference").notNull(),
+  startDate: date("start_date", { mode: "string" }), endDate: date("end_date", { mode: "string" }), notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
+  correlationId: uuid("correlation_id").notNull(), actorId: text("actor_id").notNull(),
+  activatedAt: timestamp("activated_at", { withTimezone: true, mode: "string" }),
+  activatedByActorId: text("activated_by_actor_id"), activationCorrelationId: uuid("activation_correlation_id"),
+  endedAt: timestamp("ended_at", { withTimezone: true, mode: "string" }),
+  endedByActorId: text("ended_by_actor_id"), endingCorrelationId: uuid("ending_correlation_id"),
+  cancelledAt: timestamp("cancelled_at", { withTimezone: true, mode: "string" }),
+  cancelledByActorId: text("cancelled_by_actor_id"), cancellationCorrelationId: uuid("cancellation_correlation_id"),
+}, (table) => [
+  uniqueIndex("property_contracts_tenant_contract_unique").on(table.tenantId, table.contractId),
+  uniqueIndex("property_contracts_tenant_reference_unique").on(table.tenantId, table.reference),
+  foreignKey({
+    name: "property_contracts_property_tenant_fk",
+    columns: [table.tenantId, table.propertyId], foreignColumns: [properties.tenantId, properties.propertyId],
+  }),
+  foreignKey({
+    name: "property_contracts_client_tenant_fk",
+    columns: [table.tenantId, table.clientId], foreignColumns: [propertyClients.tenantId, propertyClients.clientId],
+  }),
+  index("property_contracts_tenant_property_created_idx")
+    .on(table.tenantId, table.propertyId, table.createdAt.desc(), table.contractId.desc()),
+  index("property_contracts_tenant_property_status_idx").on(table.tenantId, table.propertyId, table.status),
+  index("property_contracts_tenant_client_idx").on(table.tenantId, table.clientId),
+  check("property_contracts_type_check", sql`${table.contractType} IN ('LEASE', 'MANAGEMENT', 'OTHER')`),
+  check("property_contracts_status_check", sql`${table.status} IN ('DRAFT', 'ACTIVE', 'ENDED', 'CANCELLED')`),
+  check("property_contracts_reference_check", sql`
+    ${table.reference} = upper(${table.reference})
+    AND ${table.reference} ~ '^[A-Z0-9][A-Z0-9._/ -]{0,99}$'
+  `),
+  check("property_contracts_dates_check", sql`
+    (${table.startDate} IS NULL OR ${table.endDate} IS NULL OR ${table.endDate} >= ${table.startDate})
+    AND (${table.notes} IS NULL OR char_length(btrim(${table.notes})) BETWEEN 1 AND 5000)
+    AND ${table.updatedAt} >= ${table.createdAt}
+  `),
+  check("property_contracts_lifecycle_check", sql`
+    (${table.status} = 'DRAFT'
+      AND ${table.activatedAt} IS NULL AND ${table.activatedByActorId} IS NULL AND ${table.activationCorrelationId} IS NULL
+      AND ${table.endedAt} IS NULL AND ${table.endedByActorId} IS NULL AND ${table.endingCorrelationId} IS NULL
+      AND ${table.cancelledAt} IS NULL AND ${table.cancelledByActorId} IS NULL AND ${table.cancellationCorrelationId} IS NULL)
+    OR (${table.status} = 'ACTIVE'
+      AND ${table.startDate} IS NOT NULL
+      AND ${table.activatedAt} IS NOT NULL AND ${table.activatedAt} >= ${table.createdAt}
+      AND ${table.activatedByActorId} IS NOT NULL AND ${table.activationCorrelationId} IS NOT NULL
+      AND ${table.endedAt} IS NULL AND ${table.endedByActorId} IS NULL AND ${table.endingCorrelationId} IS NULL
+      AND ${table.cancelledAt} IS NULL AND ${table.cancelledByActorId} IS NULL AND ${table.cancellationCorrelationId} IS NULL)
+    OR (${table.status} = 'ENDED'
+      AND ${table.startDate} IS NOT NULL AND ${table.endDate} IS NOT NULL
+      AND ${table.activatedAt} IS NOT NULL AND ${table.activatedAt} >= ${table.createdAt}
+      AND ${table.activatedByActorId} IS NOT NULL AND ${table.activationCorrelationId} IS NOT NULL
+      AND ${table.endedAt} IS NOT NULL AND ${table.endedAt} >= ${table.activatedAt}
+      AND ${table.endedByActorId} IS NOT NULL AND ${table.endingCorrelationId} IS NOT NULL
+      AND ${table.cancelledAt} IS NULL AND ${table.cancelledByActorId} IS NULL AND ${table.cancellationCorrelationId} IS NULL)
+    OR (${table.status} = 'CANCELLED'
+      AND ${table.endedAt} IS NULL AND ${table.endedByActorId} IS NULL AND ${table.endingCorrelationId} IS NULL
+      AND ${table.cancelledAt} IS NOT NULL AND ${table.cancelledAt} >= ${table.createdAt}
+      AND ${table.cancellationCorrelationId} IS NOT NULL AND ${table.cancelledByActorId} IS NOT NULL
+      AND ((${table.activatedAt} IS NULL AND ${table.activatedByActorId} IS NULL AND ${table.activationCorrelationId} IS NULL)
+        OR (${table.activatedAt} IS NOT NULL AND ${table.activatedAt} >= ${table.createdAt}
+          AND ${table.cancelledAt} >= ${table.activatedAt}
+          AND ${table.activatedByActorId} IS NOT NULL AND ${table.activationCorrelationId} IS NOT NULL)))
+  `),
+  pgPolicy("property_contracts_tenant_isolation", {
     using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
     withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
   }),

@@ -44,6 +44,42 @@ export { AssignPropertyOwner, PropertyOwnershipConflictError, type AssignPropert
 export { RetrievePropertyOwnerships, type RetrievePropertyOwnershipsQuery } from "./application/retrieve-property-ownerships.js";
 export { RemovePropertyOwner, PropertyOwnershipNotFoundError, type RemovePropertyOwnerCommand } from "./application/remove-property-owner.js";
 export { PropertyForbiddenError, type PropertyAuthority, type PropertyGrant } from "./application/property-authority.js";
+export {
+  CreatePropertyClient, ListPropertyClients, RetrievePropertyClient,
+  PropertyClientNotFoundError, InvalidPropertyClientDirectoryQueryError,
+  DEFAULT_PROPERTY_CLIENT_DIRECTORY_LIMIT, MAX_PROPERTY_CLIENT_DIRECTORY_LIMIT,
+  MAX_PROPERTY_CLIENT_DIRECTORY_SEARCH_LENGTH,
+  type CreatePropertyClientCommand, type ListPropertyClientsQuery, type ListPropertyClientsResult,
+  type RetrievePropertyClientQuery, type PropertyClientView,
+} from "./application/manage-property-clients.js";
+export {
+  CreatePropertyContract, ListPropertyContracts, RetrievePropertyContract, UpdatePropertyContract,
+  ActivatePropertyContract, EndPropertyContract, CancelPropertyContract,
+  PropertyContractNotFoundError, InvalidPropertyContractListQueryError,
+  DEFAULT_PROPERTY_CONTRACT_LIMIT, MAX_PROPERTY_CONTRACT_LIMIT,
+  type CreatePropertyContractCommand, type UpdatePropertyContractCommand,
+  type PropertyContractQuery, type ListPropertyContractsQuery, type ListPropertyContractsResult,
+  type PropertyContractLifecycleCommand, type EndPropertyContractCommand,
+  type PropertyContractView, type PropertyContractCapabilities, type PropertyContractClientView,
+} from "./application/manage-property-contracts.js";
+export {
+  RetrievePropertyWorkspace,
+  type RetrievePropertyWorkspaceQuery, type PropertyWorkspaceView, type PropertyWorkspaceCapabilities,
+} from "./application/retrieve-property-workspace.js";
+export type {
+  PropertyWorkspaceSummaryQuery, PropertyWorkspaceSummary, PropertyWorkspaceOwnerSummary,
+  PropertyWorkspaceCompositionSummary, PropertyWorkspaceContractSummary,
+} from "./application/property-workspace-summary-query.js";
+export {
+  PropertyClientPersistenceFailureError,
+  type PropertyClientRepository, type PropertyClientDirectoryCriteria,
+  type PropertyClientDirectoryCursor, type PropertyClientDirectoryPage,
+} from "./application/property-client-repository.js";
+export {
+  PropertyContractPersistenceFailureError, PropertyContractReferenceConflictError,
+  type PropertyContractRepository, type PropertyContractRecord, type PropertyContractCriteria,
+  type PropertyContractCursor, type PropertyContractPage, type PropertyContractTrace,
+} from "./application/property-contract-repository.js";
 export { CreatePropertyBuilding, ListPropertyBuildings, UpdatePropertyBuilding, CreatePropertyUnit, ListPropertyUnits, UpdatePropertyUnitStructure, type CreateUnitFields } from "./application/property-composition.js";
 export { PropertyBuildingNotFoundError, PropertyUnitNotFoundError, PropertyBuildingCodeConflictError, PropertyUnitCodeConflictError, type PropertyCompositionRepository, type CompositionCursor, type CompositionPage, type PropertyUnitView } from "./application/property-composition-repository.js";
 export type { PropertyRepository } from "./application/property-repository.js";
@@ -97,6 +133,19 @@ export {
   PersistedPropertyOwnershipCorruptionError, PropertyOwnershipShareExceededError,
   assertOwnershipShareCapacity, type PropertyOwnershipValues,
 } from "./domain/property-ownership.js";
+export {
+  PropertyClient, InvalidPropertyClientInputError, InvalidPropertyClientServerValueError,
+  PersistedPropertyClientCorruptionError,
+  type PropertyClientValues, type PropertyClientField,
+} from "./domain/property-client.js";
+export {
+  PropertyContract, InvalidPropertyContractInputError, InvalidPropertyContractServerValueError,
+  PersistedPropertyContractCorruptionError, PropertyContractTransitionNotAllowedError,
+  PropertyContractUpdateNotAllowedError, PropertyContractPropertyNotEligibleError,
+  PROPERTY_CONTRACT_TYPES, PROPERTY_CONTRACT_STATUSES, assertPropertyContractEligible,
+  type PropertyContractValues, type PropertyContractTerms, type PropertyContractField,
+  type PropertyContractType, type PropertyContractStatus, type PropertyContractPropertyContext,
+} from "./domain/property-contract.js";
 export { PostgresPropertyRepository } from "./infrastructure/persistence/postgres/postgres-property-repository.js";
 export { PostgresPropertyAvailabilityQuery } from "./infrastructure/persistence/postgres/postgres-property-availability-query.js";
 export { PostgresPropertyGeolocationRepository } from "./infrastructure/persistence/postgres/postgres-property-geolocation-repository.js";
@@ -108,3 +157,6 @@ export { PostgresPropertyOwnerRepository } from "./infrastructure/persistence/po
 export { PostgresPropertyOwnerDirectoryQuery } from "./infrastructure/persistence/postgres/postgres-property-owner-directory-query.js";
 export { PostgresPropertyOwnershipRepository } from "./infrastructure/persistence/postgres/postgres-property-ownership-repository.js";
 export { PostgresPropertyCompositionRepository } from "./infrastructure/persistence/postgres/postgres-property-composition-repository.js";
+export { PostgresPropertyClientRepository } from "./infrastructure/persistence/postgres/postgres-property-client-repository.js";
+export { PostgresPropertyContractRepository } from "./infrastructure/persistence/postgres/postgres-property-contract-repository.js";
+export { PostgresPropertyWorkspaceSummaryQuery } from "./infrastructure/persistence/postgres/postgres-property-workspace-summary-query.js";

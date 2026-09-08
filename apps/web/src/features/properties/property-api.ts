@@ -8,6 +8,8 @@ import type {
   PropertyGeolocation, UpdatePropertyGeolocationInput,
   PropertyAvailability, UpdatePropertyAvailabilityInput,
   PropertyPricingInput,
+  PropertyClient, PropertyClientDirectoryPage, PropertyClientInput,
+  PropertyContract, PropertyContractDirectoryPage, PropertyContractInput, PropertyWorkspace,
 } from "./property-model.js";
 
 export interface PropertyApi {
@@ -49,7 +51,23 @@ export interface PropertyApi {
   updateUnitCode(propertyId: string, buildingId: string, unitPropertyId: string, unitCode: string): Promise<PropertyUnit>;
 }
 
-export function createPropertyApi(tokens: AccessTokenProvider): PropertyApi {
+export interface PropertyClientContractApi {
+  listPropertyClients(criteria?: Readonly<{ limit?: number; cursor?: string; search?: string }>): Promise<PropertyClientDirectoryPage>;
+  createPropertyClient(input: PropertyClientInput): Promise<PropertyClient>;
+  retrievePropertyClient(clientId: string): Promise<PropertyClient>;
+  listPropertyContracts(propertyId: string, cursor?: string): Promise<PropertyContractDirectoryPage>;
+  createPropertyContract(propertyId: string, input: PropertyContractInput): Promise<PropertyContract>;
+  retrievePropertyContract(propertyId: string, contractId: string): Promise<PropertyContract>;
+  updatePropertyContract(propertyId: string, contractId: string, input: PropertyContractInput): Promise<PropertyContract>;
+  activatePropertyContract(propertyId: string, contractId: string): Promise<PropertyContract>;
+  endPropertyContract(propertyId: string, contractId: string, endDate: string): Promise<PropertyContract>;
+  cancelPropertyContract(propertyId: string, contractId: string): Promise<PropertyContract>;
+}
+
+export interface PropertyWorkspaceApi { retrievePropertyWorkspace(propertyId: string): Promise<PropertyWorkspace>; }
+export type PropertyManagementApi = PropertyApi & PropertyClientContractApi & PropertyWorkspaceApi;
+
+export function createPropertyApi(tokens: AccessTokenProvider): PropertyManagementApi {
   const request = createAuthenticatedApiClient(tokens);
   const requestBinary = createAuthenticatedBinaryApiClient(tokens);
   return {
@@ -126,7 +144,46 @@ export function createPropertyApi(tokens: AccessTokenProvider): PropertyApi {
     listUnits: (propertyId, buildingId, cursor) => request<CompositionPage<PropertyUnit>>(compositionPath(propertyId, buildingId, cursor, true)),
     createUnit: (propertyId, buildingId, input) => request<PropertyUnit>(compositionPath(propertyId, buildingId, undefined, true), { method: "POST", body: input }),
     updateUnitCode: (propertyId, buildingId, unitPropertyId, unitCode) => request<PropertyUnit>(`${compositionPath(propertyId, buildingId, undefined, true)}/${encodeURIComponent(unitPropertyId)}`, { method: "PUT", body: { unitCode } }),
+    retrievePropertyWorkspace: (propertyId) => request<PropertyWorkspace>(
+      `/v1/properties/${encodeURIComponent(propertyId)}/workspace`,
+    ),
+    listPropertyClients: (criteria = {}) => request<PropertyClientDirectoryPage>(clientDirectoryPath(criteria)),
+    createPropertyClient: (input) => request<PropertyClient>("/v1/property-clients", { method: "POST", body: input }),
+    retrievePropertyClient: (clientId) => request<PropertyClient>(`/v1/property-clients/${encodeURIComponent(clientId)}`),
+    listPropertyContracts: (propertyId, cursor) => request<PropertyContractDirectoryPage>(
+      contractPath(propertyId, undefined, cursor),
+    ),
+    createPropertyContract: (propertyId, input) => request<PropertyContract>(
+      contractPath(propertyId), { method: "POST", body: input },
+    ),
+    retrievePropertyContract: (propertyId, contractId) => request<PropertyContract>(contractPath(propertyId, contractId)),
+    updatePropertyContract: (propertyId, contractId, input) => request<PropertyContract>(
+      contractPath(propertyId, contractId), { method: "PUT", body: input },
+    ),
+    activatePropertyContract: (propertyId, contractId) => request<PropertyContract>(
+      `${contractPath(propertyId, contractId)}/activate`, { method: "POST" },
+    ),
+    endPropertyContract: (propertyId, contractId, endDate) => request<PropertyContract>(
+      `${contractPath(propertyId, contractId)}/end`, { method: "POST", body: { endDate } },
+    ),
+    cancelPropertyContract: (propertyId, contractId) => request<PropertyContract>(
+      `${contractPath(propertyId, contractId)}/cancel`, { method: "POST" },
+    ),
   };
+}
+
+function contractPath(propertyId: string, contractId?: string, cursor?: string): `/v1/${string}` {
+  const base = `/v1/properties/${encodeURIComponent(propertyId)}/contracts${contractId === undefined ? "" : `/${encodeURIComponent(contractId)}`}` as `/v1/${string}`;
+  return cursor === undefined ? base : `${base}?limit=20&cursor=${encodeURIComponent(cursor)}`;
+}
+
+function clientDirectoryPath(criteria: Readonly<{ limit?: number; cursor?: string; search?: string }>): `/v1/${string}` {
+  const query = new URLSearchParams();
+  if (criteria.limit !== undefined) query.set("limit", String(criteria.limit));
+  if (criteria.cursor !== undefined) query.set("cursor", criteria.cursor);
+  if (criteria.search !== undefined) query.set("search", criteria.search);
+  const encoded = query.toString();
+  return encoded.length === 0 ? "/v1/property-clients" : `/v1/property-clients?${encoded}`;
 }
 function compositionPath(propertyId: string, buildingId?: string, cursor?: string, units = false): `/v1/${string}` {
   const base = `/v1/properties/${encodeURIComponent(propertyId)}/buildings${buildingId ? `/${encodeURIComponent(buildingId)}` : ""}${units ? "/units" : ""}` as `/v1/${string}`;

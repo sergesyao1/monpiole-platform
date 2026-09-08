@@ -22,6 +22,10 @@ import {
   PostgresPropertyGeolocationRepository, RetrievePropertyGeolocation,
   UpdatePropertyGeolocation, RemovePropertyGeolocation,
   PostgresPropertyAvailabilityQuery, RetrievePropertyAvailability, UpdatePropertyAvailability,
+  PostgresPropertyClientRepository, CreatePropertyClient, ListPropertyClients, RetrievePropertyClient,
+  PostgresPropertyContractRepository, CreatePropertyContract, ListPropertyContracts, RetrievePropertyContract,
+  UpdatePropertyContract, ActivatePropertyContract, EndPropertyContract, CancelPropertyContract,
+  PostgresPropertyWorkspaceSummaryQuery, RetrievePropertyWorkspace,
 } from "@monpiole/property-management";
 import {
   ActivateTenant,
@@ -81,6 +85,8 @@ export function createPostgresApiRuntime(
   const propertyCompositionRepository = new PostgresPropertyCompositionRepository(pool);
   const propertyGeolocationRepository = new PostgresPropertyGeolocationRepository(pool);
   const propertyAvailabilityQuery = new PostgresPropertyAvailabilityQuery(pool);
+  const propertyClientRepository = new PostgresPropertyClientRepository(pool);
+  const propertyContractRepository = new PostgresPropertyContractRepository(pool);
   const compositionClock = { now: () => new Date().toISOString() };
   const publicCatalogQuery = publicCatalogDatabase === undefined
     ? undefined
@@ -125,6 +131,24 @@ export function createPostgresApiRuntime(
     removePropertyGeolocation: new RemovePropertyGeolocation(propertyGeolocationRepository),
     retrievePropertyAvailability: new RetrievePropertyAvailability(propertyAvailabilityQuery),
     updatePropertyAvailability: new UpdatePropertyAvailability(propertyRepository, { now: () => new Date().toISOString() }),
+    createPropertyClient: new CreatePropertyClient(propertyClientRepository, { generate: randomUUID }, compositionClock),
+    listPropertyClients: new ListPropertyClients(propertyClientRepository),
+    retrievePropertyClient: new RetrievePropertyClient(propertyClientRepository),
+    createPropertyContract: new CreatePropertyContract(
+      propertyContractRepository, propertyClientRepository, propertyRepository, { generate: randomUUID }, compositionClock,
+    ),
+    listPropertyContracts: new ListPropertyContracts(propertyContractRepository),
+    retrievePropertyContract: new RetrievePropertyContract(propertyContractRepository),
+    updatePropertyContract: new UpdatePropertyContract(
+      propertyContractRepository, propertyClientRepository, propertyRepository, compositionClock,
+    ),
+    activatePropertyContract: new ActivatePropertyContract(propertyContractRepository, compositionClock),
+    endPropertyContract: new EndPropertyContract(propertyContractRepository, compositionClock),
+    cancelPropertyContract: new CancelPropertyContract(propertyContractRepository, compositionClock),
+    retrievePropertyWorkspace: new RetrievePropertyWorkspace(
+      propertyRepository, propertyAvailabilityQuery, propertyPhotoStandardRepository,
+      new PostgresPropertyWorkspaceSummaryQuery(pool),
+    ),
     publicCatalogTenantResolver: publicCatalogAllowlist.resolver,
     ...(publicCatalogQuery === undefined ? {} : {
       listPublicProperties: new ListPublicProperties(publicCatalogQuery),

@@ -92,7 +92,7 @@ afterEach(async () => {
   runtime = undefined;
   await ownerPool.query("TRUNCATE identity.tenant_memberships, identity.identities CASCADE");
   await ownerPool.query("TRUNCATE tenant_management.outbox, tenant_management.create_tenant_idempotency, tenant_management.tenants CASCADE");
-  await ownerPool.query("TRUNCATE property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners");
+  await ownerPool.query("TRUNCATE property_management.property_contracts, property_management.property_clients, property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners");
   authorizedTenantIds.clear();
 });
 
@@ -119,6 +119,10 @@ async function start() {
         "ASSIGN_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNERSHIP", "REMOVE_PROPERTY_OWNER",
         "CREATE_PROPERTY_BUILDING", "RETRIEVE_PROPERTY_COMPOSITION", "UPDATE_PROPERTY_BUILDING",
         "CREATE_PROPERTY_UNIT", "UPDATE_PROPERTY_UNIT_STRUCTURE",
+        "RETRIEVE_PROPERTY_WORKSPACE",
+        "CREATE_PROPERTY_CLIENT", "RETRIEVE_PROPERTY_CLIENTS",
+        "CREATE_PROPERTY_CONTRACT", "RETRIEVE_PROPERTY_CONTRACTS",
+        "UPDATE_PROPERTY_CONTRACT", "MANAGE_PROPERTY_CONTRACT_LIFECYCLE",
       ],
       tenantIds: [...authorizedTenantIds],
     }) },

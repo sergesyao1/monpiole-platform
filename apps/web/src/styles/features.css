@@ -67,6 +67,7 @@
 .property-context-nav { position: sticky; z-index: 5; top: 5.75rem; display: flex; max-width: 100%; gap: var(--space-2); padding: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: rgb(255 254 250 / 94%); box-shadow: var(--shadow-sm); overflow-x: auto; scrollbar-width: thin; }
 .property-context-nav a { flex: 0 0 auto; padding: .55rem .7rem; border-radius: var(--radius-sm); color: var(--color-brand-700); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); text-decoration: none; }
 .property-context-nav a:hover { background: var(--color-brand-50); }
+.property-context-nav a[aria-current="location"] { background: var(--color-brand-100); color: var(--color-brand-900); }
 .property-page [id^="property-"] { scroll-margin-top: var(--section-offset); }
 .definition-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-5); margin: 0; }
 .definition-grid div { min-width: 0; padding-top: var(--space-4); border-top: 1px solid var(--color-border); }
@@ -86,6 +87,28 @@
 .availability-form legend { grid-column: 1 / -1; margin-bottom: var(--space-2); font-family: var(--font-family-heading); font-size: var(--font-size-lg); }
 .availability-compact { display: grid; gap: var(--space-4); padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-brand-50); }
 .availability-compact h4 { margin: 0; font-family: var(--font-family-heading); font-size: var(--font-size-lg); }
+.workspace-summary-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-3); margin-top: var(--space-6); }
+.workspace-summary-grid a { display: grid; gap: .2rem; min-width: 0; padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text-strong); background: var(--color-surface-raised); text-decoration: none; }
+.workspace-summary-grid a:hover { border-color: var(--color-brand-300); background: var(--color-brand-50); }
+.workspace-summary-grid strong { font-family: var(--font-family-heading); font-size: var(--font-size-lg); overflow-wrap: anywhere; }
+.workspace-summary-grid span { color: var(--color-text-muted); font-size: var(--font-size-xs); }
+
+/* Property client and contract workspace */
+.contract-panel { display: grid; gap: var(--space-5); }
+.contract-panel > .section-heading, .contract-detail > .section-heading { margin-bottom: 0; }
+.contract-form { display: grid; gap: var(--space-4); padding: var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-brand-50); }
+.contract-form h3, .contract-detail h3, .contract-detail h4 { margin: 0; font-family: var(--font-family-heading); }
+.contract-workspace-grid { display: grid; grid-template-columns: minmax(15rem, .7fr) minmax(0, 1.3fr); gap: var(--space-5); align-items: start; }
+.contract-list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.contract-list li { border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+.contract-list li.is-selected { border-color: var(--color-brand-500); box-shadow: 0 0 0 2px var(--color-brand-100); }
+.contract-list button { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-4); border: 0; color: inherit; background: var(--color-surface-raised); text-align: left; cursor: pointer; }
+.contract-list button:hover { background: var(--color-brand-50); }
+.contract-list strong, .contract-list small { display: block; }
+.contract-list small { margin-top: .25rem; color: var(--color-text-muted); }
+.contract-detail { display: grid; gap: var(--space-5); min-width: 0; padding: var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface-raised); }
+.contract-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: end; padding-top: var(--space-4); border-top: 1px solid var(--color-border); }
+.contract-actions .ui-field { min-width: 12rem; }
 
 /* Property photo gallery */
 .property-photo-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); margin: 0; padding: 0; list-style: none; }
@@ -187,6 +210,7 @@
   .portfolio-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .portfolio-filters .ui-button, .portfolio-filters .secondary-action { width: 100%; }
   .property-photo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .workspace-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (max-width: 56.25rem) {
@@ -207,12 +231,13 @@
   .topbar { position: static; min-height: 4rem; }
   .hero { grid-template-columns: 1fr; }
   .hero-accent { display: none; }
-  .card-grid, .property-portfolio-list, .definition-grid, .composition-form-grid { grid-template-columns: 1fr; }
+  .card-grid, .property-portfolio-list, .definition-grid, .composition-form-grid, .contract-workspace-grid { grid-template-columns: 1fr; }
   .property-context-nav { top: var(--space-2); }
   .ownership-list li { grid-template-columns: 1fr auto; }
   .ownership-list .danger-action, .ownership-list .ui-button--danger { grid-column: 1 / -1; width: 100%; }
   .portfolio-filters, .owner-directory-search, .owner-picker-search, .property-photo-upload, .availability-form fieldset { grid-template-columns: 1fr; }
   .availability-form legend { grid-column: auto; }
+  .workspace-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 38.75rem) {
@@ -227,4 +252,5 @@
   .public-catalog-section, .public-detail { width: min(100% - 1.5rem, var(--content-wide)); }
   .public-filter-action { width: 100%; }
   .composition-building { padding: var(--space-4); }
+  .workspace-summary-grid { grid-template-columns: 1fr; }
 }

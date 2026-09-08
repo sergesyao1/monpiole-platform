@@ -27,7 +27,41 @@ function problem(status: number, code: string) {
 }
 function ownerPage(items: readonly unknown[] = []) { return { items, pageInfo: { nextCursor: null, hasNextPage: false } }; }
 function renderPath(path: string) {
+  const fixtureFetch = globalThis.fetch;
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (!url.endsWith("/workspace")) return fixtureFetch(input, init);
+    const propertyResponse = await fixtureFetch(url.slice(0, -"/workspace".length), init);
+    if (!propertyResponse.ok) return propertyResponse;
+    const current = await propertyResponse.json() as Property;
+    const ownershipResponse = await fixtureFetch(url.replace("/workspace", "/owners"), init);
+    const ownerships = ownershipResponse.ok ? await ownershipResponse.json() as readonly { ownerId: string; ownershipShare: number }[] : [];
+    const owners = await Promise.all(ownerships.map(async (ownership) => {
+      const response = await fixtureFetch(url.replace(`/properties/${PROPERTY_ID}/workspace`, `/property-owners/${ownership.ownerId}`), init);
+      const owner = response.ok ? await response.json() as { ownerType: string; firstName?: string; lastName?: string; legalName?: string } : undefined;
+      return { ownerId: ownership.ownerId, ownershipShare: ownership.ownershipShare, displayName: owner?.ownerType === "INDIVIDUAL" ? `${owner.firstName} ${owner.lastName}` : owner?.legalName ?? "Propriétaire non consultable" };
+    }));
+    return json(workspace(current, owners));
+  });
   return render(<SessionContext value={session}><RouterProvider router={createMemoryRouter(applicationRoutes, { initialEntries: [path] })} /></SessionContext>);
+}
+
+function workspace(current: Property, owners: readonly { ownerId: string; ownershipShare: number; displayName: string }[] = []) {
+  const missing = [
+    ...(current.details === undefined ? ["DETAILS"] : []),
+    ...(current.commercialTerms === undefined ? ["COMMERCIAL_TERMS"] : []),
+    ...(current.primaryPhoto === undefined ? ["PRIMARY_PHOTO"] : []),
+    ...((current.photos?.length ?? 0) < 1 ? ["PHOTO_MINIMUM"] : []),
+  ];
+  return {
+    property: current,
+    availability: { propertyId: current.propertyId, source: "DIRECT", structuralRole: current.structuralRole === "UNIT" ? "UNIT" : "STANDALONE", configured: false, canUpdateAvailability: true },
+    publicationReadiness: { ready: missing.length === 0, missingRequirements: missing },
+    owners,
+    composition: { buildingCount: 0, unitCount: 0 },
+    contracts: { totalCount: 0, draftCount: 0, activeCount: 0, endedCount: 0, cancelledCount: 0 },
+    capabilities: { canUpdateCoreInformation: true, canUpdateDetails: true, canUpdatePricing: true, canUpdateAvailability: true, canManagePhotos: true, canPublish: true, canWithdrawFromCatalog: current.canWithdrawFromCatalog, canManageOwners: true, canManageComposition: true, canViewContracts: false, canCreateContract: false },
+  };
 }
 
 afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
@@ -94,7 +128,9 @@ describe("vertical slice Web Property", () => {
     }));
     renderPath(`/properties/${PROPERTY_ID}`);
     expect(await screen.findByRole("heading", { name: property.title })).toBeInTheDocument();
-    expect(screen.getByText("Maison")).toBeInTheDocument();
+    expect(screen.getAllByText("Maison").length).toBeGreaterThan(0);
+    expect(screen.getByText("À renseigner · Occupation à renseigner")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Vue d’ensemble" })).toHaveAttribute("aria-current", "location");
     expect(await screen.findByText("Awa Koné")).toBeInTheDocument();
     expect(screen.getByText("60 %")).toBeInTheDocument();
     expect(await screen.findByRole("option", { name: "Awa Koné — déjà affecté" })).toBeDisabled();
@@ -251,7 +287,7 @@ describe("vertical slice Web Property", () => {
     fireEvent.change(screen.getByLabelText("Quote-part (%)"), { target: { value: "60" } });
     fireEvent.click(screen.getByRole("button", { name: "Affecter le propriétaire" }));
     expect(await screen.findByText("Sélectionnez un propriétaire disponible.")).toBeInTheDocument();
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(7));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(5));
   });
 
   it("affecte un propriétaire existant avec le bearer token", async () => {
@@ -280,7 +316,8 @@ describe("vertical slice Web Property", () => {
     fireEvent.change(screen.getByLabelText("Quote-part (%)"), { target: { value: "60" } });
     fireEvent.click(screen.getByRole("button", { name: "Affecter le propriétaire" }));
     expect(await screen.findByText("Awa Koné")).toBeInTheDocument();
-    const assignCall = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
+    const assignCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).endsWith(`/v1/properties/${PROPERTY_ID}/owners`) && init?.method === "POST");
     expect(new Headers(assignCall?.[1]?.headers).get("authorization")).toBe("Bearer property-test-token");
     expect(JSON.parse(String(assignCall?.[1]?.body))).toEqual({ ownerId: OWNER_ID, ownershipShare: 60 });
   });

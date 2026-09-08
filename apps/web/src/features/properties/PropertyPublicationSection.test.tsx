@@ -6,7 +6,7 @@ import { ApiForbiddenError, ApiSessionExpiredError } from "../../infrastructure/
 import { ApiProblem } from "../../infrastructure/http/problem-details.js";
 import type { PropertyPublicationApi } from "./PropertyPublicationSection.js";
 import { PropertyPublicationSection } from "./PropertyPublicationSection.js";
-import type { Property } from "./property-model.js";
+import type { Property, PropertyPublicationReadiness, PropertyPublicationRequirement } from "./property-model.js";
 
 const PROPERTY_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const primaryPhoto = { photoId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", category: "BUILDING_EXTERIOR_OR_ENTRANCE" as const,
@@ -38,7 +38,17 @@ function Harness({ initial = ready, api, onReconnect }: Readonly<{
 }>) {
   const [property, setProperty] = useState(initial);
   const client: PropertyPublicationApi = { withdrawPropertyFromCatalog: vi.fn(), ...api };
-  return <PropertyPublicationSection property={property} api={client} onPublished={setProperty} onWithdrawn={setProperty} onReconnect={onReconnect} />;
+  return <PropertyPublicationSection property={property} publicationReadiness={readiness(property)} api={client} onPublished={setProperty} onWithdrawn={setProperty} onReconnect={onReconnect} />;
+}
+
+function readiness(property: Property): PropertyPublicationReadiness {
+  const missing: PropertyPublicationRequirement[] = [];
+  if (property.details === undefined) missing.push("DETAILS");
+  if (property.commercialTerms === undefined) missing.push("COMMERCIAL_TERMS");
+  if (property.propertyType === "APARTMENT" && property.transactionType === "LONG_TERM_RENTAL" && property.apartmentSubtype === undefined) missing.push("APARTMENT_SUBTYPE");
+  if (property.primaryPhoto === undefined) missing.push("PRIMARY_PHOTO");
+  if ((property.photos?.length ?? 0) < (property.propertyType === "APARTMENT" && property.transactionType === "LONG_TERM_RENTAL" ? 6 : 1)) missing.push("PHOTO_MINIMUM");
+  return { ready: missing.length === 0, missingRequirements: missing };
 }
 
 function deferred<Value>() {

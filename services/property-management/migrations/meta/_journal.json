@@ -120,6 +120,13 @@
       "when": 1788850914492,
       "tag": "0016_property_media_gallery",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1788881735208,
+      "tag": "0017_property_client_contracts",
+      "breakpoints": true
     }
   ]
 }

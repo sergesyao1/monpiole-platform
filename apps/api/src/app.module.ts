@@ -11,6 +11,9 @@ import type {
   ListPublicProperties, RetrievePublicProperty, RetrievePublicPrimaryPhoto, RetrievePublicPropertyMedia,
   RetrievePropertyGeolocation, UpdatePropertyGeolocation, RemovePropertyGeolocation,
   RetrievePropertyAvailability, UpdatePropertyAvailability,
+  CreatePropertyClient, ListPropertyClients, RetrievePropertyClient,
+  CreatePropertyContract, ListPropertyContracts, RetrievePropertyContract, UpdatePropertyContract,
+  ActivatePropertyContract, EndPropertyContract, CancelPropertyContract, RetrievePropertyWorkspace,
 } from "@monpiole/property-management";
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core";
 import {
@@ -80,6 +83,18 @@ import {
   RETRIEVE_PROPERTY_AVAILABILITY_USE_CASE,
   UPDATE_PROPERTY_AVAILABILITY_USE_CASE,
 } from "./http/properties/property-availability.controller.js";
+import {
+  CREATE_PROPERTY_CLIENT_USE_CASE, LIST_PROPERTY_CLIENTS_USE_CASE, RETRIEVE_PROPERTY_CLIENT_USE_CASE,
+  PropertyClientsController,
+} from "./http/properties/property-clients.controller.js";
+import {
+  ACTIVATE_PROPERTY_CONTRACT_USE_CASE, CANCEL_PROPERTY_CONTRACT_USE_CASE, CREATE_PROPERTY_CONTRACT_USE_CASE,
+  END_PROPERTY_CONTRACT_USE_CASE, LIST_PROPERTY_CONTRACTS_USE_CASE, RETRIEVE_PROPERTY_CONTRACT_USE_CASE,
+  UPDATE_PROPERTY_CONTRACT_USE_CASE, PropertyContractsController,
+} from "./http/properties/property-contracts.controller.js";
+import {
+  RETRIEVE_PROPERTY_WORKSPACE_USE_CASE, PropertyWorkspaceController,
+} from "./http/properties/property-workspace.controller.js";
 
 const StrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
@@ -113,6 +128,17 @@ export interface ApiComposition {
   readonly removePropertyGeolocation?: Pick<RemovePropertyGeolocation, "execute">;
   readonly retrievePropertyAvailability?: Pick<RetrievePropertyAvailability, "execute">;
   readonly updatePropertyAvailability?: Pick<UpdatePropertyAvailability, "execute">;
+  readonly createPropertyClient?: Pick<CreatePropertyClient, "execute">;
+  readonly listPropertyClients?: Pick<ListPropertyClients, "execute">;
+  readonly retrievePropertyClient?: Pick<RetrievePropertyClient, "execute">;
+  readonly createPropertyContract?: Pick<CreatePropertyContract, "execute">;
+  readonly listPropertyContracts?: Pick<ListPropertyContracts, "execute">;
+  readonly retrievePropertyContract?: Pick<RetrievePropertyContract, "execute">;
+  readonly updatePropertyContract?: Pick<UpdatePropertyContract, "execute">;
+  readonly activatePropertyContract?: Pick<ActivatePropertyContract, "execute">;
+  readonly endPropertyContract?: Pick<EndPropertyContract, "execute">;
+  readonly cancelPropertyContract?: Pick<CancelPropertyContract, "execute">;
+  readonly retrievePropertyWorkspace?: Pick<RetrievePropertyWorkspace, "execute">;
   readonly publicCatalogTenantResolver?: PublicCatalogTenantResolver;
   readonly listPublicProperties?: Pick<ListPublicProperties, "execute">;
   readonly retrievePublicProperty?: Pick<RetrievePublicProperty, "execute">;
@@ -188,6 +214,7 @@ const unavailableAssignPropertyOwner: Pick<AssignPropertyOwner, "execute"> = { a
 const unavailableRetrievePropertyOwnerships: Pick<RetrievePropertyOwnerships, "execute"> = { async execute() { throw new Error("Retrieve Property Ownerships composition is unavailable"); } };
 const unavailableRemovePropertyOwner: Pick<RemovePropertyOwner, "execute"> = { async execute() { throw new Error("Remove Property Owner composition is unavailable"); } };
 const unavailableComposition = { async execute(): Promise<never> { throw new Error("Property composition is unavailable"); } };
+const unavailableClientContract = { async execute(): Promise<never> { throw new Error("Property client/contract composition is unavailable"); } };
 
 @Module({})
 export class AppModule {
@@ -207,6 +234,7 @@ export class AppModule {
         PublicPropertiesController,
         CreatePropertyOwnerController, ListPropertyOwnersController, RetrievePropertyOwnerController, UpdatePropertyOwnerController,
         AssignPropertyOwnerController, RetrievePropertyOwnershipsController, RemovePropertyOwnerController, PropertyCompositionController,
+        PropertyClientsController, PropertyContractsController, PropertyWorkspaceController,
       ],
       providers: [
         { provide: APP_PIPE, useClass: StrictZodValidationPipe },
@@ -270,6 +298,17 @@ export class AppModule {
         { provide: CREATE_PROPERTY_UNIT, useValue: composition.createPropertyUnit ?? unavailableComposition },
         { provide: LIST_PROPERTY_UNITS, useValue: composition.listPropertyUnits ?? unavailableComposition },
         { provide: UPDATE_PROPERTY_UNIT, useValue: composition.updatePropertyUnitStructure ?? unavailableComposition },
+        { provide: CREATE_PROPERTY_CLIENT_USE_CASE, useValue: composition.createPropertyClient ?? unavailableClientContract },
+        { provide: LIST_PROPERTY_CLIENTS_USE_CASE, useValue: composition.listPropertyClients ?? unavailableClientContract },
+        { provide: RETRIEVE_PROPERTY_CLIENT_USE_CASE, useValue: composition.retrievePropertyClient ?? unavailableClientContract },
+        { provide: CREATE_PROPERTY_CONTRACT_USE_CASE, useValue: composition.createPropertyContract ?? unavailableClientContract },
+        { provide: LIST_PROPERTY_CONTRACTS_USE_CASE, useValue: composition.listPropertyContracts ?? unavailableClientContract },
+        { provide: RETRIEVE_PROPERTY_CONTRACT_USE_CASE, useValue: composition.retrievePropertyContract ?? unavailableClientContract },
+        { provide: UPDATE_PROPERTY_CONTRACT_USE_CASE, useValue: composition.updatePropertyContract ?? unavailableClientContract },
+        { provide: ACTIVATE_PROPERTY_CONTRACT_USE_CASE, useValue: composition.activatePropertyContract ?? unavailableClientContract },
+        { provide: END_PROPERTY_CONTRACT_USE_CASE, useValue: composition.endPropertyContract ?? unavailableClientContract },
+        { provide: CANCEL_PROPERTY_CONTRACT_USE_CASE, useValue: composition.cancelPropertyContract ?? unavailableClientContract },
+        { provide: RETRIEVE_PROPERTY_WORKSPACE_USE_CASE, useValue: composition.retrievePropertyWorkspace ?? unavailableClientContract },
         ...(composition.runtimeShutdown === undefined
           ? []
           : [{ provide: RUNTIME_SHUTDOWN, useValue: composition.runtimeShutdown }]),

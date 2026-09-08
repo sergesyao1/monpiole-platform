@@ -67,7 +67,11 @@ export function toPropertyAuthority(authority: AuthenticatedAuthority): Property
       || grant === "SELECT_PROPERTY_PRIMARY_PHOTO" || grant === "DELETE_PROPERTY_PHOTO"
       || grant === "REORDER_PROPERTY_PHOTOS"
       || grant === "RETRIEVE_PROPERTY_PHOTO_STANDARD" || grant === "MANAGE_PROPERTY_PHOTO_STANDARD"
-      || grant === "ASSIGN_PROPERTY_OWNER" || grant === "RETRIEVE_PROPERTY_OWNERSHIP" || grant === "REMOVE_PROPERTY_OWNER"),
+      || grant === "ASSIGN_PROPERTY_OWNER" || grant === "RETRIEVE_PROPERTY_OWNERSHIP" || grant === "REMOVE_PROPERTY_OWNER"
+      || grant === "RETRIEVE_PROPERTY_WORKSPACE"
+      || grant === "CREATE_PROPERTY_CLIENT" || grant === "RETRIEVE_PROPERTY_CLIENTS"
+      || grant === "CREATE_PROPERTY_CONTRACT" || grant === "RETRIEVE_PROPERTY_CONTRACTS"
+      || grant === "UPDATE_PROPERTY_CONTRACT" || grant === "MANAGE_PROPERTY_CONTRACT_LIFECYCLE"),
     tenantIds: authority.tenantIds,
   };
 }

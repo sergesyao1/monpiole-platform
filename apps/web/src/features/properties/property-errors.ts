@@ -13,6 +13,12 @@ export function toPropertyUiError(error: unknown, resource: PropertyErrorResourc
     return { kind: "forbidden", message: "Vous ne disposez pas de l’autorisation nécessaire pour cette action." };
   }
   if (error instanceof ApiProblem && error.problem.status === 404) {
+    if (error.problem.code === "PROPERTY_CLIENT_NOT_FOUND") {
+      return { kind: "not-found", message: "Ce client est introuvable ou n’est plus accessible dans votre espace." };
+    }
+    if (error.problem.code === "PROPERTY_CONTRACT_NOT_FOUND") {
+      return { kind: "not-found", message: "Ce contrat est introuvable ou n’est plus accessible dans votre espace." };
+    }
     if (error.problem.code === "PROPERTY_BUILDING_NOT_FOUND" || resource === "building") {
       return { kind: "not-found", message: "Cet immeuble est introuvable ou n’est plus accessible dans votre espace." };
     }
@@ -28,6 +34,18 @@ export function toPropertyUiError(error: unknown, resource: PropertyErrorResourc
     return { kind: "validation", message: "Certaines informations sont invalides. Vérifiez le formulaire puis réessayez." };
   }
   if (error instanceof ApiProblem && error.problem.status === 409) {
+    if (error.problem.code === "PROPERTY_CONTRACT_REFERENCE_CONFLICT") {
+      return { kind: "conflict", message: "Cette référence de contrat est déjà utilisée." };
+    }
+    if (error.problem.code === "PROPERTY_CONTRACT_TRANSITION_NOT_ALLOWED") {
+      return { kind: "conflict", message: "Cette transition n’est pas autorisée pour l’état actuel du contrat." };
+    }
+    if (error.problem.code === "PROPERTY_CONTRACT_UPDATE_NOT_ALLOWED") {
+      return { kind: "conflict", message: "Seul un contrat brouillon peut être modifié." };
+    }
+    if (error.problem.code === "PROPERTY_CONTRACT_PROPERTY_NOT_ELIGIBLE") {
+      return { kind: "conflict", message: "Ce type de contrat n’est pas compatible avec ce bien." };
+    }
     if (error.problem.code === "PROPERTY_PUBLICATION_REQUIREMENTS_NOT_MET") {
       if (error.problem.errors?.some((item) => item.path === "property.primaryPhoto")) {
         return { kind: "conflict", message: "Sélectionnez la photo principale qui représentera ce bien dans les annonces." };

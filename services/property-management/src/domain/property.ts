@@ -74,6 +74,12 @@ export interface PropertyCoreInformation {
   readonly apartmentSubtype?: ApartmentSubtype;
 }
 
+export interface PropertyPublicationReadiness {
+  readonly ready: boolean;
+  readonly missingRequirements: readonly PropertyPublicationRequirement[];
+  readonly photoReadiness: ReturnType<typeof assessPropertyPhotoReadiness>;
+}
+
 type PropertyField = keyof PropertyValues | keyof PropertyLocation;
 
 class PropertyInvariantViolation extends Error {
@@ -163,6 +169,21 @@ export class Property {
   ): Property {
     if (this.values.status === "PUBLISHED") return this;
     if (this.values.status === "WITHDRAWN") throw new PropertyRepublicationNotSupportedError();
+    const readiness = this.assessPublicationReadiness(photos, standardOverride);
+    if (!readiness.ready) throw new PropertyPublicationRequirementsNotMetError(readiness.missingRequirements);
+    if (!validInstant(publishedAt)) throw new InvalidPropertyServerValueError("publishedAt");
+    return new Property(Object.freeze({
+      ...this.values,
+      status: "PUBLISHED",
+      publishedAt,
+      updatedAt: publishedAt,
+    }));
+  }
+
+  assessPublicationReadiness(
+    photos: readonly PropertyPhotoValues[] = this.values.photos ?? [],
+    standardOverride?: PropertyPhotoStandardOverride,
+  ): PropertyPublicationReadiness {
     const missingRequirements: PropertyPublicationRequirement[] = [];
     if (this.values.details === undefined) missingRequirements.push("DETAILS");
     if (this.values.commercialTerms === undefined) missingRequirements.push("COMMERCIAL_TERMS");
@@ -184,14 +205,7 @@ export class Property {
     if (photoReadiness.primaryPhoto === undefined) missingRequirements.push("PRIMARY_PHOTO");
     if (photoReadiness.availableCount < photoReadiness.minimumCount) missingRequirements.push("PHOTO_MINIMUM");
     if (photoReadiness.missingRequiredCategories.length > 0) missingRequirements.push("PHOTO_REQUIRED_VIEWS");
-    if (missingRequirements.length > 0) throw new PropertyPublicationRequirementsNotMetError(missingRequirements);
-    if (!validInstant(publishedAt)) throw new InvalidPropertyServerValueError("publishedAt");
-    return new Property(Object.freeze({
-      ...this.values,
-      status: "PUBLISHED",
-      publishedAt,
-      updatedAt: publishedAt,
-    }));
+    return Object.freeze({ ready: missingRequirements.length === 0, missingRequirements, photoReadiness });
   }
 
   withdraw(withdrawnAt: string): Property {

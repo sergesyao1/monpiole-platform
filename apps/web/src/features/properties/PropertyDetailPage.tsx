@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
 
 import { useSession } from "../../auth/session.js";
@@ -10,7 +10,7 @@ import { PropertyFeedback } from "./PropertyFeedback.js";
 import { toPropertyUiError, type PropertyUiError } from "./property-errors.js";
 import {
   formatMinorAmount, pricingUnitLabels, propertyStatusLabels, propertyStructuralRoleLabels, propertyTypeLabels,
-  transactionTypeLabels, type CommercialTerms, type Property, type PropertyPhotoStandard,
+  transactionTypeLabels, type CommercialTerms, type Property, type PropertyWorkspace,
 } from "./property-model.js";
 import { PropertyOwnershipSection } from "./PropertyOwnershipSection.js";
 import { PropertyCompositionSection } from "./PropertyCompositionSection.js";
@@ -18,6 +18,7 @@ import { PropertyPublicationSection } from "./PropertyPublicationSection.js";
 import { PropertyPhotoGallery } from "./PropertyPhotoGallery.js";
 import { PropertyGeolocationSection } from "./PropertyGeolocationSection.js";
 import { PropertyAvailabilitySection } from "./PropertyAvailabilitySection.js";
+import { PropertyContractsSection } from "./PropertyContractsSection.js";
 import { Alert, LoadingState, PageHeader, StatusBadge, buttonClassName, type BreadcrumbItem, type StatusTone } from "../../ui/index.js";
 
 interface PropertyLocationState {
@@ -41,52 +42,57 @@ export function PropertyDetailPage() {
   const session = useSession();
   const api = useMemo(() => createPropertyApi(session), [session]);
   const [property, setProperty] = useState<Property>();
-  const [photoStandard, setPhotoStandard] = useState<PropertyPhotoStandard>({ minimumCount: 1, additionalRequiredCategories: [] });
+  const [workspace, setWorkspace] = useState<PropertyWorkspace>();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingPricing, setSavingPricing] = useState(false);
   const [savingCoreInformation, setSavingCoreInformation] = useState(false);
   const locationState = location.state as PropertyLocationState | null;
+  const activeSection = location.hash.length === 0 ? "#property-overview" : location.hash;
   const [saved, setSaved] = useState(Boolean(locationState?.created));
   const [error, setError] = useState<PropertyUiError>();
+
+  const loadWorkspace = useCallback(async () => {
+    const value = await api.retrievePropertyWorkspace(propertyId);
+    setWorkspace(value);
+    setProperty(value.property);
+  }, [api, propertyId]);
 
   useEffect(() => {
     let active = true;
     setLoading(true); setError(undefined);
-    void api.retrieveProperty(propertyId).then((value) => { if (active) setProperty(value); })
+    void api.retrievePropertyWorkspace(propertyId).then((value) => {
+      if (active) { setWorkspace(value); setProperty(value.property); }
+    })
       .catch((caught: unknown) => { if (active) setError(toPropertyUiError(caught)); })
       .finally(() => { if (active) setLoading(false); });
-    void api.retrievePropertyPhotoStandard().then((value) => {
-      if (active && Number.isInteger(value.minimumCount) && value.minimumCount >= 1
-        && Array.isArray(value.additionalRequiredCategories)) setPhotoStandard(value);
-    }).catch(() => undefined);
     return () => { active = false; };
   }, [api, propertyId]);
 
   async function saveDetails(input: Parameters<typeof api.updatePropertyDetails>[1]) {
     setSaving(true); setSaved(false); setError(undefined);
-    try { setProperty(await api.updatePropertyDetails(propertyId, input)); setSaved(true); }
+    try { const updated = await api.updatePropertyDetails(propertyId, input); await loadWorkspace(); setProperty(updated); setSaved(true); }
     catch (caught) { setError(toPropertyUiError(caught)); }
     finally { setSaving(false); }
   }
 
   async function saveCoreInformation(input: Parameters<typeof api.updatePropertyCoreInformation>[1]) {
     setSavingCoreInformation(true); setSaved(false); setError(undefined);
-    try { setProperty(await api.updatePropertyCoreInformation(propertyId, input)); setSaved(true); }
+    try { const updated = await api.updatePropertyCoreInformation(propertyId, input); await loadWorkspace(); setProperty(updated); setSaved(true); }
     catch (caught) { setError(toPropertyUiError(caught)); }
     finally { setSavingCoreInformation(false); }
   }
 
   async function savePricing(input: Parameters<typeof api.setPropertyPricing>[1]) {
     setSavingPricing(true); setSaved(false); setError(undefined);
-    try { setProperty(await api.setPropertyPricing(propertyId, input)); setSaved(true); }
+    try { const updated = await api.setPropertyPricing(propertyId, input); await loadWorkspace(); setProperty(updated); setSaved(true); }
     catch (caught) { setError(toPropertyUiError(caught)); }
     finally { setSavingPricing(false); }
   }
 
   if (loading) return <div className="standalone-state"><LoadingState label="Chargement du bien…" /></div>;
   if (error?.kind === "not-found") return <div className="standalone-state"><p className="error-code">404</p><h1>Bien introuvable</h1><p>{error.message}</p><Link className={buttonClassName("secondary", "inline-action")} to="/properties">Retour aux biens</Link></div>;
-  if (!property) return <div className="standalone-state"><PropertyFeedback error={error ?? toPropertyUiError(undefined)} onReconnect={() => void session.login(`/properties/${propertyId}`)} /></div>;
+  if (!property || !workspace) return <div className="standalone-state"><PropertyFeedback error={error ?? toPropertyUiError(undefined)} onReconnect={() => void session.login(`/properties/${propertyId}`)} /></div>;
 
   const breadcrumbs: BreadcrumbItem[] = locationState?.compositionContext === undefined
     ? [{ label: "Biens", to: "/properties" }, { label: property.title }]
@@ -100,25 +106,32 @@ export function PropertyDetailPage() {
   return (
     <div className="page-stack property-page">
       <PageHeader
-        actions={<Link className={buttonClassName("secondary", "inline-action")} to="/properties">Retour aux biens</Link>}
+        actions={<><a className={buttonClassName("primary", "inline-action")} href="#property-contracts">Gérer les contrats</a><Link className={buttonClassName("secondary", "inline-action")} to="/properties">Retour aux biens</Link></>}
         breadcrumbs={breadcrumbs}
         eyebrow="Fiche du bien"
         title={property.title}
-        meta={<><StatusBadge tone={propertyStatusTone(property.status)}>{propertyStatusLabels[property.status]}</StatusBadge><span className="resource-id">Référence interne : {property.propertyId}</span></>}
+        meta={<>
+          <span>{propertyTypeLabels[property.propertyType]}</span>
+          <StatusBadge tone={propertyStatusTone(property.status)}>{propertyStatusLabels[property.status]}</StatusBadge>
+          <span>{availabilitySummary(workspace.availability)} · {occupancySummary(workspace.availability)}</span>
+          {property.commercialTerms && <span><CommercialTermsSummary terms={property.commercialTerms} /></span>}
+          <span className="resource-id">Référence interne : {property.propertyId}</span>
+        </>}
       />
       {saved && <Alert title="Enregistré" tone="success"><p>Les informations du bien sont à jour.</p></Alert>}
       {error && <PropertyFeedback error={error} onReconnect={() => void session.login(`/properties/${propertyId}`)} />}
 
       <nav aria-label="Sections de la fiche" className="property-context-nav">
-        <a href="#property-overview">Vue d’ensemble</a>
-        <a href="#property-availability">Disponibilité</a>
-        <a href="#property-pricing">Tarification</a>
-        <a href="#property-publication">Publication</a>
-        <a href="#property-photos">Photos</a>
-        <a href="#property-information">Informations</a>
-        <a href="#property-location">Localisation</a>
-        <a href="#property-owners">Propriétaires</a>
-        <a href="#property-composition">Composition</a>
+        <a aria-current={activeSection === "#property-overview" ? "location" : undefined} href="#property-overview">Vue d’ensemble</a>
+        <a aria-current={activeSection === "#property-contracts" ? "location" : undefined} href="#property-contracts">Clients et contrats</a>
+        <a aria-current={activeSection === "#property-availability" ? "location" : undefined} href="#property-availability">Disponibilité</a>
+        <a aria-current={activeSection === "#property-pricing" ? "location" : undefined} href="#property-pricing">Tarification</a>
+        <a aria-current={activeSection === "#property-publication" ? "location" : undefined} href="#property-publication">Publication</a>
+        <a aria-current={activeSection === "#property-photos" ? "location" : undefined} href="#property-photos">Photos</a>
+        <a aria-current={activeSection === "#property-information" ? "location" : undefined} href="#property-information">Informations</a>
+        <a aria-current={activeSection === "#property-location" ? "location" : undefined} href="#property-location">Localisation</a>
+        <a aria-current={activeSection === "#property-owners" ? "location" : undefined} href="#property-owners">Propriétaires</a>
+        <a aria-current={activeSection === "#property-composition" ? "location" : undefined} href="#property-composition">Composition</a>
       </nav>
 
       <section className="property-summary content-panel" id="property-overview" aria-labelledby="property-summary-title">
@@ -132,13 +145,30 @@ export function PropertyDetailPage() {
           <div><dt>Conditions</dt><dd>{property.commercialTerms ? <CommercialTermsSummary terms={property.commercialTerms} /> : "Non renseignées"}</dd></div>
           <div><dt>Dernière mise à jour</dt><dd>{new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(property.updatedAt))}</dd></div>
         </dl>
+        <div className="workspace-summary-grid" aria-label="Synthèse opérationnelle">
+          <a href="#property-availability"><strong>{availabilitySummary(workspace.availability)}</strong><span>Disponibilité</span></a>
+          <a href="#property-publication"><strong>{workspace.publicationReadiness.ready ? "Prêt" : `${workspace.publicationReadiness.missingRequirements.length} à compléter`}</strong><span>Publication</span></a>
+          <a href="#property-contracts"><strong>{workspace.contracts.activeCount} actif{workspace.contracts.activeCount > 1 ? "s" : ""}</strong><span>{workspace.contracts.totalCount} contrat{workspace.contracts.totalCount > 1 ? "s" : ""}</span></a>
+          <a href="#property-owners"><strong>{workspace.owners.length}</strong><span>Propriétaire{workspace.owners.length > 1 ? "s" : ""}</span></a>
+          <a href="#property-composition"><strong>{workspace.composition.unitCount}</strong><span>Unité{workspace.composition.unitCount > 1 ? "s" : ""} dans {workspace.composition.buildingCount} bâtiment{workspace.composition.buildingCount > 1 ? "s" : ""}</span></a>
+        </div>
       </section>
+
+      <div id="property-contracts"><PropertyContractsSection
+        propertyId={property.propertyId}
+        api={api}
+        canView={workspace.capabilities.canViewContracts}
+        canCreate={workspace.capabilities.canCreateContract}
+        onChanged={loadWorkspace}
+        onReconnect={() => void session.login(`/properties/${propertyId}`)}
+      /></div>
 
       <div id="property-availability"><PropertyAvailabilitySection
         key={`${property.propertyId}:${property.structuralRole}`}
         propertyId={property.propertyId}
         transactionType={property.transactionType}
         api={api}
+        initialAvailability={workspace.availability}
         onReconnect={() => void session.login(`/properties/${propertyId}`)}
       /></div>
 
@@ -149,7 +179,7 @@ export function PropertyDetailPage() {
 
       <div id="property-publication"><PropertyPublicationSection
           property={property}
-          photoStandard={photoStandard}
+          publicationReadiness={workspace.publicationReadiness}
           api={api}
           onPublished={setProperty}
           onWithdrawn={setProperty}
@@ -159,12 +189,15 @@ export function PropertyDetailPage() {
       <div id="property-photos"><PropertyPhotoGallery
           property={property}
           api={api}
-          onPhotosChanged={(photos) => setProperty((current) => {
-            if (current === undefined) return current;
-            const primaryPhoto = photos.find((photo) => photo.isPrimary);
-            const { primaryPhoto: _previousPrimaryPhoto, ...unchanged } = current;
-            return { ...unchanged, photos, ...(primaryPhoto === undefined ? {} : { primaryPhoto }) } as Property;
-          })}
+          onPhotosChanged={(photos) => {
+            setProperty((current) => {
+              if (current === undefined) return current;
+              const primaryPhoto = photos.find((photo) => photo.isPrimary);
+              const { primaryPhoto: _previousPrimaryPhoto, ...unchanged } = current;
+              return { ...unchanged, photos, ...(primaryPhoto === undefined ? {} : { primaryPhoto }) } as Property;
+            });
+            void loadWorkspace();
+          }}
           onReconnect={() => void session.login(`/properties/${propertyId}`)}
         /></div>
 
@@ -184,10 +217,30 @@ export function PropertyDetailPage() {
           onReconnect={() => void session.login(`/properties/${propertyId}`)}
         /></div>
 
-      <div id="property-owners"><PropertyOwnershipSection propertyId={property.propertyId} api={api} /></div>
-      <div id="property-composition"><PropertyCompositionSection property={property} api={api} onStructuralRoleChange={(structuralRole) => setProperty((current) => current === undefined ? current : { ...current, structuralRole })} /></div>
+      <div id="property-owners"><PropertyOwnershipSection propertyId={property.propertyId} api={api} initialOwners={workspace.owners} canManage={workspace.capabilities.canManageOwners} onChanged={loadWorkspace} /></div>
+      <div id="property-composition"><PropertyCompositionSection property={property} api={api} onStructuralRoleChange={(structuralRole) => { setProperty((current) => current === undefined ? current : { ...current, structuralRole }); void loadWorkspace(); }} /></div>
     </div>
   );
+}
+
+function availabilitySummary(availability: PropertyWorkspace["availability"]): string {
+  if (availability.source === "DERIVED_FROM_UNITS") {
+    if (availability.availabilityStatus === "AVAILABLE") return "Disponible";
+    if (availability.availabilityStatus === "UNAVAILABLE") return "Indisponible";
+    return "À renseigner";
+  }
+  if (!availability.configured) return "À renseigner";
+  return availability.availabilityStatus === "AVAILABLE" ? "Disponible" : "Indisponible";
+}
+
+function occupancySummary(availability: PropertyWorkspace["availability"]): string {
+  if (availability.source === "DERIVED_FROM_UNITS") {
+    return availability.totalUnitCount === 0
+      ? "Occupation à renseigner"
+      : `${availability.occupiedUnitCount}/${availability.totalUnitCount} occupée${availability.occupiedUnitCount > 1 ? "s" : ""}`;
+  }
+  if (!availability.configured) return "Occupation à renseigner";
+  return availability.occupancyStatus === "OCCUPIED" ? "Occupé" : "Vacant";
 }
 
 function propertyStatusTone(status: Property["status"]): StatusTone {

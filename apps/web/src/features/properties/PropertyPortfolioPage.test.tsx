@@ -48,6 +48,22 @@ function page(items: readonly PropertyPortfolioItem[], nextCursor: string | null
 }
 
 function renderPortfolio(session: Session = authenticatedSession) {
+  const fixtureFetch = globalThis.fetch;
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (!url.endsWith("/workspace")) return fixtureFetch(input, init);
+    const response = await fixtureFetch(url.slice(0, -"/workspace".length), init);
+    if (!response.ok) return response;
+    const property = await response.json() as PropertyPortfolioItem;
+    return json({
+      property: { ...property, canWithdrawFromCatalog: false },
+      availability: { propertyId: property.propertyId, source: "DIRECT", structuralRole: "STANDALONE", configured: false, canUpdateAvailability: true },
+      publicationReadiness: { ready: false, missingRequirements: ["DETAILS", "COMMERCIAL_TERMS", "PRIMARY_PHOTO", "PHOTO_MINIMUM"] },
+      owners: [], composition: { buildingCount: 0, unitCount: 0 },
+      contracts: { totalCount: 0, draftCount: 0, activeCount: 0, endedCount: 0, cancelledCount: 0 },
+      capabilities: { canUpdateCoreInformation: true, canUpdateDetails: true, canUpdatePricing: true, canUpdateAvailability: true, canManagePhotos: true, canPublish: true, canWithdrawFromCatalog: false, canManageOwners: true, canManageComposition: true, canViewContracts: false, canCreateContract: false },
+    });
+  });
   return render(<SessionContext value={session}><RouterProvider router={createMemoryRouter(applicationRoutes, { initialEntries: ["/properties"] })} /></SessionContext>);
 }
 

@@ -3,8 +3,8 @@ import { useRef, useState } from "react";
 import type { PropertyApi } from "./property-api.js";
 import { toPropertyUiError, type PropertyUiError } from "./property-errors.js";
 import {
-  formatPublicationDate, propertyPhotoCategoryLabels, propertyPhotoRequirements, propertyStatusLabels,
-  type Property, type PropertyPhotoStandard,
+  formatPublicationDate, propertyStatusLabels,
+  type Property, type PropertyPublicationReadiness,
 } from "./property-model.js";
 import { PropertyFeedback } from "./PropertyFeedback.js";
 import { Alert, Button, StatusBadge } from "../../ui/index.js";
@@ -14,9 +14,9 @@ export interface PropertyPublicationApi {
   withdrawPropertyFromCatalog: PropertyApi["withdrawPropertyFromCatalog"];
 }
 
-export function PropertyPublicationSection({ property, photoStandard, api, onPublished, onWithdrawn, onReconnect }: Readonly<{
+export function PropertyPublicationSection({ property, publicationReadiness, api, onPublished, onWithdrawn, onReconnect }: Readonly<{
   property: Property;
-  photoStandard?: PropertyPhotoStandard;
+  publicationReadiness: PropertyPublicationReadiness;
   api: PropertyPublicationApi;
   onPublished: (property: Property) => void;
   onWithdrawn: (property: Property) => void;
@@ -93,17 +93,15 @@ export function PropertyPublicationSection({ property, photoStandard, api, onPub
     );
   }
 
-  const detailsReady = property.details !== undefined;
-  const commercialTermsReady = property.commercialTerms !== undefined;
-  const subtypeReady = property.propertyType !== "APARTMENT" || property.transactionType !== "LONG_TERM_RENTAL"
-    || property.apartmentSubtype !== undefined;
-  const requirements = propertyPhotoRequirements(property, photoStandard);
+  const missing = new Set(publicationReadiness.missingRequirements);
+  const detailsReady = !missing.has("DETAILS");
+  const commercialTermsReady = !missing.has("COMMERCIAL_TERMS");
+  const subtypeReady = !missing.has("APARTMENT_SUBTYPE");
   const availablePhotos = property.photos ?? [];
-  const minimumReady = availablePhotos.length >= requirements.minimumCount;
-  const missingViews = requirements.requiredCategories.filter((category) => !availablePhotos.some((photo) => photo.category === category));
-  const viewsReady = missingViews.length === 0;
-  const primaryPhotoReady = property.primaryPhoto !== undefined || property.photos?.some((photo) => photo.isPrimary) === true;
-  const ready = detailsReady && commercialTermsReady && subtypeReady && minimumReady && viewsReady && primaryPhotoReady;
+  const minimumReady = !missing.has("PHOTO_MINIMUM");
+  const viewsReady = !missing.has("PHOTO_REQUIRED_VIEWS");
+  const primaryPhotoReady = !missing.has("PRIMARY_PHOTO");
+  const ready = publicationReadiness.ready;
 
   async function confirmPublication() {
     if (inFlight.current || !ready) return;
@@ -138,12 +136,8 @@ export function PropertyPublicationSection({ property, photoStandard, api, onPub
         {property.propertyType === "APARTMENT" && property.transactionType === "LONG_TERM_RENTAL" && (
           <li className={subtypeReady ? "is-ready" : "is-missing"}>Sous-type {subtypeReady ? "renseigné" : "à sélectionner"}</li>
         )}
-        <li className={minimumReady ? "is-ready" : "is-missing"}>Photos disponibles : {availablePhotos.length}/{requirements.minimumCount} minimum</li>
-        {requirements.requiredCategories.map((category) => (
-          <li key={category} className={missingViews.includes(category) ? "is-missing" : "is-ready"}>
-            Vue « {propertyPhotoCategoryLabels[category]} » {missingViews.includes(category) ? "à ajouter" : "présente"}
-          </li>
-        ))}
+        <li className={minimumReady ? "is-ready" : "is-missing"}>Nombre de photos {minimumReady ? `suffisant (${availablePhotos.length})` : `insuffisant (${availablePhotos.length})`}</li>
+        <li className={viewsReady ? "is-ready" : "is-missing"}>Vues requises {viewsReady ? "présentes" : "à ajouter"}</li>
         <li className={primaryPhotoReady ? "is-ready" : "is-missing"}>Photo principale {primaryPhotoReady ? "sélectionnée" : "à sélectionner"}</li>
       </ul>
       {error && <PropertyFeedback error={error} onReconnect={onReconnect} />}

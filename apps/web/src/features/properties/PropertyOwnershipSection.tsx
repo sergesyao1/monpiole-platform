@@ -4,14 +4,20 @@ import type { FormEvent } from "react";
 import type { PropertyApi } from "./property-api.js";
 import { PropertyFeedback } from "./PropertyFeedback.js";
 import { toPropertyUiError, type PropertyUiError } from "./property-errors.js";
-import { propertyOwnerName, type PropertyOwner, type PropertyOwnership } from "./property-model.js";
+import { propertyOwnerName, type PropertyOwner, type PropertyOwnership, type PropertyWorkspaceOwnerSummary } from "./property-model.js";
 import { Alert, Button, Field, LoadingState } from "../../ui/index.js";
 
-interface OwnershipView { readonly ownership: PropertyOwnership; readonly owner?: PropertyOwner; }
+interface OwnershipView { readonly ownership: PropertyOwnership; readonly displayName: string; }
 
-export function PropertyOwnershipSection({ propertyId, api }: Readonly<{ propertyId: string; api: PropertyApi }>) {
-  const [items, setItems] = useState<readonly OwnershipView[]>([]);
-  const [loading, setLoading] = useState(true);
+export function PropertyOwnershipSection({ propertyId, api, initialOwners, canManage = true, onChanged }: Readonly<{
+  propertyId: string;
+  api: PropertyApi;
+  initialOwners?: readonly PropertyWorkspaceOwnerSummary[];
+  canManage?: boolean;
+  onChanged?: () => void | Promise<void>;
+}>) {
+  const [items, setItems] = useState<readonly OwnershipView[]>(() => toViews(initialOwners));
+  const [loading, setLoading] = useState(initialOwners === undefined);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<PropertyUiError>();
   const [clientError, setClientError] = useState("");
@@ -27,7 +33,7 @@ export function PropertyOwnershipSection({ propertyId, api }: Readonly<{ propert
     try {
       const ownerships = await api.retrieveOwnerships(propertyId);
       const owners = await Promise.all(ownerships.map(async (ownership) => ({
-        ownership, owner: await api.retrievePropertyOwner(ownership.ownerId),
+        ownership, displayName: propertyOwnerName(await api.retrievePropertyOwner(ownership.ownerId)),
       })));
       setItems(owners);
     } catch (caught) {
@@ -35,7 +41,14 @@ export function PropertyOwnershipSection({ propertyId, api }: Readonly<{ propert
     } finally { setLoading(false); }
   }
 
-  useEffect(() => { void load(); }, [propertyId]);
+  useEffect(() => {
+    if (initialOwners !== undefined) {
+      setItems(toViews(initialOwners));
+      setLoading(false);
+      return;
+    }
+    void load();
+  }, [propertyId, initialOwners]);
 
   useEffect(() => {
     let active = true;
@@ -59,7 +72,10 @@ export function PropertyOwnershipSection({ propertyId, api }: Readonly<{ propert
       setClientError("La quote-part doit être comprise entre 0,01 et 100 avec deux décimales au maximum."); return;
     }
     setSaving(true); setClientError(""); setError(undefined);
-    try { await api.assignPropertyOwner(propertyId, ownerId, ownershipShare); form.reset(); await load(); }
+    try {
+      await api.assignPropertyOwner(propertyId, ownerId, ownershipShare); form.reset();
+      if (onChanged === undefined) await load(); else await onChanged();
+    }
     catch (caught) { setError(toPropertyUiError(caught)); }
     finally { setSaving(false); }
   }
@@ -68,7 +84,10 @@ export function PropertyOwnershipSection({ propertyId, api }: Readonly<{ propert
     if (saving) return;
     if (!window.confirm("Retirer ce propriétaire du bien ?")) return;
     setSaving(true); setError(undefined);
-    try { await api.removePropertyOwner(propertyId, ownerId); await load(); }
+    try {
+      await api.removePropertyOwner(propertyId, ownerId);
+      if (onChanged === undefined) await load(); else await onChanged();
+    }
     catch (caught) { setError(toPropertyUiError(caught)); }
     finally { setSaving(false); }
   }
@@ -81,14 +100,14 @@ export function PropertyOwnershipSection({ propertyId, api }: Readonly<{ propert
         <p className="muted-status">Aucun propriétaire n’est encore affecté à ce bien.</p>
       ) : (
         <ul className="ownership-list">
-          {items.map(({ ownership, owner }) => <li key={ownership.ownerId}>
-            <div><strong>{owner ? propertyOwnerName(owner) : "Propriétaire non consultable"}</strong><small>{ownership.ownerId}</small></div>
+          {items.map(({ ownership, displayName }) => <li key={ownership.ownerId}>
+            <div><strong>{displayName}</strong><small>{ownership.ownerId}</small></div>
             <span>{ownership.ownershipShare.toLocaleString("fr-FR")} %</span>
             <Button variant="danger" disabled={saving} onClick={() => void remove(ownership.ownerId)}>Retirer</Button>
           </li>)}
         </ul>
       )}
-      <form className="compact-form ownership-form" onSubmit={(event) => void assign(event)}>
+      {canManage && <form className="compact-form ownership-form" onSubmit={(event) => void assign(event)}>
         <h3>Affecter un propriétaire existant</h3>
         <p className="form-help">Recherchez puis sélectionnez un propriétaire de votre annuaire.</p>
         <div className="owner-picker-search" role="search">
@@ -103,7 +122,19 @@ export function PropertyOwnershipSection({ propertyId, api }: Readonly<{ propert
         </div>
         {clientError && <p className="field-error" role="alert">{clientError}</p>}
         <Button variant="secondary" type="submit" loading={saving} loadingLabel="Affectation…">Affecter le propriétaire</Button>
-      </form>
+      </form>}
     </section>
   );
+}
+
+function toViews(owners: readonly PropertyWorkspaceOwnerSummary[] | undefined): readonly OwnershipView[] {
+  return owners?.map((owner) => ({
+    displayName: owner.displayName,
+    ownership: {
+      propertyId: "",
+      ownerId: owner.ownerId,
+      ownershipShare: owner.ownershipShare,
+      createdAt: "",
+    },
+  })) ?? [];
 }
