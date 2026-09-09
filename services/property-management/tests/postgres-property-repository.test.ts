@@ -26,6 +26,7 @@ import {
   PostgresPropertyAvailabilityQuery, RetrievePropertyAvailability, UpdatePropertyAvailability,
   PropertyAvailabilityDerivedFromUnitsError,
   SetPropertyPricing,
+  PostgresPropertyInquiryRepository, PropertyInquiry,
 } from "../src/index.js";
 
 const IMAGE = "postgres@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687";
@@ -57,7 +58,7 @@ beforeAll(async () => {
     TO monpiole_runtime`);
   runtime = new Pool({ connectionString: connection("monpiole_runtime", "synthetic-runtime") });
 });
-afterEach(async () => owner.query("TRUNCATE property_management.property_amenities, property_management.property_contracts, property_management.property_clients, property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners"));
+afterEach(async () => owner.query("TRUNCATE property_management.property_inquiries, property_management.property_amenities, property_management.property_contracts, property_management.property_clients, property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners"));
 afterAll(async () => { await runtime?.end(); await owner?.end(); await container?.stop(); });
 
 function authority(tenantId: string) { return { actorId: "actor", authorityId: "authority", grants: ["CREATE_PROPERTY", "RETRIEVE_PROPERTY"] as const, tenantIds: [tenantId] }; }
@@ -1288,5 +1289,22 @@ describe("Property availability PostgreSQL persistence", () => {
       availability_updated_by_actor_id: winner?.actorId,
       availability_correlation_id: winner?.correlationId,
     });
+  });
+
+  it("persists idempotent public inquiries and isolates private reads by tenant", async () => {
+    await create();
+    await new SetPropertyPricing(new PostgresPropertyRepository(runtime), { now: () => "2026-09-09T11:59:00.000Z" }).execute({ authority: pricingAuthority(TENANT_A), correlationId: CORRELATION, propertyId: PROPERTY_ID, pricing: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 10000000 } });
+    await owner.query("UPDATE property_management.properties SET status='PUBLISHED', published_at=now(), published_by_actor_id='actor', publication_correlation_id=$1 WHERE property_id=$2", [CORRELATION, PROPERTY_ID]);
+    const repository = new PostgresPropertyInquiryRepository(runtime);
+    const inquiry = PropertyInquiry.create({ inquiryId: randomUUID(), tenantId: TENANT_A, propertyId: PROPERTY_ID,
+      contactName: "Awa Koné", email: "awa@example.com", consentVersion: "inquiry-v1",
+      consentGivenAt: "2026-09-09T12:00:00.000Z", idempotencyKey: "request-1",
+      createdAt: "2026-09-09T12:00:00.000Z", updatedAt: "2026-09-09T12:00:00.000Z" });
+    const saved = await repository.submitForPublishedProperty(inquiry, PROPERTY_ID, { actorId: "public-inquiry", correlationId: CORRELATION });
+    const replayed = await repository.submitForPublishedProperty(PropertyInquiry.create({ ...inquiry.values, inquiryId: randomUUID() }), PROPERTY_ID, { actorId: "public-inquiry", correlationId: CORRELATION });
+    expect(replayed?.values.inquiryId).toBe(saved?.values.inquiryId);
+    expect((await repository.list(TENANT_A, PROPERTY_ID, 20))?.items).toHaveLength(1);
+    expect(await repository.list(TENANT_B, PROPERTY_ID, 20)).toBeUndefined();
+    await expect(withTenantPostgresTransaction(runtime, TENANT_B, (scope) => scope.query("SELECT * FROM property_management.property_inquiries"))).resolves.toEqual([]);
   });
 });

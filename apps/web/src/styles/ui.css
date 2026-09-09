@@ -305,3 +305,8 @@ input:disabled, select:disabled, textarea:disabled { color: var(--color-text-mut
   .ui-action-bar, .form-actions { align-items: stretch; flex-direction: column; }
   .ui-action-bar > *, .form-actions > * { width: 100%; }
 }
+.public-inquiry { border-top: 1px solid var(--color-border); padding-top: var(--space-6); }
+.inquiry-list { display: grid; gap: var(--space-3); list-style: none; padding: 0; }
+.inquiry-list > li { align-items: start; border: 1px solid var(--color-border); border-radius: var(--radius-md); display: flex; gap: var(--space-4); justify-content: space-between; padding: var(--space-4); }
+.inquiry-list > li > div:last-child { align-items: end; display: flex; flex-direction: column; gap: var(--space-2); }
+@media (max-width: 38.75rem) { .inquiry-list > li { flex-direction: column; } .inquiry-list > li > div:last-child { align-items: stretch; width: 100%; } }

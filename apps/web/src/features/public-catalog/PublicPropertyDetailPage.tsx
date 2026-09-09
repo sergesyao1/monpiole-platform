@@ -14,6 +14,7 @@ import {
 } from "./public-property-model.js";
 import { PublicCatalogLayout } from "./PublicCatalogLayout.js";
 import { Button, LoadingState, StatusBadge, buttonClassName } from "../../ui/index.js";
+import { PublicPropertyInquiryForm } from "./PublicPropertyInquiryForm.js";
 
 const api = createPublicPropertyApi();
 
@@ -95,6 +96,7 @@ function PublicPropertyDetailView({ property, backPath }: Readonly<{ property: P
         </dl></section>
         <section><h2>Conditions financières</h2><PublicPricingDetails terms={property.commercialTerms} /></section>
         {property.amenities.length>0?<section><h2>Commodités et équipements</h2><ul className="public-amenities">{property.amenities.map((amenity)=><li key={amenity.code}>{amenity.labelFr}</li>)}</ul></section>:null}
+        <PublicPropertyInquiryForm propertyId={property.publicPropertyId} api={api}/>
       </div>
     </article>
   );

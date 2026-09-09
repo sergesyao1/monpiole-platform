@@ -72,7 +72,8 @@ export function toPropertyAuthority(authority: AuthenticatedAuthority): Property
       || grant === "RETRIEVE_PROPERTY_AMENITIES" || grant === "UPDATE_PROPERTY_AMENITIES"
       || grant === "CREATE_PROPERTY_CLIENT" || grant === "RETRIEVE_PROPERTY_CLIENTS"
       || grant === "CREATE_PROPERTY_CONTRACT" || grant === "RETRIEVE_PROPERTY_CONTRACTS"
-      || grant === "UPDATE_PROPERTY_CONTRACT" || grant === "MANAGE_PROPERTY_CONTRACT_LIFECYCLE"),
+      || grant === "UPDATE_PROPERTY_CONTRACT" || grant === "MANAGE_PROPERTY_CONTRACT_LIFECYCLE"
+      || grant === "LIST_PROPERTY_INQUIRIES" || grant === "RETRIEVE_PROPERTY_INQUIRY" || grant === "MANAGE_PROPERTY_INQUIRIES"),
     tenantIds: authority.tenantIds,
   };
 }

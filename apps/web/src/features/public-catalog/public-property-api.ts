@@ -8,6 +8,7 @@ import type {
 export interface PublicPropertyApi {
   list(criteria?: PublicPropertyCatalogCriteria): Promise<PublicPropertyCatalogPage>;
   retrieve(publicPropertyId: string): Promise<PublicPropertyDetail>;
+  submitInquiry(publicPropertyId:string,input:PublicInquiryInput):Promise<{readonly inquiryId:string;readonly receivedAt:string}>;
   photoUrl(path: `/v1/public/properties/${string}/primary-photo` | `/v1/public/properties/${string}/media/${string}/content`): string;
 }
 
@@ -17,13 +18,15 @@ export function createPublicPropertyApi(): PublicPropertyApi {
     retrieve: (publicPropertyId) => requestPublicJson<PublicPropertyDetail>(
       `/v1/public/properties/${encodeURIComponent(publicPropertyId)}`,
     ),
+    submitInquiry:(publicPropertyId,input)=>requestPublicJson(`/v1/public/properties/${encodeURIComponent(publicPropertyId)}/inquiries`,{method:"POST",body:input}),
     photoUrl: (path) => path,
   };
 }
 
-async function requestPublicJson<ResponseBody>(path: `/v1/${string}`): Promise<ResponseBody> {
+export interface PublicInquiryInput{readonly contactName:string;readonly email?:string;readonly phoneNumber?:string;readonly message?:string;readonly consent:true;readonly consentVersion:string;readonly idempotencyKey:string;}
+async function requestPublicJson<ResponseBody>(path: `/v1/${string}`,options?:Readonly<{method:"POST";body:unknown}>): Promise<ResponseBody> {
   const headers = new Headers({ accept: "application/json", "x-correlation-id": crypto.randomUUID() });
-  const response = await fetch(path, { headers });
+  if(options)headers.set("content-type","application/json");const response = await fetch(path, { headers,method:options?.method,body:options?JSON.stringify(options.body):undefined });
   const payload: unknown = await response.json().catch(() => undefined);
   if (!response.ok) {
     if (isProblemDetails(payload)) throw new ApiProblem(payload);

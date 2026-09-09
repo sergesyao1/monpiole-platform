@@ -134,6 +134,13 @@
       "when": 1788958854991,
       "tag": "0018_property_amenities",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788961121046,
+      "tag": "0019_property_management_baseline",
+      "breakpoints": true
     }
   ]
 }

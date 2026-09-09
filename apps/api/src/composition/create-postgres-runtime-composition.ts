@@ -27,6 +27,7 @@ import {
   PostgresPropertyContractRepository, CreatePropertyContract, ListPropertyContracts, RetrievePropertyContract,
   UpdatePropertyContract, ActivatePropertyContract, EndPropertyContract, CancelPropertyContract,
   PostgresPropertyWorkspaceSummaryQuery, RetrievePropertyWorkspace,
+  PostgresPropertyInquiryRepository, SubmitPublicPropertyInquiry, ListPropertyInquiries, RetrievePropertyInquiry, AcknowledgePropertyInquiry, ClosePropertyInquiry,
 } from "@monpiole/property-management";
 import {
   ActivateTenant,
@@ -89,6 +90,7 @@ export function createPostgresApiRuntime(
   const propertyAvailabilityQuery = new PostgresPropertyAvailabilityQuery(pool);
   const propertyClientRepository = new PostgresPropertyClientRepository(pool);
   const propertyContractRepository = new PostgresPropertyContractRepository(pool);
+  const propertyInquiryRepository = new PostgresPropertyInquiryRepository(pool);
   const compositionClock = { now: () => new Date().toISOString() };
   const publicCatalogQuery = publicCatalogDatabase === undefined
     ? undefined
@@ -134,6 +136,11 @@ export function createPostgresApiRuntime(
     retrieveAmenityCatalog: new RetrieveAmenityCatalog(),
     retrievePropertyAmenities: new RetrievePropertyAmenities(propertyAmenityRepository),
     replacePropertyAmenities: new ReplacePropertyAmenities(propertyAmenityRepository, compositionClock),
+    submitPublicPropertyInquiry: new SubmitPublicPropertyInquiry(propertyInquiryRepository, { generate: randomUUID }, compositionClock),
+    listPropertyInquiries: new ListPropertyInquiries(propertyInquiryRepository),
+    retrievePropertyInquiry: new RetrievePropertyInquiry(propertyInquiryRepository),
+    acknowledgePropertyInquiry: new AcknowledgePropertyInquiry(propertyInquiryRepository, compositionClock),
+    closePropertyInquiry: new ClosePropertyInquiry(propertyInquiryRepository, compositionClock),
     retrievePropertyAvailability: new RetrievePropertyAvailability(propertyAvailabilityQuery),
     updatePropertyAvailability: new UpdatePropertyAvailability(propertyRepository, { now: () => new Date().toISOString() }),
     createPropertyClient: new CreatePropertyClient(propertyClientRepository, { generate: randomUUID }, compositionClock),

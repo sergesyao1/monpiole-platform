@@ -11,6 +11,7 @@ import type {
   PropertyClient, PropertyClientDirectoryPage, PropertyClientInput,
   PropertyContract, PropertyContractDirectoryPage, PropertyContractInput, PropertyWorkspace,
   Amenity,
+  PropertyInquiry, PropertyInquiryPage,
 } from "./property-model.js";
 
 export interface PropertyApi {
@@ -67,7 +68,8 @@ export interface PropertyClientContractApi {
 
 export interface PropertyWorkspaceApi { retrievePropertyWorkspace(propertyId: string): Promise<PropertyWorkspace>; }
 export interface PropertyAmenityApi { retrieveAmenityCatalog(): Promise<{ readonly items: readonly Amenity[] }>; retrievePropertyAmenities(propertyId: string): Promise<{ readonly amenityCodes: readonly string[] }>; replacePropertyAmenities(propertyId: string, amenityCodes: readonly string[]): Promise<{ readonly amenityCodes: readonly string[] }>; }
-export type PropertyManagementApi = PropertyApi & PropertyClientContractApi & PropertyWorkspaceApi & PropertyAmenityApi;
+export interface PropertyInquiryApi{listPropertyInquiries(propertyId:string,cursor?:string):Promise<PropertyInquiryPage>;acknowledgePropertyInquiry(propertyId:string,inquiryId:string):Promise<PropertyInquiry>;closePropertyInquiry(propertyId:string,inquiryId:string):Promise<PropertyInquiry>;}
+export type PropertyManagementApi = PropertyApi & PropertyClientContractApi & PropertyWorkspaceApi & PropertyAmenityApi & PropertyInquiryApi;
 
 export function createPropertyApi(tokens: AccessTokenProvider): PropertyManagementApi {
   const request = createAuthenticatedApiClient(tokens);
@@ -109,6 +111,9 @@ export function createPropertyApi(tokens: AccessTokenProvider): PropertyManageme
     retrieveAmenityCatalog: () => request<{ readonly items: readonly Amenity[] }>("/v1/amenities"),
     retrievePropertyAmenities: (propertyId) => request<{ readonly amenityCodes: readonly string[] }>(`/v1/properties/${encodeURIComponent(propertyId)}/amenities`),
     replacePropertyAmenities: (propertyId, amenityCodes) => request<{ readonly amenityCodes: readonly string[] }>(`/v1/properties/${encodeURIComponent(propertyId)}/amenities`, { method: "PUT", body: { amenityCodes } }),
+    listPropertyInquiries:(propertyId,cursor)=>request<PropertyInquiryPage>(inquiryPath(propertyId,undefined,cursor)),
+    acknowledgePropertyInquiry:(propertyId,inquiryId)=>request<PropertyInquiry>(`${inquiryPath(propertyId,inquiryId)}/acknowledgement`,{method:"PUT"}),
+    closePropertyInquiry:(propertyId,inquiryId)=>request<PropertyInquiry>(`${inquiryPath(propertyId,inquiryId)}/closure`,{method:"PUT"}),
     listPropertyPhotos: (propertyId) => request<{ readonly photos: readonly PropertyPhoto[] }>(
       `/v1/properties/${encodeURIComponent(propertyId)}/photos`,
     ),
@@ -176,6 +181,7 @@ export function createPropertyApi(tokens: AccessTokenProvider): PropertyManageme
     ),
   };
 }
+function inquiryPath(propertyId:string,inquiryId?:string,cursor?:string):`/v1/${string}`{const base=`/v1/properties/${encodeURIComponent(propertyId)}/inquiries${inquiryId?`/${encodeURIComponent(inquiryId)}`:""}` as `/v1/${string}`;return cursor?`${base}?limit=20&cursor=${encodeURIComponent(cursor)}`:base;}
 
 function contractPath(propertyId: string, contractId?: string, cursor?: string): `/v1/${string}` {
   const base = `/v1/properties/${encodeURIComponent(propertyId)}/contracts${contractId === undefined ? "" : `/${encodeURIComponent(contractId)}`}` as `/v1/${string}`;

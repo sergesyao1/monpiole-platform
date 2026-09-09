@@ -128,6 +128,15 @@ function businessProblem(exception: unknown) {
     status: 400, type: "https://api.monpiole.example/problems/invalid-request",
     title: "Invalid request", code: "INVALID_REQUEST",
   };
+  if (code === "INVALID_PROPERTY_INQUIRY_INPUT" || code === "INVALID_PROPERTY_INQUIRY_LIST") return {
+    status: 400, type: "https://api.monpiole.example/problems/invalid-request", title: "Invalid request", code: "INVALID_REQUEST",
+  };
+  if (code === "PROPERTY_INQUIRY_NOT_FOUND") return {
+    status: 404, type: "https://api.monpiole.example/problems/property-inquiry-not-found", title: "Property inquiry not found", code,
+  };
+  if (code === "PROPERTY_INQUIRY_TRANSITION_NOT_ALLOWED") return {
+    status: 409, type: "https://api.monpiole.example/problems/property-inquiry-conflict", title: "Property inquiry conflict", code,
+  };
   if (code === "PROPERTY_NOT_FOUND") return {
     status: 404, type: "https://api.monpiole.example/problems/property-not-found",
     title: "Property not found", code: "PROPERTY_NOT_FOUND",

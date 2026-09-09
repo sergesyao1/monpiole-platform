@@ -479,3 +479,22 @@ export const propertyContracts = propertyManagement.table("property_contracts", 
     withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
   }),
 ]).enableRLS();
+
+export const propertyInquiries = propertyManagement.table("property_inquiries", {
+  inquiryId: uuid("inquiry_id").primaryKey(), tenantId: uuid("tenant_id").notNull(), propertyId: uuid("property_id").notNull(),
+  contactName: text("contact_name").notNull(), email: text("email"), phoneNumber: text("phone_number"), message: text("message"),
+  consentVersion: text("consent_version").notNull(), consentGivenAt: timestamp("consent_given_at", { withTimezone: true, mode: "string" }).notNull(),
+  idempotencyKey: text("idempotency_key").notNull(), status: text("status").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(), updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
+  correlationId: uuid("correlation_id").notNull(), actorId: text("actor_id").notNull(),
+  acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true, mode: "string" }), closedAt: timestamp("closed_at", { withTimezone: true, mode: "string" }),
+}, (table) => [
+  uniqueIndex("property_inquiries_tenant_inquiry_unique").on(table.tenantId, table.inquiryId),
+  uniqueIndex("property_inquiries_tenant_property_idempotency_unique").on(table.tenantId, table.propertyId, table.idempotencyKey),
+  foreignKey({ name: "property_inquiries_property_tenant_fk", columns: [table.tenantId, table.propertyId], foreignColumns: [properties.tenantId, properties.propertyId] }),
+  index("property_inquiries_tenant_property_created_idx").on(table.tenantId, table.propertyId, table.createdAt.desc(), table.inquiryId.desc()),
+  check("property_inquiries_contact_check", sql`char_length(btrim(${table.contactName})) BETWEEN 1 AND 200 AND (${table.email} IS NOT NULL OR ${table.phoneNumber} IS NOT NULL) AND (${table.email} IS NULL OR (char_length(${table.email}) BETWEEN 3 AND 320 AND ${table.email} = lower(${table.email}) AND ${table.email} ~ '^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$')) AND (${table.phoneNumber} IS NULL OR char_length(btrim(${table.phoneNumber})) BETWEEN 1 AND 100) AND (${table.message} IS NULL OR char_length(btrim(${table.message})) BETWEEN 1 AND 2000)`),
+  check("property_inquiries_consent_check", sql`char_length(btrim(${table.consentVersion})) BETWEEN 1 AND 50 AND char_length(btrim(${table.idempotencyKey})) BETWEEN 1 AND 100`),
+  check("property_inquiries_lifecycle_check", sql`(${table.status}='NEW' AND ${table.acknowledgedAt} IS NULL AND ${table.closedAt} IS NULL) OR (${table.status}='ACKNOWLEDGED' AND ${table.acknowledgedAt} IS NOT NULL AND ${table.closedAt} IS NULL) OR (${table.status}='CLOSED' AND ${table.closedAt} IS NOT NULL)`),
+  pgPolicy("property_inquiries_tenant_isolation", { using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`, withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid` }),
+]).enableRLS();

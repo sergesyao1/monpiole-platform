@@ -163,3 +163,7 @@ export { PostgresPropertyCompositionRepository } from "./infrastructure/persiste
 export { PostgresPropertyClientRepository } from "./infrastructure/persistence/postgres/postgres-property-client-repository.js";
 export { PostgresPropertyContractRepository } from "./infrastructure/persistence/postgres/postgres-property-contract-repository.js";
 export { PostgresPropertyWorkspaceSummaryQuery } from "./infrastructure/persistence/postgres/postgres-property-workspace-summary-query.js";
+export { PropertyInquiry, InvalidPropertyInquiryInputError, PropertyInquiryTransitionNotAllowedError, PROPERTY_INQUIRY_STATUSES, type PropertyInquiryValues, type PropertyInquiryStatus } from "./domain/property-inquiry.js";
+export { SubmitPublicPropertyInquiry, ListPropertyInquiries, RetrievePropertyInquiry, AcknowledgePropertyInquiry, ClosePropertyInquiry, PropertyInquiryNotFoundError, InvalidPropertyInquiryListError } from "./application/manage-property-inquiries.js";
+export type { PropertyInquiryRepository, PropertyInquiryCursor, PropertyInquiryPage } from "./application/property-inquiry-repository.js";
+export { PostgresPropertyInquiryRepository } from "./infrastructure/persistence/postgres/postgres-property-inquiry-repository.js";

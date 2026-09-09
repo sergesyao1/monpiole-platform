@@ -270,6 +270,9 @@ export interface PropertyClientDirectoryPage {
 
 export type PropertyContractType = "LEASE" | "MANAGEMENT" | "OTHER";
 export type PropertyContractStatus = "DRAFT" | "ACTIVE" | "ENDED" | "CANCELLED";
+export type PropertyInquiryStatus="NEW"|"ACKNOWLEDGED"|"CLOSED";
+export interface PropertyInquiry{readonly inquiryId:string;readonly propertyId:string;readonly contactName:string;readonly email?:string;readonly phoneNumber?:string;readonly message?:string;readonly consentVersion:string;readonly consentGivenAt:string;readonly status:PropertyInquiryStatus;readonly createdAt:string;readonly updatedAt:string;readonly acknowledgedAt?:string;readonly closedAt?:string;}
+export interface PropertyInquiryPage{readonly items:readonly PropertyInquiry[];readonly pageInfo:{readonly hasNextPage:boolean;readonly nextCursor:string|null};}
 export interface PropertyContractInput {
   readonly clientId: string;
   readonly contractType: PropertyContractType;
