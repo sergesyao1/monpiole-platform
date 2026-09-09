@@ -5,6 +5,12 @@ import { describe, expect, it, vi } from "vitest";
 import type { PropertyApi } from "./property-api.js";
 import { geolocationInputFromForm, PropertyGeolocationSection } from "./PropertyGeolocationSection.js";
 
+vi.mock("./PropertyGeolocationMap.js", () => ({
+  PropertyGeolocationMap: ({ latitude, longitude, onPositionChange }: { latitude: string; longitude: string; onPositionChange: (latitude: number, longitude: number) => void }) => (
+    <button type="button" aria-label="Carte de prévisualisation" data-latitude={latitude} data-longitude={longitude} onClick={() => onPositionChange(5.336, -4.027)}>Déplacer le marqueur</button>
+  ),
+}));
+
 const PROPERTY_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const PARENT_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 
@@ -29,7 +35,8 @@ describe("Property geolocation Web", () => {
     expect(screen.getByLabelText("Latitude")).toHaveValue("");
     expect(screen.getByLabelText("Longitude")).toHaveValue("");
     expect(screen.getByLabelText("Visibilité de la position")).toHaveValue("HIDDEN");
-    expect(screen.getByText(/Aucune carte ni service externe/)).toBeVisible();
+    expect(screen.getByText(/La carte permet de prévisualiser/)).toBeVisible();
+    expect(screen.getByLabelText("Carte de prévisualisation")).toHaveAttribute("data-latitude", "");
   });
 
   it("normalizes decimal commas and saves an approximate own position", async () => {
@@ -53,6 +60,29 @@ describe("Property geolocation Web", () => {
     fireEvent.click(screen.getByRole("button", { name: "Enregistrer la géolocalisation" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("six décimales");
     expect(api.updatePropertyGeolocation).not.toHaveBeenCalled();
+  });
+
+  it("synchronizes valid fields and a dragged marker without saving automatically", async () => {
+    const api = client({ configured: true, source: "OWN", latitude: 5.336789, longitude: -4.027123, publicVisibility: "HIDDEN" });
+    show(api);
+    const map = await screen.findByLabelText("Carte de prévisualisation");
+    expect(map).toHaveAttribute("data-latitude", "5.336789");
+    fireEvent.change(screen.getByLabelText("Latitude"), { target: { value: "6.123456" } });
+    expect(map).toHaveAttribute("data-latitude", "6.123456");
+    fireEvent.click(map);
+    expect(screen.getByLabelText("Latitude")).toHaveValue("5.336000");
+    expect(screen.getByLabelText("Longitude")).toHaveValue("-4.027000");
+    expect(api.updatePropertyGeolocation).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer la géolocalisation" }));
+    await waitFor(() => expect(api.updatePropertyGeolocation).toHaveBeenCalledWith(PROPERTY_ID, { latitude: 5.336, longitude: -4.027, publicVisibility: "HIDDEN" }));
+  });
+
+  it("keeps invalid coordinates editable without breaking the map area", async () => {
+    show();
+    await screen.findByText("Aucune géolocalisation n’est enregistrée pour ce bien.");
+    fireEvent.change(screen.getByLabelText("Latitude"), { target: { value: "NaN" } });
+    expect(screen.getByLabelText("Latitude")).toHaveValue("NaN");
+    expect(screen.getByLabelText("Carte de prévisualisation")).toHaveAttribute("data-latitude", "NaN");
   });
 
   it("requires confirmation for exact publication intent", async () => {

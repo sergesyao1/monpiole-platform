@@ -9,6 +9,7 @@ import {
   type PropertyGeolocationPublicVisibility,
 } from "./property-model.js";
 import { PropertyFeedback } from "./PropertyFeedback.js";
+import { PropertyGeolocationMap } from "./PropertyGeolocationMap.js";
 import { Alert, Button, Field, LoadingState, buttonClassName } from "../../ui/index.js";
 
 interface PropertyGeolocationSectionProps {
@@ -26,6 +27,8 @@ export function PropertyGeolocationSection({ propertyId, api, onReconnect }: Pro
   const [validation, setValidation] = useState<string>();
   const [error, setError] = useState<PropertyUiError>();
   const [reload, setReload] = useState(0);
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -34,7 +37,10 @@ export function PropertyGeolocationSection({ propertyId, api, onReconnect }: Pro
     void api.retrievePropertyGeolocation(propertyId)
       .then((value) => {
         if (!active) return;
-        setGeolocation(validResponse(value) ? value : { configured: false, source: "OWN" });
+        const next = validResponse(value) ? value : { configured: false, source: "OWN" } as const;
+        setGeolocation(next);
+        setLatitude(next.configured ? formatCoordinate(next.latitude) : "");
+        setLongitude(next.configured ? formatCoordinate(next.longitude) : "");
       })
       .catch((caught: unknown) => { if (active) setError(toPropertyUiError(caught)); })
       .finally(() => { if (active) setLoading(false); });
@@ -52,7 +58,12 @@ export function PropertyGeolocationSection({ propertyId, api, onReconnect }: Pro
       && !window.confirm("La position exacte pourra être utilisée publiquement lors d’une future activation. Confirmer ce choix ?")) return;
     setSaving(true); setSaved(false); setValidation(undefined); setError(undefined);
     try {
-      setGeolocation(await api.updatePropertyGeolocation(propertyId, input));
+      const updated = await api.updatePropertyGeolocation(propertyId, input);
+      setGeolocation(updated);
+      if (updated.configured) {
+        setLatitude(formatCoordinate(updated.latitude));
+        setLongitude(formatCoordinate(updated.longitude));
+      }
       setSaved(true);
     } catch (caught) {
       setError(toPropertyUiError(caught));
@@ -67,6 +78,7 @@ export function PropertyGeolocationSection({ propertyId, api, onReconnect }: Pro
     try {
       await api.removePropertyGeolocation(propertyId);
       setGeolocation({ configured: false, source: "OWN" });
+      setLatitude(""); setLongitude("");
       setSaved(true);
     } catch (caught) {
       setError(toPropertyUiError(caught));
@@ -95,15 +107,16 @@ export function PropertyGeolocationSection({ propertyId, api, onReconnect }: Pro
         <form className="form-stack" onSubmit={(event) => void save(event)} key={formKey(geolocation)} noValidate>
           {!geolocation.configured && <p role="status">Aucune géolocalisation n’est enregistrée pour ce bien.</p>}
           <div className="form-grid">
-            <Field label="Latitude"><input name="latitude" required inputMode="decimal" placeholder="5.336000" defaultValue={geolocation.configured ? formatCoordinate(geolocation.latitude) : ""} /></Field>
-            <Field label="Longitude"><input name="longitude" required inputMode="decimal" placeholder="-4.027000" defaultValue={geolocation.configured ? formatCoordinate(geolocation.longitude) : ""} /></Field>
+            <Field label="Latitude"><input name="latitude" required inputMode="decimal" placeholder="5.336000" value={latitude} onChange={(event) => setLatitude(event.currentTarget.value)} /></Field>
+            <Field label="Longitude"><input name="longitude" required inputMode="decimal" placeholder="-4.027000" value={longitude} onChange={(event) => setLongitude(event.currentTarget.value)} /></Field>
             <Field label="Visibilité de la position" help="La position approximative utilise une grille stable d’environ un kilomètre."><select name="publicVisibility" defaultValue={geolocation.configured ? geolocation.publicVisibility : "HIDDEN"}>
               <option value="EXACT">Position exacte</option>
               <option value="APPROXIMATE">Position approximative</option>
               <option value="HIDDEN">Masquer la position</option>
             </select></Field>
           </div>
-          <p className="field-help">Aucune carte ni service externe n’est appelé.</p>
+          <PropertyGeolocationMap latitude={latitude} longitude={longitude} onPositionChange={(nextLatitude, nextLongitude) => { setLatitude(formatCoordinate(nextLatitude)); setLongitude(formatCoordinate(nextLongitude)); }} />
+          <p className="field-help">La carte permet de prévisualiser la position du bien avant son enregistrement. Déplacez le marqueur pour ajuster la position.</p>
           {validation && <Alert tone="danger" title="Coordonnées invalides"><p>{validation}</p></Alert>}
           {saved && <Alert tone="success" title="Géolocalisation à jour"><p>La décision de confidentialité a été enregistrée.</p></Alert>}
           <div className="form-actions">

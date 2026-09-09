@@ -180,6 +180,11 @@
 .ui-field__label { display: inline-flex; gap: var(--space-1); align-items: baseline; }
 .ui-field__required { color: var(--color-danger-800); }
 .ui-field__description, .field-help, .form-help { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-sm); font-weight: var(--font-weight-regular); line-height: 1.45; }
+
+.property-geolocation-map, .property-geolocation-map-placeholder { width: 100%; min-height: 22rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+.property-geolocation-map__canvas { width: 100%; height: 24rem; }
+.property-geolocation-map-placeholder { display: grid; place-items: center; padding: var(--space-5); color: var(--color-text-muted); background: var(--color-surface-subtle); text-align: center; }
+@media (max-width: 48rem) { .property-geolocation-map, .property-geolocation-map-placeholder { min-height: 18rem; } .property-geolocation-map__canvas { height: 18rem; } }
 .ui-field__error, .field-error { margin: 0; color: var(--color-danger-800); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
 
 input, select, textarea {
