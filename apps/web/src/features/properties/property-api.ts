@@ -10,6 +10,7 @@ import type {
   PropertyPricingInput,
   PropertyClient, PropertyClientDirectoryPage, PropertyClientInput,
   PropertyContract, PropertyContractDirectoryPage, PropertyContractInput, PropertyWorkspace,
+  Amenity,
 } from "./property-model.js";
 
 export interface PropertyApi {
@@ -65,7 +66,8 @@ export interface PropertyClientContractApi {
 }
 
 export interface PropertyWorkspaceApi { retrievePropertyWorkspace(propertyId: string): Promise<PropertyWorkspace>; }
-export type PropertyManagementApi = PropertyApi & PropertyClientContractApi & PropertyWorkspaceApi;
+export interface PropertyAmenityApi { retrieveAmenityCatalog(): Promise<{ readonly items: readonly Amenity[] }>; retrievePropertyAmenities(propertyId: string): Promise<{ readonly amenityCodes: readonly string[] }>; replacePropertyAmenities(propertyId: string, amenityCodes: readonly string[]): Promise<{ readonly amenityCodes: readonly string[] }>; }
+export type PropertyManagementApi = PropertyApi & PropertyClientContractApi & PropertyWorkspaceApi & PropertyAmenityApi;
 
 export function createPropertyApi(tokens: AccessTokenProvider): PropertyManagementApi {
   const request = createAuthenticatedApiClient(tokens);
@@ -104,6 +106,9 @@ export function createPropertyApi(tokens: AccessTokenProvider): PropertyManageme
     updatePropertyAvailability: (propertyId, input) => request<PropertyAvailability>(
       `/v1/properties/${encodeURIComponent(propertyId)}/availability`, { method: "PUT", body: input },
     ),
+    retrieveAmenityCatalog: () => request<{ readonly items: readonly Amenity[] }>("/v1/amenities"),
+    retrievePropertyAmenities: (propertyId) => request<{ readonly amenityCodes: readonly string[] }>(`/v1/properties/${encodeURIComponent(propertyId)}/amenities`),
+    replacePropertyAmenities: (propertyId, amenityCodes) => request<{ readonly amenityCodes: readonly string[] }>(`/v1/properties/${encodeURIComponent(propertyId)}/amenities`, { method: "PUT", body: { amenityCodes } }),
     listPropertyPhotos: (propertyId) => request<{ readonly photos: readonly PropertyPhoto[] }>(
       `/v1/properties/${encodeURIComponent(propertyId)}/photos`,
     ),

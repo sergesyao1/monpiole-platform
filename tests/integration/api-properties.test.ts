@@ -55,7 +55,7 @@ class MemoryPublicPropertyCatalog implements PublicPropertyCatalogQuery {
     const item = toPublicItem(property);
     if (item === undefined) return undefined;
     return {
-      ...item, description: property.values.description ?? null, details: property.values.details ?? {},
+      ...item, description: property.values.description ?? null, details: property.values.details ?? {}, amenities: [],
       gallery: (property.values.photos ?? []).map((photo) => ({
         mediaId: photo.photoId, kind: photo.mediaKind, category: photo.category,
         position: photo.position, isPrimary: photo.isPrimary, contentType: photo.contentType,

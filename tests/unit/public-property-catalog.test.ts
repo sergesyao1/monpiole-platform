@@ -28,6 +28,7 @@ function detail(): PublicPropertyCatalogDetail {
     commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 125_000_000, agencyFeeAmountMinor: 5_000_000 },
     primaryPhoto: { contentType: "image/webp" },
     publishedAt: PUBLISHED_AT,
+    amenities: [],
     gallery: [{
       mediaId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", kind: "IMAGE",
       category: "BUILDING_EXTERIOR_OR_ENTRANCE", position: 0, isPrimary: true, contentType: "image/webp",

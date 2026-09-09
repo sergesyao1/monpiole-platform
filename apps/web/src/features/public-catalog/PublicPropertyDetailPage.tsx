@@ -94,6 +94,7 @@ function PublicPropertyDetailView({ property, backPath }: Readonly<{ property: P
           {property.details.furnished !== undefined ? <div><dt>Meublé</dt><dd>{property.details.furnished ? "Oui" : "Non"}</dd></div> : null}
         </dl></section>
         <section><h2>Conditions financières</h2><PublicPricingDetails terms={property.commercialTerms} /></section>
+        {property.amenities.length>0?<section><h2>Commodités et équipements</h2><ul className="public-amenities">{property.amenities.map((amenity)=><li key={amenity.code}>{amenity.labelFr}</li>)}</ul></section>:null}
       </div>
     </article>
   );

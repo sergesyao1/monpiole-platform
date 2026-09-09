@@ -149,6 +149,9 @@ export {
 export { PostgresPropertyRepository } from "./infrastructure/persistence/postgres/postgres-property-repository.js";
 export { PostgresPropertyAvailabilityQuery } from "./infrastructure/persistence/postgres/postgres-property-availability-query.js";
 export { PostgresPropertyGeolocationRepository } from "./infrastructure/persistence/postgres/postgres-property-geolocation-repository.js";
+export { AMENITIES, AMENITY_CATEGORIES, amenityCatalog, validateAmenityCodes, InvalidPropertyAmenitiesError, type Amenity, type AmenityCode, type AmenityCategory } from "./domain/property-amenity.js";
+export { RetrieveAmenityCatalog, RetrievePropertyAmenities, ReplacePropertyAmenities, type PropertyAmenityRepository } from "./application/property-amenities.js";
+export { PostgresPropertyAmenityRepository } from "./infrastructure/persistence/postgres/postgres-property-amenity-repository.js";
 export { PostgresPropertyPhotoRepository } from "./infrastructure/persistence/postgres/postgres-property-photo-repository.js";
 export { PostgresPropertyPhotoStandardRepository } from "./infrastructure/persistence/postgres/postgres-property-photo-standard-repository.js";
 export { PostgresPropertyPortfolioQuery } from "./infrastructure/persistence/postgres/postgres-property-portfolio-query.js";

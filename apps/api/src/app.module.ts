@@ -14,6 +14,7 @@ import type {
   CreatePropertyClient, ListPropertyClients, RetrievePropertyClient,
   CreatePropertyContract, ListPropertyContracts, RetrievePropertyContract, UpdatePropertyContract,
   ActivatePropertyContract, EndPropertyContract, CancelPropertyContract, RetrievePropertyWorkspace,
+  RetrieveAmenityCatalog, RetrievePropertyAmenities, ReplacePropertyAmenities,
 } from "@monpiole/property-management";
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core";
 import {
@@ -95,6 +96,7 @@ import {
 import {
   RETRIEVE_PROPERTY_WORKSPACE_USE_CASE, PropertyWorkspaceController,
 } from "./http/properties/property-workspace.controller.js";
+import { PropertyAmenitiesController, REPLACE_PROPERTY_AMENITIES, RETRIEVE_AMENITY_CATALOG, RETRIEVE_PROPERTY_AMENITIES } from "./http/properties/property-amenities.controller.js";
 
 const StrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
@@ -139,6 +141,9 @@ export interface ApiComposition {
   readonly endPropertyContract?: Pick<EndPropertyContract, "execute">;
   readonly cancelPropertyContract?: Pick<CancelPropertyContract, "execute">;
   readonly retrievePropertyWorkspace?: Pick<RetrievePropertyWorkspace, "execute">;
+  readonly retrieveAmenityCatalog?: Pick<RetrieveAmenityCatalog, "execute">;
+  readonly retrievePropertyAmenities?: Pick<RetrievePropertyAmenities, "execute">;
+  readonly replacePropertyAmenities?: Pick<ReplacePropertyAmenities, "execute">;
   readonly publicCatalogTenantResolver?: PublicCatalogTenantResolver;
   readonly listPublicProperties?: Pick<ListPublicProperties, "execute">;
   readonly retrievePublicProperty?: Pick<RetrievePublicProperty, "execute">;
@@ -184,6 +189,7 @@ const unavailableCreateProperty: Pick<CreateProperty, "execute"> = { async execu
 const unavailableRetrieveProperty: Pick<RetrieveProperty, "execute"> = { async execute() { throw new Error("Retrieve Property composition is unavailable"); } };
 const unavailableListProperties: Pick<ListProperties, "execute"> = { async execute() { throw new Error("List Properties composition is unavailable"); } };
 const unavailableUpdatePropertyDetails: Pick<UpdatePropertyDetails, "execute"> = { async execute() { throw new Error("Update Property Details composition is unavailable"); } };
+const unavailableAmenityOperation = { async execute() { throw new Error("Property amenities composition is unavailable"); } };
 const unavailableSetPropertyPricing: Pick<SetPropertyPricing, "execute"> = { async execute() { throw new Error("Set Property Pricing composition is unavailable"); } };
 const unavailableUpdatePropertyCoreInformation: Pick<UpdatePropertyCoreInformation, "execute"> = { async execute() { throw new Error("Update Property Core Information composition is unavailable"); } };
 const unavailablePublishProperty: Pick<PublishProperty, "execute"> = { async execute() { throw new Error("Publish Property composition is unavailable"); } };
@@ -230,7 +236,7 @@ export class AppModule {
         CreatePropertyController, ListPropertiesController, RetrievePropertyController,
         UpdatePropertyCoreInformationController, UpdatePropertyDetailsController, SetPropertyPricingController,
         PublishPropertyController,
-        PropertyPhotosController, PropertyPhotoStandardController, PropertyGeolocationController, PropertyAvailabilityController,
+        PropertyPhotosController, PropertyPhotoStandardController, PropertyGeolocationController, PropertyAvailabilityController, PropertyAmenitiesController,
         PublicPropertiesController,
         CreatePropertyOwnerController, ListPropertyOwnersController, RetrievePropertyOwnerController, UpdatePropertyOwnerController,
         AssignPropertyOwnerController, RetrievePropertyOwnershipsController, RemovePropertyOwnerController, PropertyCompositionController,
@@ -263,6 +269,9 @@ export class AppModule {
         { provide: RETRIEVE_PROPERTY_USE_CASE, useValue: composition.retrieveProperty ?? unavailableRetrieveProperty },
         { provide: LIST_PROPERTIES_USE_CASE, useValue: composition.listProperties ?? unavailableListProperties },
         { provide: UPDATE_PROPERTY_DETAILS_USE_CASE, useValue: composition.updatePropertyDetails ?? unavailableUpdatePropertyDetails },
+        { provide: RETRIEVE_AMENITY_CATALOG, useValue: composition.retrieveAmenityCatalog ?? unavailableAmenityOperation },
+        { provide: RETRIEVE_PROPERTY_AMENITIES, useValue: composition.retrievePropertyAmenities ?? unavailableAmenityOperation },
+        { provide: REPLACE_PROPERTY_AMENITIES, useValue: composition.replacePropertyAmenities ?? unavailableAmenityOperation },
         { provide: SET_PROPERTY_PRICING_USE_CASE, useValue: composition.setPropertyPricing ?? unavailableSetPropertyPricing },
         { provide: UPDATE_PROPERTY_CORE_INFORMATION_USE_CASE, useValue: composition.updatePropertyCoreInformation ?? unavailableUpdatePropertyCoreInformation },
         { provide: PUBLISH_PROPERTY_USE_CASE, useValue: composition.publishProperty ?? unavailablePublishProperty },

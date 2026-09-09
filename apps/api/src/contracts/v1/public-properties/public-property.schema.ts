@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AmenitySchema } from "../properties/property-amenity.schema.js";
 
 const InstantSchema = z.iso.datetime({ offset: false }).refine((value) => value.endsWith("Z"));
 export const PublicPropertyIdSchema = z.uuid().meta({ id: "PublicPropertyId" });
@@ -73,6 +74,7 @@ export const PublicPropertyDetailSchema = z.object({
   description: z.string().max(5_000).nullable(),
   details: PublicPropertyDetailsSchema,
   gallery: z.array(PublicPropertyMediaSchema),
+  amenities: z.array(AmenitySchema),
 }).strict().meta({ id: "PublicPropertyDetail" });
 export const PublicPropertyCatalogResponseSchema = z.object({
   items: z.array(PublicPropertySummarySchema),

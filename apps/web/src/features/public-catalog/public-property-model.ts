@@ -82,6 +82,7 @@ export interface PublicPropertyDetail extends PublicPropertySummary {
   readonly description: string | null;
   readonly details: PublicPropertyDetails;
   readonly gallery: readonly PublicPropertyMedia[];
+  readonly amenities: readonly { readonly code: string; readonly category: string; readonly labelFr: string; readonly displayOrder: number }[];
 }
 
 export interface PublicPropertyCatalogPage {

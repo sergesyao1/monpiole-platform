@@ -21,6 +21,7 @@ import {
   ListPublicProperties, RetrievePublicProperty, RetrievePublicPrimaryPhoto, RetrievePublicPropertyMedia, PostgresPublicPropertyCatalogQuery,
   PostgresPropertyGeolocationRepository, RetrievePropertyGeolocation,
   UpdatePropertyGeolocation, RemovePropertyGeolocation,
+  PostgresPropertyAmenityRepository, RetrieveAmenityCatalog, RetrievePropertyAmenities, ReplacePropertyAmenities,
   PostgresPropertyAvailabilityQuery, RetrievePropertyAvailability, UpdatePropertyAvailability,
   PostgresPropertyClientRepository, CreatePropertyClient, ListPropertyClients, RetrievePropertyClient,
   PostgresPropertyContractRepository, CreatePropertyContract, ListPropertyContracts, RetrievePropertyContract,
@@ -84,6 +85,7 @@ export function createPostgresApiRuntime(
   const propertyOwnershipRepository = new PostgresPropertyOwnershipRepository(pool);
   const propertyCompositionRepository = new PostgresPropertyCompositionRepository(pool);
   const propertyGeolocationRepository = new PostgresPropertyGeolocationRepository(pool);
+  const propertyAmenityRepository = new PostgresPropertyAmenityRepository(pool);
   const propertyAvailabilityQuery = new PostgresPropertyAvailabilityQuery(pool);
   const propertyClientRepository = new PostgresPropertyClientRepository(pool);
   const propertyContractRepository = new PostgresPropertyContractRepository(pool);
@@ -129,6 +131,9 @@ export function createPostgresApiRuntime(
     retrievePropertyGeolocation: new RetrievePropertyGeolocation(propertyGeolocationRepository),
     updatePropertyGeolocation: new UpdatePropertyGeolocation(propertyGeolocationRepository, { now: () => new Date().toISOString() }),
     removePropertyGeolocation: new RemovePropertyGeolocation(propertyGeolocationRepository),
+    retrieveAmenityCatalog: new RetrieveAmenityCatalog(),
+    retrievePropertyAmenities: new RetrievePropertyAmenities(propertyAmenityRepository),
+    replacePropertyAmenities: new ReplacePropertyAmenities(propertyAmenityRepository, compositionClock),
     retrievePropertyAvailability: new RetrievePropertyAvailability(propertyAvailabilityQuery),
     updatePropertyAvailability: new UpdatePropertyAvailability(propertyRepository, { now: () => new Date().toISOString() }),
     createPropertyClient: new CreatePropertyClient(propertyClientRepository, { generate: randomUUID }, compositionClock),

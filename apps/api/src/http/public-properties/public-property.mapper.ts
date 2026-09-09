@@ -42,5 +42,6 @@ export function toPublicPropertyDetail(item: PublicPropertyCatalogDetail): Publi
       ...media,
       url: `/v1/public/properties/${item.publicPropertyId}/media/${media.mediaId}/content`,
     })),
+    amenities: [...item.amenities],
   };
 }

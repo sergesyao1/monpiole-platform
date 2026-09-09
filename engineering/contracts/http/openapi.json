@@ -58,6 +58,100 @@
         ],
         "type": "object"
       },
+      "AmenityCatalogResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "category": {
+                  "enum": [
+                    "BUILDING",
+                    "COMFORT",
+                    "CONNECTIVITY",
+                    "ENERGY_WATER",
+                    "KITCHEN",
+                    "OUTDOOR",
+                    "SECURITY",
+                    "SERVICES"
+                  ],
+                  "type": "string"
+                },
+                "code": {
+                  "enum": [
+                    "ACCESSIBLE_ACCESS",
+                    "AIR_CONDITIONING",
+                    "BACKUP_POWER",
+                    "BALCONY",
+                    "BOREHOLE",
+                    "BREAKFAST",
+                    "CCTV",
+                    "CHILDREN_PLAY_AREA",
+                    "CONCIERGE",
+                    "CONTROLLED_ACCESS",
+                    "COOKTOP",
+                    "COVERED_PARKING",
+                    "ELEVATOR",
+                    "EQUIPPED_KITCHEN",
+                    "ETHERNET",
+                    "FAN",
+                    "FIRE_EXTINGUISHER",
+                    "FREEZER",
+                    "GARDEN",
+                    "GENERATOR",
+                    "HOT_WATER",
+                    "HOUSEKEEPING",
+                    "IRON",
+                    "KITCHENWARE",
+                    "LAUNDRY_SERVICE",
+                    "MICROWAVE",
+                    "OVEN",
+                    "PARKING",
+                    "RECEPTION",
+                    "REFRIGERATOR",
+                    "ROOM_SERVICE",
+                    "SATELLITE_TV",
+                    "SECURITY_GUARD",
+                    "SMOKE_DETECTOR",
+                    "SOLAR_POWER",
+                    "SWIMMING_POOL",
+                    "TELEVISION",
+                    "TERRACE",
+                    "WASHING_MACHINE",
+                    "WATER_HEATER",
+                    "WATER_TANK",
+                    "WIFI"
+                  ],
+                  "type": "string"
+                },
+                "displayOrder": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "labelFr": {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "category",
+                "code",
+                "displayOrder",
+                "labelFr"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "AssignPropertyOwnerRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1002,6 +1096,66 @@
         "format": "uuid",
         "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
         "type": "string"
+      },
+      "PropertyAmenitiesResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "amenityCodes": {
+            "items": {
+              "enum": [
+                "ACCESSIBLE_ACCESS",
+                "AIR_CONDITIONING",
+                "BACKUP_POWER",
+                "BALCONY",
+                "BOREHOLE",
+                "BREAKFAST",
+                "CCTV",
+                "CHILDREN_PLAY_AREA",
+                "CONCIERGE",
+                "CONTROLLED_ACCESS",
+                "COOKTOP",
+                "COVERED_PARKING",
+                "ELEVATOR",
+                "EQUIPPED_KITCHEN",
+                "ETHERNET",
+                "FAN",
+                "FIRE_EXTINGUISHER",
+                "FREEZER",
+                "GARDEN",
+                "GENERATOR",
+                "HOT_WATER",
+                "HOUSEKEEPING",
+                "IRON",
+                "KITCHENWARE",
+                "LAUNDRY_SERVICE",
+                "MICROWAVE",
+                "OVEN",
+                "PARKING",
+                "RECEPTION",
+                "REFRIGERATOR",
+                "ROOM_SERVICE",
+                "SATELLITE_TV",
+                "SECURITY_GUARD",
+                "SMOKE_DETECTOR",
+                "SOLAR_POWER",
+                "SWIMMING_POOL",
+                "TELEVISION",
+                "TERRACE",
+                "WASHING_MACHINE",
+                "WATER_HEATER",
+                "WATER_TANK",
+                "WIFI"
+              ],
+              "type": "string"
+            },
+            "maxItems": 42,
+            "type": "array"
+          }
+        },
+        "required": [
+          "amenityCodes"
+        ],
+        "type": "object"
       },
       "PropertyAvailabilityResponse": {
         "anyOf": [
@@ -3411,6 +3565,91 @@
       "PublicPropertyDetail": {
         "additionalProperties": false,
         "properties": {
+          "amenities": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "category": {
+                  "enum": [
+                    "BUILDING",
+                    "COMFORT",
+                    "CONNECTIVITY",
+                    "ENERGY_WATER",
+                    "KITCHEN",
+                    "OUTDOOR",
+                    "SECURITY",
+                    "SERVICES"
+                  ],
+                  "type": "string"
+                },
+                "code": {
+                  "enum": [
+                    "ACCESSIBLE_ACCESS",
+                    "AIR_CONDITIONING",
+                    "BACKUP_POWER",
+                    "BALCONY",
+                    "BOREHOLE",
+                    "BREAKFAST",
+                    "CCTV",
+                    "CHILDREN_PLAY_AREA",
+                    "CONCIERGE",
+                    "CONTROLLED_ACCESS",
+                    "COOKTOP",
+                    "COVERED_PARKING",
+                    "ELEVATOR",
+                    "EQUIPPED_KITCHEN",
+                    "ETHERNET",
+                    "FAN",
+                    "FIRE_EXTINGUISHER",
+                    "FREEZER",
+                    "GARDEN",
+                    "GENERATOR",
+                    "HOT_WATER",
+                    "HOUSEKEEPING",
+                    "IRON",
+                    "KITCHENWARE",
+                    "LAUNDRY_SERVICE",
+                    "MICROWAVE",
+                    "OVEN",
+                    "PARKING",
+                    "RECEPTION",
+                    "REFRIGERATOR",
+                    "ROOM_SERVICE",
+                    "SATELLITE_TV",
+                    "SECURITY_GUARD",
+                    "SMOKE_DETECTOR",
+                    "SOLAR_POWER",
+                    "SWIMMING_POOL",
+                    "TELEVISION",
+                    "TERRACE",
+                    "WASHING_MACHINE",
+                    "WATER_HEATER",
+                    "WATER_TANK",
+                    "WIFI"
+                  ],
+                  "type": "string"
+                },
+                "displayOrder": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "labelFr": {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "category",
+                "code",
+                "displayOrder",
+                "labelFr"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
           "apartmentSubtype": {
             "enum": [
               "MULTI_ROOM",
@@ -3495,6 +3734,7 @@
           }
         },
         "required": [
+          "amenities",
           "commercialTerms",
           "description",
           "details",
@@ -3773,6 +4013,9 @@
           "photoIds"
         ],
         "type": "object"
+      },
+      "ReplacePropertyAmenitiesRequest": {
+        "$ref": "#/components/schemas/PropertyAmenitiesResponse"
       },
       "RequestId": {
         "format": "uuid",
@@ -4452,6 +4695,33 @@
         ]
       }
     },
+    "/v1/amenities": {
+      "get": {
+        "operationId": "retrieveAmenityCatalog",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AmenityCatalogResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Property amenities"
+        ]
+      }
+    },
     "/v1/authentication/authorization/platform-tenant-creation": {
       "get": {
         "operationId": "probePlatformTenantCreationAuthorization",
@@ -4956,6 +5226,86 @@
         "summary": "Update property title, description and location",
         "tags": [
           "Properties"
+        ]
+      }
+    },
+    "/v1/properties/{propertyId}/amenities": {
+      "get": {
+        "operationId": "retrievePropertyAmenities",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "propertyId",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PropertyId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertyAmenitiesResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Property amenities"
+        ]
+      },
+      "put": {
+        "operationId": "replacePropertyAmenities",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "propertyId",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PropertyId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplacePropertyAmenitiesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertyAmenitiesResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Property amenities"
         ]
       }
     },

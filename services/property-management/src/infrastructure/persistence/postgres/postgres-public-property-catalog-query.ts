@@ -104,9 +104,14 @@ export class PostgresPublicPropertyCatalogQuery implements PublicPropertyCatalog
           AND ph.content_sha256 IS NOT NULL
         ORDER BY ph.gallery_position, ph.photo_id
       `, [tenantId, publicPropertyId]);
+      const amenities = await scope.query<{ code: PublicPropertyCatalogDetail["amenities"][number]["code"]; category: PublicPropertyCatalogDetail["amenities"][number]["category"]; label_fr: string; display_order: number }>(`
+        SELECT code, category, label_fr, display_order FROM property_management.public_property_amenities
+        WHERE property_id=$1::uuid ORDER BY category,display_order
+      `, [publicPropertyId]);
       return {
         ...toCatalogItem(row), description: row.description, details: toDetails(row),
         gallery: galleryRows.map(toPublicMediaReference),
+        amenities: amenities.map((amenity) => ({ code: amenity.code, category: amenity.category, labelFr: amenity.label_fr, displayOrder: amenity.display_order })),
       };
     });
   }

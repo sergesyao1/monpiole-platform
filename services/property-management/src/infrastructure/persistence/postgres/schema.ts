@@ -141,6 +141,22 @@ export const properties = propertyManagement.table("properties", {
   }),
 ]).enableRLS();
 
+export const amenities = propertyManagement.table("amenities", {
+  code: text("code").primaryKey(), category: text("category").notNull(), labelFr: text("label_fr").notNull(),
+  displayOrder: integer("display_order").notNull(), active: boolean("active").notNull().default(true),
+}, (table) => [uniqueIndex("amenities_category_order_unique").on(table.category, table.displayOrder)]);
+
+export const propertyAmenities = propertyManagement.table("property_amenities", {
+  tenantId: uuid("tenant_id").notNull(), propertyId: uuid("property_id").notNull(), amenityCode: text("amenity_code").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(), correlationId: uuid("correlation_id").notNull(), actorId: text("actor_id").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.tenantId, table.propertyId, table.amenityCode] }),
+  foreignKey({ name: "property_amenities_property_tenant_fk", columns: [table.tenantId, table.propertyId], foreignColumns: [properties.tenantId, properties.propertyId] }),
+  foreignKey({ name: "property_amenities_amenity_fk", columns: [table.amenityCode], foreignColumns: [amenities.code] }),
+  index("property_amenities_tenant_property_idx").on(table.tenantId, table.propertyId),
+  pgPolicy("property_amenities_tenant_isolation", { using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`, withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid` }),
+]).enableRLS();
+
 export const propertyGeolocations = propertyManagement.table("property_geolocations", {
   tenantId: uuid("tenant_id").notNull(),
   propertyId: uuid("property_id").notNull(),

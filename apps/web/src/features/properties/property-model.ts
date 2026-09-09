@@ -10,6 +10,8 @@ export type PropertyGeolocationPublicVisibility = "EXACT" | "APPROXIMATE" | "HID
 export type PropertyAvailabilityStatus = "AVAILABLE" | "UNAVAILABLE";
 export type PropertyOccupancyStatus = "VACANT" | "OCCUPIED";
 export type PricingUnit = "NIGHT" | "WEEK";
+export type AmenityCategory = "COMFORT" | "KITCHEN" | "CONNECTIVITY" | "ENERGY_WATER" | "SECURITY" | "BUILDING" | "OUTDOOR" | "SERVICES";
+export interface Amenity { readonly code: string; readonly category: AmenityCategory; readonly labelFr: string; readonly displayOrder: number; }
 export type PropertyPhotoCategory =
   | "BUILDING_EXTERIOR_OR_ENTRANCE"
   | "MAIN_LIVING_SLEEPING_AREA"

@@ -46,7 +46,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
-  await owner.query("TRUNCATE property_management.property_contracts, property_management.property_clients, property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners");
+  await owner.query("TRUNCATE property_management.property_amenities, property_management.property_contracts, property_management.property_clients, property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners");
 });
 
 afterAll(async () => {
@@ -165,7 +165,9 @@ describe("PostgreSQL public Property catalog boundary", () => {
       .toEqual({ owner_member: false, owned_relations: 0 });
     expect((await owner.query(`SELECT table_name, privilege_type
       FROM information_schema.table_privileges
-      WHERE table_schema = 'property_management' AND grantee = 'monpiole_public_catalog_reader'`)).rows).toEqual([]);
+      WHERE table_schema = 'property_management' AND grantee = 'monpiole_public_catalog_reader'`)).rows).toEqual([
+        { table_name: "public_property_amenities", privilege_type: "SELECT" },
+      ]);
     const columnPrivileges = (await owner.query(`SELECT table_name, column_name, privilege_type
       FROM information_schema.column_privileges
       WHERE table_schema = 'property_management' AND grantee = 'monpiole_public_catalog_reader'`)).rows
@@ -182,9 +184,11 @@ describe("PostgreSQL public Property catalog boundary", () => {
       "tenant_id", "property_id", "status", "is_primary", "content_base64", "content_type",
       "content_byte_size", "content_sha256", "photo_id", "category", "media_kind", "gallery_position",
     ];
+    const amenityViewColumns = ["property_id", "code", "category", "label_fr", "display_order"];
     expect(columnPrivileges).toEqual([
       ...propertyColumns.map((column) => `properties.${column}:SELECT`),
       ...photoColumns.map((column) => `property_photos.${column}:SELECT`),
+      ...amenityViewColumns.map((column) => `public_property_amenities.${column}:SELECT`),
     ].sort());
     expect((await reader.query(`SELECT
       has_schema_privilege(current_user, 'property_management', 'USAGE') AS schema_usage,

@@ -5,6 +5,7 @@ import type {
   TransactionType,
 } from "../domain/property.js";
 import type { PropertyPhotoCategory } from "../domain/property-photo.js";
+import type { Amenity } from "../domain/property-amenity.js";
 
 export interface PublicPropertyCatalogCursor {
   readonly publishedAt: string;
@@ -81,6 +82,7 @@ export interface PublicPropertyCatalogDetail extends PublicPropertyCatalogItem {
   readonly description: string | null;
   readonly details: PublicPropertyDetails;
   readonly gallery: readonly PublicPropertyMediaReference[];
+  readonly amenities: readonly Amenity[];
 }
 
 export interface PublicPropertyCatalogCriteria {

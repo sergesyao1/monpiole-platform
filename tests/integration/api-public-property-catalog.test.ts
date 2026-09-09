@@ -42,7 +42,7 @@ function summary(): PublicPropertyCatalogItem {
 
 function detail(): PublicPropertyCatalogDetail {
   return {
-    ...summary(), description: "Vue sur la lagune", details: { rooms: 5, bedrooms: 3, bathrooms: 2 },
+    ...summary(), description: "Vue sur la lagune", details: { rooms: 5, bedrooms: 3, bathrooms: 2 }, amenities: [],
     gallery: [{ mediaId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", kind: "IMAGE", category: "OTHER", position: 0, isPrimary: true, contentType: "image/png" }],
   };
 }

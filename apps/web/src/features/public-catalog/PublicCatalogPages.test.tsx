@@ -106,7 +106,7 @@ describe("public Property catalog Web journey", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json({
       ...property,
       primaryPhoto: null,
-      gallery: [],
+      gallery: [], amenities: [],
       description: "Une maison ouverte sur le jardin.",
       details: { usableSurfaceSquareMeters: 140, rooms: 5, bedrooms: 3, bathrooms: 2, furnished: false },
     })));
@@ -127,7 +127,7 @@ describe("public Property catalog Web journey", () => {
       ...property,
       description: null,
       details: {},
-      gallery: [
+      amenities: [{ code: "WIFI", category: "CONNECTIVITY", labelFr: "Wi-Fi", displayOrder: 14 }], gallery: [
         { mediaId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", kind: "IMAGE", category: "OTHER", position: 0, isPrimary: true,
           url: `/v1/public/properties/${PROPERTY_ID}/media/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/content`, contentType: "image/png" },
         { mediaId: "ffffffff-ffff-4fff-8fff-ffffffffffff", kind: "IMAGE", category: "OTHER", position: 1, isPrimary: false,
@@ -136,6 +136,8 @@ describe("public Property catalog Web journey", () => {
     })));
     renderRoute(`/catalogue/${PROPERTY_ID}`);
     const gallery = await screen.findByRole("list", { name: "Galerie de Maison des Lagunes" });
+    expect(screen.getByRole("heading", { name: "Commodités et équipements" })).toBeVisible();
+    expect(screen.getByText("Wi-Fi")).toBeVisible();
     expect(gallery.querySelectorAll("img")).toHaveLength(2);
     expect(screen.getByAltText("Photo principale 1 de Maison des Lagunes")).toHaveAttribute("src", expect.stringContaining("/media/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/content"));
     expect(screen.getByText("Image principale")).toBeInTheDocument();

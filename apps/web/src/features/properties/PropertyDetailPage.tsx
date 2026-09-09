@@ -19,6 +19,7 @@ import { PropertyPhotoGallery } from "./PropertyPhotoGallery.js";
 import { PropertyGeolocationSection } from "./PropertyGeolocationSection.js";
 import { PropertyAvailabilitySection } from "./PropertyAvailabilitySection.js";
 import { PropertyContractsSection } from "./PropertyContractsSection.js";
+import { PropertyAmenitiesSection } from "./PropertyAmenitiesSection.js";
 import { Alert, LoadingState, PageHeader, StatusBadge, buttonClassName, type BreadcrumbItem, type StatusTone } from "../../ui/index.js";
 
 interface PropertyLocationState {
@@ -130,6 +131,7 @@ export function PropertyDetailPage() {
         <a aria-current={activeSection === "#property-photos" ? "location" : undefined} href="#property-photos">Photos</a>
         <a aria-current={activeSection === "#property-information" ? "location" : undefined} href="#property-information">Informations</a>
         <a aria-current={activeSection === "#property-location" ? "location" : undefined} href="#property-location">Localisation</a>
+        <a aria-current={activeSection === "#property-amenities" ? "location" : undefined} href="#property-amenities">Équipements</a>
         <a aria-current={activeSection === "#property-owners" ? "location" : undefined} href="#property-owners">Propriétaires</a>
         <a aria-current={activeSection === "#property-composition" ? "location" : undefined} href="#property-composition">Composition</a>
       </nav>
@@ -216,6 +218,7 @@ export function PropertyDetailPage() {
           api={api}
           onReconnect={() => void session.login(`/properties/${propertyId}`)}
         /></div>
+      <PropertyAmenitiesSection propertyId={property.propertyId} api={api} onReconnect={() => void session.login(`/properties/${propertyId}`)} />
 
       <div id="property-owners"><PropertyOwnershipSection propertyId={property.propertyId} api={api} initialOwners={workspace.owners} canManage={workspace.capabilities.canManageOwners} onChanged={loadWorkspace} /></div>
       <div id="property-composition"><PropertyCompositionSection property={property} api={api} onStructuralRoleChange={(structuralRole) => { setProperty((current) => current === undefined ? current : { ...current, structuralRole }); void loadWorkspace(); }} /></div>

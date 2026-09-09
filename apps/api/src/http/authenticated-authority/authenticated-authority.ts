@@ -69,6 +69,7 @@ export function toPropertyAuthority(authority: AuthenticatedAuthority): Property
       || grant === "RETRIEVE_PROPERTY_PHOTO_STANDARD" || grant === "MANAGE_PROPERTY_PHOTO_STANDARD"
       || grant === "ASSIGN_PROPERTY_OWNER" || grant === "RETRIEVE_PROPERTY_OWNERSHIP" || grant === "REMOVE_PROPERTY_OWNER"
       || grant === "RETRIEVE_PROPERTY_WORKSPACE"
+      || grant === "RETRIEVE_PROPERTY_AMENITIES" || grant === "UPDATE_PROPERTY_AMENITIES"
       || grant === "CREATE_PROPERTY_CLIENT" || grant === "RETRIEVE_PROPERTY_CLIENTS"
       || grant === "CREATE_PROPERTY_CONTRACT" || grant === "RETRIEVE_PROPERTY_CONTRACTS"
       || grant === "UPDATE_PROPERTY_CONTRACT" || grant === "MANAGE_PROPERTY_CONTRACT_LIFECYCLE"),

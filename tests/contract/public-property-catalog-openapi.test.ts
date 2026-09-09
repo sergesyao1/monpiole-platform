@@ -76,7 +76,7 @@ describe("public Property catalog OpenAPI contract", () => {
       publishedAt: "2026-08-31T10:00:00.000Z",
     };
     expect(PublicPropertyCatalogResponseSchema.safeParse({ items: [summary], pageInfo: { nextCursor: null, hasNextPage: false } }).success).toBe(true);
-    const detail = { ...summary, description: null, details: { rooms: 4 }, gallery: [] };
+    const detail = { ...summary, description: null, details: { rooms: 4 }, gallery: [], amenities: [] };
     expect(PublicPropertyDetailSchema.safeParse(detail).success).toBe(true);
     expect(PublicPropertyDetailSchema.safeParse({ ...detail, tenantId: PROPERTY_ID }).success).toBe(false);
     expect(PublicPropertyDetailSchema.safeParse({ ...detail, withdrawnAt: "2026-09-01T10:00:00.000Z" }).success).toBe(false);
