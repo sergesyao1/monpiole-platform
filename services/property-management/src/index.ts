@@ -167,3 +167,7 @@ export { PropertyInquiry, InvalidPropertyInquiryInputError, PropertyInquiryTrans
 export { SubmitPublicPropertyInquiry, ListPropertyInquiries, RetrievePropertyInquiry, AcknowledgePropertyInquiry, ClosePropertyInquiry, PropertyInquiryNotFoundError, InvalidPropertyInquiryListError } from "./application/manage-property-inquiries.js";
 export type { PropertyInquiryRepository, PropertyInquiryCursor, PropertyInquiryPage } from "./application/property-inquiry-repository.js";
 export { PostgresPropertyInquiryRepository } from "./infrastructure/persistence/postgres/postgres-property-inquiry-repository.js";
+export { PropertyViewing, InvalidPropertyViewingInputError, PropertyViewingTransitionNotAllowedError, PROPERTY_VIEWING_STATUSES, type PropertyViewingValues, type PropertyViewingStatus } from "./domain/property-viewing.js";
+export { SchedulePropertyViewing, RetrievePropertyViewing, RetrieveInquiryViewing, ReschedulePropertyViewing, CompletePropertyViewing, CancelPropertyViewing, PropertyViewingNotFoundError, PropertyViewingInquiryNotEligibleError } from "./application/manage-property-viewings.js";
+export { PropertyViewingConflictError, type PropertyViewingRepository } from "./application/property-viewing-repository.js";
+export { PostgresPropertyViewingRepository } from "./infrastructure/persistence/postgres/postgres-property-viewing-repository.js";

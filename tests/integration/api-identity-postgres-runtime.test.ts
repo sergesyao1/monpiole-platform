@@ -92,7 +92,7 @@ afterEach(async () => {
   runtime = undefined;
   await ownerPool.query("TRUNCATE identity.tenant_memberships, identity.identities CASCADE");
   await ownerPool.query("TRUNCATE tenant_management.outbox, tenant_management.create_tenant_idempotency, tenant_management.tenants CASCADE");
-  await ownerPool.query("TRUNCATE property_management.property_inquiries, property_management.property_amenities, property_management.property_contracts, property_management.property_clients, property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners");
+  await ownerPool.query("TRUNCATE property_management.property_viewings, property_management.property_inquiries, property_management.property_amenities, property_management.property_contracts, property_management.property_clients, property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners");
   authorizedTenantIds.clear();
 });
 

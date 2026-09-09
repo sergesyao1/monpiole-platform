@@ -273,6 +273,9 @@ export type PropertyContractStatus = "DRAFT" | "ACTIVE" | "ENDED" | "CANCELLED";
 export type PropertyInquiryStatus="NEW"|"ACKNOWLEDGED"|"CLOSED";
 export interface PropertyInquiry{readonly inquiryId:string;readonly propertyId:string;readonly contactName:string;readonly email?:string;readonly phoneNumber?:string;readonly message?:string;readonly consentVersion:string;readonly consentGivenAt:string;readonly status:PropertyInquiryStatus;readonly createdAt:string;readonly updatedAt:string;readonly acknowledgedAt?:string;readonly closedAt?:string;}
 export interface PropertyInquiryPage{readonly items:readonly PropertyInquiry[];readonly pageInfo:{readonly hasNextPage:boolean;readonly nextCursor:string|null};}
+export type PropertyViewingStatus="SCHEDULED"|"COMPLETED"|"CANCELLED";
+export interface PropertyViewing{readonly viewingId:string;readonly propertyId:string;readonly inquiryId:string;readonly status:PropertyViewingStatus;readonly startsAt:string;readonly endsAt:string;readonly timeZone:string;readonly createdAt:string;readonly updatedAt:string;readonly completedAt?:string;readonly cancelledAt?:string;}
+export interface PropertyViewingScheduleInput{readonly startsAt:string;readonly endsAt:string;readonly timeZone:string;}
 export interface PropertyContractInput {
   readonly clientId: string;
   readonly contractType: PropertyContractType;

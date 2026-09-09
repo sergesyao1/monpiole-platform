@@ -311,3 +311,6 @@ nouvelles colonnes. Le lecteur public reçoit seulement `SELECT` sur les trois
 champs avancés utiles au catalogue, jamais sur `pricing_version` et jamais de
 droit d'écriture. Les endpoints publics existants exposent les nouvelles
 conditions financières sans adresse exacte, autorité, trace ni version interne.
+# Property viewings
+
+Une visite privée est planifiée depuis une demande `ACKNOWLEDGED`. Le bien et le tenant sont dérivés côté serveur. Une seule visite logique est admise par demande; sa planification, sa replanification, son achèvement et son annulation sont protégés par transaction, verrouillage et RLS PostgreSQL.

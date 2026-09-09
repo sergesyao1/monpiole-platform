@@ -323,3 +323,6 @@ Aucune route publique, aucun filtre `availableOnly`, aucun endpoint d’historiq
 et aucun champ `availableFrom` ne sont ajoutés. Les réponses du catalogue public
 restent des listes blanches sans disponibilité ni occupation et continuent à
 filtrer seulement les Properties `PUBLISHED`.
+# Property viewings
+
+Les routes privées `/v1/properties/{propertyId}/inquiries/{inquiryId}/viewing` et `/v1/properties/{propertyId}/viewings/{viewingId}` exposent la consultation et le cycle de vie des visites. Elles exigent une autorité authentifiée et les grants Property Viewing dédiés; aucun `tenantId` client n’est accepté.

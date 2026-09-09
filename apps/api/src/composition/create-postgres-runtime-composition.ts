@@ -28,6 +28,7 @@ import {
   UpdatePropertyContract, ActivatePropertyContract, EndPropertyContract, CancelPropertyContract,
   PostgresPropertyWorkspaceSummaryQuery, RetrievePropertyWorkspace,
   PostgresPropertyInquiryRepository, SubmitPublicPropertyInquiry, ListPropertyInquiries, RetrievePropertyInquiry, AcknowledgePropertyInquiry, ClosePropertyInquiry,
+  PostgresPropertyViewingRepository, SchedulePropertyViewing, RetrieveInquiryViewing, RetrievePropertyViewing, ReschedulePropertyViewing, CompletePropertyViewing, CancelPropertyViewing,
 } from "@monpiole/property-management";
 import {
   ActivateTenant,
@@ -91,6 +92,7 @@ export function createPostgresApiRuntime(
   const propertyClientRepository = new PostgresPropertyClientRepository(pool);
   const propertyContractRepository = new PostgresPropertyContractRepository(pool);
   const propertyInquiryRepository = new PostgresPropertyInquiryRepository(pool);
+  const propertyViewingRepository = new PostgresPropertyViewingRepository(pool);
   const compositionClock = { now: () => new Date().toISOString() };
   const publicCatalogQuery = publicCatalogDatabase === undefined
     ? undefined
@@ -141,6 +143,12 @@ export function createPostgresApiRuntime(
     retrievePropertyInquiry: new RetrievePropertyInquiry(propertyInquiryRepository),
     acknowledgePropertyInquiry: new AcknowledgePropertyInquiry(propertyInquiryRepository, compositionClock),
     closePropertyInquiry: new ClosePropertyInquiry(propertyInquiryRepository, compositionClock),
+    schedulePropertyViewing: new SchedulePropertyViewing(propertyInquiryRepository, propertyViewingRepository, { generate: randomUUID }, compositionClock),
+    retrieveInquiryViewing: new RetrieveInquiryViewing(propertyViewingRepository),
+    retrievePropertyViewing: new RetrievePropertyViewing(propertyViewingRepository),
+    reschedulePropertyViewing: new ReschedulePropertyViewing(propertyViewingRepository, compositionClock),
+    completePropertyViewing: new CompletePropertyViewing(propertyViewingRepository, compositionClock),
+    cancelPropertyViewing: new CancelPropertyViewing(propertyViewingRepository, compositionClock),
     retrievePropertyAvailability: new RetrievePropertyAvailability(propertyAvailabilityQuery),
     updatePropertyAvailability: new UpdatePropertyAvailability(propertyRepository, { now: () => new Date().toISOString() }),
     createPropertyClient: new CreatePropertyClient(propertyClientRepository, { generate: randomUUID }, compositionClock),
