@@ -17,6 +17,7 @@ import type {
   RetrieveAmenityCatalog, RetrievePropertyAmenities, ReplacePropertyAmenities,
   SubmitPublicPropertyInquiry, ListPropertyInquiries, RetrievePropertyInquiry, AcknowledgePropertyInquiry, ClosePropertyInquiry,
   SchedulePropertyViewing, RetrieveInquiryViewing, RetrievePropertyViewing, ReschedulePropertyViewing, CompletePropertyViewing, CancelPropertyViewing,
+  CreatePropertyViewingOutcome, RetrievePropertyViewingOutcome, ProceedPropertyViewingOutcome, DeclinePropertyViewingOutcome,
 } from "@monpiole/property-management";
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core";
 import {
@@ -101,6 +102,7 @@ import {
 import { PropertyAmenitiesController, REPLACE_PROPERTY_AMENITIES, RETRIEVE_AMENITY_CATALOG, RETRIEVE_PROPERTY_AMENITIES } from "./http/properties/property-amenities.controller.js";
 import { PublicPropertyInquiriesController, PropertyInquiriesController, SUBMIT_PUBLIC_PROPERTY_INQUIRY, LIST_PROPERTY_INQUIRIES, RETRIEVE_PROPERTY_INQUIRY, ACKNOWLEDGE_PROPERTY_INQUIRY, CLOSE_PROPERTY_INQUIRY } from "./http/properties/property-inquiries.controller.js";
 import { PropertyViewingsController, SCHEDULE_PROPERTY_VIEWING, RETRIEVE_INQUIRY_VIEWING, RETRIEVE_PROPERTY_VIEWING, RESCHEDULE_PROPERTY_VIEWING, COMPLETE_PROPERTY_VIEWING, CANCEL_PROPERTY_VIEWING } from "./http/properties/property-viewings.controller.js";
+import { PropertyViewingOutcomesController, CREATE_PROPERTY_VIEWING_OUTCOME, RETRIEVE_PROPERTY_VIEWING_OUTCOME, PROCEED_PROPERTY_VIEWING_OUTCOME, DECLINE_PROPERTY_VIEWING_OUTCOME } from "./http/properties/property-viewing-outcomes.controller.js";
 
 const StrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
@@ -159,6 +161,10 @@ export interface ApiComposition {
   readonly reschedulePropertyViewing?: Pick<ReschedulePropertyViewing, "execute">;
   readonly completePropertyViewing?: Pick<CompletePropertyViewing, "execute">;
   readonly cancelPropertyViewing?: Pick<CancelPropertyViewing, "execute">;
+  readonly createPropertyViewingOutcome?: Pick<CreatePropertyViewingOutcome, "execute">;
+  readonly retrievePropertyViewingOutcome?: Pick<RetrievePropertyViewingOutcome, "execute">;
+  readonly proceedPropertyViewingOutcome?: Pick<ProceedPropertyViewingOutcome, "execute">;
+  readonly declinePropertyViewingOutcome?: Pick<DeclinePropertyViewingOutcome, "execute">;
   readonly publicCatalogTenantResolver?: PublicCatalogTenantResolver;
   readonly listPublicProperties?: Pick<ListPublicProperties, "execute">;
   readonly retrievePublicProperty?: Pick<RetrievePublicProperty, "execute">;
@@ -207,6 +213,7 @@ const unavailableUpdatePropertyDetails: Pick<UpdatePropertyDetails, "execute"> =
 const unavailableAmenityOperation = { async execute() { throw new Error("Property amenities composition is unavailable"); } };
 const unavailableInquiryOperation = { async execute(): Promise<never> { throw new Error("Property inquiries composition is unavailable"); } };
 const unavailableViewingOperation = { async execute(): Promise<never> { throw new Error("Property viewings composition is unavailable"); } };
+const unavailableViewingOutcomeOperation = { async execute(): Promise<never> { throw new Error("Property viewing outcomes composition is unavailable"); } };
 const unavailableSetPropertyPricing: Pick<SetPropertyPricing, "execute"> = { async execute() { throw new Error("Set Property Pricing composition is unavailable"); } };
 const unavailableUpdatePropertyCoreInformation: Pick<UpdatePropertyCoreInformation, "execute"> = { async execute() { throw new Error("Update Property Core Information composition is unavailable"); } };
 const unavailablePublishProperty: Pick<PublishProperty, "execute"> = { async execute() { throw new Error("Publish Property composition is unavailable"); } };
@@ -254,7 +261,7 @@ export class AppModule {
         UpdatePropertyCoreInformationController, UpdatePropertyDetailsController, SetPropertyPricingController,
         PublishPropertyController,
         PropertyPhotosController, PropertyPhotoStandardController, PropertyGeolocationController, PropertyAvailabilityController, PropertyAmenitiesController,
-        PublicPropertiesController, PublicPropertyInquiriesController, PropertyInquiriesController, PropertyViewingsController,
+        PublicPropertiesController, PublicPropertyInquiriesController, PropertyInquiriesController, PropertyViewingsController, PropertyViewingOutcomesController,
         CreatePropertyOwnerController, ListPropertyOwnersController, RetrievePropertyOwnerController, UpdatePropertyOwnerController,
         AssignPropertyOwnerController, RetrievePropertyOwnershipsController, RemovePropertyOwnerController, PropertyCompositionController,
         PropertyClientsController, PropertyContractsController, PropertyWorkspaceController,
@@ -300,6 +307,10 @@ export class AppModule {
         { provide: RESCHEDULE_PROPERTY_VIEWING, useValue: composition.reschedulePropertyViewing ?? unavailableViewingOperation },
         { provide: COMPLETE_PROPERTY_VIEWING, useValue: composition.completePropertyViewing ?? unavailableViewingOperation },
         { provide: CANCEL_PROPERTY_VIEWING, useValue: composition.cancelPropertyViewing ?? unavailableViewingOperation },
+        { provide: CREATE_PROPERTY_VIEWING_OUTCOME, useValue: composition.createPropertyViewingOutcome ?? unavailableViewingOutcomeOperation },
+        { provide: RETRIEVE_PROPERTY_VIEWING_OUTCOME, useValue: composition.retrievePropertyViewingOutcome ?? unavailableViewingOutcomeOperation },
+        { provide: PROCEED_PROPERTY_VIEWING_OUTCOME, useValue: composition.proceedPropertyViewingOutcome ?? unavailableViewingOutcomeOperation },
+        { provide: DECLINE_PROPERTY_VIEWING_OUTCOME, useValue: composition.declinePropertyViewingOutcome ?? unavailableViewingOutcomeOperation },
         { provide: SET_PROPERTY_PRICING_USE_CASE, useValue: composition.setPropertyPricing ?? unavailableSetPropertyPricing },
         { provide: UPDATE_PROPERTY_CORE_INFORMATION_USE_CASE, useValue: composition.updatePropertyCoreInformation ?? unavailableUpdatePropertyCoreInformation },
         { provide: PUBLISH_PROPERTY_USE_CASE, useValue: composition.publishProperty ?? unavailablePublishProperty },

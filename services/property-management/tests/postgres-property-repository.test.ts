@@ -28,6 +28,7 @@ import {
   SetPropertyPricing,
   PostgresPropertyInquiryRepository, PropertyInquiry,
   PostgresPropertyViewingRepository, PropertyViewing, PropertyViewingConflictError,
+  PostgresPropertyViewingOutcomeRepository, PropertyViewingOutcome, PropertyViewingOutcomeConflictError,
 } from "../src/index.js";
 
 const IMAGE = "postgres@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687";
@@ -59,7 +60,7 @@ beforeAll(async () => {
     TO monpiole_runtime`);
   runtime = new Pool({ connectionString: connection("monpiole_runtime", "synthetic-runtime") });
 });
-afterEach(async () => owner.query("TRUNCATE property_management.property_viewings, property_management.property_inquiries, property_management.property_amenities, property_management.property_contracts, property_management.property_clients, property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners"));
+afterEach(async () => owner.query("TRUNCATE property_management.property_viewing_outcomes, property_management.property_viewings, property_management.property_inquiries, property_management.property_amenities, property_management.property_contracts, property_management.property_clients, property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners"));
 afterAll(async () => { await runtime?.end(); await owner?.end(); await container?.stop(); });
 
 function authority(tenantId: string) { return { actorId: "actor", authorityId: "authority", grants: ["CREATE_PROPERTY", "RETRIEVE_PROPERTY"] as const, tenantIds: [tenantId] }; }
@@ -130,6 +131,25 @@ describe("Property PostgreSQL persistence", () => {
       (value) => value.reschedule("2026-09-10T13:00:00.000Z", "2026-09-10T18:00:00.000Z", "UTC", now),
       { actorId: "actor", correlationId: CORRELATION })).rejects.toThrow();
     expect((await repository.find(TENANT_A, PROPERTY_ID, stored.values.viewingId))?.values.startsAt).toBe("2026-09-10T12:00:00.000Z");
+    await repository.update(TENANT_A, PROPERTY_ID, stored.values.viewingId, (value) => value.complete(now),
+      { actorId: "actor", correlationId: CORRELATION });
+    const outcomes = new PostgresPropertyViewingOutcomeRepository(runtime);
+    const makeOutcome = (outcomeId: string) => PropertyViewingOutcome.create({ outcomeId, tenantId: TENANT_A,
+      propertyId: PROPERTY_ID, viewingId: stored.values.viewingId, createdAt: now, updatedAt: now });
+    const outcomeAttempts = await Promise.allSettled([
+      outcomes.createForCompletedViewing(makeOutcome("55555555-5555-4555-8555-555555555555"), { actorId: "actor", correlationId: CORRELATION }),
+      outcomes.createForCompletedViewing(makeOutcome("66666666-6666-4666-8666-666666666666"), { actorId: "actor", correlationId: CORRELATION }),
+    ]);
+    expect(outcomeAttempts.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    const rejectedOutcome = outcomeAttempts.find((result) => result.status === "rejected");
+    expect(rejectedOutcome?.status === "rejected" ? rejectedOutcome.reason : undefined).toBeInstanceOf(PropertyViewingOutcomeConflictError);
+    expect(await outcomes.findByViewing(TENANT_B, PROPERTY_ID, stored.values.viewingId)).toBeUndefined();
+    const proceeded = await outcomes.update(TENANT_A, PROPERTY_ID, stored.values.viewingId,
+      (value) => value.proceed("2026-09-10T14:00:00.000Z"), { actorId: "actor", correlationId: CORRELATION });
+    expect(proceeded?.values.status).toBe("PROCEED");
+    await expect(outcomes.update(TENANT_A, PROPERTY_ID, stored.values.viewingId,
+      (value) => value.decline("2026-09-10T15:00:00.000Z"), { actorId: "actor", correlationId: CORRELATION })).rejects.toThrow();
+    expect((await outcomes.findByViewing(TENANT_A, PROPERTY_ID, stored.values.viewingId))?.values.status).toBe("PROCEED");
   });
   it("migre 0014 vers 0015, préserve les prix legacy et refuse leur publication sans mise en conformité", async () => {
     const previousMigrations = await migrationsThrough(14);

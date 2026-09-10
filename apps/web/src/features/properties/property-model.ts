@@ -276,6 +276,8 @@ export interface PropertyInquiryPage{readonly items:readonly PropertyInquiry[];r
 export type PropertyViewingStatus="SCHEDULED"|"COMPLETED"|"CANCELLED";
 export interface PropertyViewing{readonly viewingId:string;readonly propertyId:string;readonly inquiryId:string;readonly status:PropertyViewingStatus;readonly startsAt:string;readonly endsAt:string;readonly timeZone:string;readonly createdAt:string;readonly updatedAt:string;readonly completedAt?:string;readonly cancelledAt?:string;}
 export interface PropertyViewingScheduleInput{readonly startsAt:string;readonly endsAt:string;readonly timeZone:string;}
+export type PropertyViewingOutcomeStatus="FOLLOW_UP_REQUIRED"|"PROCEED"|"DECLINED";
+export interface PropertyViewingOutcome{readonly outcomeId:string;readonly propertyId:string;readonly viewingId:string;readonly status:PropertyViewingOutcomeStatus;readonly note?:string;readonly createdAt:string;readonly updatedAt:string;readonly decidedAt?:string;}
 export interface PropertyContractInput {
   readonly clientId: string;
   readonly contractType: PropertyContractType;

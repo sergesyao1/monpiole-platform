@@ -314,3 +314,7 @@ conditions financières sans adresse exacte, autorité, trace ni version interne
 # Property viewings
 
 Une visite privée est planifiée depuis une demande `ACKNOWLEDGED`. Le bien et le tenant sont dérivés côté serveur. Une seule visite logique est admise par demande; sa planification, sa replanification, son achèvement et son annulation sont protégés par transaction, verrouillage et RLS PostgreSQL.
+
+## Property viewing outcomes
+
+Une visite `COMPLETED` peut recevoir un unique résultat commercial privé, initialement `FOLLOW_UP_REQUIRED`, puis terminalement `PROCEED` ou `DECLINED`. La création reverrouille la visite et les décisions verrouillent le résultat. Aucun client, contrat, offre ou réservation n’est créé implicitement.

@@ -326,3 +326,7 @@ filtrer seulement les Properties `PUBLISHED`.
 # Property viewings
 
 Les routes privées `/v1/properties/{propertyId}/inquiries/{inquiryId}/viewing` et `/v1/properties/{propertyId}/viewings/{viewingId}` exposent la consultation et le cycle de vie des visites. Elles exigent une autorité authentifiée et les grants Property Viewing dédiés; aucun `tenantId` client n’est accepté.
+
+## Property viewing outcomes
+
+Les routes privées `/v1/properties/{propertyId}/viewings/{viewingId}/outcome` enregistrent et consultent le résultat d’une visite terminée. Les sous-ressources `proceed` et `decline` prennent la décision terminale sous les grants Outcome dédiés, sans exposer le tenant ni créer de Client ou Contract.

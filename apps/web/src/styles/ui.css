@@ -315,3 +315,5 @@ input:disabled, select:disabled, textarea:disabled { color: var(--color-text-mut
 .viewing-form { display: grid; gap: var(--space-3); max-width: 34rem; }
 .viewing-form label { display: grid; gap: var(--space-1); }
 .viewing-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.viewing-outcome { border-top: 1px solid var(--color-border); display: grid; gap: var(--space-2); margin-top: var(--space-3); padding-top: var(--space-3); }
+.viewing-outcome form, .viewing-outcome label { display: grid; gap: var(--space-2); }
