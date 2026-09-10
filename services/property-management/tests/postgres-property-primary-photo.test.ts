@@ -61,7 +61,7 @@ beforeAll(async () => {
     TO monpiole_runtime`);
   runtime = new Pool({ connectionString: connection("monpiole_runtime", "synthetic-runtime") });
 });
-afterEach(async () => owner.query("TRUNCATE property_management.property_viewing_outcomes, property_management.property_viewings, property_management.property_inquiries, property_management.property_amenities, property_management.property_contracts, property_management.property_clients, property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners"));
+afterEach(async () => owner.query("TRUNCATE property_management.property_applications, property_management.property_viewing_outcomes, property_management.property_viewings, property_management.property_inquiries, property_management.property_amenities, property_management.property_contracts, property_management.property_clients, property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners"));
 afterAll(async () => { await runtime?.end(); await owner?.end(); await container?.stop(); });
 
 async function createReady(propertyId = PROPERTY_A) {
@@ -499,10 +499,10 @@ describe("PostgreSQL primary Property photo", () => {
         with_check LIKE '%app.tenant_id%' AS tenant_check
       FROM pg_policies WHERE schemaname = 'property_management'
         AND tablename IN ('property_photos', 'property_photo_standards', 'property_primary_photo_audits')
-      ORDER BY tablename`)).rows).toEqual([
+      ORDER BY tablename, policyname`)).rows).toEqual([
       { tablename: "property_photo_standards", policyname: "property_photo_standards_tenant_isolation", cmd: "ALL", roles: "{public}", tenant_qual: true, tenant_check: true },
-      { tablename: "property_photos", policyname: "property_photos_tenant_isolation", cmd: "ALL", roles: "{public}", tenant_qual: true, tenant_check: true },
       { tablename: "property_photos", policyname: "property_photos_public_catalog_media_select", cmd: "SELECT", roles: "{monpiole_public_catalog_reader}", tenant_qual: false, tenant_check: null },
+      { tablename: "property_photos", policyname: "property_photos_tenant_isolation", cmd: "ALL", roles: "{public}", tenant_qual: true, tenant_check: true },
       { tablename: "property_primary_photo_audits", policyname: "property_primary_photo_audits_tenant_isolation", cmd: "ALL", roles: "{public}", tenant_qual: true, tenant_check: true },
     ]);
   });

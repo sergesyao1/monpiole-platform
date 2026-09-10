@@ -12,6 +12,7 @@ import type {
   PropertyContract, PropertyContractDirectoryPage, PropertyContractInput, PropertyWorkspace,
   Amenity,
   PropertyInquiry, PropertyInquiryPage, PropertyViewing, PropertyViewingScheduleInput, PropertyViewingOutcome,
+  PropertyApplication, PropertyApplicationPage,
 } from "./property-model.js";
 
 export interface PropertyApi {
@@ -68,8 +69,9 @@ export interface PropertyClientContractApi {
 
 export interface PropertyWorkspaceApi { retrievePropertyWorkspace(propertyId: string): Promise<PropertyWorkspace>; }
 export interface PropertyAmenityApi { retrieveAmenityCatalog(): Promise<{ readonly items: readonly Amenity[] }>; retrievePropertyAmenities(propertyId: string): Promise<{ readonly amenityCodes: readonly string[] }>; replacePropertyAmenities(propertyId: string, amenityCodes: readonly string[]): Promise<{ readonly amenityCodes: readonly string[] }>; }
-export interface PropertyInquiryApi{listPropertyInquiries(propertyId:string,cursor?:string):Promise<PropertyInquiryPage>;acknowledgePropertyInquiry(propertyId:string,inquiryId:string):Promise<PropertyInquiry>;closePropertyInquiry(propertyId:string,inquiryId:string):Promise<PropertyInquiry>;retrieveInquiryViewing(propertyId:string,inquiryId:string):Promise<{readonly viewing:PropertyViewing|null}>;schedulePropertyViewing(propertyId:string,inquiryId:string,input:PropertyViewingScheduleInput):Promise<PropertyViewing>;reschedulePropertyViewing(propertyId:string,viewingId:string,input:PropertyViewingScheduleInput):Promise<PropertyViewing>;completePropertyViewing(propertyId:string,viewingId:string):Promise<PropertyViewing>;cancelPropertyViewing(propertyId:string,viewingId:string):Promise<PropertyViewing>;retrievePropertyViewingOutcome(propertyId:string,viewingId:string):Promise<{readonly outcome:PropertyViewingOutcome|null}>;createPropertyViewingOutcome(propertyId:string,viewingId:string,note?:string):Promise<PropertyViewingOutcome>;proceedPropertyViewingOutcome(propertyId:string,viewingId:string):Promise<PropertyViewingOutcome>;declinePropertyViewingOutcome(propertyId:string,viewingId:string):Promise<PropertyViewingOutcome>;}
-export type PropertyManagementApi = PropertyApi & PropertyClientContractApi & PropertyWorkspaceApi & PropertyAmenityApi & PropertyInquiryApi;
+export interface PropertyInquiryApi{listPropertyInquiries(propertyId:string,cursor?:string):Promise<PropertyInquiryPage>;acknowledgePropertyInquiry(propertyId:string,inquiryId:string):Promise<PropertyInquiry>;closePropertyInquiry(propertyId:string,inquiryId:string):Promise<PropertyInquiry>;retrieveInquiryViewing(propertyId:string,inquiryId:string):Promise<{readonly viewing:PropertyViewing|null}>;schedulePropertyViewing(propertyId:string,inquiryId:string,input:PropertyViewingScheduleInput):Promise<PropertyViewing>;reschedulePropertyViewing(propertyId:string,viewingId:string,input:PropertyViewingScheduleInput):Promise<PropertyViewing>;completePropertyViewing(propertyId:string,viewingId:string):Promise<PropertyViewing>;cancelPropertyViewing(propertyId:string,viewingId:string):Promise<PropertyViewing>;retrievePropertyViewingOutcome(propertyId:string,viewingId:string):Promise<{readonly outcome:PropertyViewingOutcome|null}>;createPropertyViewingOutcome(propertyId:string,viewingId:string,note?:string):Promise<PropertyViewingOutcome>;proceedPropertyViewingOutcome(propertyId:string,viewingId:string):Promise<PropertyViewingOutcome>;declinePropertyViewingOutcome(propertyId:string,viewingId:string):Promise<PropertyViewingOutcome>;retrieveViewingPropertyApplication?(propertyId:string,viewingId:string):Promise<{readonly application:PropertyApplication|null}>;createPropertyApplication?(propertyId:string,viewingId:string,note?:string):Promise<PropertyApplication>;}
+export interface PropertyApplicationApi{listPropertyApplications(propertyId:string,cursor?:string):Promise<PropertyApplicationPage>;approvePropertyApplication(propertyId:string,applicationId:string):Promise<PropertyApplication>;rejectPropertyApplication(propertyId:string,applicationId:string):Promise<PropertyApplication>;withdrawPropertyApplication(propertyId:string,applicationId:string):Promise<PropertyApplication>;}
+export type PropertyManagementApi = PropertyApi & PropertyClientContractApi & PropertyWorkspaceApi & PropertyAmenityApi & PropertyInquiryApi & PropertyApplicationApi;
 
 export function createPropertyApi(tokens: AccessTokenProvider): PropertyManagementApi {
   const request = createAuthenticatedApiClient(tokens);
@@ -123,6 +125,12 @@ export function createPropertyApi(tokens: AccessTokenProvider): PropertyManageme
     createPropertyViewingOutcome:(propertyId,viewingId,note)=>request<PropertyViewingOutcome>(outcomePath(propertyId,viewingId),{method:"POST",body:note===undefined?{}:{note}}),
     proceedPropertyViewingOutcome:(propertyId,viewingId)=>request<PropertyViewingOutcome>(`${outcomePath(propertyId,viewingId)}/proceed`,{method:"POST"}),
     declinePropertyViewingOutcome:(propertyId,viewingId)=>request<PropertyViewingOutcome>(`${outcomePath(propertyId,viewingId)}/decline`,{method:"POST"}),
+    retrieveViewingPropertyApplication:(propertyId,viewingId)=>request<{readonly application:PropertyApplication|null}>(applicationViewingPath(propertyId,viewingId)),
+    createPropertyApplication:(propertyId,viewingId,note)=>request<PropertyApplication>(applicationViewingPath(propertyId,viewingId),{method:"POST",body:note===undefined?{}:{note}}),
+    listPropertyApplications:(propertyId,cursor)=>request<PropertyApplicationPage>(applicationPath(propertyId,undefined,cursor)),
+    approvePropertyApplication:(propertyId,applicationId)=>request<PropertyApplication>(`${applicationPath(propertyId,applicationId)}/approval`,{method:"POST"}),
+    rejectPropertyApplication:(propertyId,applicationId)=>request<PropertyApplication>(`${applicationPath(propertyId,applicationId)}/rejection`,{method:"POST"}),
+    withdrawPropertyApplication:(propertyId,applicationId)=>request<PropertyApplication>(`${applicationPath(propertyId,applicationId)}/withdrawal`,{method:"POST"}),
     listPropertyPhotos: (propertyId) => request<{ readonly photos: readonly PropertyPhoto[] }>(
       `/v1/properties/${encodeURIComponent(propertyId)}/photos`,
     ),
@@ -193,6 +201,7 @@ export function createPropertyApi(tokens: AccessTokenProvider): PropertyManageme
 function inquiryPath(propertyId:string,inquiryId?:string,cursor?:string):`/v1/${string}`{const base=`/v1/properties/${encodeURIComponent(propertyId)}/inquiries${inquiryId?`/${encodeURIComponent(inquiryId)}`:""}` as `/v1/${string}`;return cursor?`${base}?limit=20&cursor=${encodeURIComponent(cursor)}`:base;}
 function viewingPath(propertyId:string,viewingId:string,action:string):`/v1/${string}`{return `/v1/properties/${encodeURIComponent(propertyId)}/viewings/${encodeURIComponent(viewingId)}/${action}`;}
 function outcomePath(propertyId:string,viewingId:string):`/v1/${string}`{return `/v1/properties/${encodeURIComponent(propertyId)}/viewings/${encodeURIComponent(viewingId)}/outcome`;}
+function applicationViewingPath(propertyId:string,viewingId:string):`/v1/${string}`{return `/v1/properties/${encodeURIComponent(propertyId)}/viewings/${encodeURIComponent(viewingId)}/application`}function applicationPath(propertyId:string,applicationId?:string,cursor?:string):`/v1/${string}`{const base=`/v1/properties/${encodeURIComponent(propertyId)}/applications${applicationId?`/${encodeURIComponent(applicationId)}`:""}` as `/v1/${string}`;return cursor?`${base}?limit=20&cursor=${encodeURIComponent(cursor)}`:base}
 
 function contractPath(propertyId: string, contractId?: string, cursor?: string): `/v1/${string}` {
   const base = `/v1/properties/${encodeURIComponent(propertyId)}/contracts${contractId === undefined ? "" : `/${encodeURIComponent(contractId)}`}` as `/v1/${string}`;

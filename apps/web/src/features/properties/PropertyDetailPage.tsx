@@ -21,6 +21,7 @@ import { PropertyAvailabilitySection } from "./PropertyAvailabilitySection.js";
 import { PropertyContractsSection } from "./PropertyContractsSection.js";
 import { PropertyAmenitiesSection } from "./PropertyAmenitiesSection.js";
 import { PropertyInquiriesSection } from "./PropertyInquiriesSection.js";
+import { PropertyApplicationsSection } from "./PropertyApplicationsSection.js";
 import { Alert, LoadingState, PageHeader, StatusBadge, buttonClassName, type BreadcrumbItem, type StatusTone } from "../../ui/index.js";
 
 interface PropertyLocationState {
@@ -221,6 +222,7 @@ export function PropertyDetailPage() {
         /></div>
       <PropertyAmenitiesSection propertyId={property.propertyId} api={api} onReconnect={() => void session.login(`/properties/${propertyId}`)} />
       <PropertyInquiriesSection propertyId={property.propertyId} api={api}/>
+      <PropertyApplicationsSection propertyId={property.propertyId} api={api}/>
 
       <div id="property-owners"><PropertyOwnershipSection propertyId={property.propertyId} api={api} initialOwners={workspace.owners} canManage={workspace.capabilities.canManageOwners} onChanged={loadWorkspace} /></div>
       <div id="property-composition"><PropertyCompositionSection property={property} api={api} onStructuralRoleChange={(structuralRole) => { setProperty((current) => current === undefined ? current : { ...current, structuralRole }); void loadWorkspace(); }} /></div>

@@ -30,6 +30,7 @@ import {
   PostgresPropertyInquiryRepository, SubmitPublicPropertyInquiry, ListPropertyInquiries, RetrievePropertyInquiry, AcknowledgePropertyInquiry, ClosePropertyInquiry,
   PostgresPropertyViewingRepository, SchedulePropertyViewing, RetrieveInquiryViewing, RetrievePropertyViewing, ReschedulePropertyViewing, CompletePropertyViewing, CancelPropertyViewing,
   PostgresPropertyViewingOutcomeRepository, CreatePropertyViewingOutcome, RetrievePropertyViewingOutcome, ProceedPropertyViewingOutcome, DeclinePropertyViewingOutcome,
+  PostgresPropertyApplicationRepository, CreatePropertyApplication, RetrieveViewingPropertyApplication, ListPropertyApplications, RetrievePropertyApplication, ApprovePropertyApplication, RejectPropertyApplication, WithdrawPropertyApplication,
 } from "@monpiole/property-management";
 import {
   ActivateTenant,
@@ -95,6 +96,7 @@ export function createPostgresApiRuntime(
   const propertyInquiryRepository = new PostgresPropertyInquiryRepository(pool);
   const propertyViewingRepository = new PostgresPropertyViewingRepository(pool);
   const propertyViewingOutcomeRepository = new PostgresPropertyViewingOutcomeRepository(pool);
+  const propertyApplicationRepository = new PostgresPropertyApplicationRepository(pool);
   const compositionClock = { now: () => new Date().toISOString() };
   const publicCatalogQuery = publicCatalogDatabase === undefined
     ? undefined
@@ -155,6 +157,13 @@ export function createPostgresApiRuntime(
     retrievePropertyViewingOutcome: new RetrievePropertyViewingOutcome(propertyViewingOutcomeRepository),
     proceedPropertyViewingOutcome: new ProceedPropertyViewingOutcome(propertyViewingOutcomeRepository, compositionClock),
     declinePropertyViewingOutcome: new DeclinePropertyViewingOutcome(propertyViewingOutcomeRepository, compositionClock),
+    createPropertyApplication: new CreatePropertyApplication(propertyApplicationRepository, { generate: randomUUID }, compositionClock),
+    retrieveViewingPropertyApplication: new RetrieveViewingPropertyApplication(propertyApplicationRepository),
+    listPropertyApplications: new ListPropertyApplications(propertyApplicationRepository),
+    retrievePropertyApplication: new RetrievePropertyApplication(propertyApplicationRepository),
+    approvePropertyApplication: new ApprovePropertyApplication(propertyApplicationRepository, compositionClock),
+    rejectPropertyApplication: new RejectPropertyApplication(propertyApplicationRepository, compositionClock),
+    withdrawPropertyApplication: new WithdrawPropertyApplication(propertyApplicationRepository, compositionClock),
     retrievePropertyAvailability: new RetrievePropertyAvailability(propertyAvailabilityQuery),
     updatePropertyAvailability: new UpdatePropertyAvailability(propertyRepository, { now: () => new Date().toISOString() }),
     createPropertyClient: new CreatePropertyClient(propertyClientRepository, { generate: randomUUID }, compositionClock),
