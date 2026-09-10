@@ -21,6 +21,7 @@ import type {
   CreatePropertyApplication, RetrieveViewingPropertyApplication, ListPropertyApplications, RetrievePropertyApplication,
   ApprovePropertyApplication, RejectPropertyApplication, WithdrawPropertyApplication,
   ConvertPropertyApplicationToClient, RetrievePropertyApplicationClientConversion,
+  CreatePropertyContractFromApplication,
 } from "@monpiole/property-management";
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core";
 import {
@@ -108,6 +109,7 @@ import { PropertyViewingsController, SCHEDULE_PROPERTY_VIEWING, RETRIEVE_INQUIRY
 import { PropertyViewingOutcomesController, CREATE_PROPERTY_VIEWING_OUTCOME, RETRIEVE_PROPERTY_VIEWING_OUTCOME, PROCEED_PROPERTY_VIEWING_OUTCOME, DECLINE_PROPERTY_VIEWING_OUTCOME } from "./http/properties/property-viewing-outcomes.controller.js";
 import { PropertyApplicationsController, CREATE_PROPERTY_APPLICATION, RETRIEVE_VIEWING_PROPERTY_APPLICATION, LIST_PROPERTY_APPLICATIONS, RETRIEVE_PROPERTY_APPLICATION, APPROVE_PROPERTY_APPLICATION, REJECT_PROPERTY_APPLICATION, WITHDRAW_PROPERTY_APPLICATION } from "./http/properties/property-applications.controller.js";
 import { PropertyApplicationClientConversionsController, CONVERT_PROPERTY_APPLICATION_TO_CLIENT, RETRIEVE_PROPERTY_APPLICATION_CLIENT } from "./http/properties/property-application-client-conversions.controller.js";
+import { PropertyApplicationContractsController, CREATE_PROPERTY_CONTRACT_FROM_APPLICATION } from "./http/properties/property-application-contracts.controller.js";
 
 const StrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
@@ -179,6 +181,7 @@ export interface ApiComposition {
   readonly withdrawPropertyApplication?: Pick<WithdrawPropertyApplication, "execute">;
   readonly convertPropertyApplicationToClient?: Pick<ConvertPropertyApplicationToClient, "execute">;
   readonly retrievePropertyApplicationClientConversion?: Pick<RetrievePropertyApplicationClientConversion, "execute">;
+  readonly createPropertyContractFromApplication?: Pick<CreatePropertyContractFromApplication, "execute">;
   readonly publicCatalogTenantResolver?: PublicCatalogTenantResolver;
   readonly listPublicProperties?: Pick<ListPublicProperties, "execute">;
   readonly retrievePublicProperty?: Pick<RetrievePublicProperty, "execute">;
@@ -276,7 +279,7 @@ export class AppModule {
         UpdatePropertyCoreInformationController, UpdatePropertyDetailsController, SetPropertyPricingController,
         PublishPropertyController,
         PropertyPhotosController, PropertyPhotoStandardController, PropertyGeolocationController, PropertyAvailabilityController, PropertyAmenitiesController,
-        PublicPropertiesController, PublicPropertyInquiriesController, PropertyInquiriesController, PropertyViewingsController, PropertyViewingOutcomesController, PropertyApplicationsController, PropertyApplicationClientConversionsController,
+        PublicPropertiesController, PublicPropertyInquiriesController, PropertyInquiriesController, PropertyViewingsController, PropertyViewingOutcomesController, PropertyApplicationsController, PropertyApplicationClientConversionsController, PropertyApplicationContractsController,
         CreatePropertyOwnerController, ListPropertyOwnersController, RetrievePropertyOwnerController, UpdatePropertyOwnerController,
         AssignPropertyOwnerController, RetrievePropertyOwnershipsController, RemovePropertyOwnerController, PropertyCompositionController,
         PropertyClientsController, PropertyContractsController, PropertyWorkspaceController,
@@ -335,6 +338,7 @@ export class AppModule {
         { provide: WITHDRAW_PROPERTY_APPLICATION, useValue: composition.withdrawPropertyApplication ?? unavailableApplicationOperation },
         { provide: CONVERT_PROPERTY_APPLICATION_TO_CLIENT, useValue: composition.convertPropertyApplicationToClient ?? unavailableApplicationOperation },
         { provide: RETRIEVE_PROPERTY_APPLICATION_CLIENT, useValue: composition.retrievePropertyApplicationClientConversion ?? unavailableApplicationOperation },
+        { provide: CREATE_PROPERTY_CONTRACT_FROM_APPLICATION, useValue: composition.createPropertyContractFromApplication ?? unavailableApplicationOperation },
         { provide: SET_PROPERTY_PRICING_USE_CASE, useValue: composition.setPropertyPricing ?? unavailableSetPropertyPricing },
         { provide: UPDATE_PROPERTY_CORE_INFORMATION_USE_CASE, useValue: composition.updatePropertyCoreInformation ?? unavailableUpdatePropertyCoreInformation },
         { provide: PUBLISH_PROPERTY_USE_CASE, useValue: composition.publishProperty ?? unavailablePublishProperty },

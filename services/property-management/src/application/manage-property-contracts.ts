@@ -111,7 +111,7 @@ export class CreatePropertyContract {
       ...toTerms(command), createdAt: now, updatedAt: now,
     }, property.values);
     await this.contracts.save(contract, trace(command));
-    return toView({ contract, client }, command.authority);
+    return toPropertyContractView({ contract, client }, command.authority);
   }
 }
 
@@ -130,7 +130,7 @@ export class ListPropertyContracts {
     });
     if (page === undefined) throw new PropertyNotFoundError();
     return {
-      items: page.items.map((record) => toView(record, query.authority)),
+      items: page.items.map((record) => toPropertyContractView(record, query.authority)),
       ...(page.nextCursor === undefined ? {} : { nextCursor: page.nextCursor }),
       canCreateContract: query.authority.grants.includes("CREATE_PROPERTY_CONTRACT"),
     };
@@ -144,7 +144,7 @@ export class RetrievePropertyContract {
     const tenantId = authorizedTenant(query.authority, "RETRIEVE_PROPERTY_CONTRACTS");
     const record = await this.contracts.findById(tenantId, query.propertyId, query.contractId);
     if (record === undefined) throw new PropertyContractNotFoundError();
-    return toView(record, query.authority);
+    return toPropertyContractView(record, query.authority);
   }
 }
 
@@ -170,7 +170,7 @@ export class UpdatePropertyContract {
       trace(command),
     );
     if (record === undefined) throw new PropertyContractNotFoundError();
-    return toView({ ...record, client }, command.authority);
+    return toPropertyContractView({ ...record, client }, command.authority);
   }
 }
 
@@ -191,7 +191,7 @@ abstract class TransitionPropertyContract {
       trace(command),
     );
     if (record === undefined) throw new PropertyContractNotFoundError();
-    return toView(record, command.authority);
+    return toPropertyContractView(record, command.authority);
   }
 }
 
@@ -228,7 +228,7 @@ function trace(command: { readonly correlationId: string; readonly authority: Pr
   return { correlationId: command.correlationId, actorId: command.authority.actorId };
 }
 
-function toView(record: PropertyContractRecord, authority: PropertyAuthority): PropertyContractView {
+export function toPropertyContractView(record: PropertyContractRecord, authority: PropertyAuthority): PropertyContractView {
   const { tenantId: _tenantId, clientId: _clientId, ...contract } = record.contract.values;
   return {
     ...contract,

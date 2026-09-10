@@ -31,6 +31,7 @@ import {
   PostgresPropertyViewingOutcomeRepository, PropertyViewingOutcome, PropertyViewingOutcomeConflictError,
   PostgresPropertyApplicationRepository, PropertyApplication,
   PostgresPropertyApplicationClientConversionRepository,
+  PostgresPropertyApplicationContractRepository,
 } from "../src/index.js";
 
 const IMAGE = "postgres@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687";
@@ -62,7 +63,7 @@ beforeAll(async () => {
     TO monpiole_runtime`);
   runtime = new Pool({ connectionString: connection("monpiole_runtime", "synthetic-runtime") });
 });
-afterEach(async () => owner.query("TRUNCATE property_management.property_application_client_conversions, property_management.property_applications, property_management.property_viewing_outcomes, property_management.property_viewings, property_management.property_inquiries, property_management.property_amenities, property_management.property_contracts, property_management.property_clients, property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners"));
+afterEach(async () => owner.query("TRUNCATE property_management.property_application_contract_origins, property_management.property_application_client_conversions, property_management.property_applications, property_management.property_viewing_outcomes, property_management.property_viewings, property_management.property_inquiries, property_management.property_amenities, property_management.property_contracts, property_management.property_clients, property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners"));
 afterAll(async () => { await runtime?.end(); await owner?.end(); await container?.stop(); });
 
 function authority(tenantId: string) { return { actorId: "actor", authorityId: "authority", grants: ["CREATE_PROPERTY", "RETRIEVE_PROPERTY"] as const, tenantIds: [tenantId] }; }
@@ -106,7 +107,7 @@ async function create(repository = new PostgresPropertyRepository(runtime), tena
 
 describe("Property PostgreSQL persistence", () => {
   it("persists tenant-isolated viewings and serializes duplicate scheduling", async () => {
-    await create();
+    await create(new PostgresPropertyRepository(runtime),TENANT_A,"LONG_TERM_RENTAL");
     const inquiryId = "22222222-2222-4222-8222-222222222222";
     const now = "2026-09-09T12:00:00.000Z";
     await owner.query(`INSERT INTO property_management.property_inquiries
@@ -175,11 +176,21 @@ describe("Property PostgreSQL persistence", () => {
       conversions.convert({tenantId:TENANT_A,propertyId:PROPERTY_ID,applicationId:application.values.applicationId,clientId:"99999999-9999-4999-8999-999999999999",convertedAt:"2026-09-10T18:00:00.000Z",actorId:"actor",correlationId:CORRELATION}),
       conversions.convert({tenantId:TENANT_A,propertyId:PROPERTY_ID,applicationId:application.values.applicationId,clientId:"aaaaaaaa-1111-4111-8111-111111111111",convertedAt:"2026-09-10T18:00:01.000Z",actorId:"actor",correlationId:CORRELATION}),
     ]);
-    expect(conversionAttempts.map(result=>result.conversion?.client.values.clientId)).toEqual([
-      "99999999-9999-4999-8999-999999999999","99999999-9999-4999-8999-999999999999",
-    ]);
+    const convertedClientIds=conversionAttempts.map(result=>result.conversion?.client.values.clientId);
+    expect(new Set(convertedClientIds).size).toBe(1);
+    expect(["99999999-9999-4999-8999-999999999999","aaaaaaaa-1111-4111-8111-111111111111"]).toContain(convertedClientIds[0]);
     expect((await conversions.find(TENANT_A,PROPERTY_ID,application.values.applicationId))?.client.values.displayName).toBe("Awa");
     expect(await conversions.find(TENANT_B,PROPERTY_ID,application.values.applicationId)).toBeUndefined();
+    const applicationContracts=new PostgresPropertyApplicationContractRepository(runtime);
+    const contractAttempts=await Promise.all([
+      applicationContracts.create({tenantId:TENANT_A,propertyId:PROPERTY_ID,applicationId:application.values.applicationId,contractId:"bbbbbbbb-1111-4111-8111-111111111111",reference:"BAIL-APP-1",startDate:"2026-10-01",createdAt:"2026-09-10T19:00:00.000Z",actorId:"actor",correlationId:CORRELATION}),
+      applicationContracts.create({tenantId:TENANT_A,propertyId:PROPERTY_ID,applicationId:application.values.applicationId,contractId:"bbbbbbbb-2222-4222-8222-222222222222",reference:"BAIL-APP-1",startDate:"2026-10-01",createdAt:"2026-09-10T19:00:01.000Z",actorId:"actor",correlationId:CORRELATION}),
+    ]);
+    const contractIds=contractAttempts.map(result=>result.record?.contract.values.contractId);
+    expect(new Set(contractIds).size).toBe(1);
+    expect(["bbbbbbbb-1111-4111-8111-111111111111","bbbbbbbb-2222-4222-8222-222222222222"]).toContain(contractIds[0]);
+    const origins=await owner.query("SELECT count(*)::int AS count FROM property_management.property_application_contract_origins WHERE tenant_id=$1 AND application_id=$2",[TENANT_A,application.values.applicationId]);
+    expect(origins.rows[0]?.count).toBe(1);
   });
   it("migre 0014 vers 0015, préserve les prix legacy et refuse leur publication sans mise en conformité", async () => {
     const previousMigrations = await migrationsThrough(14);

@@ -170,6 +170,12 @@ function businessProblem(exception: unknown) {
   if (code === "PROPERTY_APPLICATION_CLIENT_CONVERSION_NOT_ELIGIBLE") return {
     status: 409, type: "https://api.monpiole.example/problems/property-application-client-conversion-conflict", title: "Property application client conversion conflict", code,
   };
+  if (code === "PROPERTY_APPLICATION_CONTRACT_NOT_FOUND" || code === "PROPERTY_APPLICATION_NOT_CONVERTED") return {
+    status: 404, type: "https://api.monpiole.example/problems/property-application-contract-not-found", title: "Property application contract source not found", code,
+  };
+  if (code === "PROPERTY_APPLICATION_CONTRACT_NOT_ELIGIBLE" || code === "PROPERTY_APPLICATION_CONTRACT_REPLAY_CONFLICT") return {
+    status: 409, type: "https://api.monpiole.example/problems/property-application-contract-conflict", title: "Property application contract conflict", code,
+  };
   if (code === "PROPERTY_NOT_FOUND") return {
     status: 404, type: "https://api.monpiole.example/problems/property-not-found",
     title: "Property not found", code: "PROPERTY_NOT_FOUND",

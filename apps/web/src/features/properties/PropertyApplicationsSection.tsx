@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Alert, Button, EmptyState, LoadingState, StatusBadge } from "../../ui/index.js";
 import type { PropertyApplicationApi } from "./property-api.js";
-import type { PropertyApplication, PropertyApplicationClientConversion } from "./property-model.js";
+import type { PropertyApplication, PropertyApplicationClientConversion, PropertyContract } from "./property-model.js";
 import { applicationStatusLabel } from "./PropertyApplicationPanel.js";
 
 export function PropertyApplicationsSection({propertyId,api}:Readonly<{propertyId:string;api:PropertyApplicationApi}>) {
@@ -13,10 +13,11 @@ export function PropertyApplicationsSection({propertyId,api}:Readonly<{propertyI
 }
 
 function ApplicationClient({propertyId,applicationId,api}:Readonly<{propertyId:string;applicationId:string;api:PropertyApplicationApi}>) {
-  const [conversion,setConversion]=useState<PropertyApplicationClientConversion>(),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(false);
+  const [conversion,setConversion]=useState<PropertyApplicationClientConversion>(),[contract,setContract]=useState<PropertyContract>(),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(false);
   useEffect(()=>{let active=true;setLoading(true);const retrieve=api.retrievePropertyApplicationClient;if(!retrieve){setLoading(false);return()=>{active=false;};}retrieve(propertyId,applicationId).then(value=>{if(active)setConversion(value);}).catch(()=>undefined).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[api,propertyId,applicationId]);
   async function convert(){const execute=api.convertPropertyApplicationToClient;if(!execute)return;setBusy(true);setError(false);try{setConversion(await execute(propertyId,applicationId));}catch{setError(true);}finally{setBusy(false);}}
   if(loading)return <p>Vérification du client…</p>;
-  if(conversion)return <div><p>Convertie en client</p><strong>{conversion.client.displayName}</strong>{conversion.client.email&&<p>{conversion.client.email}</p>}<p>Le contrat reste une étape distincte.</p></div>;
+  async function createContract(event:React.FormEvent<HTMLFormElement>){event.preventDefault();const execute=api.createPropertyContractFromApplication;if(!execute)return;setBusy(true);setError(false);const data=new FormData(event.currentTarget);try{setContract(await execute(propertyId,applicationId,{reference:String(data.get("reference")??""),...(data.get("startDate")?{startDate:String(data.get("startDate"))}:{}),...(data.get("endDate")?{endDate:String(data.get("endDate"))}:{}),...(data.get("notes")?{notes:String(data.get("notes"))}:{})}));}catch{setError(true);}finally{setBusy(false);}}
+  if(conversion)return <div><p>Convertie en client</p><strong>{conversion.client.displayName}</strong>{conversion.client.email&&<p>{conversion.client.email}</p>}{contract?<div><p>Contrat brouillon</p><strong>{contract.reference}</strong><p>Activez le contrat séparément dans la section Clients et contrats.</p></div>:<form className="compact-form" onSubmit={createContract}><h4>Créer le contrat</h4><p>Client : {conversion.client.displayName}</p><p>Type : Bail longue durée</p><label>Référence<input name="reference" required maxLength={100}/></label><label>Date de début<input name="startDate" type="date"/></label><label>Date de fin<input name="endDate" type="date"/></label><label>Note<textarea name="notes" maxLength={5000}/></label>{error&&<Alert tone="danger" title="Impossible de créer le contrat"><p>Vérifiez les informations, vos autorisations ou l’éligibilité du bien.</p></Alert>}<Button type="submit" loading={busy}>Créer le contrat</Button></form>}</div>;
   return <div>{error&&<Alert tone="danger" title="Impossible de créer le client"><p>Vérifiez vos autorisations ou réessayez.</p></Alert>}<Button loading={busy} onClick={()=>void convert()}>Créer le client</Button><p>Le contrat sera créé séparément.</p></div>;
 }

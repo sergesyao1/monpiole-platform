@@ -186,3 +186,6 @@ export { CreatePropertyApplication, RetrievePropertyApplication, RetrieveViewing
 export { type PropertyApplicationRepository, type PropertyApplicationCursor, type PropertyApplicationPage, type CreateApplicationResult } from "./application/property-application-repository.js";
 export { PostgresPropertyApplicationRepository } from "./infrastructure/persistence/postgres/postgres-property-application-repository.js";
 export { PostgresPropertyApplicationClientConversionRepository } from "./infrastructure/persistence/postgres/postgres-property-application-client-conversion-repository.js";
+export { CreatePropertyContractFromApplication, PropertyApplicationContractNotFoundError, PropertyApplicationNotConvertedError, PropertyApplicationContractNotEligibleError, PropertyApplicationContractReplayConflictError } from "./application/create-property-contract-from-application.js";
+export type { PropertyApplicationContractRepository, ApplicationContractTerms, CreateApplicationContractResult } from "./application/property-application-contract-repository.js";
+export { PostgresPropertyApplicationContractRepository } from "./infrastructure/persistence/postgres/postgres-property-application-contract-repository.js";

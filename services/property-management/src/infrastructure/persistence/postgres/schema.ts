@@ -519,3 +519,15 @@ export const propertyApplicationClientConversions = propertyManagement.table("pr
   foreignKey({ name: "property_application_client_conversions_client_tenant_fk", columns: [table.tenantId, table.clientId], foreignColumns: [propertyClients.tenantId, propertyClients.clientId] }),
   pgPolicy("property_application_client_conversions_tenant_isolation", { using: sql`${table.tenantId}=NULLIF(current_setting('app.tenant_id',true),'')::uuid`, withCheck: sql`${table.tenantId}=NULLIF(current_setting('app.tenant_id',true),'')::uuid` }),
 ]).enableRLS();
+
+export const propertyApplicationContractOrigins = propertyManagement.table("property_application_contract_origins", {
+  tenantId: uuid("tenant_id").notNull(), applicationId: uuid("application_id").notNull(),
+  contractId: uuid("contract_id").notNull(), createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+  correlationId: uuid("correlation_id").notNull(), actorId: text("actor_id").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.tenantId, table.applicationId] }),
+  uniqueIndex("property_application_contract_origins_tenant_contract_unique").on(table.tenantId, table.contractId),
+  foreignKey({ name: "property_application_contract_origins_conversion_tenant_fk", columns: [table.tenantId, table.applicationId], foreignColumns: [propertyApplicationClientConversions.tenantId, propertyApplicationClientConversions.applicationId] }),
+  foreignKey({ name: "property_application_contract_origins_contract_tenant_fk", columns: [table.tenantId, table.contractId], foreignColumns: [propertyContracts.tenantId, propertyContracts.contractId] }),
+  pgPolicy("property_application_contract_origins_tenant_isolation", { using: sql`${table.tenantId}=NULLIF(current_setting('app.tenant_id',true),'')::uuid`, withCheck: sql`${table.tenantId}=NULLIF(current_setting('app.tenant_id',true),'')::uuid` }),
+]).enableRLS();
