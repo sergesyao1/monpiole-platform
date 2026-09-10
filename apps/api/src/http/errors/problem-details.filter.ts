@@ -164,6 +164,12 @@ function businessProblem(exception: unknown) {
   if (code === "PROPERTY_APPLICATION_OUTCOME_NOT_ELIGIBLE" || code === "PROPERTY_APPLICATION_TRANSITION_NOT_ALLOWED") return {
     status: 409, type: "https://api.monpiole.example/problems/property-application-conflict", title: "Property application conflict", code,
   };
+  if (code === "PROPERTY_APPLICATION_CLIENT_CONVERSION_NOT_FOUND") return {
+    status: 404, type: "https://api.monpiole.example/problems/property-application-client-conversion-not-found", title: "Property application client conversion not found", code,
+  };
+  if (code === "PROPERTY_APPLICATION_CLIENT_CONVERSION_NOT_ELIGIBLE") return {
+    status: 409, type: "https://api.monpiole.example/problems/property-application-client-conversion-conflict", title: "Property application client conversion conflict", code,
+  };
   if (code === "PROPERTY_NOT_FOUND") return {
     status: 404, type: "https://api.monpiole.example/problems/property-not-found",
     title: "Property not found", code: "PROPERTY_NOT_FOUND",

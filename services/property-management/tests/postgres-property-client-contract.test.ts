@@ -67,6 +67,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => owner.query(`TRUNCATE
+  property_management.property_application_client_conversions,
   property_management.property_contracts,
   property_management.property_clients,
   property_management.property_building_units,

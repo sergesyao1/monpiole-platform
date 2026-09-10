@@ -61,7 +61,7 @@ beforeAll(async () => {
     TO monpiole_runtime`);
   runtime = new Pool({ connectionString: connection("monpiole_runtime", "synthetic-runtime") });
 });
-afterEach(async () => owner.query("TRUNCATE property_management.property_applications, property_management.property_viewing_outcomes, property_management.property_viewings, property_management.property_inquiries, property_management.property_amenities, property_management.property_contracts, property_management.property_clients, property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners"));
+afterEach(async () => owner.query("TRUNCATE property_management.property_application_client_conversions, property_management.property_applications, property_management.property_viewing_outcomes, property_management.property_viewings, property_management.property_inquiries, property_management.property_amenities, property_management.property_contracts, property_management.property_clients, property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners"));
 afterAll(async () => { await runtime?.end(); await owner?.end(); await container?.stop(); });
 
 async function createReady(propertyId = PROPERTY_A) {

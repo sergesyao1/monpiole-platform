@@ -20,6 +20,7 @@ import type {
   CreatePropertyViewingOutcome, RetrievePropertyViewingOutcome, ProceedPropertyViewingOutcome, DeclinePropertyViewingOutcome,
   CreatePropertyApplication, RetrieveViewingPropertyApplication, ListPropertyApplications, RetrievePropertyApplication,
   ApprovePropertyApplication, RejectPropertyApplication, WithdrawPropertyApplication,
+  ConvertPropertyApplicationToClient, RetrievePropertyApplicationClientConversion,
 } from "@monpiole/property-management";
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core";
 import {
@@ -106,6 +107,7 @@ import { PublicPropertyInquiriesController, PropertyInquiriesController, SUBMIT_
 import { PropertyViewingsController, SCHEDULE_PROPERTY_VIEWING, RETRIEVE_INQUIRY_VIEWING, RETRIEVE_PROPERTY_VIEWING, RESCHEDULE_PROPERTY_VIEWING, COMPLETE_PROPERTY_VIEWING, CANCEL_PROPERTY_VIEWING } from "./http/properties/property-viewings.controller.js";
 import { PropertyViewingOutcomesController, CREATE_PROPERTY_VIEWING_OUTCOME, RETRIEVE_PROPERTY_VIEWING_OUTCOME, PROCEED_PROPERTY_VIEWING_OUTCOME, DECLINE_PROPERTY_VIEWING_OUTCOME } from "./http/properties/property-viewing-outcomes.controller.js";
 import { PropertyApplicationsController, CREATE_PROPERTY_APPLICATION, RETRIEVE_VIEWING_PROPERTY_APPLICATION, LIST_PROPERTY_APPLICATIONS, RETRIEVE_PROPERTY_APPLICATION, APPROVE_PROPERTY_APPLICATION, REJECT_PROPERTY_APPLICATION, WITHDRAW_PROPERTY_APPLICATION } from "./http/properties/property-applications.controller.js";
+import { PropertyApplicationClientConversionsController, CONVERT_PROPERTY_APPLICATION_TO_CLIENT, RETRIEVE_PROPERTY_APPLICATION_CLIENT } from "./http/properties/property-application-client-conversions.controller.js";
 
 const StrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
@@ -175,6 +177,8 @@ export interface ApiComposition {
   readonly approvePropertyApplication?: Pick<ApprovePropertyApplication, "execute">;
   readonly rejectPropertyApplication?: Pick<RejectPropertyApplication, "execute">;
   readonly withdrawPropertyApplication?: Pick<WithdrawPropertyApplication, "execute">;
+  readonly convertPropertyApplicationToClient?: Pick<ConvertPropertyApplicationToClient, "execute">;
+  readonly retrievePropertyApplicationClientConversion?: Pick<RetrievePropertyApplicationClientConversion, "execute">;
   readonly publicCatalogTenantResolver?: PublicCatalogTenantResolver;
   readonly listPublicProperties?: Pick<ListPublicProperties, "execute">;
   readonly retrievePublicProperty?: Pick<RetrievePublicProperty, "execute">;
@@ -272,7 +276,7 @@ export class AppModule {
         UpdatePropertyCoreInformationController, UpdatePropertyDetailsController, SetPropertyPricingController,
         PublishPropertyController,
         PropertyPhotosController, PropertyPhotoStandardController, PropertyGeolocationController, PropertyAvailabilityController, PropertyAmenitiesController,
-        PublicPropertiesController, PublicPropertyInquiriesController, PropertyInquiriesController, PropertyViewingsController, PropertyViewingOutcomesController, PropertyApplicationsController,
+        PublicPropertiesController, PublicPropertyInquiriesController, PropertyInquiriesController, PropertyViewingsController, PropertyViewingOutcomesController, PropertyApplicationsController, PropertyApplicationClientConversionsController,
         CreatePropertyOwnerController, ListPropertyOwnersController, RetrievePropertyOwnerController, UpdatePropertyOwnerController,
         AssignPropertyOwnerController, RetrievePropertyOwnershipsController, RemovePropertyOwnerController, PropertyCompositionController,
         PropertyClientsController, PropertyContractsController, PropertyWorkspaceController,
@@ -329,6 +333,8 @@ export class AppModule {
         { provide: APPROVE_PROPERTY_APPLICATION, useValue: composition.approvePropertyApplication ?? unavailableApplicationOperation },
         { provide: REJECT_PROPERTY_APPLICATION, useValue: composition.rejectPropertyApplication ?? unavailableApplicationOperation },
         { provide: WITHDRAW_PROPERTY_APPLICATION, useValue: composition.withdrawPropertyApplication ?? unavailableApplicationOperation },
+        { provide: CONVERT_PROPERTY_APPLICATION_TO_CLIENT, useValue: composition.convertPropertyApplicationToClient ?? unavailableApplicationOperation },
+        { provide: RETRIEVE_PROPERTY_APPLICATION_CLIENT, useValue: composition.retrievePropertyApplicationClientConversion ?? unavailableApplicationOperation },
         { provide: SET_PROPERTY_PRICING_USE_CASE, useValue: composition.setPropertyPricing ?? unavailableSetPropertyPricing },
         { provide: UPDATE_PROPERTY_CORE_INFORMATION_USE_CASE, useValue: composition.updatePropertyCoreInformation ?? unavailableUpdatePropertyCoreInformation },
         { provide: PUBLISH_PROPERTY_USE_CASE, useValue: composition.publishProperty ?? unavailablePublishProperty },

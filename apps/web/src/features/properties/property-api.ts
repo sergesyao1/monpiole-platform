@@ -12,7 +12,7 @@ import type {
   PropertyContract, PropertyContractDirectoryPage, PropertyContractInput, PropertyWorkspace,
   Amenity,
   PropertyInquiry, PropertyInquiryPage, PropertyViewing, PropertyViewingScheduleInput, PropertyViewingOutcome,
-  PropertyApplication, PropertyApplicationPage,
+  PropertyApplication, PropertyApplicationPage, PropertyApplicationClientConversion,
 } from "./property-model.js";
 
 export interface PropertyApi {
@@ -70,7 +70,7 @@ export interface PropertyClientContractApi {
 export interface PropertyWorkspaceApi { retrievePropertyWorkspace(propertyId: string): Promise<PropertyWorkspace>; }
 export interface PropertyAmenityApi { retrieveAmenityCatalog(): Promise<{ readonly items: readonly Amenity[] }>; retrievePropertyAmenities(propertyId: string): Promise<{ readonly amenityCodes: readonly string[] }>; replacePropertyAmenities(propertyId: string, amenityCodes: readonly string[]): Promise<{ readonly amenityCodes: readonly string[] }>; }
 export interface PropertyInquiryApi{listPropertyInquiries(propertyId:string,cursor?:string):Promise<PropertyInquiryPage>;acknowledgePropertyInquiry(propertyId:string,inquiryId:string):Promise<PropertyInquiry>;closePropertyInquiry(propertyId:string,inquiryId:string):Promise<PropertyInquiry>;retrieveInquiryViewing(propertyId:string,inquiryId:string):Promise<{readonly viewing:PropertyViewing|null}>;schedulePropertyViewing(propertyId:string,inquiryId:string,input:PropertyViewingScheduleInput):Promise<PropertyViewing>;reschedulePropertyViewing(propertyId:string,viewingId:string,input:PropertyViewingScheduleInput):Promise<PropertyViewing>;completePropertyViewing(propertyId:string,viewingId:string):Promise<PropertyViewing>;cancelPropertyViewing(propertyId:string,viewingId:string):Promise<PropertyViewing>;retrievePropertyViewingOutcome(propertyId:string,viewingId:string):Promise<{readonly outcome:PropertyViewingOutcome|null}>;createPropertyViewingOutcome(propertyId:string,viewingId:string,note?:string):Promise<PropertyViewingOutcome>;proceedPropertyViewingOutcome(propertyId:string,viewingId:string):Promise<PropertyViewingOutcome>;declinePropertyViewingOutcome(propertyId:string,viewingId:string):Promise<PropertyViewingOutcome>;retrieveViewingPropertyApplication?(propertyId:string,viewingId:string):Promise<{readonly application:PropertyApplication|null}>;createPropertyApplication?(propertyId:string,viewingId:string,note?:string):Promise<PropertyApplication>;}
-export interface PropertyApplicationApi{listPropertyApplications(propertyId:string,cursor?:string):Promise<PropertyApplicationPage>;approvePropertyApplication(propertyId:string,applicationId:string):Promise<PropertyApplication>;rejectPropertyApplication(propertyId:string,applicationId:string):Promise<PropertyApplication>;withdrawPropertyApplication(propertyId:string,applicationId:string):Promise<PropertyApplication>;}
+export interface PropertyApplicationApi{listPropertyApplications(propertyId:string,cursor?:string):Promise<PropertyApplicationPage>;approvePropertyApplication(propertyId:string,applicationId:string):Promise<PropertyApplication>;rejectPropertyApplication(propertyId:string,applicationId:string):Promise<PropertyApplication>;withdrawPropertyApplication(propertyId:string,applicationId:string):Promise<PropertyApplication>;retrievePropertyApplicationClient?(propertyId:string,applicationId:string):Promise<PropertyApplicationClientConversion>;convertPropertyApplicationToClient?(propertyId:string,applicationId:string):Promise<PropertyApplicationClientConversion>;}
 export type PropertyManagementApi = PropertyApi & PropertyClientContractApi & PropertyWorkspaceApi & PropertyAmenityApi & PropertyInquiryApi & PropertyApplicationApi;
 
 export function createPropertyApi(tokens: AccessTokenProvider): PropertyManagementApi {
@@ -131,6 +131,8 @@ export function createPropertyApi(tokens: AccessTokenProvider): PropertyManageme
     approvePropertyApplication:(propertyId,applicationId)=>request<PropertyApplication>(`${applicationPath(propertyId,applicationId)}/approval`,{method:"POST"}),
     rejectPropertyApplication:(propertyId,applicationId)=>request<PropertyApplication>(`${applicationPath(propertyId,applicationId)}/rejection`,{method:"POST"}),
     withdrawPropertyApplication:(propertyId,applicationId)=>request<PropertyApplication>(`${applicationPath(propertyId,applicationId)}/withdrawal`,{method:"POST"}),
+    retrievePropertyApplicationClient:(propertyId,applicationId)=>request<PropertyApplicationClientConversion>(`${applicationPath(propertyId,applicationId)}/client`),
+    convertPropertyApplicationToClient:(propertyId,applicationId)=>request<PropertyApplicationClientConversion>(`${applicationPath(propertyId,applicationId)}/client`,{method:"POST"}),
     listPropertyPhotos: (propertyId) => request<{ readonly photos: readonly PropertyPhoto[] }>(
       `/v1/properties/${encodeURIComponent(propertyId)}/photos`,
     ),

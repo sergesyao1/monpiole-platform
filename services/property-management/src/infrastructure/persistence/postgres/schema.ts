@@ -507,3 +507,15 @@ export const propertyViewings=propertyManagement.table("property_viewings",{view
 
 export const propertyViewingOutcomes=propertyManagement.table("property_viewing_outcomes",{outcomeId:uuid("outcome_id").primaryKey(),tenantId:uuid("tenant_id").notNull(),propertyId:uuid("property_id").notNull(),viewingId:uuid("viewing_id").notNull(),status:text("status").notNull(),note:text("note"),createdAt:timestamp("created_at",{withTimezone:true,mode:"string"}).notNull(),updatedAt:timestamp("updated_at",{withTimezone:true,mode:"string"}).notNull(),decidedAt:timestamp("decided_at",{withTimezone:true,mode:"string"}),correlationId:uuid("correlation_id").notNull(),actorId:text("actor_id").notNull()},table=>[
  uniqueIndex("property_viewing_outcomes_tenant_outcome_unique").on(table.tenantId,table.outcomeId),uniqueIndex("property_viewing_outcomes_tenant_viewing_unique").on(table.tenantId,table.viewingId),foreignKey({name:"property_viewing_outcomes_viewing_tenant_fk",columns:[table.tenantId,table.propertyId,table.viewingId],foreignColumns:[propertyViewings.tenantId,propertyViewings.propertyId,propertyViewings.viewingId]}),check("property_viewing_outcomes_note_check",sql`${table.note} IS NULL OR char_length(btrim(${table.note})) BETWEEN 1 AND 2000`),check("property_viewing_outcomes_lifecycle_check",sql`(${table.status}='FOLLOW_UP_REQUIRED' AND ${table.decidedAt} IS NULL) OR (${table.status} IN ('PROCEED','DECLINED') AND ${table.decidedAt} IS NOT NULL)`),pgPolicy("property_viewing_outcomes_tenant_isolation",{using:sql`${table.tenantId}=NULLIF(current_setting('app.tenant_id',true),'')::uuid`,withCheck:sql`${table.tenantId}=NULLIF(current_setting('app.tenant_id',true),'')::uuid`})]).enableRLS();
+
+export const propertyApplicationClientConversions = propertyManagement.table("property_application_client_conversions", {
+  tenantId: uuid("tenant_id").notNull(), applicationId: uuid("application_id").notNull(), clientId: uuid("client_id").notNull(),
+  convertedAt: timestamp("converted_at", { withTimezone: true, mode: "string" }).notNull(),
+  correlationId: uuid("correlation_id").notNull(), actorId: text("actor_id").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.tenantId, table.applicationId] }),
+  uniqueIndex("property_application_client_conversions_tenant_client_unique").on(table.tenantId, table.clientId),
+  foreignKey({ name: "property_application_client_conversions_application_tenant_fk", columns: [table.tenantId, table.applicationId], foreignColumns: [propertyApplications.tenantId, propertyApplications.applicationId] }),
+  foreignKey({ name: "property_application_client_conversions_client_tenant_fk", columns: [table.tenantId, table.clientId], foreignColumns: [propertyClients.tenantId, propertyClients.clientId] }),
+  pgPolicy("property_application_client_conversions_tenant_isolation", { using: sql`${table.tenantId}=NULLIF(current_setting('app.tenant_id',true),'')::uuid`, withCheck: sql`${table.tenantId}=NULLIF(current_setting('app.tenant_id',true),'')::uuid` }),
+]).enableRLS();

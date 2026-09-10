@@ -1,0 +1,12 @@
+import { describe, expect, it, vi } from "vitest";
+import { ConvertPropertyApplicationToClient, PropertyApplicationClientConversionNotEligibleError, PropertyClient, type PropertyApplicationClientConversionRepository } from "../../services/property-management/src/index.js";
+
+const T="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",P="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",A="cccccccc-cccc-4ccc-8ccc-cccccccccccc",C="dddddddd-dddd-4ddd-8ddd-dddddddddddd",NOW="2026-09-10T12:00:00.000Z";
+const authority={actorId:"actor",authorityId:"authority",tenantIds:[T],grants:["MANAGE_PROPERTY_APPLICATION_CLIENT_CONVERSIONS"]as const};
+const client=PropertyClient.create({clientId:C,tenantId:T,displayName:"Awa Koné",email:"awa@example.com",createdAt:NOW,updatedAt:NOW});
+
+describe("Property application client conversion",()=>{
+  it("converts an approved application and derives no caller identity",async()=>{const repository:PropertyApplicationClientConversionRepository={convert:vi.fn(async input=>({kind:"CREATED"as const,conversion:{applicationId:input.applicationId,convertedAt:input.convertedAt,client}})),find:vi.fn()};const useCase=new ConvertPropertyApplicationToClient(repository,{generate:()=>C},{now:()=>NOW});const result=await useCase.execute({authority,propertyId:P,applicationId:A,correlationId:C});expect(result.client.values.displayName).toBe("Awa Koné");expect(repository.convert).toHaveBeenCalledWith(expect.objectContaining({tenantId:T,propertyId:P,applicationId:A,clientId:C}));});
+  it("returns the canonical client on replay",async()=>{const repository:PropertyApplicationClientConversionRepository={convert:vi.fn(async()=>({kind:"EXISTING"as const,conversion:{applicationId:A,convertedAt:NOW,client}})),find:vi.fn()};const result=await new ConvertPropertyApplicationToClient(repository,{generate:()=>"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"},{now:()=>NOW}).execute({authority,propertyId:P,applicationId:A,correlationId:C});expect(result.client.values.clientId).toBe(C);});
+  it("rejects a non-approved application",async()=>{const repository:PropertyApplicationClientConversionRepository={convert:vi.fn(async()=>({kind:"NOT_ELIGIBLE"as const})),find:vi.fn()};await expect(new ConvertPropertyApplicationToClient(repository,{generate:()=>C},{now:()=>NOW}).execute({authority,propertyId:P,applicationId:A,correlationId:C})).rejects.toBeInstanceOf(PropertyApplicationClientConversionNotEligibleError);});
+});

@@ -45,6 +45,12 @@ export { RetrievePropertyOwnerships, type RetrievePropertyOwnershipsQuery } from
 export { RemovePropertyOwner, PropertyOwnershipNotFoundError, type RemovePropertyOwnerCommand } from "./application/remove-property-owner.js";
 export { PropertyForbiddenError, type PropertyAuthority, type PropertyGrant } from "./application/property-authority.js";
 export {
+  ConvertPropertyApplicationToClient, RetrievePropertyApplicationClientConversion,
+  PropertyApplicationClientConversionNotFoundError, PropertyApplicationClientConversionNotEligibleError,
+} from "./application/manage-property-application-client-conversions.js";
+export type { PropertyApplicationClientConversionRepository, PropertyApplicationClientConversionResult } from "./application/property-application-client-conversion-repository.js";
+export { PropertyApplicationClientConversion } from "./domain/property-application-client-conversion.js";
+export {
   CreatePropertyClient, ListPropertyClients, RetrievePropertyClient,
   PropertyClientNotFoundError, InvalidPropertyClientDirectoryQueryError,
   DEFAULT_PROPERTY_CLIENT_DIRECTORY_LIMIT, MAX_PROPERTY_CLIENT_DIRECTORY_LIMIT,
@@ -179,3 +185,4 @@ export { PropertyApplication, InvalidPropertyApplicationInputError, PropertyAppl
 export { CreatePropertyApplication, RetrievePropertyApplication, RetrieveViewingPropertyApplication, ListPropertyApplications, ApprovePropertyApplication, RejectPropertyApplication, WithdrawPropertyApplication, PropertyApplicationNotFoundError, PropertyApplicationOutcomeNotEligibleError, InvalidPropertyApplicationListQueryError } from "./application/manage-property-applications.js";
 export { type PropertyApplicationRepository, type PropertyApplicationCursor, type PropertyApplicationPage, type CreateApplicationResult } from "./application/property-application-repository.js";
 export { PostgresPropertyApplicationRepository } from "./infrastructure/persistence/postgres/postgres-property-application-repository.js";
+export { PostgresPropertyApplicationClientConversionRepository } from "./infrastructure/persistence/postgres/postgres-property-application-client-conversion-repository.js";

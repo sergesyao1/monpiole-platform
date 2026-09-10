@@ -262,6 +262,12 @@ export interface PropertyClientInput {
   readonly phoneNumber?: string;
 }
 
+export interface PropertyApplicationClientConversion {
+  readonly applicationId: string;
+  readonly convertedAt: string;
+  readonly client: PropertyClient;
+}
+
 export interface PropertyClientDirectoryPage {
   readonly items: readonly PropertyClient[];
   readonly pageInfo: Readonly<{ readonly nextCursor: string | null; readonly hasNextPage: boolean }>;

@@ -1,0 +1,11 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { PropertyApplicationClientConversionNotEligibleError, PropertyClient } from "../../services/property-management/src/index.js";
+import { createApiApplication } from "../../apps/api/src/bootstrap.js";
+
+const T="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",P="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",A="cccccccc-cccc-4ccc-8ccc-cccccccccccc",C="dddddddd-dddd-4ddd-8ddd-dddddddddddd",NOW="2026-09-10T12:00:00.000Z";
+const client=PropertyClient.create({clientId:C,tenantId:T,displayName:"Awa Koné",email:"awa@example.com",createdAt:NOW,updatedAt:NOW});
+describe("Property application client conversion HTTP",()=>{let app:Awaited<ReturnType<typeof createApiApplication>>|undefined;afterEach(()=>app?.close());async function start(overrides:Record<string,unknown>={}){app=await createApiApplication({logger:false},{authenticatedAuthorityProvider:{resolve:async()=>({actorId:"actor",authorityId:"authority",tenantIds:[T],grants:["RETRIEVE_PROPERTY_APPLICATIONS","MANAGE_PROPERTY_APPLICATION_CLIENT_CONVERSIONS"]})},convertPropertyApplicationToClient:{execute:vi.fn(async()=>({applicationId:A,convertedAt:NOW,client}))},retrievePropertyApplicationClientConversion:{execute:vi.fn(async()=>({applicationId:A,convertedAt:NOW,client}))},...overrides});await app.listen(0,"127.0.0.1");const address=app.getHttpServer().address();if(!address||typeof address==="string")throw new Error("bind");return`http://127.0.0.1:${address.port}/v1/properties/${P}/applications/${A}/client`;}
+  it("creates and retrieves the canonical conversion",async()=>{const url=await start();const created=await fetch(url,{method:"POST"});expect(created.status).toBe(200);expect((await created.json()).client.clientId).toBe(C);expect((await fetch(url)).status).toBe(200);});
+  it("maps lifecycle conflict and validates paths",async()=>{const url=await start({convertPropertyApplicationToClient:{execute:vi.fn(async()=>{throw new PropertyApplicationClientConversionNotEligibleError();})}});expect((await fetch(url,{method:"POST"})).status).toBe(409);expect((await fetch(url.replace(A,"invalid"),{method:"POST"})).status).toBe(400);});
+  it("requires authorization",async()=>{const url=await start({authenticatedAuthorityProvider:{resolve:async()=>undefined}});expect((await fetch(url,{method:"POST"})).status).toBe(401);});
+});
