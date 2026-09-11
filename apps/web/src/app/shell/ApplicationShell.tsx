@@ -5,6 +5,7 @@ import { Button } from "../../ui/index.js";
 const primaryNavigation = [
   { to: "/", label: "Tableau de bord", end: true },
   { to: "/properties", label: "Biens immobiliers", end: false },
+  { to: "/demandes", label: "Demandes", end: false },
   { to: "/proprietaires", label: "Propriétaires", end: false },
 ] as const;
 
@@ -16,6 +17,7 @@ function routeContext(pathname: string) {
   if (pathname === "/properties/new") return "Nouveau bien";
   if (/^\/properties\/[^/]+$/.test(pathname)) return "Fiche du bien";
   if (pathname.startsWith("/properties")) return "Portefeuille immobilier";
+  if (pathname.startsWith("/demandes")) return "Demandes";
   if (pathname === "/proprietaires/new") return "Nouveau propriétaire";
   if (/^\/proprietaires\/[^/]+$/.test(pathname)) return "Fiche propriétaire";
   if (pathname.startsWith("/proprietaires")) return "Annuaire des propriétaires";

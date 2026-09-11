@@ -22,6 +22,7 @@ import type {
   ApprovePropertyApplication, RejectPropertyApplication, WithdrawPropertyApplication,
   ConvertPropertyApplicationToClient, RetrievePropertyApplicationClientConversion,
   CreatePropertyContractFromApplication,
+  ListPropertyCommercialJourneys,
 } from "@monpiole/property-management";
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core";
 import {
@@ -110,6 +111,7 @@ import { PropertyViewingOutcomesController, CREATE_PROPERTY_VIEWING_OUTCOME, RET
 import { PropertyApplicationsController, CREATE_PROPERTY_APPLICATION, RETRIEVE_VIEWING_PROPERTY_APPLICATION, LIST_PROPERTY_APPLICATIONS, RETRIEVE_PROPERTY_APPLICATION, APPROVE_PROPERTY_APPLICATION, REJECT_PROPERTY_APPLICATION, WITHDRAW_PROPERTY_APPLICATION } from "./http/properties/property-applications.controller.js";
 import { PropertyApplicationClientConversionsController, CONVERT_PROPERTY_APPLICATION_TO_CLIENT, RETRIEVE_PROPERTY_APPLICATION_CLIENT } from "./http/properties/property-application-client-conversions.controller.js";
 import { PropertyApplicationContractsController, CREATE_PROPERTY_CONTRACT_FROM_APPLICATION } from "./http/properties/property-application-contracts.controller.js";
+import { PropertyCommercialJourneysController, LIST_PROPERTY_COMMERCIAL_JOURNEYS } from "./http/properties/property-commercial-journeys.controller.js";
 
 const StrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
@@ -159,6 +161,7 @@ export interface ApiComposition {
   readonly replacePropertyAmenities?: Pick<ReplacePropertyAmenities, "execute">;
   readonly submitPublicPropertyInquiry?: Pick<SubmitPublicPropertyInquiry, "execute">;
   readonly listPropertyInquiries?: Pick<ListPropertyInquiries, "execute">;
+  readonly listPropertyCommercialJourneys?: Pick<ListPropertyCommercialJourneys, "execute">;
   readonly retrievePropertyInquiry?: Pick<RetrievePropertyInquiry, "execute">;
   readonly acknowledgePropertyInquiry?: Pick<AcknowledgePropertyInquiry, "execute">;
   readonly closePropertyInquiry?: Pick<ClosePropertyInquiry, "execute">;
@@ -279,7 +282,7 @@ export class AppModule {
         UpdatePropertyCoreInformationController, UpdatePropertyDetailsController, SetPropertyPricingController,
         PublishPropertyController,
         PropertyPhotosController, PropertyPhotoStandardController, PropertyGeolocationController, PropertyAvailabilityController, PropertyAmenitiesController,
-        PublicPropertiesController, PublicPropertyInquiriesController, PropertyInquiriesController, PropertyViewingsController, PropertyViewingOutcomesController, PropertyApplicationsController, PropertyApplicationClientConversionsController, PropertyApplicationContractsController,
+        PublicPropertiesController, PublicPropertyInquiriesController, PropertyInquiriesController, PropertyCommercialJourneysController, PropertyViewingsController, PropertyViewingOutcomesController, PropertyApplicationsController, PropertyApplicationClientConversionsController, PropertyApplicationContractsController,
         CreatePropertyOwnerController, ListPropertyOwnersController, RetrievePropertyOwnerController, UpdatePropertyOwnerController,
         AssignPropertyOwnerController, RetrievePropertyOwnershipsController, RemovePropertyOwnerController, PropertyCompositionController,
         PropertyClientsController, PropertyContractsController, PropertyWorkspaceController,
@@ -316,6 +319,7 @@ export class AppModule {
         { provide: REPLACE_PROPERTY_AMENITIES, useValue: composition.replacePropertyAmenities ?? unavailableAmenityOperation },
         { provide: SUBMIT_PUBLIC_PROPERTY_INQUIRY, useValue: composition.submitPublicPropertyInquiry ?? unavailableInquiryOperation },
         { provide: LIST_PROPERTY_INQUIRIES, useValue: composition.listPropertyInquiries ?? unavailableInquiryOperation },
+        { provide: LIST_PROPERTY_COMMERCIAL_JOURNEYS, useValue: composition.listPropertyCommercialJourneys ?? unavailableInquiryOperation },
         { provide: RETRIEVE_PROPERTY_INQUIRY, useValue: composition.retrievePropertyInquiry ?? unavailableInquiryOperation },
         { provide: ACKNOWLEDGE_PROPERTY_INQUIRY, useValue: composition.acknowledgePropertyInquiry ?? unavailableInquiryOperation },
         { provide: CLOSE_PROPERTY_INQUIRY, useValue: composition.closePropertyInquiry ?? unavailableInquiryOperation },

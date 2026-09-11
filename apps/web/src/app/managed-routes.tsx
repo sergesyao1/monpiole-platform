@@ -21,6 +21,7 @@ const applicationChildren: RouteObject[] = [{
     { index: true, element: <HomePage /> },
     { path: "biens", element: <Navigate to="/properties" replace /> },
     { path: "properties", lazy: lazyComponent(() => import("../features/properties/PropertyWorkspacePage.js"), "PropertyWorkspacePage") },
+    { path: "demandes", lazy: lazyComponent(() => import("../features/properties/PropertyCommercialJourneysPage.js"), "PropertyCommercialJourneysPage") },
     { path: "properties/new", lazy: lazyComponent(() => import("../features/properties/CreatePropertyPage.js"), "CreatePropertyPage") },
     { path: "properties/:propertyId", lazy: lazyComponent(() => import("../features/properties/PropertyDetailPage.js"), "PropertyDetailPage") },
     { path: "proprietaires", lazy: lazyComponent(() => import("../features/properties/PropertyOwnerDirectoryPage.js"), "PropertyOwnerDirectoryPage") },

@@ -32,6 +32,7 @@ import {
   PostgresPropertyApplicationRepository, PropertyApplication,
   PostgresPropertyApplicationClientConversionRepository,
   PostgresPropertyApplicationContractRepository,
+  PostgresPropertyCommercialJourneyQuery,
 } from "../src/index.js";
 
 const IMAGE = "postgres@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687";
@@ -1395,6 +1396,9 @@ describe("Property availability PostgreSQL persistence", () => {
     const replayed = await repository.submitForPublishedProperty(PropertyInquiry.create({ ...inquiry.values, inquiryId: randomUUID() }), PROPERTY_ID, { actorId: "public-inquiry", correlationId: CORRELATION });
     expect(replayed?.values.inquiryId).toBe(saved?.values.inquiryId);
     expect((await repository.list(TENANT_A, PROPERTY_ID, 20))?.items).toHaveLength(1);
+    const journeys = new PostgresPropertyCommercialJourneyQuery(runtime);
+    await expect(journeys.list(TENANT_A, 20)).resolves.toMatchObject({ items: [{ inquiryId: saved?.values.inquiryId, propertyId: PROPERTY_ID, propertyTitle: "House", stage: "NEW_INQUIRY", nextAction: "ACKNOWLEDGE" }] });
+    await expect(journeys.list(TENANT_B, 20)).resolves.toEqual({ items: [] });
     expect(await repository.list(TENANT_B, PROPERTY_ID, 20)).toBeUndefined();
     await expect(withTenantPostgresTransaction(runtime, TENANT_B, (scope) => scope.query("SELECT * FROM property_management.property_inquiries"))).resolves.toEqual([]);
   });

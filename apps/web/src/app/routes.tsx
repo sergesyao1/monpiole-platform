@@ -8,6 +8,7 @@ import { PropertyDetailPage } from "../features/properties/PropertyDetailPage.js
 import { PropertyOwnerDetailPage } from "../features/properties/PropertyOwnerDetailPage.js";
 import { PropertyOwnerDirectoryPage } from "../features/properties/PropertyOwnerDirectoryPage.js";
 import { PropertyWorkspacePage } from "../features/properties/PropertyWorkspacePage.js";
+import { PropertyCommercialJourneysPage } from "../features/properties/PropertyCommercialJourneysPage.js";
 import { PublicPropertyCatalogPage } from "../features/public-catalog/PublicPropertyCatalogPage.js";
 import { PublicPropertyDetailPage } from "../features/public-catalog/PublicPropertyDetailPage.js";
 import { AuthenticationDiagnosticPage } from "./pages/AuthenticationDiagnosticPage.js";
@@ -32,6 +33,7 @@ export const applicationRoutes: RouteObject[] = [
         { index: true, element: <HomePage /> },
         { path: "biens", element: <Navigate to="/properties" replace /> },
         { path: "properties", element: <PropertyWorkspacePage /> },
+        { path: "demandes", element: <PropertyCommercialJourneysPage /> },
         { path: "properties/new", element: <CreatePropertyPage /> },
         { path: "properties/:propertyId", element: <PropertyDetailPage /> },
         { path: "proprietaires", element: <PropertyOwnerDirectoryPage /> },

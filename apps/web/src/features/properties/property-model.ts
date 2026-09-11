@@ -347,6 +347,11 @@ export interface PropertyWorkspace {
   }>;
 }
 
+export type PropertyCommercialStage = "NEW_INQUIRY" | "ACKNOWLEDGED_INQUIRY" | "SCHEDULED_VIEWING" | "COMPLETED_VIEWING" | "FOLLOW_UP_REQUIRED" | "PROCEED" | "DECLINED" | "SUBMITTED_APPLICATION" | "APPROVED_APPLICATION" | "REJECTED_APPLICATION" | "WITHDRAWN_APPLICATION" | "CLIENT_CREATED" | "DRAFT_CONTRACT" | "ACTIVE_CONTRACT" | "ENDED_CONTRACT" | "CANCELLED_CONTRACT" | "CLOSED_INQUIRY";
+export type PropertyCommercialNextAction = "ACKNOWLEDGE" | "SCHEDULE_VIEWING" | "COMPLETE_VIEWING" | "RECORD_OUTCOME" | "DECIDE_OUTCOME" | "CREATE_APPLICATION" | "DECIDE_APPLICATION" | "CREATE_CLIENT" | "CREATE_CONTRACT" | "ACTIVATE_CONTRACT";
+export interface PropertyCommercialJourneyItem { readonly inquiryId: string; readonly propertyId: string; readonly propertyTitle: string; readonly contactName: string; readonly stage: PropertyCommercialStage; readonly nextAction?: PropertyCommercialNextAction; readonly relevantAt: string; readonly workspaceAnchor: string; }
+export interface PropertyCommercialJourneyPage { readonly items: readonly PropertyCommercialJourneyItem[]; readonly pageInfo: Readonly<{ hasNextPage: boolean; nextCursor: string | null }>; }
+
 export function formatMinorAmount(amount: number, currency: string): string {
   const formatted = new Intl.NumberFormat("fr-FR", { style: "currency", currency }).format(amount / currencyMinorFactor(currency));
   return currency === "XOF" ? formatted.replace(/F\s*CFA/u, "FCFA") : formatted;

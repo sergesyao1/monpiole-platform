@@ -158,6 +158,12 @@ function businessProblem(exception: unknown) {
   if (code === "INVALID_PROPERTY_APPLICATION_INPUT" || code === "INVALID_PROPERTY_APPLICATION_LIST_QUERY") return {
     status: 400, type: "https://api.monpiole.example/problems/invalid-request", title: "Invalid request", code: "INVALID_REQUEST",
   };
+  if (code === "INVALID_PROPERTY_COMMERCIAL_JOURNEY_QUERY") return {
+    status: 400, type: "https://api.monpiole.example/problems/invalid-request", title: "Invalid request", code: "INVALID_REQUEST",
+  };
+  if (exception instanceof Error && exception.message === "Invalid commercial journey cursor") return {
+    status: 400, type: "https://api.monpiole.example/problems/invalid-request", title: "Invalid request", code: "INVALID_REQUEST",
+  };
   if (code === "PROPERTY_APPLICATION_NOT_FOUND") return {
     status: 404, type: "https://api.monpiole.example/problems/property-application-not-found", title: "Property application not found", code,
   };

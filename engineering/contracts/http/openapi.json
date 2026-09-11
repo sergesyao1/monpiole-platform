@@ -12882,6 +12882,55 @@
         ]
       }
     },
+    "/v1/property-commercial-journeys": {
+      "get": {
+        "operationId": "listPropertyCommercialJourneys",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertyContractResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List tenant commercial journeys requiring orientation",
+        "tags": [
+          "Property commercial journeys"
+        ]
+      }
+    },
     "/v1/property-owners": {
       "get": {
         "operationId": "listPropertyOwners",

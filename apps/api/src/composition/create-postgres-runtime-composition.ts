@@ -33,6 +33,7 @@ import {
   PostgresPropertyApplicationRepository, CreatePropertyApplication, RetrieveViewingPropertyApplication, ListPropertyApplications, RetrievePropertyApplication, ApprovePropertyApplication, RejectPropertyApplication, WithdrawPropertyApplication,
   PostgresPropertyApplicationClientConversionRepository, ConvertPropertyApplicationToClient, RetrievePropertyApplicationClientConversion,
   PostgresPropertyApplicationContractRepository, CreatePropertyContractFromApplication,
+  PostgresPropertyCommercialJourneyQuery, ListPropertyCommercialJourneys,
 } from "@monpiole/property-management";
 import {
   ActivateTenant,
@@ -171,6 +172,7 @@ export function createPostgresApiRuntime(
     convertPropertyApplicationToClient: new ConvertPropertyApplicationToClient(propertyApplicationClientConversionRepository, { generate: randomUUID }, compositionClock),
     retrievePropertyApplicationClientConversion: new RetrievePropertyApplicationClientConversion(propertyApplicationClientConversionRepository),
     createPropertyContractFromApplication: new CreatePropertyContractFromApplication(propertyApplicationContractRepository,{generate:randomUUID},compositionClock),
+    listPropertyCommercialJourneys: new ListPropertyCommercialJourneys(new PostgresPropertyCommercialJourneyQuery(pool)),
     retrievePropertyAvailability: new RetrievePropertyAvailability(propertyAvailabilityQuery),
     updatePropertyAvailability: new UpdatePropertyAvailability(propertyRepository, { now: () => new Date().toISOString() }),
     createPropertyClient: new CreatePropertyClient(propertyClientRepository, { generate: randomUUID }, compositionClock),
