@@ -199,6 +199,11 @@ describe("Property PostgreSQL persistence", () => {
     expect(["bbbbbbbb-1111-4111-8111-111111111111","bbbbbbbb-2222-4222-8222-222222222222"]).toContain(contractIds[0]);
     const origins=await owner.query("SELECT count(*)::int AS count FROM property_management.property_application_contract_origins WHERE tenant_id=$1 AND application_id=$2",[TENANT_A,application.values.applicationId]);
     expect(origins.rows[0]?.count).toBe(1);
+    const commercialJourneys = new PostgresPropertyCommercialJourneyQuery(runtime);
+    await expect(commercialJourneys.list(TENANT_A, { q: "awa@example.com", stage: "DRAFT_CONTRACT", nextAction: "ACTIVATE_CONTRACT", sort: "RECENT" }, 20)).resolves.toMatchObject({
+      totalCount: 1,
+      items: [{ inquiryId, stage: "DRAFT_CONTRACT", nextAction: "ACTIVATE_CONTRACT", workspaceAnchor: "property-contracts" }],
+    });
   });
   it("migre 0014 vers 0015, préserve les prix legacy et refuse leur publication sans mise en conformité", async () => {
     const previousMigrations = await migrationsThrough(14);
@@ -1404,8 +1409,20 @@ describe("Property availability PostgreSQL persistence", () => {
     expect(replayed?.values.inquiryId).toBe(saved?.values.inquiryId);
     expect((await repository.list(TENANT_A, PROPERTY_ID, 20))?.items).toHaveLength(1);
     const journeys = new PostgresPropertyCommercialJourneyQuery(runtime);
-    await expect(journeys.list(TENANT_A, 20)).resolves.toMatchObject({ items: [{ inquiryId: saved?.values.inquiryId, propertyId: PROPERTY_ID, propertyTitle: "House", stage: "NEW_INQUIRY", nextAction: "ACKNOWLEDGE" }] });
-    await expect(journeys.list(TENANT_B, 20)).resolves.toEqual({ items: [] });
+    await expect(journeys.list(TENANT_A, { sort: "RECENT" }, 20)).resolves.toMatchObject({ totalCount: 1, properties: [{ propertyId: PROPERTY_ID, title: "House" }], items: [{ inquiryId: saved?.values.inquiryId, propertyId: PROPERTY_ID, propertyTitle: "House", stage: "NEW_INQUIRY", nextAction: "ACKNOWLEDGE" }] });
+    await expect(journeys.list(TENANT_A, { q: "awa KONÉ", sort: "RECENT" }, 20)).resolves.toMatchObject({ totalCount: 1, items: [{ contactName: "Awa Koné" }] });
+    await expect(journeys.list(TENANT_A, { q: "HOUSE", propertyId: PROPERTY_ID, stage: "NEW_INQUIRY", nextAction: "ACKNOWLEDGE", sort: "OLDEST" }, 20)).resolves.toMatchObject({ totalCount: 1, items: [{ propertyTitle: "House" }] });
+    await expect(journeys.list(TENANT_A, { stage: "ACTIVE_CONTRACT", sort: "RECENT" }, 20)).resolves.toMatchObject({ totalCount: 0, items: [] });
+    const laterInquiry = PropertyInquiry.create({ ...inquiry.values, inquiryId: randomUUID(), contactName: "Traoré Sarah", email: "sarah@example.com", idempotencyKey: "request-2", consentGivenAt: "2026-09-09T13:00:00.000Z", createdAt: "2026-09-09T13:00:00.000Z", updatedAt: "2026-09-09T13:00:00.000Z" });
+    await repository.submitForPublishedProperty(laterInquiry, PROPERTY_ID, { actorId: "public-inquiry", correlationId: REPLAY_CORRELATION });
+    const recentFirst = await journeys.list(TENANT_A, { sort: "RECENT" }, 1);
+    expect(recentFirst).toMatchObject({ totalCount: 2, items: [{ contactName: "Traoré Sarah" }] });
+    expect(recentFirst.nextCursor).toBeDefined();
+    await expect(journeys.list(TENANT_A, { sort: "RECENT" }, 1, recentFirst.nextCursor)).resolves.toMatchObject({ totalCount: 2, items: [{ contactName: "Awa Koné" }] });
+    const oldestFirst = await journeys.list(TENANT_A, { sort: "OLDEST" }, 1);
+    expect(oldestFirst).toMatchObject({ totalCount: 2, items: [{ contactName: "Awa Koné" }] });
+    await expect(journeys.list(TENANT_A, { sort: "OLDEST" }, 1, oldestFirst.nextCursor)).resolves.toMatchObject({ totalCount: 2, items: [{ contactName: "Traoré Sarah" }] });
+    await expect(journeys.list(TENANT_B, { sort: "RECENT" }, 20)).resolves.toEqual({ items: [], totalCount: 0, properties: [] });
     expect(await repository.list(TENANT_B, PROPERTY_ID, 20)).toBeUndefined();
     await expect(withTenantPostgresTransaction(runtime, TENANT_B, (scope) => scope.query("SELECT * FROM property_management.property_inquiries"))).resolves.toEqual([]);
   });

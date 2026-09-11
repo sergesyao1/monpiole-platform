@@ -1846,6 +1846,146 @@
         ],
         "type": "object"
       },
+      "PropertyCommercialJourneyListResponseDto": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "contactName": {
+                  "type": "string"
+                },
+                "inquiryId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "nextAction": {
+                  "enum": [
+                    "ACKNOWLEDGE",
+                    "ACTIVATE_CONTRACT",
+                    "COMPLETE_VIEWING",
+                    "CREATE_APPLICATION",
+                    "CREATE_CLIENT",
+                    "CREATE_CONTRACT",
+                    "DECIDE_APPLICATION",
+                    "DECIDE_OUTCOME",
+                    "RECORD_OUTCOME",
+                    "SCHEDULE_VIEWING"
+                  ],
+                  "type": "string"
+                },
+                "propertyId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "propertyTitle": {
+                  "type": "string"
+                },
+                "relevantAt": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                  "type": "string"
+                },
+                "stage": {
+                  "enum": [
+                    "ACKNOWLEDGED_INQUIRY",
+                    "ACTIVE_CONTRACT",
+                    "APPROVED_APPLICATION",
+                    "CANCELLED_CONTRACT",
+                    "CLIENT_CREATED",
+                    "CLOSED_INQUIRY",
+                    "COMPLETED_VIEWING",
+                    "DECLINED",
+                    "DRAFT_CONTRACT",
+                    "ENDED_CONTRACT",
+                    "FOLLOW_UP_REQUIRED",
+                    "NEW_INQUIRY",
+                    "PROCEED",
+                    "REJECTED_APPLICATION",
+                    "SCHEDULED_VIEWING",
+                    "SUBMITTED_APPLICATION",
+                    "WITHDRAWN_APPLICATION"
+                  ],
+                  "type": "string"
+                },
+                "workspaceAnchor": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "contactName",
+                "inquiryId",
+                "propertyId",
+                "propertyTitle",
+                "relevantAt",
+                "stage",
+                "workspaceAnchor"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "pageInfo": {
+            "additionalProperties": false,
+            "properties": {
+              "hasNextPage": {
+                "type": "boolean"
+              },
+              "nextCursor": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "hasNextPage",
+              "nextCursor"
+            ],
+            "type": "object"
+          },
+          "properties": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "propertyId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "propertyId",
+                "title"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "totalCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "pageInfo",
+          "properties",
+          "totalCount"
+        ],
+        "type": "object"
+      },
       "PropertyContractDirectoryResponse": {
         "additionalProperties": false,
         "properties": {
@@ -12983,6 +13123,85 @@
               "minLength": 1,
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "propertyId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stage",
+            "required": false,
+            "schema": {
+              "enum": [
+                "ACKNOWLEDGED_INQUIRY",
+                "ACTIVE_CONTRACT",
+                "APPROVED_APPLICATION",
+                "CANCELLED_CONTRACT",
+                "CLIENT_CREATED",
+                "CLOSED_INQUIRY",
+                "COMPLETED_VIEWING",
+                "DECLINED",
+                "DRAFT_CONTRACT",
+                "ENDED_CONTRACT",
+                "FOLLOW_UP_REQUIRED",
+                "NEW_INQUIRY",
+                "PROCEED",
+                "REJECTED_APPLICATION",
+                "SCHEDULED_VIEWING",
+                "SUBMITTED_APPLICATION",
+                "WITHDRAWN_APPLICATION"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "nextAction",
+            "required": false,
+            "schema": {
+              "enum": [
+                "ACKNOWLEDGE",
+                "ACTIVATE_CONTRACT",
+                "COMPLETE_VIEWING",
+                "CREATE_APPLICATION",
+                "CREATE_CLIENT",
+                "CREATE_CONTRACT",
+                "DECIDE_APPLICATION",
+                "DECIDE_OUTCOME",
+                "RECORD_OUTCOME",
+                "SCHEDULE_VIEWING"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "RECENT",
+              "enum": [
+                "OLDEST",
+                "RECENT"
+              ],
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -12990,7 +13209,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PropertyContractResponse"
+                  "$ref": "#/components/schemas/PropertyCommercialJourneyListResponseDto"
                 }
               }
             },

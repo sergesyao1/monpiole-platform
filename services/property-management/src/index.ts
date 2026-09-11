@@ -190,5 +190,5 @@ export { CreatePropertyContractFromApplication, PropertyApplicationContractNotFo
 export type { PropertyApplicationContractRepository, ApplicationContractTerms, CreateApplicationContractResult } from "./application/property-application-contract-repository.js";
 export { PostgresPropertyApplicationContractRepository } from "./infrastructure/persistence/postgres/postgres-property-application-contract-repository.js";
 export { ListPropertyCommercialJourneys, InvalidPropertyCommercialJourneyQueryError } from "./application/list-property-commercial-journeys.js";
-export type { PropertyCommercialJourneyQuery, PropertyCommercialJourneyItem, PropertyCommercialJourneyPage, PropertyCommercialJourneyCursor, PropertyCommercialStage, PropertyCommercialNextAction } from "./application/property-commercial-journey-query.js";
+export type { PropertyCommercialJourneyQuery, PropertyCommercialJourneyItem, PropertyCommercialJourneyPage, PropertyCommercialJourneyCursor, PropertyCommercialJourneyCriteria, PropertyCommercialJourneySort, PropertyCommercialStage, PropertyCommercialNextAction } from "./application/property-commercial-journey-query.js";
 export { PostgresPropertyCommercialJourneyQuery } from "./infrastructure/persistence/postgres/postgres-property-commercial-journey-query.js";

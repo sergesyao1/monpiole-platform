@@ -1,5 +1,54 @@
-import{Controller,Get,Inject,Query,Req}from"@nestjs/common";import{ApiOkResponse,ApiOperation,ApiSecurity,ApiTags}from"@nestjs/swagger";import type{ListPropertyCommercialJourneys,PropertyCommercialJourneyCursor}from"@monpiole/property-management";import{createZodDto,ZodSerializerDto}from"nestjs-zod";import{PropertyCommercialJourneyListSchema,PropertyCommercialJourneyQuerySchema}from"../../contracts/v1/properties/property-commercial-journey.schema.js";import{AUTHENTICATED_AUTHORITY_PROVIDER,requireAuthenticatedAuthority,toPropertyAuthority,type AuthenticatedAuthorityProvider}from"../authenticated-authority/authenticated-authority.js";import type{RequestWithContext}from"../request-context/request-context.js";import{TenantContext}from"../request-context/request-context.decorator.js";
-export const LIST_PROPERTY_COMMERCIAL_JOURNEYS=Symbol("list-property-commercial-journeys");class QueryDto extends createZodDto(PropertyCommercialJourneyQuerySchema){}class ResponseDto extends createZodDto(PropertyCommercialJourneyListSchema){}
-@ApiTags("Property commercial journeys")@ApiSecurity("bearer")@Controller("v1/property-commercial-journeys")@TenantContext("not-applicable")export class PropertyCommercialJourneysController{constructor(@Inject(LIST_PROPERTY_COMMERCIAL_JOURNEYS)private readonly list:Pick<ListPropertyCommercialJourneys,"execute">,@Inject(AUTHENTICATED_AUTHORITY_PROVIDER)private readonly auth:AuthenticatedAuthorityProvider){}@Get()@ApiOperation({operationId:"listPropertyCommercialJourneys",summary:"List tenant commercial journeys requiring orientation"})@ApiOkResponse({type:ResponseDto})@ZodSerializerDto(ResponseDto)async get(@Query()query:QueryDto,@Req()request:RequestWithContext){const page=await this.list.execute({authority:toPropertyAuthority(await requireAuthenticatedAuthority(this.auth,request)),limit:query.limit,...(query.cursor?{cursor:decode(query.cursor)}:{})});return{items:page.items,pageInfo:{hasNextPage:!!page.nextCursor,nextCursor:page.nextCursor?encode(page.nextCursor):null}};}}
-function encode(cursor:PropertyCommercialJourneyCursor){return Buffer.from(JSON.stringify(cursor)).toString("base64url");}function decode(value:string):PropertyCommercialJourneyCursor{try{const parsed:unknown=JSON.parse(Buffer.from(value,"base64url").toString("utf8"));if(!parsed||typeof parsed!=="object"||!("relevantAt"in parsed)||!("inquiryId"in parsed)||typeof parsed.relevantAt!=="string"||typeof parsed.inquiryId!=="string"||!Number.isFinite(Date.parse(parsed.relevantAt)))throw new Error();return{relevantAt:parsed.relevantAt,inquiryId:parsed.inquiryId};}catch{throw new Error("Invalid commercial journey cursor");}}
-import{Buffer}from"node:buffer";
+import { Controller, Get, Inject, Query, Req } from "@nestjs/common";
+import { ApiOkResponse, ApiOperation, ApiSecurity, ApiTags } from "@nestjs/swagger";
+import type { ListPropertyCommercialJourneys, PropertyCommercialJourneyCursor } from "@monpiole/property-management";
+import { createZodDto, ZodSerializerDto } from "nestjs-zod";
+import { PropertyCommercialJourneyListSchema, PropertyCommercialJourneyQuerySchema } from "../../contracts/v1/properties/property-commercial-journey.schema.js";
+import { AUTHENTICATED_AUTHORITY_PROVIDER, requireAuthenticatedAuthority, toPropertyAuthority, type AuthenticatedAuthorityProvider } from "../authenticated-authority/authenticated-authority.js";
+import type { RequestWithContext } from "../request-context/request-context.js";
+import { TenantContext } from "../request-context/request-context.decorator.js";
+
+export const LIST_PROPERTY_COMMERCIAL_JOURNEYS = Symbol("list-property-commercial-journeys");
+class QueryDto extends createZodDto(PropertyCommercialJourneyQuerySchema) {}
+class PropertyCommercialJourneyListResponseDto extends createZodDto(PropertyCommercialJourneyListSchema) {}
+
+@ApiTags("Property commercial journeys")
+@ApiSecurity("bearer")
+@Controller("v1/property-commercial-journeys")
+@TenantContext("not-applicable")
+export class PropertyCommercialJourneysController {
+  constructor(
+    @Inject(LIST_PROPERTY_COMMERCIAL_JOURNEYS) private readonly list: Pick<ListPropertyCommercialJourneys, "execute">,
+    @Inject(AUTHENTICATED_AUTHORITY_PROVIDER) private readonly auth: AuthenticatedAuthorityProvider,
+  ) {}
+
+  @Get()
+  @ApiOperation({ operationId: "listPropertyCommercialJourneys", summary: "List tenant commercial journeys requiring orientation" })
+  @ApiOkResponse({ type: PropertyCommercialJourneyListResponseDto })
+  @ZodSerializerDto(PropertyCommercialJourneyListResponseDto)
+  async get(@Query() query: QueryDto, @Req() request: RequestWithContext) {
+    const page = await this.list.execute({
+      authority: toPropertyAuthority(await requireAuthenticatedAuthority(this.auth, request)),
+      limit: query.limit, sort: query.sort,
+      ...(query.cursor ? { cursor: decode(query.cursor) } : {}),
+      ...(query.q ? { q: query.q } : {}),
+      ...(query.propertyId ? { propertyId: query.propertyId } : {}),
+      ...(query.stage ? { stage: query.stage } : {}),
+      ...(query.nextAction ? { nextAction: query.nextAction } : {}),
+    });
+    return {
+      items: page.items, totalCount: page.totalCount, properties: page.properties,
+      pageInfo: { hasNextPage: !!page.nextCursor, nextCursor: page.nextCursor ? encode(page.nextCursor) : null },
+    };
+  }
+}
+
+function encode(cursor: PropertyCommercialJourneyCursor) { return Buffer.from(JSON.stringify(cursor)).toString("base64url"); }
+function decode(value: string): PropertyCommercialJourneyCursor {
+  try {
+    const parsed: unknown = JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
+    if (!parsed || typeof parsed !== "object" || !("relevantAt" in parsed) || !("inquiryId" in parsed)
+      || typeof parsed.relevantAt !== "string" || typeof parsed.inquiryId !== "string"
+      || !Number.isFinite(Date.parse(parsed.relevantAt))) throw new Error();
+    return { relevantAt: parsed.relevantAt, inquiryId: parsed.inquiryId };
+  } catch { throw new Error("Invalid commercial journey cursor"); }
+}

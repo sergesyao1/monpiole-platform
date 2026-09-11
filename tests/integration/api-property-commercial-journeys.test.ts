@@ -17,6 +17,8 @@ describe("Property commercial journeys HTTP", () => {
   async function start(grants: readonly AuthorityGrant[] = ["LIST_PROPERTY_INQUIRIES"]) {
     const page: PropertyCommercialJourneyPage = {
       items: [{ inquiryId: INQUIRY, propertyId: PROPERTY, propertyTitle: "Villa Riviera", contactName: "Koffi Jean", stage: "NEW_INQUIRY", nextAction: "ACKNOWLEDGE", relevantAt: NOW, workspaceAnchor: "property-inquiries" }],
+      totalCount: 1,
+      properties: [{ propertyId: PROPERTY, title: "Villa Riviera" }],
       nextCursor: { relevantAt: NOW, inquiryId: INQUIRY },
     };
     const list = vi.fn(async () => page);
@@ -34,24 +36,37 @@ describe("Property commercial journeys HTTP", () => {
     const { url, list } = await start();
     const response = await fetch(`${url}?limit=10`);
     expect(response.status).toBe(200);
-    const body = await response.json() as { items: unknown[]; pageInfo: { nextCursor: string } };
+    const body = await response.json() as { items: unknown[]; totalCount: number; properties: unknown[]; pageInfo: { nextCursor: string } };
     expect(body.items).toHaveLength(1);
+    expect(body.totalCount).toBe(1);
+    expect(body.properties).toHaveLength(1);
     expect(body.pageInfo.nextCursor).toEqual(expect.any(String));
-    expect(list).toHaveBeenCalledWith(TENANT, 10, undefined);
+    expect(list).toHaveBeenCalledWith(TENANT, { sort: "RECENT" }, 10, undefined);
+  });
+
+  it("validates and forwards search, filters and sorting", async () => {
+    const { url, list } = await start();
+    const response = await fetch(`${url}?q=%20Koffi%20&propertyId=${PROPERTY}&stage=NEW_INQUIRY&nextAction=ACKNOWLEDGE&sort=OLDEST`);
+    expect(response.status).toBe(200);
+    expect(list).toHaveBeenCalledWith(TENANT, { q: "Koffi", propertyId: PROPERTY, stage: "NEW_INQUIRY", nextAction: "ACKNOWLEDGE", sort: "OLDEST" }, 20, undefined);
   });
 
   it("returns an empty global collection without requiring a property id", async () => {
     const { url, list } = await start();
-    list.mockResolvedValueOnce({ items: [] });
+    list.mockResolvedValueOnce({ items: [], totalCount: 0, properties: [] });
     const response = await fetch(url);
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ items: [], pageInfo: { hasNextPage: false, nextCursor: null } });
-    expect(list).toHaveBeenCalledWith(TENANT, 20, undefined);
+    expect(await response.json()).toEqual({ items: [], totalCount: 0, properties: [], pageInfo: { hasNextPage: false, nextCursor: null } });
+    expect(list).toHaveBeenCalledWith(TENANT, { sort: "RECENT" }, 20, undefined);
   });
 
   it("rejects invalid input, invalid cursors, and missing authorization", async () => {
     let fixture = await start();
     expect((await fetch(`${fixture.url}?limit=0`)).status).toBe(400);
+    expect((await fetch(`${fixture.url}?stage=UNKNOWN`)).status).toBe(400);
+    expect((await fetch(`${fixture.url}?nextAction=UNKNOWN`)).status).toBe(400);
+    expect((await fetch(`${fixture.url}?sort=UNKNOWN`)).status).toBe(400);
+    expect((await fetch(`${fixture.url}?propertyId=not-a-uuid`)).status).toBe(400);
     expect((await fetch(`${fixture.url}?cursor=not-a-cursor`)).status).toBe(400);
     await app?.close(); app = undefined;
     fixture = await start([]);

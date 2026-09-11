@@ -13,7 +13,7 @@ import type {
   Amenity,
   PropertyInquiry, PropertyInquiryPage, PropertyViewing, PropertyViewingScheduleInput, PropertyViewingOutcome,
   PropertyApplication, PropertyApplicationPage, PropertyApplicationClientConversion,
-  PropertyCommercialJourneyPage,
+  PropertyCommercialJourneyCriteria, PropertyCommercialJourneyPage,
 } from "./property-model.js";
 
 export interface PropertyApi {
@@ -72,7 +72,7 @@ export interface PropertyWorkspaceApi { retrievePropertyWorkspace(propertyId: st
 export interface PropertyAmenityApi { retrieveAmenityCatalog(): Promise<{ readonly items: readonly Amenity[] }>; retrievePropertyAmenities(propertyId: string): Promise<{ readonly amenityCodes: readonly string[] }>; replacePropertyAmenities(propertyId: string, amenityCodes: readonly string[]): Promise<{ readonly amenityCodes: readonly string[] }>; }
 export interface PropertyInquiryApi{listPropertyInquiries(propertyId:string,cursor?:string):Promise<PropertyInquiryPage>;acknowledgePropertyInquiry(propertyId:string,inquiryId:string):Promise<PropertyInquiry>;closePropertyInquiry(propertyId:string,inquiryId:string):Promise<PropertyInquiry>;retrieveInquiryViewing(propertyId:string,inquiryId:string):Promise<{readonly viewing:PropertyViewing|null}>;schedulePropertyViewing(propertyId:string,inquiryId:string,input:PropertyViewingScheduleInput):Promise<PropertyViewing>;reschedulePropertyViewing(propertyId:string,viewingId:string,input:PropertyViewingScheduleInput):Promise<PropertyViewing>;completePropertyViewing(propertyId:string,viewingId:string):Promise<PropertyViewing>;cancelPropertyViewing(propertyId:string,viewingId:string):Promise<PropertyViewing>;retrievePropertyViewingOutcome(propertyId:string,viewingId:string):Promise<{readonly outcome:PropertyViewingOutcome|null}>;createPropertyViewingOutcome(propertyId:string,viewingId:string,note?:string):Promise<PropertyViewingOutcome>;proceedPropertyViewingOutcome(propertyId:string,viewingId:string):Promise<PropertyViewingOutcome>;declinePropertyViewingOutcome(propertyId:string,viewingId:string):Promise<PropertyViewingOutcome>;retrieveViewingPropertyApplication?(propertyId:string,viewingId:string):Promise<{readonly application:PropertyApplication|null}>;createPropertyApplication?(propertyId:string,viewingId:string,note?:string):Promise<PropertyApplication>;}
 export interface PropertyApplicationApi{listPropertyApplications(propertyId:string,cursor?:string):Promise<PropertyApplicationPage>;approvePropertyApplication(propertyId:string,applicationId:string):Promise<PropertyApplication>;rejectPropertyApplication(propertyId:string,applicationId:string):Promise<PropertyApplication>;withdrawPropertyApplication(propertyId:string,applicationId:string):Promise<PropertyApplication>;retrievePropertyApplicationClient?(propertyId:string,applicationId:string):Promise<PropertyApplicationClientConversion>;convertPropertyApplicationToClient?(propertyId:string,applicationId:string):Promise<PropertyApplicationClientConversion>;createPropertyContractFromApplication?(propertyId:string,applicationId:string,input:Omit<PropertyContractInput,"clientId"|"contractType">):Promise<PropertyContract>;}
-export interface PropertyCommercialJourneyApi { listPropertyCommercialJourneys(cursor?: string): Promise<PropertyCommercialJourneyPage>; }
+export interface PropertyCommercialJourneyApi { listPropertyCommercialJourneys(criteria: PropertyCommercialJourneyCriteria, cursor?: string): Promise<PropertyCommercialJourneyPage>; }
 export type PropertyManagementApi = PropertyApi & PropertyClientContractApi & PropertyWorkspaceApi & PropertyAmenityApi & PropertyInquiryApi & PropertyApplicationApi & PropertyCommercialJourneyApi;
 
 export function createPropertyApi(tokens: AccessTokenProvider): PropertyManagementApi {
@@ -115,7 +115,7 @@ export function createPropertyApi(tokens: AccessTokenProvider): PropertyManageme
     retrieveAmenityCatalog: () => request<{ readonly items: readonly Amenity[] }>("/v1/amenities"),
     retrievePropertyAmenities: (propertyId) => request<{ readonly amenityCodes: readonly string[] }>(`/v1/properties/${encodeURIComponent(propertyId)}/amenities`),
     replacePropertyAmenities: (propertyId, amenityCodes) => request<{ readonly amenityCodes: readonly string[] }>(`/v1/properties/${encodeURIComponent(propertyId)}/amenities`, { method: "PUT", body: { amenityCodes } }),
-    listPropertyCommercialJourneys: (cursor) => request<PropertyCommercialJourneyPage>(`/v1/property-commercial-journeys?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`),
+    listPropertyCommercialJourneys: (criteria, cursor) => request<PropertyCommercialJourneyPage>(commercialJourneyPath(criteria, cursor)),
     listPropertyInquiries:(propertyId,cursor)=>request<PropertyInquiryPage>(inquiryPath(propertyId,undefined,cursor)),
     acknowledgePropertyInquiry:(propertyId,inquiryId)=>request<PropertyInquiry>(`${inquiryPath(propertyId,inquiryId)}/acknowledgement`,{method:"PUT"}),
     closePropertyInquiry:(propertyId,inquiryId)=>request<PropertyInquiry>(`${inquiryPath(propertyId,inquiryId)}/closure`,{method:"PUT"}),
@@ -221,6 +221,15 @@ function clientDirectoryPath(criteria: Readonly<{ limit?: number; cursor?: strin
   if (criteria.search !== undefined) query.set("search", criteria.search);
   const encoded = query.toString();
   return encoded.length === 0 ? "/v1/property-clients" : `/v1/property-clients?${encoded}`;
+}
+function commercialJourneyPath(criteria: PropertyCommercialJourneyCriteria, cursor?: string): `/v1/${string}` {
+  const query = new URLSearchParams({ limit: "20", sort: criteria.sort });
+  if (criteria.q !== undefined) query.set("q", criteria.q);
+  if (criteria.propertyId !== undefined) query.set("propertyId", criteria.propertyId);
+  if (criteria.stage !== undefined) query.set("stage", criteria.stage);
+  if (criteria.nextAction !== undefined) query.set("nextAction", criteria.nextAction);
+  if (cursor !== undefined) query.set("cursor", cursor);
+  return `/v1/property-commercial-journeys?${query.toString()}`;
 }
 function compositionPath(propertyId: string, buildingId?: string, cursor?: string, units = false): `/v1/${string}` {
   const base = `/v1/properties/${encodeURIComponent(propertyId)}/buildings${buildingId ? `/${encodeURIComponent(buildingId)}` : ""}${units ? "/units" : ""}` as `/v1/${string}`;
