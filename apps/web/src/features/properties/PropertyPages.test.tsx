@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -67,6 +67,34 @@ function workspace(current: Property, owners: readonly { ownerId: string; owners
 afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
 describe("vertical slice Web Property", () => {
+  it.each([
+    ["#property-inquiries", "Demandes", "property-inquiries"],
+    ["#property-applications", "Candidatures", "property-applications"],
+  ])("révèle la section commerciale ciblée par %s", async (hash, label, targetId) => {
+    const scrollIntoView = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith(`/v1/properties/${PROPERTY_ID}`)) return json(property);
+      if (url.endsWith("/owners")) return json([]);
+      if (url.includes("/v1/property-owners?")) return json(ownerPage());
+      if (url.endsWith("/photos")) return json({ photos: [] });
+      if (url.endsWith("/photo-standard")) return json({ minimumPhotoCount: 1, requiredCategories: [] });
+      if (url.endsWith("/geolocation")) return problem(404, "PROPERTY_GEOLOCATION_NOT_FOUND");
+      if (url.endsWith("/v1/amenities")) return json({ items: [] });
+      if (url.endsWith("/amenities")) return json({ amenityCodes: [] });
+      if (url.endsWith("/inquiries") || url.endsWith("/applications") || url.endsWith("/buildings")) {
+        return json({ items: [], pageInfo: { nextCursor: null, hasNextPage: false } });
+      }
+      return problem(500, "UNEXPECTED");
+    }));
+    renderPath(`/properties/${PROPERTY_ID}${hash}`);
+    const propertyNavigation = await screen.findByRole("navigation", { name: "Sections de la fiche" });
+    expect(within(propertyNavigation).getByRole("link", { name: label })).toHaveAttribute("aria-current", "location");
+    expect(document.getElementById(targetId)).toBeInTheDocument();
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" }));
+  });
+
   it.each([
     ["STANDALONE", "Bien autonome"],
     ["COMPOSITE", "Ensemble immobilier"],

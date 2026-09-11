@@ -72,6 +72,12 @@ export function PropertyDetailPage() {
     return () => { active = false; };
   }, [api, propertyId]);
 
+  useEffect(() => {
+    if (loading || !workspace || location.hash.length === 0) return;
+    const target = document.getElementById(location.hash.slice(1));
+    target?.scrollIntoView?.({ block: "start" });
+  }, [loading, location.hash, workspace]);
+
   async function saveDetails(input: Parameters<typeof api.updatePropertyDetails>[1]) {
     setSaving(true); setSaved(false); setError(undefined);
     try { const updated = await api.updatePropertyDetails(propertyId, input); await loadWorkspace(); setProperty(updated); setSaved(true); }
@@ -126,6 +132,8 @@ export function PropertyDetailPage() {
 
       <nav aria-label="Sections de la fiche" className="property-context-nav">
         <a aria-current={activeSection === "#property-overview" ? "location" : undefined} href="#property-overview">Vue d’ensemble</a>
+        <a aria-current={activeSection === "#property-inquiries" ? "location" : undefined} href="#property-inquiries">Demandes</a>
+        <a aria-current={activeSection === "#property-applications" ? "location" : undefined} href="#property-applications">Candidatures</a>
         <a aria-current={activeSection === "#property-contracts" ? "location" : undefined} href="#property-contracts">Clients et contrats</a>
         <a aria-current={activeSection === "#property-availability" ? "location" : undefined} href="#property-availability">Disponibilité</a>
         <a aria-current={activeSection === "#property-pricing" ? "location" : undefined} href="#property-pricing">Tarification</a>

@@ -7,6 +7,7 @@ import { SessionContext, type Session } from "../../auth/session.js";
 
 const session: Session = { status: "authenticated", user: { name: "Jeanne" }, login: vi.fn(async () => undefined), logout: vi.fn(async () => undefined), getAccessToken: vi.fn(async () => "token") };
 const item = { inquiryId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", propertyId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", propertyTitle: "Villa Riviera", contactName: "Koffi Jean", stage: "SUBMITTED_APPLICATION", nextAction: "DECIDE_APPLICATION", relevantAt: "2026-09-11T10:00:00.000Z", workspaceAnchor: "property-applications" };
+const inquiryItem = { inquiryId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", propertyId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", propertyTitle: "Appartement Plateau", contactName: "Awa Koné", stage: "NEW", nextAction: "ACKNOWLEDGE_INQUIRY", relevantAt: "2026-09-11T09:00:00.000Z", workspaceAnchor: "property-inquiries" };
 
 function show(fetcher: typeof fetch) {
   vi.stubGlobal("fetch", fetcher);
@@ -17,13 +18,17 @@ function show(fetcher: typeof fetch) {
 describe("Demandes workspace", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("rend la candidature et oriente vers le bon espace du bien", async () => {
-    const fetcher = vi.fn(async (_input: RequestInfo | URL) => new Response(JSON.stringify({ items: [item], pageInfo: { hasNextPage: false, nextCursor: null } }), { status: 200, headers: { "content-type": "application/json" } }));
+  it("rend les demandes et candidatures et oriente vers les bonnes sections du bien", async () => {
+    const fetcher = vi.fn(async (_input: RequestInfo | URL) => new Response(JSON.stringify({ items: [inquiryItem, item], pageInfo: { hasNextPage: false, nextCursor: null } }), { status: 200, headers: { "content-type": "application/json" } }));
     show(fetcher as typeof fetch);
     expect(await screen.findByText("Koffi Jean")).toBeVisible();
+    expect(screen.getByText("Awa Koné")).toBeVisible();
     expect(screen.getByText("Candidature soumise")).toBeVisible();
     expect(screen.getByText("Étudier la candidature")).toBeVisible();
-    expect(screen.getByRole("link", { name: "Ouvrir" })).toHaveAttribute("href", `/properties/${item.propertyId}#property-applications`);
+    const links = screen.getAllByRole("link", { name: "Ouvrir" });
+    expect(links).toHaveLength(2);
+    expect(links[0]).toHaveAttribute("href", `/properties/${inquiryItem.propertyId}#property-inquiries`);
+    expect(links[1]).toHaveAttribute("href", `/properties/${item.propertyId}#property-applications`);
     expect(String(fetcher.mock.calls[0]?.[0])).toMatch(/\/v1\/property-commercial-journeys\?limit=20$/u);
     expect(String(fetcher.mock.calls[0]?.[0])).not.toContain("/properties/");
   });
