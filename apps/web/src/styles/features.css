@@ -63,8 +63,8 @@
 .owner-card .portfolio-metadata { margin-top: var(--space-5); }
 
 /* Property detail */
-.property-page { --section-offset: 6.5rem; }
-.property-context-nav { position: sticky; z-index: 5; top: 5.75rem; display: flex; max-width: 100%; gap: var(--space-2); padding: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: rgb(255 254 250 / 94%); box-shadow: var(--shadow-sm); overflow-x: auto; scrollbar-width: thin; }
+.property-page { --property-navigation-top: 5.75rem; --property-navigation-height: 3.5rem; --section-offset: calc(var(--property-navigation-top) + var(--property-navigation-height) + var(--space-3)); isolation: isolate; }
+.property-context-nav { position: sticky; z-index: 9; top: var(--property-navigation-top); min-height: var(--property-navigation-height); display: flex; max-width: 100%; gap: var(--space-2); padding: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-raised); box-shadow: var(--shadow-sm); overflow-x: auto; scrollbar-width: thin; }
 .property-context-nav a { flex: 0 0 auto; padding: .55rem .7rem; border-radius: var(--radius-sm); color: var(--color-brand-700); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); text-decoration: none; }
 .property-context-nav a:hover { background: var(--color-brand-50); }
 .property-context-nav a[aria-current="location"] { background: var(--color-brand-100); color: var(--color-brand-900); }
@@ -232,7 +232,7 @@
   .hero { grid-template-columns: 1fr; }
   .hero-accent { display: none; }
   .card-grid, .property-portfolio-list, .definition-grid, .composition-form-grid, .contract-workspace-grid { grid-template-columns: 1fr; }
-  .property-context-nav { top: var(--space-2); }
+  .property-page { --property-navigation-top: var(--space-2); }
   .ownership-list li { grid-template-columns: 1fr auto; }
   .ownership-list .danger-action, .ownership-list .ui-button--danger { grid-column: 1 / -1; width: 100%; }
   .portfolio-filters, .owner-directory-search, .owner-picker-search, .property-photo-upload, .availability-form fieldset { grid-template-columns: 1fr; }

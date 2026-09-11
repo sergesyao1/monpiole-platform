@@ -166,7 +166,14 @@ describe("Property PostgreSQL persistence", () => {
     const application = "application" in applicationAttempts[0]! ? applicationAttempts[0].application : undefined;
     if (!application) throw new Error("Application was not persisted");
     expect(await applications.find(TENANT_B, PROPERTY_ID, application.values.applicationId)).toBeUndefined();
-    expect((await applications.list(TENANT_A, PROPERTY_ID, 20))?.items).toHaveLength(1);
+    const applicationPage = await applications.list(TENANT_A, PROPERTY_ID, 20);
+    expect(applicationPage?.items).toHaveLength(1);
+    expect(applicationPage?.items[0]).toMatchObject({
+      candidate: { contactName: "Awa", email: "awa@example.com" },
+      viewing: { startsAt: "2026-09-10T12:00:00.000Z", timeZone: "Africa/Abidjan" },
+      outcome: { status: "PROCEED", decidedAt: "2026-09-10T14:00:00.000Z" },
+    });
+    expect(await applications.list(TENANT_B, PROPERTY_ID, 20)).toBeUndefined();
     await applications.update(TENANT_A, PROPERTY_ID, application.values.applicationId,
       (value) => value.approve("2026-09-10T16:00:00.000Z"), { actorId: "actor", correlationId: CORRELATION });
     await expect(applications.update(TENANT_A, PROPERTY_ID, application.values.applicationId,
