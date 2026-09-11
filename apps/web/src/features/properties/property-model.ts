@@ -118,9 +118,28 @@ export type Property = Readonly<PropertyBase & (
   | { readonly status: "WITHDRAWN"; readonly publishedAt: string; readonly withdrawnAt: string; readonly canWithdrawFromCatalog: false }
 )>;
 
-export type PropertyPortfolioItem = Property extends infer Value
+export interface PropertyPortfolioFeaturedPhoto {
+  readonly photoId: string;
+  readonly contentType: "image/jpeg" | "image/png" | "image/webp";
+  readonly contentBase64: string;
+}
+
+export interface PropertyPortfolioOwnerSummary {
+  readonly ownerId: string;
+  readonly displayName: string;
+  readonly phoneNumber?: string;
+  readonly email?: string;
+  readonly additionalOwnerCount: number;
+}
+
+type PropertyPortfolioCore = Property extends infer Value
   ? Value extends Property ? Omit<Value, "details" | "commercialTerms" | "photos" | "primaryPhoto" | "canWithdrawFromCatalog"> : never
   : never;
+export type PropertyPortfolioItem = PropertyPortfolioCore & Readonly<{
+  featuredPhoto?: PropertyPortfolioFeaturedPhoto;
+  photoCount: number;
+  owner?: PropertyPortfolioOwnerSummary;
+}>;
 
 export interface PropertyPortfolioPage {
   readonly items: readonly PropertyPortfolioItem[];
@@ -136,6 +155,7 @@ export interface PropertyPortfolioCriteria {
   readonly status?: PropertyStatus;
   readonly type?: PropertyType;
   readonly search?: string;
+  readonly ownerId?: string;
 }
 
 export interface CreatePropertyInput {

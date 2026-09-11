@@ -178,7 +178,7 @@ describe("Property OpenAPI contract", () => {
 
   it("validates portfolio query and response schemas strictly", () => {
     expect(ListPropertiesQuerySchema.parse({})).toEqual({ limit: 20 });
-    expect(ListPropertiesQuerySchema.safeParse({ limit: 100, status: "DRAFT", type: "HOUSE", search: "Lagune" }).success).toBe(true);
+    expect(ListPropertiesQuerySchema.safeParse({ limit: 100, status: "DRAFT", type: "HOUSE", search: "Lagune", ownerId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc" }).success).toBe(true);
     expect(ListPropertiesQuerySchema.safeParse({ status: "PUBLISHED" }).success).toBe(true);
     expect(ListPropertiesQuerySchema.safeParse({ status: "WITHDRAWN" }).success).toBe(true);
     for (const query of [{ limit: 0 }, { limit: 101 }, { status: "ARCHIVED" }, { type: "CASTLE" }, { tenantId: "x" }]) {

@@ -43,10 +43,17 @@
 .note-icon { display: grid; width: 2rem; height: 2rem; flex: 0 0 auto; place-items: center; border-radius: 50%; color: white; background: var(--color-brand-700); }
 
 /* Portfolio and owner directory */
-.portfolio-filters { display: grid; grid-template-columns: minmax(12rem, 2fr) repeat(2, minmax(10rem, 1fr)) auto; gap: var(--space-3); align-items: end; margin-bottom: var(--space-8); }
+.portfolio-filters { display: grid; grid-template-columns: minmax(12rem, 2fr) repeat(3, minmax(10rem, 1fr)) auto; gap: var(--space-3); align-items: end; margin-bottom: var(--space-8); }
 .property-portfolio-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); margin: 0; padding: 0; list-style: none; }
-.property-portfolio-card { display: flex; min-width: 0; height: 100%; flex-direction: column; align-items: flex-start; padding: var(--space-6); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface-raised); box-shadow: 0 2px 0 rgb(24 57 43 / 2%); transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
+.property-portfolio-card { display: flex; min-width: 0; height: 100%; flex-direction: column; align-items: stretch; padding: 0; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface-raised); box-shadow: 0 2px 0 rgb(24 57 43 / 2%); overflow: hidden; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
 .property-portfolio-card:hover { border-color: var(--color-border-strong); box-shadow: var(--shadow-sm); transform: translateY(-2px); }
+.property-portfolio-card-body { display: flex; min-width: 0; height: 100%; flex-direction: column; align-items: flex-start; padding: var(--space-6); }
+.portfolio-photo { position: relative; width: 100%; aspect-ratio: 16 / 9; background: var(--color-brand-100); overflow: hidden; }
+.portfolio-photo img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.portfolio-photo-placeholder { display: grid; width: 100%; height: 100%; place-content: center; justify-items: center; gap: var(--space-2); color: var(--color-brand-700); background: var(--color-surface-subtle); }
+.portfolio-photo-placeholder span { font-family: var(--font-family-heading); font-size: 2.4rem; }
+.portfolio-photo-placeholder small { font-weight: var(--font-weight-semibold); }
+.portfolio-photo-count { position: absolute; right: var(--space-3); bottom: var(--space-3); padding: .35rem .55rem; border-radius: var(--radius-sm); color: var(--color-text-inverse); background: rgb(24 57 43 / 84%); font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); }
 .portfolio-card-heading { display: flex; width: 100%; justify-content: space-between; gap: var(--space-4); }
 .portfolio-card-heading h3 { margin: var(--space-3) 0 0; font-family: var(--font-family-heading); font-size: 1.45rem; font-weight: var(--font-weight-medium); overflow-wrap: anywhere; }
 .property-type-mark { display: grid; width: 2.4rem; height: 2.4rem; flex: 0 0 auto; place-items: center; border-radius: var(--radius-md); color: var(--color-brand-900); background: var(--color-brand-100); font-family: var(--font-family-heading); font-weight: var(--font-weight-bold); }
@@ -57,6 +64,9 @@
 .portfolio-metadata div { min-width: 0; }
 .portfolio-metadata dt, .definition-grid dt { color: var(--color-text-muted); font-size: .68rem; font-weight: var(--font-weight-bold); letter-spacing: .08em; text-transform: uppercase; }
 .portfolio-metadata dd { margin: .3rem 0 0; overflow-wrap: anywhere; }
+.portfolio-owner { display: grid; width: 100%; gap: .25rem; margin: 0 0 var(--space-5); padding: var(--space-4) 0; border-block: 1px solid var(--color-border); overflow-wrap: anywhere; }
+.portfolio-owner > span { color: var(--color-text-muted); font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); text-transform: uppercase; }
+.portfolio-owner a { width: fit-content; max-width: 100%; color: var(--color-brand-700); font-size: var(--font-size-sm); }
 .portfolio-pagination { display: flex; justify-content: center; padding-top: var(--space-6); }
 .owner-directory-search, .owner-picker-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-3); align-items: end; margin-bottom: var(--space-8); }
 .owner-picker-search { margin-bottom: var(--space-2); }

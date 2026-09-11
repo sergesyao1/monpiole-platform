@@ -19,6 +19,19 @@ export interface PropertyPortfolioItem {
   readonly location: PropertyLocation;
   readonly createdAt: string;
   readonly updatedAt: string;
+  readonly featuredPhoto?: Readonly<{
+    photoId: string;
+    contentType: "image/jpeg" | "image/png" | "image/webp";
+    contentBase64: string;
+  }>;
+  readonly photoCount: number;
+  readonly owner?: Readonly<{
+    ownerId: string;
+    displayName: string;
+    phoneNumber?: string;
+    email?: string;
+    additionalOwnerCount: number;
+  }>;
 }
 
 export interface PropertyPortfolioCriteria {
@@ -28,6 +41,7 @@ export interface PropertyPortfolioCriteria {
   readonly status?: PropertyStatus;
   readonly propertyType?: PropertyType;
   readonly search?: string;
+  readonly ownerId?: string;
 }
 
 export interface PropertyPortfolioPage {

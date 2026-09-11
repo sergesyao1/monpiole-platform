@@ -794,12 +794,37 @@ describe("Property PostgreSQL persistence", () => {
       location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Bord de lagune" },
     });
 
+    const primaryPropertyId = "22222222-2222-4222-8222-222222222222";
+    const firstOwnerId = "55555555-5555-4555-8555-555555555555";
+    const secondOwnerId = "66666666-6666-4666-8666-666666666666";
+    await createOwner(undefined, TENANT_A, "INDIVIDUAL", firstOwnerId);
+    await createOwner(undefined, TENANT_A, "LEGAL_ENTITY", secondOwnerId);
+    const ownershipRepository = new PostgresPropertyOwnershipRepository(runtime);
+    const assignAuthority = { ...authority(TENANT_A), grants: ["ASSIGN_PROPERTY_OWNER"] as const };
+    await new AssignPropertyOwner(ownershipRepository, { now: () => "2026-08-26T11:00:00.000Z" }).execute({
+      authority: assignAuthority, correlationId: CORRELATION, propertyId: primaryPropertyId,
+      ownerId: firstOwnerId, ownershipShare: 60,
+    });
+    await new AssignPropertyOwner(ownershipRepository, { now: () => "2026-08-26T12:00:00.000Z" }).execute({
+      authority: assignAuthority, correlationId: CORRELATION, propertyId: primaryPropertyId,
+      ownerId: secondOwnerId, ownershipShare: 40,
+    });
+    await insertLegacyPrimaryPhoto(TENANT_A, primaryPropertyId);
+
     const list = new ListProperties(new PostgresPropertyPortfolioQuery(runtime));
     const listAuthority = { ...authority(TENANT_A), grants: ["LIST_PROPERTIES"] as const };
     const first = await list.execute({
       authority: listAuthority, status: "DRAFT", propertyType: "HOUSE", search: "lagune", limit: 1,
     });
     expect(first.items.map((value) => value.propertyId)).toEqual(["22222222-2222-4222-8222-222222222222"]);
+    expect(first.items[0]).toMatchObject({
+      photoCount: 1,
+      featuredPhoto: { contentType: "image/png", contentBase64: "iVBORw0KGgo=" },
+      owner: {
+        ownerId: firstOwnerId, displayName: "Jean Kouassi", phoneNumber: "+2250700000000",
+        email: "contact@example.com", additionalOwnerCount: 1,
+      },
+    });
     expect(first.nextCursor).toEqual({ createdAt: "2026-08-25T13:00:00.000Z", propertyId: "22222222-2222-4222-8222-222222222222" });
     const second = await list.execute({
       authority: listAuthority, status: "DRAFT", propertyType: "HOUSE", search: "lagune", limit: 1,
@@ -808,6 +833,15 @@ describe("Property PostgreSQL persistence", () => {
     expect(second.items.map((value) => value.propertyId)).toEqual(["11111111-1111-4111-8111-111111111111"]);
     expect(second.nextCursor).toBeUndefined();
     expect([...first.items, ...second.items]).toHaveLength(2);
+    await expect(list.execute({ authority: listAuthority, ownerId: firstOwnerId })).resolves.toMatchObject({
+      items: [{ propertyId: primaryPropertyId }],
+    });
+    await expect(list.execute({ authority: listAuthority, search: "kouassi" })).resolves.toMatchObject({
+      items: [{ propertyId: primaryPropertyId }],
+    });
+    await expect(list.execute({
+      authority: listAuthority, ownerId: "77777777-7777-4777-8777-777777777777",
+    })).resolves.toEqual({ items: [] });
     expect((await owner.query("SELECT indexdef FROM pg_indexes WHERE schemaname = 'property_management' AND indexname = 'properties_tenant_created_property_idx'")).rows[0]?.indexdef)
       .toContain("tenant_id, created_at DESC NULLS LAST, property_id DESC NULLS LAST");
   });

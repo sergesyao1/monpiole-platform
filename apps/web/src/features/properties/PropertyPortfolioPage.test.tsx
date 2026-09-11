@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { applicationRoutes } from "../../app/routes.js";
 import { SessionContext, type Session } from "../../auth/session.js";
-import type { PropertyPortfolioItem } from "./property-model.js";
+import type { PropertyOwner, PropertyPortfolioItem } from "./property-model.js";
 
 const PROPERTY_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const PROPERTY_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -14,12 +14,14 @@ const firstProperty: PropertyPortfolioItem = {
   propertyType: "HOUSE", transactionType: "LONG_TERM_RENTAL", status: "DRAFT", structuralRole: "STANDALONE",
   location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue des Jardins" },
   createdAt: "2026-08-27T10:00:00.000Z", updatedAt: "2026-08-27T10:00:00.000Z",
+  photoCount: 0,
 };
 const secondProperty: PropertyPortfolioItem = {
   propertyId: PROPERTY_B, title: "Appartement du Plateau", propertyType: "APARTMENT",
   transactionType: "SALE", status: "PUBLISHED", publishedAt: "2026-08-26T12:00:00.000Z", structuralRole: "STANDALONE",
   location: { country: "CI", city: "Abidjan", district: "Plateau", addressLine: "Avenue Chardy" },
   createdAt: "2026-08-26T10:00:00.000Z", updatedAt: "2026-08-26T10:00:00.000Z",
+  photoCount: 0,
 };
 const withdrawnProperty: PropertyPortfolioItem = {
   ...secondProperty,
@@ -47,10 +49,11 @@ function page(items: readonly PropertyPortfolioItem[], nextCursor: string | null
   return { items, pageInfo: { nextCursor, hasNextPage: nextCursor !== null } };
 }
 
-function renderPortfolio(session: Session = authenticatedSession) {
+function renderPortfolio(session: Session = authenticatedSession, owners: readonly PropertyOwner[] = []) {
   const fixtureFetch = globalThis.fetch;
   vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
+    if (url.includes("/v1/property-owners?")) return json({ items: owners, pageInfo: { nextCursor: null, hasNextPage: false } });
     if (!url.endsWith("/workspace")) return fixtureFetch(input, init);
     const response = await fixtureFetch(url.slice(0, -"/workspace".length), init);
     if (!response.ok) return response;
@@ -80,7 +83,7 @@ describe("portefeuille immobilier Web", () => {
     const pending = deferred<Response>();
     vi.stubGlobal("fetch", vi.fn(() => pending.promise));
     renderPortfolio();
-    expect(screen.getByRole("status")).toHaveTextContent("Chargement de votre portefeuille");
+    expect(screen.getByText("Chargement de votre portefeuille…")).toBeInTheDocument();
     pending.resolve(json(page([])));
     expect(await screen.findByRole("heading", { name: "Aucun bien à afficher" })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "Créer un bien" })[0]).toHaveAttribute("href", "/properties/new");
@@ -97,6 +100,32 @@ describe("portefeuille immobilier Web", () => {
     expect(within(item).getByText("Cocody, Abidjan · CI")).toBeInTheDocument();
     expect(within(item).getByRole("link", { name: `Consulter ${firstProperty.title}` })).toHaveAttribute("href", `/properties/${PROPERTY_A}`);
     expect(screen.getByText("Tous les biens sont affichés.")).toBeInTheDocument();
+  });
+
+  it("affiche la photo principale et un résumé déterministe des propriétaires sans identifiant technique", async () => {
+    const enriched: PropertyPortfolioItem = {
+      ...firstProperty,
+      featuredPhoto: { photoId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", contentType: "image/png", contentBase64: "iVBORw0KGgo=" },
+      photoCount: 3,
+      owner: { ownerId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", displayName: "Blaise Koffi", phoneNumber: "+225 07 48 12 34 56", email: "blaise@example.ci", additionalOwnerCount: 1 },
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(page([enriched]))));
+    renderPortfolio();
+    const item = await screen.findByRole("listitem");
+    expect(within(item).getByRole("img", { name: `Photo principale — ${enriched.title}` })).toHaveAttribute("src", "data:image/png;base64,iVBORw0KGgo=");
+    expect(within(item).getByText("3 photos")).toBeInTheDocument();
+    expect(within(item).getByText("Blaise Koffi + 1 autre")).toBeInTheDocument();
+    expect(within(item).getByRole("link", { name: "+225 07 48 12 34 56" })).toHaveAttribute("href", "tel:+225 07 48 12 34 56");
+    expect(within(item).getByRole("link", { name: "blaise@example.ci" })).toHaveAttribute("href", "mailto:blaise@example.ci");
+    expect(item).not.toHaveTextContent(enriched.owner!.ownerId);
+  });
+
+  it("affiche un fallback stable sans photo ni propriétaire", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(page([firstProperty]))));
+    renderPortfolio();
+    const item = await screen.findByRole("listitem");
+    expect(within(item).getByRole("img", { name: `Aucune photo pour ${firstProperty.title}` })).toBeInTheDocument();
+    expect(within(item).getByText("Non renseigné")).toBeInTheDocument();
   });
 
   it("navigue du portefeuille vers la fiche existante", async () => {
@@ -166,15 +195,17 @@ describe("portefeuille immobilier Web", () => {
   it("applique uniquement les filtres publiés et transmet le bearer", async () => {
     const fetchMock = vi.fn().mockResolvedValue(json(page([])));
     vi.stubGlobal("fetch", fetchMock);
-    renderPortfolio();
+    const owner: PropertyOwner = { ownerType: "INDIVIDUAL", ownerId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", firstName: "Blaise", lastName: "Koffi", createdAt: firstProperty.createdAt, updatedAt: firstProperty.updatedAt };
+    renderPortfolio(authenticatedSession, [owner]);
     await screen.findByRole("heading", { name: "Aucun bien à afficher" });
     fireEvent.change(screen.getByLabelText("Rechercher"), { target: { value: "  Lagune  " } });
     fireEvent.change(screen.getByLabelText("Type de bien"), { target: { value: "HOUSE" } });
     fireEvent.change(screen.getByLabelText("Statut"), { target: { value: "DRAFT" } });
+    fireEvent.change(screen.getByLabelText("Propriétaire"), { target: { value: owner.ownerId } });
     fireEvent.click(screen.getByRole("button", { name: "Appliquer les filtres" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     const [url, options] = fetchMock.mock.calls[1]!;
-    expect(String(url)).toContain("/v1/properties?limit=20&status=DRAFT&type=HOUSE&search=Lagune");
+    expect(String(url)).toContain(`/v1/properties?limit=20&status=DRAFT&type=HOUSE&search=Lagune&ownerId=${owner.ownerId}`);
     expect(new Headers(options?.headers).get("authorization")).toBe("Bearer portfolio-test-token");
     expect(String(url)).not.toContain("tenant");
   });

@@ -31,6 +31,7 @@ export class ListPropertiesController {
   @ApiQuery({ name: "status", required: false, schema: { type: "string", enum: ["DRAFT", "PUBLISHED", "WITHDRAWN"] } })
   @ApiQuery({ name: "type", required: false, schema: { type: "string", enum: ["APARTMENT", "HOUSE", "LAND", "COMMERCIAL", "OTHER"] } })
   @ApiQuery({ name: "search", required: false, schema: { type: "string", minLength: 1, maxLength: 100 } })
+  @ApiQuery({ name: "ownerId", required: false, schema: { type: "string", format: "uuid" } })
   @ApiOkResponse({ description: "A stable page from the tenant-owned Property portfolio", type: PropertyPortfolioResponseDto, headers: responseHeaders() })
   @ApiResponse({ status: 400, description: "Invalid discovery query or cursor", content: problemContent() })
   @ApiResponse({ status: 401, description: "Authentication required", content: problemContent() })
@@ -45,6 +46,7 @@ export class ListPropertiesController {
       ...(query.status === undefined ? {} : { status: query.status }),
       ...(query.type === undefined ? {} : { propertyType: query.type }),
       ...(query.search === undefined ? {} : { search: query.search }),
+      ...(query.ownerId === undefined ? {} : { ownerId: query.ownerId }),
     });
     return {
       items: page.items.map((item) => {

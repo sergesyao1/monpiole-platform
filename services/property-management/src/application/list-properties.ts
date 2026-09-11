@@ -13,11 +13,12 @@ export interface ListPropertiesQuery {
   readonly status?: PropertyStatus;
   readonly propertyType?: PropertyType;
   readonly search?: string;
+  readonly ownerId?: string;
 }
 
 export class InvalidPropertyPortfolioQueryError extends Error {
   readonly code = "INVALID_PROPERTY_PORTFOLIO_QUERY";
-  constructor(readonly field: "limit" | "cursor" | "status" | "type" | "search") {
+  constructor(readonly field: "limit" | "cursor" | "status" | "type" | "search" | "ownerId") {
     super(`Invalid Property portfolio query ${field}`);
   }
 }
@@ -39,12 +40,18 @@ export class ListProperties {
     if (search !== undefined && (search.length === 0 || search.length > MAX_PROPERTY_PORTFOLIO_SEARCH_LENGTH)) {
       throw new InvalidPropertyPortfolioQueryError("search");
     }
+    if (query.ownerId !== undefined && !isUuid(query.ownerId)) throw new InvalidPropertyPortfolioQueryError("ownerId");
     return this.portfolio.list({
       tenantId, limit,
       ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
       ...(query.status === undefined ? {} : { status: query.status }),
       ...(query.propertyType === undefined ? {} : { propertyType: query.propertyType }),
       ...(search === undefined ? {} : { search }),
+      ...(query.ownerId === undefined ? {} : { ownerId: query.ownerId }),
     });
   }
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value);
 }

@@ -9,11 +9,14 @@ import { ListProperties, type PropertyPortfolioQuery } from "../../services/prop
 
 const TENANT = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const PROPERTY = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const OWNER = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const item = {
   propertyId: PROPERTY, title: "Maison Lagune", propertyType: "HOUSE" as const,
   transactionType: "SALE" as const, status: "DRAFT" as const, structuralRole: "STANDALONE" as const,
   location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Riviera" },
   createdAt: "2026-08-27T12:00:00.000Z", updatedAt: "2026-08-27T12:00:00.000Z",
+  photoCount: 0,
+  owner: { ownerId: OWNER, displayName: "Blaise Koffi", phoneNumber: "+2250748123456", email: "blaise@example.ci", additionalOwnerCount: 1 },
 };
 
 describe("Property portfolio HTTP", () => {
@@ -44,6 +47,7 @@ describe("Property portfolio HTTP", () => {
     ["status=WITHDRAWN", { status: "WITHDRAWN" }],
     ["type=HOUSE", { propertyType: "HOUSE" }],
     ["search=Lagune", { search: "Lagune" }],
+    [`ownerId=${OWNER}`, { ownerId: OWNER }],
     ["limit=10", { limit: 10 }],
   ])("accepte et transmet la query %s", async (query, expected) => {
     await start(); const response = await fetch(`${baseUrl}/v1/properties?${query}`);
@@ -63,7 +67,7 @@ describe("Property portfolio HTTP", () => {
     }));
   });
 
-  it.each(["limit=0", "limit=101", "limit=1.5", "status=ARCHIVED", "type=CASTLE", "search=", "cursor=not%2Ba%2Bcursor", `search=${"x".repeat(101)}`, `tenantId=${TENANT}`])(
+  it.each(["limit=0", "limit=101", "limit=1.5", "status=ARCHIVED", "type=CASTLE", "search=", "ownerId=foreign", "cursor=not%2Ba%2Bcursor", `search=${"x".repeat(101)}`, `tenantId=${TENANT}`])(
     "retourne un Problem Details 400 pour %s", async (query) => {
       await start(); const response = await fetch(`${baseUrl}/v1/properties?${query}`);
       expect(response.status).toBe(400); expect(ProblemDetailsSchema.parse(await response.json()).code).toBe("INVALID_REQUEST");

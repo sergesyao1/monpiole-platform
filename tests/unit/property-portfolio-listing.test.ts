@@ -6,6 +6,7 @@ import {
 } from "../../services/property-management/src/index.js";
 
 const TENANT = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const OWNER = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const authority = { actorId: "actor", authorityId: "authority", grants: ["LIST_PROPERTIES"] as const, tenantIds: [TENANT] };
 
 describe("ListProperties", () => {
@@ -19,10 +20,10 @@ describe("ListProperties", () => {
     const cursor = { createdAt: "2026-08-27T10:00:00.000Z", propertyId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" };
     const portfolio: PropertyPortfolioQuery = { list: vi.fn(async () => ({ items: [], nextCursor: cursor })) };
     await new ListProperties(portfolio).execute({
-      authority, limit: 100, cursor, status: "DRAFT", propertyType: "HOUSE", search: "  Lagune  ",
+      authority, limit: 100, cursor, status: "DRAFT", propertyType: "HOUSE", search: "  Lagune  ", ownerId: OWNER,
     });
     expect(portfolio.list).toHaveBeenCalledWith({
-      tenantId: TENANT, limit: 100, cursor, status: "DRAFT", propertyType: "HOUSE", search: "Lagune",
+      tenantId: TENANT, limit: 100, cursor, status: "DRAFT", propertyType: "HOUSE", search: "Lagune", ownerId: OWNER,
     });
   });
 
@@ -30,6 +31,7 @@ describe("ListProperties", () => {
     ["limit", { limit: 0 }], ["limit", { limit: 101 }], ["limit", { limit: 1.5 }],
     ["search", { search: "   " }], ["search", { search: "x".repeat(101) }],
     ["status", { status: "ARCHIVED" }], ["type", { propertyType: "CASTLE" }],
+    ["ownerId", { ownerId: "not-an-owner" }],
   ] as const)("rejette le paramètre applicatif invalide %s", async (field, value) => {
     const useCase = new ListProperties({ list: vi.fn() });
     await expect(useCase.execute({ authority, ...value } as never)).rejects.toMatchObject({

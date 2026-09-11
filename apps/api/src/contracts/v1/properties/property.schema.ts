@@ -159,7 +159,20 @@ export const ListPropertiesQuerySchema = z.object({
   status: PropertyStatusSchema.optional(),
   type: PropertyTypeSchema.optional(),
   search: z.string().trim().min(1).max(100).optional(),
+  ownerId: PropertyIdSchema.optional(),
 }).strict().meta({ id: "ListPropertiesQuery" });
+const PropertyPortfolioFeaturedPhotoSchema = z.object({
+  photoId: PropertyIdSchema,
+  contentType: z.enum(["image/jpeg", "image/png", "image/webp"]),
+  contentBase64: z.string().min(1),
+}).strict();
+const PropertyPortfolioOwnerSchema = z.object({
+  ownerId: PropertyIdSchema,
+  displayName: z.string().min(1),
+  phoneNumber: z.string().min(1).optional(),
+  email: z.email().optional(),
+  additionalOwnerCount: z.number().int().nonnegative(),
+}).strict();
 const PropertyPortfolioItemBaseShape = {
   propertyId: PropertyIdSchema,
   title: z.string(), description: z.string().optional(),
@@ -169,6 +182,9 @@ const PropertyPortfolioItemBaseShape = {
   structuralRole: PropertyStructuralRoleSchema,
   createdAt: InstantSchema,
   updatedAt: InstantSchema,
+  featuredPhoto: PropertyPortfolioFeaturedPhotoSchema.optional(),
+  photoCount: z.number().int().nonnegative(),
+  owner: PropertyPortfolioOwnerSchema.optional(),
 };
 export const PropertyPortfolioItemSchema = z.discriminatedUnion("status", [
   z.object({ ...PropertyPortfolioItemBaseShape, status: z.literal("DRAFT") }).strict(),

@@ -2629,6 +2629,32 @@
               "description": {
                 "type": "string"
               },
+              "featuredPhoto": {
+                "additionalProperties": false,
+                "properties": {
+                  "contentBase64": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "contentType": {
+                    "enum": [
+                      "image/jpeg",
+                      "image/png",
+                      "image/webp"
+                    ],
+                    "type": "string"
+                  },
+                  "photoId": {
+                    "$ref": "#/components/schemas/PropertyId"
+                  }
+                },
+                "required": [
+                  "contentBase64",
+                  "contentType",
+                  "photoId"
+                ],
+                "type": "object"
+              },
               "location": {
                 "additionalProperties": false,
                 "properties": {
@@ -2659,6 +2685,43 @@
                   "district"
                 ],
                 "type": "object"
+              },
+              "owner": {
+                "additionalProperties": false,
+                "properties": {
+                  "additionalOwnerCount": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "displayName": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "email": {
+                    "format": "email",
+                    "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                    "type": "string"
+                  },
+                  "ownerId": {
+                    "$ref": "#/components/schemas/PropertyId"
+                  },
+                  "phoneNumber": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "additionalOwnerCount",
+                  "displayName",
+                  "ownerId"
+                ],
+                "type": "object"
+              },
+              "photoCount": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
               },
               "propertyId": {
                 "$ref": "#/components/schemas/PropertyId"
@@ -2705,6 +2768,7 @@
             "required": [
               "createdAt",
               "location",
+              "photoCount",
               "propertyId",
               "propertyType",
               "status",
@@ -2732,6 +2796,32 @@
               },
               "description": {
                 "type": "string"
+              },
+              "featuredPhoto": {
+                "additionalProperties": false,
+                "properties": {
+                  "contentBase64": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "contentType": {
+                    "enum": [
+                      "image/jpeg",
+                      "image/png",
+                      "image/webp"
+                    ],
+                    "type": "string"
+                  },
+                  "photoId": {
+                    "$ref": "#/components/schemas/PropertyId"
+                  }
+                },
+                "required": [
+                  "contentBase64",
+                  "contentType",
+                  "photoId"
+                ],
+                "type": "object"
               },
               "location": {
                 "additionalProperties": false,
@@ -2763,6 +2853,43 @@
                   "district"
                 ],
                 "type": "object"
+              },
+              "owner": {
+                "additionalProperties": false,
+                "properties": {
+                  "additionalOwnerCount": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "displayName": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "email": {
+                    "format": "email",
+                    "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                    "type": "string"
+                  },
+                  "ownerId": {
+                    "$ref": "#/components/schemas/PropertyId"
+                  },
+                  "phoneNumber": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "additionalOwnerCount",
+                  "displayName",
+                  "ownerId"
+                ],
+                "type": "object"
+              },
+              "photoCount": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
               },
               "propertyId": {
                 "$ref": "#/components/schemas/PropertyId"
@@ -2814,6 +2941,7 @@
             "required": [
               "createdAt",
               "location",
+              "photoCount",
               "propertyId",
               "propertyType",
               "publishedAt",
@@ -2842,6 +2970,32 @@
               },
               "description": {
                 "type": "string"
+              },
+              "featuredPhoto": {
+                "additionalProperties": false,
+                "properties": {
+                  "contentBase64": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "contentType": {
+                    "enum": [
+                      "image/jpeg",
+                      "image/png",
+                      "image/webp"
+                    ],
+                    "type": "string"
+                  },
+                  "photoId": {
+                    "$ref": "#/components/schemas/PropertyId"
+                  }
+                },
+                "required": [
+                  "contentBase64",
+                  "contentType",
+                  "photoId"
+                ],
+                "type": "object"
               },
               "location": {
                 "additionalProperties": false,
@@ -2873,6 +3027,43 @@
                   "district"
                 ],
                 "type": "object"
+              },
+              "owner": {
+                "additionalProperties": false,
+                "properties": {
+                  "additionalOwnerCount": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "displayName": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "email": {
+                    "format": "email",
+                    "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                    "type": "string"
+                  },
+                  "ownerId": {
+                    "$ref": "#/components/schemas/PropertyId"
+                  },
+                  "phoneNumber": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "additionalOwnerCount",
+                  "displayName",
+                  "ownerId"
+                ],
+                "type": "object"
+              },
+              "photoCount": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
               },
               "propertyId": {
                 "$ref": "#/components/schemas/PropertyId"
@@ -2929,6 +3120,7 @@
             "required": [
               "createdAt",
               "location",
+              "photoCount",
               "propertyId",
               "propertyType",
               "publishedAt",
@@ -5772,6 +5964,15 @@
             "schema": {
               "maxLength": 100,
               "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ownerId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
               "type": "string"
             }
           }

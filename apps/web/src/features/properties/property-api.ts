@@ -252,6 +252,7 @@ function portfolioPath(criteria: PropertyPortfolioCriteria): `/v1/${string}` {
   if (criteria.status !== undefined) query.set("status", criteria.status);
   if (criteria.type !== undefined) query.set("type", criteria.type);
   if (criteria.search !== undefined) query.set("search", criteria.search);
+  if (criteria.ownerId !== undefined) query.set("ownerId", criteria.ownerId);
   const encoded = query.toString();
   return encoded.length === 0 ? "/v1/properties" : `/v1/properties?${encoded}`;
 }

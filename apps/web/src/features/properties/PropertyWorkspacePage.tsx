@@ -7,9 +7,10 @@ import { createPropertyApi } from "./property-api.js";
 import { PropertyFeedback } from "./PropertyFeedback.js";
 import { toPropertyUiError, type PropertyUiError } from "./property-errors.js";
 import {
-  propertyStatusLabels, propertyTypeLabels, propertyTypes, transactionTypeLabels,
-  type PropertyPortfolioItem, type PropertyStatus, type PropertyType,
+  propertyOwnerName, propertyStatusLabels, propertyTypeLabels, propertyTypes, transactionTypeLabels,
+  type PropertyOwner, type PropertyPortfolioItem, type PropertyStatus, type PropertyType,
 } from "./property-model.js";
+import type { PropertyApi } from "./property-api.js";
 import { Alert, Button, EmptyState, Field, LoadingState, StatusBadge, buttonClassName, type StatusTone } from "../../ui/index.js";
 
 const PAGE_LIMIT = 20;
@@ -18,6 +19,7 @@ interface PortfolioFilters {
   readonly search?: string;
   readonly type?: PropertyType;
   readonly status?: PropertyStatus;
+  readonly ownerId?: string;
 }
 
 export function PropertyWorkspacePage() {
@@ -31,6 +33,19 @@ export function PropertyWorkspacePage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [initialError, setInitialError] = useState<PropertyUiError>();
   const [nextPageError, setNextPageError] = useState<PropertyUiError>();
+  const [owners, setOwners] = useState<readonly PropertyOwner[]>([]);
+  const [ownersLoading, setOwnersLoading] = useState(true);
+  const [ownersError, setOwnersError] = useState<PropertyUiError>();
+
+  useEffect(() => {
+    let active = true;
+    setOwnersLoading(true);
+    setOwnersError(undefined);
+    void listAllPropertyOwners(api).then((result) => { if (active) setOwners(result); })
+      .catch((error: unknown) => { if (active) setOwnersError(toPropertyUiError(error)); })
+      .finally(() => { if (active) setOwnersLoading(false); });
+    return () => { active = false; };
+  }, [api]);
 
   useEffect(() => {
     let active = true;
@@ -59,10 +74,12 @@ export function PropertyWorkspacePage() {
     const search = String(values.get("search") ?? "").trim();
     const type = String(values.get("type") ?? "") as PropertyType | "";
     const status = String(values.get("status") ?? "") as PropertyStatus | "";
+    const ownerId = String(values.get("ownerId") ?? "");
     setFilters({
       ...(search.length === 0 ? {} : { search }),
       ...(type === "" ? {} : { type }),
       ...(status === "" ? {} : { status }),
+      ...(ownerId === "" ? {} : { ownerId }),
     });
   }
 
@@ -100,11 +117,14 @@ export function PropertyWorkspacePage() {
         </div>
 
         <form className="portfolio-filters" onSubmit={applyFilters} role="search">
-          <Field label="Rechercher" optional><input name="search" maxLength={100} defaultValue={filters.search ?? ""} placeholder="Titre, ville, quartier ou adresse" /></Field>
+          <Field label="Rechercher" optional><input name="search" maxLength={100} defaultValue={filters.search ?? ""} placeholder="Bien, adresse ou propriétaire" /></Field>
           <Field label="Type de bien" optional><select name="type" defaultValue={filters.type ?? ""}><option value="">Tous les types</option>{propertyTypes.map((type) => <option key={type} value={type}>{propertyTypeLabels[type]}</option>)}</select></Field>
           <Field label="Statut" optional><select name="status" defaultValue={filters.status ?? ""}><option value="">Tous les statuts</option><option value="DRAFT">{propertyStatusLabels.DRAFT}</option><option value="PUBLISHED">{propertyStatusLabels.PUBLISHED}</option><option value="WITHDRAWN">{propertyStatusLabels.WITHDRAWN}</option></select></Field>
+          <Field label="Propriétaire" optional><select name="ownerId" defaultValue={filters.ownerId ?? ""} disabled={ownersLoading || ownersError !== undefined}><option value="">Tous les propriétaires</option>{owners.map((owner) => <option key={owner.ownerId} value={owner.ownerId}>{propertyOwnerName(owner)}</option>)}</select></Field>
           <Button variant="secondary" type="submit" disabled={loading || loadingMore}>Appliquer les filtres</Button>
         </form>
+        {ownersLoading && <p className="muted-status" role="status">Chargement des propriétaires…</p>}
+        {ownersError && <Alert tone="warning" title="Filtre propriétaire indisponible"><p>Le portefeuille reste consultable avec les autres filtres.</p></Alert>}
 
         {loading && <LoadingState label="Chargement de votre portefeuille…" />}
         {!loading && initialError && <PropertyFeedback error={initialError} onReconnect={() => void session.login("/properties")} />}
@@ -135,6 +155,8 @@ export function PropertyWorkspacePage() {
 function PropertyPortfolioCard({ property }: Readonly<{ property: PropertyPortfolioItem }>) {
   return (
     <li className="property-portfolio-card">
+      <FeaturedPhoto property={property} />
+      <div className="property-portfolio-card-body">
       <div className="portfolio-card-heading">
         <div><StatusBadge tone={propertyStatusTone(property.status)}>{propertyStatusLabels[property.status]}</StatusBadge><h3>{property.title}</h3></div>
         <span className="property-type-mark" aria-hidden="true">{propertyTypeLabels[property.propertyType].slice(0, 1)}</span>
@@ -145,9 +167,29 @@ function PropertyPortfolioCard({ property }: Readonly<{ property: PropertyPortfo
         <div><dt>Type</dt><dd>{propertyTypeLabels[property.propertyType]}</dd></div>
         <div><dt>Projet</dt><dd>{transactionTypeLabels[property.transactionType]}</dd></div>
       </dl>
+      <div className="portfolio-owner">
+        <span>Propriétaire</span>
+        {property.owner ? <>
+          <strong>{property.owner.displayName}{property.owner.additionalOwnerCount > 0 ? ` + ${property.owner.additionalOwnerCount} autre${property.owner.additionalOwnerCount > 1 ? "s" : ""}` : ""}</strong>
+          {property.owner.phoneNumber && <a href={`tel:${property.owner.phoneNumber}`}>{property.owner.phoneNumber}</a>}
+          {property.owner.email && <a href={`mailto:${property.owner.email}`}>{property.owner.email}</a>}
+        </> : <strong>Non renseigné</strong>}
+      </div>
       <Link className={buttonClassName("secondary", "inline-action")} to={`/properties/${property.propertyId}`} aria-label={`Consulter ${property.title}`}>Consulter la fiche</Link>
+      </div>
     </li>
   );
+}
+
+function FeaturedPhoto({ property }: Readonly<{ property: PropertyPortfolioItem }>) {
+  const [failed, setFailed] = useState(false);
+  const photo = property.featuredPhoto;
+  return <div className="portfolio-photo">
+    {photo && !failed
+      ? <img src={`data:${photo.contentType};base64,${photo.contentBase64}`} alt={`Photo principale — ${property.title}`} onError={() => setFailed(true)} />
+      : <div className="portfolio-photo-placeholder" role="img" aria-label={`Aucune photo pour ${property.title}`}><span aria-hidden="true">⌂</span><small>Aucune photo</small></div>}
+    {property.photoCount > 0 && <span className="portfolio-photo-count">{property.photoCount} photo{property.photoCount > 1 ? "s" : ""}</span>}
+  </div>;
 }
 
 function propertyStatusTone(status: PropertyStatus): StatusTone {
@@ -159,4 +201,15 @@ function propertyStatusTone(status: PropertyStatus): StatusTone {
 function appendUnique(current: readonly PropertyPortfolioItem[], next: readonly PropertyPortfolioItem[]): readonly PropertyPortfolioItem[] {
   const knownIds = new Set(current.map((property) => property.propertyId));
   return [...current, ...next.filter((property) => !knownIds.has(property.propertyId))];
+}
+
+async function listAllPropertyOwners(api: Pick<PropertyApi, "listPropertyOwners">): Promise<readonly PropertyOwner[]> {
+  const owners: PropertyOwner[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await api.listPropertyOwners({ limit: 100, ...(cursor === undefined ? {} : { cursor }) });
+    owners.push(...page.items);
+    cursor = page.pageInfo.nextCursor ?? undefined;
+  } while (cursor !== undefined);
+  return owners;
 }
