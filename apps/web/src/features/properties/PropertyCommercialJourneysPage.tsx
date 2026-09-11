@@ -45,7 +45,7 @@ export function PropertyCommercialJourneysPage() {
         : page.items);
       setCursor(page.pageInfo.nextCursor);
     } catch (cause: unknown) {
-      if (next) setNextPageError(true); else setError(toPropertyUiError(cause));
+      if (next) setNextPageError(true); else setError(toPropertyUiError(cause, "commercial-journeys"));
     } finally {
       next ? setLoadingMore(false) : setLoading(false);
     }
@@ -60,7 +60,7 @@ export function PropertyCommercialJourneysPage() {
       {error && <PropertyFeedback error={error} onReconnect={() => void session.login("/demandes")} />}
       {nextPageError && <Alert tone="danger" title="Impossible de charger la suite"><p>Les demandes déjà affichées restent disponibles.</p></Alert>}
       {loading && items.length === 0 ? <LoadingState label="Chargement des demandes…" />
-        : items.length === 0 && !error ? <EmptyState title="Aucune demande à traiter" description="Les demandes reçues pour vos biens apparaîtront ici." />
+        : items.length === 0 && !error ? <EmptyState title="Aucune demande à traiter pour le moment." description="Les demandes reçues pour vos biens apparaîtront ici." />
           : <ul className="inquiry-list">{items.map(item => <JourneyItem key={item.inquiryId} item={item} />)}</ul>}
       {cursor && <Button variant="secondary" loading={loadingMore} loadingLabel="Chargement…" onClick={() => void load(cursor)}>Afficher plus de demandes</Button>}
     </section>

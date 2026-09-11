@@ -40,6 +40,15 @@ describe("Property commercial journeys HTTP", () => {
     expect(list).toHaveBeenCalledWith(TENANT, 10, undefined);
   });
 
+  it("returns an empty global collection without requiring a property id", async () => {
+    const { url, list } = await start();
+    list.mockResolvedValueOnce({ items: [] });
+    const response = await fetch(url);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ items: [], pageInfo: { hasNextPage: false, nextCursor: null } });
+    expect(list).toHaveBeenCalledWith(TENANT, 20, undefined);
+  });
+
   it("rejects invalid input, invalid cursors, and missing authorization", async () => {
     let fixture = await start();
     expect((await fetch(`${fixture.url}?limit=0`)).status).toBe(400);

@@ -18,11 +18,28 @@ describe("Demandes workspace", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("rend la candidature et oriente vers le bon espace du bien", async () => {
-    show(vi.fn(async () => new Response(JSON.stringify({ items: [item], pageInfo: { hasNextPage: false, nextCursor: null } }), { status: 200, headers: { "content-type": "application/json" } })) as typeof fetch);
+    const fetcher = vi.fn(async (_input: RequestInfo | URL) => new Response(JSON.stringify({ items: [item], pageInfo: { hasNextPage: false, nextCursor: null } }), { status: 200, headers: { "content-type": "application/json" } }));
+    show(fetcher as typeof fetch);
     expect(await screen.findByText("Koffi Jean")).toBeVisible();
     expect(screen.getByText("Candidature soumise")).toBeVisible();
     expect(screen.getByText("Étudier la candidature")).toBeVisible();
     expect(screen.getByRole("link", { name: "Ouvrir" })).toHaveAttribute("href", `/properties/${item.propertyId}#property-applications`);
+    expect(String(fetcher.mock.calls[0]?.[0])).toMatch(/\/v1\/property-commercial-journeys\?limit=20$/u);
+    expect(String(fetcher.mock.calls[0]?.[0])).not.toContain("/properties/");
+  });
+
+  it("affiche l’état vide global sans demander ni signaler un bien", async () => {
+    show(vi.fn(async () => new Response(JSON.stringify({ items: [], pageInfo: { hasNextPage: false, nextCursor: null } }), { status: 200, headers: { "content-type": "application/json" } })) as typeof fetch);
+    expect(await screen.findByText("Aucune demande à traiter pour le moment.")).toBeVisible();
+    expect(screen.getByText("Les demandes reçues pour vos biens apparaîtront ici.")).toBeVisible();
+    expect(screen.queryByText("Bien introuvable")).not.toBeInTheDocument();
+  });
+
+  it("ne classe pas une erreur de collection globale comme un bien introuvable", async () => {
+    const problem = { type: "https://api.monpiole.example/problems/not-found", title: "Not found", status: 404, code: "INVALID_REQUEST", correlationId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" };
+    show(vi.fn(async () => new Response(JSON.stringify(problem), { status: 404, headers: { "content-type": "application/problem+json" } })) as typeof fetch);
+    expect(await screen.findByText("Les demandes ne peuvent pas être chargées pour le moment. Réessayez dans quelques instants.")).toBeVisible();
+    expect(screen.queryByText("Bien introuvable")).not.toBeInTheDocument();
   });
 
   it("pagine avec le curseur opaque et conserve les résultats en cas d’échec", async () => {

@@ -3,7 +3,7 @@ import { ApiProblem } from "../../infrastructure/http/problem-details.js";
 
 export type PropertyErrorKind = "session" | "forbidden" | "not-found" | "validation" | "conflict" | "unexpected";
 export interface PropertyUiError { readonly kind: PropertyErrorKind; readonly message: string; }
-export type PropertyErrorResource = "property" | "composition" | "building" | "unit";
+export type PropertyErrorResource = "property" | "composition" | "building" | "unit" | "commercial-journeys";
 
 export function toPropertyUiError(error: unknown, resource: PropertyErrorResource = "property"): PropertyUiError {
   if (error instanceof ApiSessionExpiredError) {
@@ -13,6 +13,9 @@ export function toPropertyUiError(error: unknown, resource: PropertyErrorResourc
     return { kind: "forbidden", message: "Vous ne disposez pas de l’autorisation nécessaire pour cette action." };
   }
   if (error instanceof ApiProblem && error.problem.status === 404) {
+    if (resource === "commercial-journeys") {
+      return { kind: "unexpected", message: "Les demandes ne peuvent pas être chargées pour le moment. Réessayez dans quelques instants." };
+    }
     if (error.problem.code === "PROPERTY_CLIENT_NOT_FOUND") {
       return { kind: "not-found", message: "Ce client est introuvable ou n’est plus accessible dans votre espace." };
     }
