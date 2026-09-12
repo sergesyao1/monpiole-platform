@@ -179,6 +179,42 @@ const PropertyPortfolioOwnerSchema = z.object({
   additionalOwnerCount: z.number().int().nonnegative(),
   inheritedFrom: z.object({ propertyId: z.uuid(), title: z.string() }).strict().optional(),
 }).strict();
+
+const PropertyPortfolioTypeCountSchema = z.object({
+  propertyType: PropertyTypeSchema,
+  totalCount: z.number().int().nonnegative(),
+}).strict();
+
+const PropertyPortfolioAvailabilityTypeSummarySchema = z.object({
+  propertyType: PropertyTypeSchema,
+  totalCount: z.number().int().nonnegative(),
+  configuredCount: z.number().int().nonnegative(),
+  availableCount: z.number().int().nonnegative(),
+  unavailableCount: z.number().int().nonnegative(),
+  vacantCount: z.number().int().nonnegative(),
+  occupiedCount: z.number().int().nonnegative(),
+}).strict();
+
+const PropertyPortfolioContentSummarySchema = z.object({
+  buildingCount: z.number().int().nonnegative(),
+  composition: z.object({
+    totalUnitCount: z.number().int().nonnegative(),
+    unitsByType: z.array(PropertyPortfolioTypeCountSchema),
+  }).strict(),
+  availability: z.object({
+    totalCount: z.number().int().nonnegative(),
+    configuredCount: z.number().int().nonnegative(),
+    availableCount: z.number().int().nonnegative(),
+    unavailableCount: z.number().int().nonnegative(),
+    vacantCount: z.number().int().nonnegative(),
+    occupiedCount: z.number().int().nonnegative(),
+    byType: z.array(PropertyPortfolioAvailabilityTypeSummarySchema),
+  }).strict(),
+  contracts: z.object({
+    totalCount: z.number().int().nonnegative(),
+    activeCount: z.number().int().nonnegative(),
+  }).strict(),
+}).strict();
 const PropertyPortfolioItemBaseShape = {
   parent: z.object({ propertyId: z.uuid(), title: z.string() }).strict().optional(),
   propertyId: PropertyIdSchema,
@@ -192,6 +228,7 @@ const PropertyPortfolioItemBaseShape = {
   featuredPhoto: PropertyPortfolioFeaturedPhotoSchema.optional(),
   photoCount: z.number().int().nonnegative(),
   owner: PropertyPortfolioOwnerSchema.optional(),
+  contentSummary: PropertyPortfolioContentSummarySchema.optional(),
 };
 export const PropertyPortfolioItemSchema = z.discriminatedUnion("status", [
   z.object({ ...PropertyPortfolioItemBaseShape, status: z.literal("DRAFT") }).strict(),

@@ -68,6 +68,14 @@
 .portfolio-metadata div { min-width: 0; }
 .portfolio-metadata dt, .definition-grid dt { color: var(--color-text-muted); font-size: .68rem; font-weight: var(--font-weight-bold); letter-spacing: .08em; text-transform: uppercase; }
 .portfolio-metadata dd { margin: .3rem 0 0; overflow-wrap: anywhere; }
+.portfolio-content-summary { display: grid; width: 100%; gap: var(--space-4); margin: 0 0 var(--space-5); padding: var(--space-4) 0; border-top: 1px solid var(--color-border); }
+.portfolio-content-summary section { display: grid; gap: .4rem; }
+.portfolio-content-summary ul { display: grid; gap: .35rem; margin: .2rem 0 0; padding: 0; list-style: none; }
+.portfolio-content-summary li { display: flex; justify-content: space-between; gap: var(--space-3); color: var(--color-text-muted); font-size: var(--font-size-sm); }
+.portfolio-content-summary li strong { color: var(--color-text); font-weight: var(--font-weight-semibold); text-align: right; }
+.portfolio-summary-title { color: var(--color-text-muted); font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); letter-spacing: .08em; text-transform: uppercase; }
+.portfolio-content-summary section > strong { color: var(--color-text); font-size: var(--font-size-sm); }
+
 .portfolio-owner { display: grid; width: 100%; gap: .25rem; margin: 0 0 var(--space-5); padding: var(--space-4) 0; border-block: 1px solid var(--color-border); overflow-wrap: anywhere; }
 .portfolio-owner > span { color: var(--color-text-muted); font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); text-transform: uppercase; }
 .portfolio-owner a { width: fit-content; max-width: 100%; color: var(--color-brand-700); font-size: var(--font-size-sm); }

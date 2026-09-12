@@ -139,6 +139,42 @@ export interface PropertyPortfolioOwnerSummary {
   readonly additionalOwnerCount: number;
 }
 
+export interface PropertyPortfolioTypeCount {
+  readonly propertyType: PropertyType;
+  readonly totalCount: number;
+}
+
+export interface PropertyPortfolioAvailabilityTypeSummary {
+  readonly propertyType: PropertyType;
+  readonly totalCount: number;
+  readonly configuredCount: number;
+  readonly availableCount: number;
+  readonly unavailableCount: number;
+  readonly vacantCount: number;
+  readonly occupiedCount: number;
+}
+
+export interface PropertyPortfolioContentSummary {
+  readonly buildingCount: number;
+  readonly composition: Readonly<{
+    totalUnitCount: number;
+    unitsByType: readonly PropertyPortfolioTypeCount[];
+  }>;
+  readonly availability: Readonly<{
+    totalCount: number;
+    configuredCount: number;
+    availableCount: number;
+    unavailableCount: number;
+    vacantCount: number;
+    occupiedCount: number;
+    byType: readonly PropertyPortfolioAvailabilityTypeSummary[];
+  }>;
+  readonly contracts: Readonly<{
+    totalCount: number;
+    activeCount: number;
+  }>;
+}
+
 type PropertyPortfolioCore = Property extends infer Value
   ? Value extends Property ? Omit<Value, "details" | "commercialTerms" | "photos" | "primaryPhoto" | "canWithdrawFromCatalog"> : never
   : never;
@@ -147,6 +183,7 @@ export type PropertyPortfolioItem = PropertyPortfolioCore & Readonly<{
   featuredPhoto?: PropertyPortfolioFeaturedPhoto;
   photoCount: number;
   owner?: PropertyPortfolioOwnerSummary;
+  contentSummary?: PropertyPortfolioContentSummary;
 }>;
 
 export interface PropertyPortfolioPage {

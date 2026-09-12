@@ -394,14 +394,43 @@ describe("vertical slice Web Property", () => {
   });
 
   it("gère une recherche sans résultat dans le sélecteur", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => String(input).includes("/v1/property-owners?")
-      ? json(ownerPage()) : String(input).endsWith("/owners") ? json([]) : json(property));
-    vi.stubGlobal("fetch", fetchMock); renderPath(`/properties/${PROPERTY_ID}`);
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.includes("/v1/property-owners?")) {
+        const search = new URL(url).searchParams.get("search");
+
+        return search === "Introuvable"
+          ? json(ownerPage([]))
+          : json(ownerPage());
+      }
+
+      if (url.endsWith("/owners")) return json([]);
+
+      return json(property);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    renderPath(`/properties/${PROPERTY_ID}`);
+
     await screen.findByRole("heading", { name: property.title });
-    fireEvent.change(screen.getByLabelText("Rechercher dans l’annuaire"), { target: { value: "Introuvable" } });
+
+    fireEvent.change(
+      screen.getByLabelText("Rechercher dans l’annuaire"),
+      { target: { value: "Introuvable" } },
+    );
+
     fireEvent.click(screen.getByRole("button", { name: "Rechercher" }));
-    expect(await screen.findByText("Aucun propriétaire ne correspond à cette recherche.")).toBeInTheDocument();
-    expect(String(fetchMock.mock.calls.at(-1)?.[0])).toContain("search=Introuvable");
+
+    expect(
+      await screen.findByText("Aucun propriétaire ne correspond à cette recherche."),
+    ).toBeInTheDocument();
+
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).includes("search=Introuvable"),
+      ),
+    ).toBe(true);
   });
 
   it("affiche une erreur d’autorisation de l’annuaire sans masquer le bien", async () => {

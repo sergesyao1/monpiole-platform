@@ -1050,6 +1050,534 @@ describe("Property portfolio hierarchy and inherited ownership", () => {
     expect(explicitlyOwned.owner?.inheritedFrom).toBeUndefined();
   });
 });
+describe("Property portfolio content summary PostgreSQL", () => {
+  it("agrège les cibles commerciales selon la hiérarchie et le mode de commercialisation", async () => {
+    const now = "2026-09-12T12:00:00.000Z";
+
+    const complexId = "10000000-0000-4000-8000-000000000001";
+    const individualBuildingId = "10000000-0000-4000-8000-000000000002";
+    const individualStructureId = "10000000-0000-4000-8000-000000000003";
+    const wholeBuildingId = "10000000-0000-4000-8000-000000000004";
+    const wholeStructureId = "10000000-0000-4000-8000-000000000005";
+    const directVillaId = "10000000-0000-4000-8000-000000000006";
+    const apartmentAvailableId = "10000000-0000-4000-8000-000000000007";
+    const apartmentUnavailableId = "10000000-0000-4000-8000-000000000008";
+    const shopId = "10000000-0000-4000-8000-000000000009";
+    const hiddenWholeUnitId = "10000000-0000-4000-8000-000000000010";
+
+    const clientId = "10000000-0000-4000-8000-000000000011";
+
+    const insertProperty = async (
+      propertyId: string,
+      title: string,
+      propertyType: string,
+      structuralRole: string,
+      commercializationMode: string | null,
+      availabilityStatus: string | null,
+      occupancyStatus: string | null,
+    ) => {
+      await owner.query(`
+        INSERT INTO property_management.properties (
+          property_id,
+          tenant_id,
+          title,
+          property_type,
+          transaction_type,
+          structural_role,
+          commercialization_mode,
+          status,
+          country,
+          city,
+          district,
+          address_line,
+          availability_status,
+          occupancy_status,
+          availability_updated_at,
+          availability_updated_by_actor_id,
+          availability_correlation_id,
+          created_at,
+          updated_at,
+          correlation_id,
+          actor_id
+        )
+        VALUES (
+          $1,$2,$3,$4,'LONG_TERM_RENTAL',$5,$6,'DRAFT',
+          'CI','Abidjan','Cocody','Riviera',
+          $7,$8,
+          CASE WHEN $7::text IS NULL THEN NULL ELSE $9::timestamptz END,
+          CASE WHEN $7::text IS NULL THEN NULL ELSE 'actor' END,
+          CASE WHEN $7::text IS NULL THEN NULL ELSE $10::uuid END,
+          $9,$9,$10,'actor'
+        )
+      `, [
+        propertyId,
+        TENANT_A,
+        title,
+        propertyType,
+        structuralRole,
+        commercializationMode,
+        availabilityStatus,
+        occupancyStatus,
+        now,
+        CORRELATION,
+      ]);
+    };
+
+    await insertProperty(
+      complexId,
+      "Résidence YAO",
+      "COMPLEX",
+      "COMPOSITE",
+      null,
+      null,
+      null,
+    );
+
+    await insertProperty(
+      individualBuildingId,
+      "Immeuble Horizon",
+      "BUILDING",
+      "COMPOSITE",
+      "INDIVIDUAL_UNITS",
+      null,
+      null,
+    );
+
+    await insertProperty(
+      wholeBuildingId,
+      "Immeuble Lagune",
+      "BUILDING",
+      "COMPOSITE",
+      "WHOLE_BUILDING",
+      "AVAILABLE",
+      "VACANT",
+    );
+
+    await insertProperty(
+      directVillaId,
+      "Villa 01",
+      "HOUSE",
+      "STANDALONE",
+      null,
+      "AVAILABLE",
+      "VACANT",
+    );
+
+    await insertProperty(
+      apartmentAvailableId,
+      "Appartement A01",
+      "APARTMENT",
+      "UNIT",
+      null,
+      "AVAILABLE",
+      "VACANT",
+    );
+
+    await insertProperty(
+      apartmentUnavailableId,
+      "Appartement A02",
+      "APARTMENT",
+      "UNIT",
+      null,
+      "UNAVAILABLE",
+      "OCCUPIED",
+    );
+
+    await insertProperty(
+      shopId,
+      "Boutique RDC",
+      "SHOP",
+      "UNIT",
+      null,
+      "AVAILABLE",
+      "VACANT",
+    );
+
+    await insertProperty(
+      hiddenWholeUnitId,
+      "Appartement non commercialisé séparément",
+      "APARTMENT",
+      "UNIT",
+      null,
+      null,
+      null,
+    );
+
+    await owner.query(`
+      INSERT INTO property_management.property_buildings (
+        building_id,
+        tenant_id,
+        property_id,
+        building_property_id,
+        building_code,
+        name,
+        created_at,
+        updated_at,
+        correlation_id,
+        actor_id
+      )
+      VALUES
+        ($1,$2,$3,$4,'BAT-A','Immeuble Horizon',$5,$5,$6,'actor'),
+        ($7,$2,$3,$8,'BAT-B','Immeuble Lagune',$5,$5,$6,'actor')
+    `, [
+      individualStructureId,
+      TENANT_A,
+      complexId,
+      individualBuildingId,
+      now,
+      CORRELATION,
+      wholeStructureId,
+      wholeBuildingId,
+    ]);
+
+    await owner.query(`
+      INSERT INTO property_management.property_building_units (
+        tenant_id,
+        building_id,
+        unit_property_id,
+        unit_code,
+        created_at,
+        updated_at,
+        correlation_id,
+        actor_id
+      )
+      VALUES
+        ($1,$2,$3,'A01',$4,$4,$5,'actor'),
+        ($1,$2,$6,'A02',$4,$4,$5,'actor'),
+        ($1,$2,$7,'RDC',$4,$4,$5,'actor'),
+        ($1,$8,$9,'B01',$4,$4,$5,'actor')
+    `, [
+      TENANT_A,
+      individualStructureId,
+      apartmentAvailableId,
+      now,
+      CORRELATION,
+      apartmentUnavailableId,
+      shopId,
+      wholeStructureId,
+      hiddenWholeUnitId,
+    ]);
+
+    await owner.query(`
+      INSERT INTO property_management.property_complex_children (
+        tenant_id,
+        complex_property_id,
+        child_property_id,
+        child_code,
+        created_at,
+        correlation_id,
+        actor_id
+      )
+      VALUES ($1,$2,$3,'VILLA-01',$4,$5,'actor')
+    `, [
+      TENANT_A,
+      complexId,
+      directVillaId,
+      now,
+      CORRELATION,
+    ]);
+
+    await owner.query(`
+      INSERT INTO property_management.property_clients (
+        client_id,
+        tenant_id,
+        display_name,
+        created_at,
+        updated_at,
+        correlation_id,
+        actor_id
+      )
+      VALUES ($1,$2,'Client test',$3,$3,$4,'actor')
+    `, [clientId, TENANT_A, now, CORRELATION]);
+
+    const contracts = [
+      {
+        contractId: "20000000-0000-4000-8000-000000000001",
+        propertyId: apartmentAvailableId,
+        status: "ACTIVE",
+        reference: "TASK095-A01",
+      },
+      {
+        contractId: "20000000-0000-4000-8000-000000000002",
+        propertyId: apartmentUnavailableId,
+        status: "ENDED",
+        reference: "TASK095-A02",
+      },
+      {
+        contractId: "20000000-0000-4000-8000-000000000003",
+        propertyId: shopId,
+        status: "ACTIVE",
+        reference: "TASK095-SHOP",
+      },
+      {
+        contractId: "20000000-0000-4000-8000-000000000004",
+        propertyId: wholeBuildingId,
+        status: "ACTIVE",
+        reference: "TASK095-WHOLE",
+      },
+      {
+        contractId: "20000000-0000-4000-8000-000000000005",
+        propertyId: hiddenWholeUnitId,
+        status: "ACTIVE",
+        reference: "TASK095-HIDDEN",
+      },
+      {
+        contractId: "20000000-0000-4000-8000-000000000006",
+        propertyId: directVillaId,
+        status: "DRAFT",
+        reference: "TASK095-VILLA",
+      },
+    ];
+
+    for (const contract of contracts) {
+      await owner.query(`
+        INSERT INTO property_management.property_contracts (
+          contract_id,
+          tenant_id,
+          property_id,
+          client_id,
+          contract_type,
+          status,
+          reference,
+          start_date,
+          end_date,
+          created_at,
+          updated_at,
+          correlation_id,
+          actor_id,
+          activated_at,
+          activated_by_actor_id,
+          activation_correlation_id,
+          ended_at,
+          ended_by_actor_id,
+          ending_correlation_id
+        )
+        VALUES (
+          $1,
+          $2,
+          $3,
+          $4,
+          'LEASE',
+          $5,
+          $6,
+          '2026-10-01',
+          CASE WHEN $5 = 'ENDED' THEN '2026-12-31'::date ELSE NULL END,
+          $7,
+          $7,
+          $8,
+          'actor',
+          CASE
+            WHEN $5 IN ('ACTIVE', 'ENDED')
+            THEN $7::timestamptz + interval '1 hour'
+            ELSE NULL
+          END,
+          CASE
+            WHEN $5 IN ('ACTIVE', 'ENDED')
+            THEN 'actor'
+            ELSE NULL
+          END,
+          CASE
+            WHEN $5 IN ('ACTIVE', 'ENDED')
+            THEN $8::uuid
+            ELSE NULL
+          END,
+          CASE
+            WHEN $5 = 'ENDED'
+            THEN $7::timestamptz + interval '2 hours'
+            ELSE NULL
+          END,
+          CASE
+            WHEN $5 = 'ENDED'
+            THEN 'actor'
+            ELSE NULL
+          END,
+          CASE
+            WHEN $5 = 'ENDED'
+            THEN $8::uuid
+            ELSE NULL
+          END
+        )
+      `, [
+        contract.contractId,
+        TENANT_A,
+        contract.propertyId,
+        clientId,
+        contract.status,
+        contract.reference,
+        now,
+        CORRELATION,
+      ]);
+    }
+
+    const page = await new PostgresPropertyPortfolioQuery(runtime).list({
+      tenantId: TENANT_A,
+      limit: 50,
+    });
+
+    const complex = page.items.find((property) => property.propertyId === complexId);
+    const individualBuilding = page.items.find((property) => property.propertyId === individualBuildingId);
+    const wholeBuilding = page.items.find((property) => property.propertyId === wholeBuildingId);
+
+    expect(complex?.contentSummary).toEqual({
+      buildingCount: 2,
+      composition: {
+        totalUnitCount: 5,
+        unitsByType: [
+          {
+            propertyType: "APARTMENT",
+            totalCount: 3,
+          },
+          {
+            propertyType: "HOUSE",
+            totalCount: 1,
+          },
+          {
+            propertyType: "SHOP",
+            totalCount: 1,
+          },
+        ],
+      },
+      availability: {
+        totalCount: 5,
+        configuredCount: 5,
+        availableCount: 4,
+        unavailableCount: 1,
+        vacantCount: 4,
+        occupiedCount: 1,
+        byType: [
+          {
+            propertyType: "APARTMENT",
+            totalCount: 2,
+            configuredCount: 2,
+            availableCount: 1,
+            unavailableCount: 1,
+            vacantCount: 1,
+            occupiedCount: 1,
+          },
+          {
+            propertyType: "BUILDING",
+            totalCount: 1,
+            configuredCount: 1,
+            availableCount: 1,
+            unavailableCount: 0,
+            vacantCount: 1,
+            occupiedCount: 0,
+          },
+          {
+            propertyType: "HOUSE",
+            totalCount: 1,
+            configuredCount: 1,
+            availableCount: 1,
+            unavailableCount: 0,
+            vacantCount: 1,
+            occupiedCount: 0,
+          },
+          {
+            propertyType: "SHOP",
+            totalCount: 1,
+            configuredCount: 1,
+            availableCount: 1,
+            unavailableCount: 0,
+            vacantCount: 1,
+            occupiedCount: 0,
+          },
+        ],
+      },
+      contracts: {
+        totalCount: 5,
+        activeCount: 3,
+      },
+    });
+
+    expect(individualBuilding?.contentSummary).toEqual({
+      buildingCount: 0,
+      composition: {
+        totalUnitCount: 3,
+        unitsByType: [
+          {
+            propertyType: "APARTMENT",
+            totalCount: 2,
+          },
+          {
+            propertyType: "SHOP",
+            totalCount: 1,
+          },
+        ],
+      },
+      availability: {
+        totalCount: 3,
+        configuredCount: 3,
+        availableCount: 2,
+        unavailableCount: 1,
+        vacantCount: 2,
+        occupiedCount: 1,
+        byType: [
+          {
+            propertyType: "APARTMENT",
+            totalCount: 2,
+            configuredCount: 2,
+            availableCount: 1,
+            unavailableCount: 1,
+            vacantCount: 1,
+            occupiedCount: 1,
+          },
+          {
+            propertyType: "SHOP",
+            totalCount: 1,
+            configuredCount: 1,
+            availableCount: 1,
+            unavailableCount: 0,
+            vacantCount: 1,
+            occupiedCount: 0,
+          },
+        ],
+      },
+      contracts: {
+        totalCount: 3,
+        activeCount: 2,
+      },
+    });
+
+    expect(wholeBuilding?.contentSummary).toEqual({
+      buildingCount: 0,
+      composition: {
+        totalUnitCount: 1,
+        unitsByType: [
+          {
+            propertyType: "APARTMENT",
+            totalCount: 1,
+          },
+        ],
+      },
+      availability: {
+        totalCount: 1,
+        configuredCount: 1,
+        availableCount: 1,
+        unavailableCount: 0,
+        vacantCount: 1,
+        occupiedCount: 0,
+        byType: [
+          {
+            propertyType: "BUILDING",
+            totalCount: 1,
+            configuredCount: 1,
+            availableCount: 1,
+            unavailableCount: 0,
+            vacantCount: 1,
+            occupiedCount: 0,
+          },
+        ],
+      },
+      contracts: {
+        totalCount: 1,
+        activeCount: 1,
+      },
+    });
+
+    expect(complex?.contentSummary?.contracts.totalCount).not.toBe(6);
+    expect(wholeBuilding?.contentSummary?.contracts.totalCount).not.toBe(2);
+  });
+});
 function ownerAuthority(tenantId: string) {
   return { actorId: "actor", authorityId: "authority", grants: ["CREATE_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNER", "UPDATE_PROPERTY_OWNER"] as const, tenantIds: [tenantId] };
 }

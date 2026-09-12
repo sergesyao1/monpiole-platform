@@ -5,6 +5,45 @@ export interface PropertyPortfolioCursor {
   readonly propertyId: string;
 }
 
+export interface PropertyPortfolioTypeCount {
+  readonly propertyType: PropertyType;
+  readonly totalCount: number;
+}
+
+export interface PropertyPortfolioAvailabilityTypeSummary {
+  readonly propertyType: PropertyType;
+  readonly totalCount: number;
+  readonly configuredCount: number;
+  readonly availableCount: number;
+  readonly unavailableCount: number;
+  readonly vacantCount: number;
+  readonly occupiedCount: number;
+}
+
+export interface PropertyPortfolioContentSummary {
+  readonly buildingCount: number;
+
+  readonly composition: Readonly<{
+    totalUnitCount: number;
+    unitsByType: readonly PropertyPortfolioTypeCount[];
+  }>;
+
+  readonly availability: Readonly<{
+    totalCount: number;
+    configuredCount: number;
+    availableCount: number;
+    unavailableCount: number;
+    vacantCount: number;
+    occupiedCount: number;
+    byType: readonly PropertyPortfolioAvailabilityTypeSummary[];
+  }>;
+
+  readonly contracts: Readonly<{
+    totalCount: number;
+    activeCount: number;
+  }>;
+}
+
 export interface PropertyPortfolioItem {
   readonly propertyId: string;
   readonly parent?: Readonly<{ propertyId: string; title: string }>;
@@ -26,6 +65,7 @@ export interface PropertyPortfolioItem {
     contentBase64: string;
   }>;
   readonly photoCount: number;
+  readonly contentSummary?: PropertyPortfolioContentSummary;
   readonly owner?: Readonly<{
     ownerId: string;
     displayName: string;

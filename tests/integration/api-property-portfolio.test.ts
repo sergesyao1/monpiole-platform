@@ -67,6 +67,102 @@ describe("Property portfolio HTTP", () => {
     }));
   });
 
+  it("expose le résumé hiérarchique du portefeuille sans perte dans la réponse HTTP", async () => {
+    await start();
+
+    const buildingItem = {
+      ...item,
+      title: "Immeuble Horizon",
+      propertyType: "BUILDING" as const,
+      transactionType: "LONG_TERM_RENTAL" as const,
+      structuralRole: "COMPOSITE" as const,
+      contentSummary: {
+        buildingCount: 0,
+        composition: {
+          totalUnitCount: 3,
+          unitsByType: [
+            { propertyType: "APARTMENT" as const, totalCount: 2 },
+            { propertyType: "SHOP" as const, totalCount: 1 },
+          ],
+        },
+        availability: {
+          totalCount: 3,
+          configuredCount: 3,
+          availableCount: 2,
+          unavailableCount: 1,
+          vacantCount: 2,
+          occupiedCount: 1,
+          byType: [
+            {
+              propertyType: "APARTMENT" as const,
+              totalCount: 2,
+              configuredCount: 2,
+              availableCount: 1,
+              unavailableCount: 1,
+              vacantCount: 1,
+              occupiedCount: 1,
+            },
+            {
+              propertyType: "SHOP" as const,
+              totalCount: 1,
+              configuredCount: 1,
+              availableCount: 1,
+              unavailableCount: 0,
+              vacantCount: 1,
+              occupiedCount: 0,
+            },
+          ],
+        },
+        contracts: {
+          totalCount: 3,
+          activeCount: 2,
+        },
+      },
+    };
+
+    list.mockResolvedValueOnce({
+      items: [buildingItem],
+      nextCursor: undefined,
+    });
+
+    const response = await fetch(`${baseUrl}/v1/properties`);
+
+    expect(response.status).toBe(200);
+
+    const body = PropertyPortfolioResponseSchema.parse(await response.json());
+
+    expect(body.items).toHaveLength(1);
+    expect(body.items[0]?.contentSummary).toEqual(buildingItem.contentSummary);
+    expect(body.items[0]?.contentSummary?.buildingCount).toBe(0);
+    expect(body.items[0]?.contentSummary?.composition.unitsByType).toEqual([
+      { propertyType: "APARTMENT", totalCount: 2 },
+      { propertyType: "SHOP", totalCount: 1 },
+    ]);
+    expect(body.items[0]?.contentSummary?.availability.byType).toEqual([
+      {
+        propertyType: "APARTMENT",
+        totalCount: 2,
+        configuredCount: 2,
+        availableCount: 1,
+        unavailableCount: 1,
+        vacantCount: 1,
+        occupiedCount: 1,
+      },
+      {
+        propertyType: "SHOP",
+        totalCount: 1,
+        configuredCount: 1,
+        availableCount: 1,
+        unavailableCount: 0,
+        vacantCount: 1,
+        occupiedCount: 0,
+      },
+    ]);
+    expect(body.items[0]?.contentSummary?.contracts).toEqual({
+      totalCount: 3,
+      activeCount: 2,
+    });
+  });
   it.each(["limit=0", "limit=101", "limit=1.5", "status=ARCHIVED", "type=CASTLE", "search=", "ownerId=foreign", "cursor=not%2Ba%2Bcursor", `search=${"x".repeat(101)}`, `tenantId=${TENANT}`])(
     "retourne un Problem Details 400 pour %s", async (query) => {
       await start(); const response = await fetch(`${baseUrl}/v1/properties?${query}`);

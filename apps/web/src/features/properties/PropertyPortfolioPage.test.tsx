@@ -121,6 +121,115 @@ describe("portefeuille immobilier Web", () => {
     expect(item).not.toHaveTextContent(enriched.owner!.ownerId);
   });
 
+  it("affiche la composition, la disponibilité et les contrats des immeubles et ensembles", async () => {
+    const building: PropertyPortfolioItem = {
+      ...firstProperty,
+      propertyId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      title: "Immeuble Horizon",
+      propertyType: "BUILDING",
+      structuralRole: "COMPOSITE",
+      contentSummary: {
+        buildingCount: 0,
+        composition: {
+          totalUnitCount: 3,
+          unitsByType: [
+            { propertyType: "APARTMENT", totalCount: 2 },
+            { propertyType: "SHOP", totalCount: 1 },
+          ],
+        },
+        availability: {
+          totalCount: 3,
+          configuredCount: 3,
+          availableCount: 2,
+          unavailableCount: 1,
+          vacantCount: 2,
+          occupiedCount: 1,
+          byType: [
+            {
+              propertyType: "APARTMENT",
+              totalCount: 2,
+              configuredCount: 1,
+              availableCount: 1,
+              unavailableCount: 0,
+              vacantCount: 1,
+              occupiedCount: 0,
+            },
+            {
+              propertyType: "SHOP",
+              totalCount: 1,
+              configuredCount: 1,
+              availableCount: 1,
+              unavailableCount: 0,
+              vacantCount: 1,
+              occupiedCount: 0,
+            },
+          ],
+        },
+        contracts: {
+          totalCount: 3,
+          activeCount: 2,
+        },
+      },
+    };
+
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(page([building]))));
+    renderPortfolio();
+
+    const composition = await screen.findByRole("region", {
+      name: "Composition de Immeuble Horizon",
+    });
+    const availability = screen.getByRole("region", {
+      name: "Disponibilité de Immeuble Horizon",
+    });
+    const contracts = screen.getByRole("region", {
+      name: "Contrats de Immeuble Horizon",
+    });
+
+    expect(within(composition).getByText("Composition")).toBeInTheDocument();
+    expect(within(composition).getByText("3 unités")).toBeInTheDocument();
+    expect(within(composition).getByText("Appartements")).toBeInTheDocument();
+    expect(within(composition).getByText("Boutique")).toBeInTheDocument();
+
+    expect(within(availability).getByText("Disponibilité")).toBeInTheDocument();
+    expect(within(availability).getByText("Appartements")).toBeInTheDocument();
+    expect(within(availability).getByText("Boutique")).toBeInTheDocument();
+    expect(within(availability).getByText("1 disponible / 2")).toBeInTheDocument();
+    expect(within(availability).getByText("1 non renseigné")).toBeInTheDocument();
+    expect(within(availability).getByText("1 disponible / 1")).toBeInTheDocument();
+
+    expect(within(contracts).getByText("Contrats")).toBeInTheDocument();
+    expect(within(contracts).getByText("2 actifs · 3 au total")).toBeInTheDocument();
+  });
+
+  it("n'affiche pas le résumé hiérarchique sur un bien indépendant", async () => {
+    const house: PropertyPortfolioItem = {
+      ...firstProperty,
+      contentSummary: {
+        buildingCount: 0,
+        composition: { totalUnitCount: 0, unitsByType: [] },
+        availability: {
+          totalCount: 1,
+          configuredCount: 1,
+          availableCount: 1,
+          unavailableCount: 0,
+          vacantCount: 1,
+          occupiedCount: 0,
+          byType: [],
+        },
+        contracts: { totalCount: 1, activeCount: 1 },
+      },
+    };
+
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(page([house]))));
+    renderPortfolio();
+
+    const item = await screen.findByRole("listitem");
+
+    expect(within(item).queryByText("Composition")).not.toBeInTheDocument();
+    expect(within(item).queryByText("Disponibilité")).not.toBeInTheDocument();
+    expect(within(item).queryByText("Contrats")).not.toBeInTheDocument();
+  });
+
   it("affiche un fallback stable sans photo ni propriétaire", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(page([firstProperty]))));
     renderPortfolio();

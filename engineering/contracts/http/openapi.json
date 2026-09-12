@@ -2828,6 +2828,197 @@
                 ],
                 "type": "string"
               },
+              "contentSummary": {
+                "additionalProperties": false,
+                "properties": {
+                  "availability": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "availableCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "byType": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "availableCount": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "configuredCount": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "occupiedCount": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "propertyType": {
+                              "enum": [
+                                "APARTMENT",
+                                "BUILDING",
+                                "COMMERCIAL",
+                                "COMPLEX",
+                                "HOUSE",
+                                "LAND",
+                                "OFFICE",
+                                "OTHER",
+                                "SHOP"
+                              ],
+                              "type": "string"
+                            },
+                            "totalCount": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "unavailableCount": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "vacantCount": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "availableCount",
+                            "configuredCount",
+                            "occupiedCount",
+                            "propertyType",
+                            "totalCount",
+                            "unavailableCount",
+                            "vacantCount"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      "configuredCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "occupiedCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "totalCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "unavailableCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "vacantCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "availableCount",
+                      "byType",
+                      "configuredCount",
+                      "occupiedCount",
+                      "totalCount",
+                      "unavailableCount",
+                      "vacantCount"
+                    ],
+                    "type": "object"
+                  },
+                  "buildingCount": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "composition": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "totalUnitCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "unitsByType": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "propertyType": {
+                              "enum": [
+                                "APARTMENT",
+                                "BUILDING",
+                                "COMMERCIAL",
+                                "COMPLEX",
+                                "HOUSE",
+                                "LAND",
+                                "OFFICE",
+                                "OTHER",
+                                "SHOP"
+                              ],
+                              "type": "string"
+                            },
+                            "totalCount": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "propertyType",
+                            "totalCount"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "totalUnitCount",
+                      "unitsByType"
+                    ],
+                    "type": "object"
+                  },
+                  "contracts": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "activeCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "totalCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "activeCount",
+                      "totalCount"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "availability",
+                  "buildingCount",
+                  "composition",
+                  "contracts"
+                ],
+                "type": "object"
+              },
               "createdAt": {
                 "format": "date-time",
                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
@@ -2910,6 +3101,24 @@
                     "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
                     "type": "string"
                   },
+                  "inheritedFrom": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "propertyId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "propertyId",
+                      "title"
+                    ],
+                    "type": "object"
+                  },
                   "ownerId": {
                     "$ref": "#/components/schemas/PropertyId"
                   },
@@ -2922,6 +3131,24 @@
                   "additionalOwnerCount",
                   "displayName",
                   "ownerId"
+                ],
+                "type": "object"
+              },
+              "parent": {
+                "additionalProperties": false,
+                "properties": {
+                  "propertyId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "propertyId",
+                  "title"
                 ],
                 "type": "object"
               },
@@ -3000,6 +3227,197 @@
                 ],
                 "type": "string"
               },
+              "contentSummary": {
+                "additionalProperties": false,
+                "properties": {
+                  "availability": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "availableCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "byType": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "availableCount": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "configuredCount": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "occupiedCount": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "propertyType": {
+                              "enum": [
+                                "APARTMENT",
+                                "BUILDING",
+                                "COMMERCIAL",
+                                "COMPLEX",
+                                "HOUSE",
+                                "LAND",
+                                "OFFICE",
+                                "OTHER",
+                                "SHOP"
+                              ],
+                              "type": "string"
+                            },
+                            "totalCount": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "unavailableCount": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "vacantCount": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "availableCount",
+                            "configuredCount",
+                            "occupiedCount",
+                            "propertyType",
+                            "totalCount",
+                            "unavailableCount",
+                            "vacantCount"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      "configuredCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "occupiedCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "totalCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "unavailableCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "vacantCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "availableCount",
+                      "byType",
+                      "configuredCount",
+                      "occupiedCount",
+                      "totalCount",
+                      "unavailableCount",
+                      "vacantCount"
+                    ],
+                    "type": "object"
+                  },
+                  "buildingCount": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "composition": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "totalUnitCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "unitsByType": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "propertyType": {
+                              "enum": [
+                                "APARTMENT",
+                                "BUILDING",
+                                "COMMERCIAL",
+                                "COMPLEX",
+                                "HOUSE",
+                                "LAND",
+                                "OFFICE",
+                                "OTHER",
+                                "SHOP"
+                              ],
+                              "type": "string"
+                            },
+                            "totalCount": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "propertyType",
+                            "totalCount"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "totalUnitCount",
+                      "unitsByType"
+                    ],
+                    "type": "object"
+                  },
+                  "contracts": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "activeCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "totalCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "activeCount",
+                      "totalCount"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "availability",
+                  "buildingCount",
+                  "composition",
+                  "contracts"
+                ],
+                "type": "object"
+              },
               "createdAt": {
                 "format": "date-time",
                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
@@ -3082,6 +3500,24 @@
                     "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
                     "type": "string"
                   },
+                  "inheritedFrom": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "propertyId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "propertyId",
+                      "title"
+                    ],
+                    "type": "object"
+                  },
                   "ownerId": {
                     "$ref": "#/components/schemas/PropertyId"
                   },
@@ -3094,6 +3530,24 @@
                   "additionalOwnerCount",
                   "displayName",
                   "ownerId"
+                ],
+                "type": "object"
+              },
+              "parent": {
+                "additionalProperties": false,
+                "properties": {
+                  "propertyId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "propertyId",
+                  "title"
                 ],
                 "type": "object"
               },
@@ -3178,6 +3632,197 @@
                 ],
                 "type": "string"
               },
+              "contentSummary": {
+                "additionalProperties": false,
+                "properties": {
+                  "availability": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "availableCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "byType": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "availableCount": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "configuredCount": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "occupiedCount": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "propertyType": {
+                              "enum": [
+                                "APARTMENT",
+                                "BUILDING",
+                                "COMMERCIAL",
+                                "COMPLEX",
+                                "HOUSE",
+                                "LAND",
+                                "OFFICE",
+                                "OTHER",
+                                "SHOP"
+                              ],
+                              "type": "string"
+                            },
+                            "totalCount": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "unavailableCount": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "vacantCount": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "availableCount",
+                            "configuredCount",
+                            "occupiedCount",
+                            "propertyType",
+                            "totalCount",
+                            "unavailableCount",
+                            "vacantCount"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      "configuredCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "occupiedCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "totalCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "unavailableCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "vacantCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "availableCount",
+                      "byType",
+                      "configuredCount",
+                      "occupiedCount",
+                      "totalCount",
+                      "unavailableCount",
+                      "vacantCount"
+                    ],
+                    "type": "object"
+                  },
+                  "buildingCount": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "composition": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "totalUnitCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "unitsByType": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "propertyType": {
+                              "enum": [
+                                "APARTMENT",
+                                "BUILDING",
+                                "COMMERCIAL",
+                                "COMPLEX",
+                                "HOUSE",
+                                "LAND",
+                                "OFFICE",
+                                "OTHER",
+                                "SHOP"
+                              ],
+                              "type": "string"
+                            },
+                            "totalCount": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "propertyType",
+                            "totalCount"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "totalUnitCount",
+                      "unitsByType"
+                    ],
+                    "type": "object"
+                  },
+                  "contracts": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "activeCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "totalCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "activeCount",
+                      "totalCount"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "availability",
+                  "buildingCount",
+                  "composition",
+                  "contracts"
+                ],
+                "type": "object"
+              },
               "createdAt": {
                 "format": "date-time",
                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
@@ -3260,6 +3905,24 @@
                     "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
                     "type": "string"
                   },
+                  "inheritedFrom": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "propertyId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "propertyId",
+                      "title"
+                    ],
+                    "type": "object"
+                  },
                   "ownerId": {
                     "$ref": "#/components/schemas/PropertyId"
                   },
@@ -3272,6 +3935,24 @@
                   "additionalOwnerCount",
                   "displayName",
                   "ownerId"
+                ],
+                "type": "object"
+              },
+              "parent": {
+                "additionalProperties": false,
+                "properties": {
+                  "propertyId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "propertyId",
+                  "title"
                 ],
                 "type": "object"
               },
@@ -4425,6 +5106,9 @@
               },
               "canWithdrawFromCatalog": {
                 "type": "boolean"
+              },
+              "isCommercialTarget": {
+                "type": "boolean"
               }
             },
             "required": [
@@ -4438,7 +5122,8 @@
               "canUpdateDetails",
               "canUpdatePricing",
               "canViewContracts",
-              "canWithdrawFromCatalog"
+              "canWithdrawFromCatalog",
+              "isCommercialTarget"
             ],
             "type": "object"
           },
@@ -4559,6 +5244,34 @@
               "draftCount",
               "endedCount",
               "totalCount"
+            ],
+            "type": "object"
+          },
+          "effectiveOwner": {
+            "additionalProperties": false,
+            "properties": {
+              "displayName": {
+                "type": "string"
+              },
+              "ownerId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string"
+              },
+              "sourcePropertyId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string"
+              },
+              "sourceTitle": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "displayName",
+              "ownerId",
+              "sourcePropertyId",
+              "sourceTitle"
             ],
             "type": "object"
           },

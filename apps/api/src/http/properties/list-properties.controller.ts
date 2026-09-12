@@ -50,11 +50,41 @@ export class ListPropertiesController {
     });
     return {
       items: page.items.map((item) => {
-        if (item.status === "DRAFT") return { ...item, status: "DRAFT" as const };
-        const publishedAt = requiredPublicationInstant(item.publishedAt);
-        return item.status === "PUBLISHED"
-          ? { ...item, status: "PUBLISHED" as const, publishedAt }
-          : { ...item, status: "WITHDRAWN" as const, publishedAt, withdrawnAt: requiredWithdrawalInstant(item.withdrawnAt) };
+        const {
+          contentSummary: sourceContentSummary,
+          ...portfolioBase
+        } = item;
+
+        const contentSummary = sourceContentSummary === undefined ? undefined : {
+          ...sourceContentSummary,
+          composition: {
+            ...sourceContentSummary.composition,
+            unitsByType: [...sourceContentSummary.composition.unitsByType],
+          },
+          availability: {
+            ...sourceContentSummary.availability,
+            byType: [...sourceContentSummary.availability.byType],
+          },
+        };
+
+        const portfolioItem = contentSummary === undefined
+          ? portfolioBase
+          : { ...portfolioBase, contentSummary };
+
+        if (portfolioItem.status === "DRAFT") {
+          return { ...portfolioItem, status: "DRAFT" as const };
+        }
+
+        const publishedAt = requiredPublicationInstant(portfolioItem.publishedAt);
+
+        return portfolioItem.status === "PUBLISHED"
+          ? { ...portfolioItem, status: "PUBLISHED" as const, publishedAt }
+          : {
+              ...portfolioItem,
+              status: "WITHDRAWN" as const,
+              publishedAt,
+              withdrawnAt: requiredWithdrawalInstant(portfolioItem.withdrawnAt),
+            };
       }),
       pageInfo: {
         hasNextPage: page.nextCursor !== undefined,

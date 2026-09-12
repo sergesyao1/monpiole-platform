@@ -199,6 +199,11 @@ function PropertyPortfolioCard({ property }: Readonly<{ property: PropertyPortfo
         <div><dt>Type</dt><dd>{propertyTypeLabels[property.propertyType]}</dd></div>
         <div><dt>Projet</dt><dd>{transactionTypeLabels[property.transactionType]}</dd></div>
       </dl>
+
+      {(property.propertyType === "BUILDING" || property.propertyType === "COMPLEX") && property.contentSummary && (
+        <PortfolioContentSummary property={property} />
+      )}
+
       <div className="portfolio-owner">
         <span>Propriétaire</span>
         {property.owner ? <>
@@ -212,6 +217,109 @@ function PropertyPortfolioCard({ property }: Readonly<{ property: PropertyPortfo
       </div>
     </article>
   );
+}
+
+function PortfolioContentSummary({ property }: Readonly<{ property: PropertyPortfolioItem }>) {
+  const summary = property.contentSummary;
+  if (!summary) return null;
+
+  return (
+    <div className="portfolio-content-summary">
+      <section aria-label={`Composition de ${property.title}`}>
+        <span className="portfolio-summary-title">Composition</span>
+
+        {summary.buildingCount > 0 && (
+          <strong>
+            {summary.buildingCount} immeuble{summary.buildingCount > 1 ? "s" : ""}
+          </strong>
+        )}
+
+        {summary.composition.totalUnitCount > 0 && (
+          <strong>
+            {summary.composition.totalUnitCount} unité{summary.composition.totalUnitCount > 1 ? "s" : ""}
+          </strong>
+        )}
+
+        {summary.composition.unitsByType.length > 0 && (
+          <ul>
+            {summary.composition.unitsByType.map((entry) => (
+              <li key={entry.propertyType}>
+                <span>{pluralPropertyTypeLabel(entry.propertyType, entry.totalCount)}</span>
+                <strong>{entry.totalCount}</strong>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section aria-label={`Disponibilité de ${property.title}`}>
+        <span className="portfolio-summary-title">Disponibilité</span>
+
+        {summary.availability.byType.length > 0 ? (
+          <ul>
+            {summary.availability.byType.map((entry) => {
+              const unconfiguredCount = entry.totalCount - entry.configuredCount;
+
+              return (
+                <li key={entry.propertyType}>
+                  <span>{pluralPropertyTypeLabel(entry.propertyType, entry.totalCount)}</span>
+                  <strong>
+                    {entry.availableCount} disponible{entry.availableCount > 1 ? "s" : ""} / {entry.totalCount}
+                  </strong>
+                  {unconfiguredCount > 0 && (
+                    <small>
+                      {unconfiguredCount} non renseigné{unconfiguredCount > 1 ? "s" : ""}
+                    </small>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <span className="muted-text">Aucune disponibilité commerciale</span>
+        )}
+      </section>
+
+      <section aria-label={`Contrats de ${property.title}`}>
+        <span className="portfolio-summary-title">Contrats</span>
+        <strong>
+          {summary.contracts.activeCount} actif{summary.contracts.activeCount > 1 ? "s" : ""}
+          {" · "}
+          {summary.contracts.totalCount} au total
+        </strong>
+      </section>
+    </div>
+  );
+}
+
+function pluralPropertyTypeLabel(propertyType: PropertyPortfolioItem["propertyType"], count: number): string {
+  const singularLabels: Partial<Record<PropertyPortfolioItem["propertyType"], string>> = {
+    APARTMENT: "Appartement",
+    HOUSE: "Villa",
+    LAND: "Terrain",
+    COMMERCIAL: "Local commercial",
+    OFFICE: "Bureau",
+    SHOP: "Boutique",
+    BUILDING: "Immeuble",
+    COMPLEX: "Ensemble immobilier",
+    OTHER: "Autre",
+  };
+
+  const pluralLabels: Partial<Record<PropertyPortfolioItem["propertyType"], string>> = {
+    APARTMENT: "Appartements",
+    HOUSE: "Villas",
+    LAND: "Terrains",
+    COMMERCIAL: "Locaux commerciaux",
+    OFFICE: "Bureaux",
+    SHOP: "Boutiques",
+    BUILDING: "Immeubles",
+    COMPLEX: "Ensembles immobiliers",
+    OTHER: "Autres",
+  };
+
+  return count === 1
+    ? (singularLabels[propertyType] ?? propertyTypeLabels[propertyType])
+    : (pluralLabels[propertyType] ?? propertyTypeLabels[propertyType]);
 }
 
 function FeaturedPhoto({ property }: Readonly<{ property: PropertyPortfolioItem }>) {
