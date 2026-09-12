@@ -1,5 +1,5 @@
 import { withTenantPostgresTransaction } from "@monpiole/persistence";
-import { and, asc, count, desc, eq, ilike, inArray, lt, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, eq, inArray } from "drizzle-orm";
 import type { Pool } from "pg";
 
 import type {
@@ -13,48 +13,248 @@ export class PostgresPropertyPortfolioQuery implements PropertyPortfolioQuery {
 
   list(criteria: PropertyPortfolioCriteria): Promise<PropertyPortfolioPage> {
     return withTenantPostgresTransaction(this.pool, criteria.tenantId, async (scope) => {
-      const filters: SQL[] = [eq(properties.tenantId, criteria.tenantId)];
-      if (criteria.status !== undefined) filters.push(eq(properties.status, criteria.status));
-      if (criteria.propertyType !== undefined) filters.push(eq(properties.propertyType, criteria.propertyType));
-      if (criteria.search !== undefined) {
-        const pattern = `%${escapeLikePattern(criteria.search)}%`;
-        filters.push(or(
-          ilike(properties.title, pattern), ilike(properties.description, pattern), ilike(properties.city, pattern),
-          ilike(properties.district, pattern), ilike(properties.addressLine, pattern),
-          sql`EXISTS (
-            SELECT 1 FROM property_management.property_ownerships po
-            JOIN property_management.property_owners owner
-              ON owner.tenant_id = po.tenant_id AND owner.owner_id = po.owner_id
-            WHERE po.tenant_id = ${criteria.tenantId}::uuid
-              AND po.property_id = ${properties.propertyId}
-              AND (owner.first_name ILIKE ${pattern} ESCAPE '\\' OR owner.last_name ILIKE ${pattern} ESCAPE '\\'
-                OR owner.legal_name ILIKE ${pattern} ESCAPE '\\')
-          )`,
-        )!);
+      /*
+       * Portfolio pagination is root-aware.
+       *
+       * Filters are evaluated against every Property in the hierarchy, but
+       * pagination itself is performed exclusively against canonical roots.
+       * Once roots have been selected, their complete branches are loaded.
+       *
+       * Consequently `criteria.limit` represents the number of portfolio
+       * roots, not the number of physical rows returned in `items`.
+       */
+      const rootParameters: unknown[] = [criteria.tenantId];
+      const matchConditions: string[] = [];
+
+      const bindRootParameter = (value: unknown) => {
+        rootParameters.push(value);
+        return `$${rootParameters.length}`;
+      };
+
+      if (criteria.status !== undefined) {
+        const parameter = bindRootParameter(criteria.status);
+        matchConditions.push(`hierarchy.status = ${parameter}`);
       }
-      if (criteria.ownerId !== undefined) filters.push(sql`EXISTS (
-        SELECT 1 FROM property_management.property_ownerships po
-        WHERE po.tenant_id = ${criteria.tenantId}::uuid
-          AND po.property_id = ${properties.propertyId}
-          AND po.owner_id = ${criteria.ownerId}::uuid
-      )`);
-      if (criteria.cursor !== undefined) filters.push(or(
-        lt(properties.createdAt, criteria.cursor.createdAt),
-        and(eq(properties.createdAt, criteria.cursor.createdAt), lt(properties.propertyId, criteria.cursor.propertyId)),
-      )!);
 
-      const rows = await scope.database().select({
-        propertyId: properties.propertyId, title: properties.title, description: properties.description,
-        propertyType: properties.propertyType, transactionType: properties.transactionType,
-        apartmentSubtype: properties.apartmentSubtype, status: properties.status,
-        structuralRole: properties.structuralRole,
-        country: properties.country, city: properties.city, district: properties.district, addressLine: properties.addressLine,
-        createdAt: properties.createdAt, updatedAt: properties.updatedAt, publishedAt: properties.publishedAt,
-        withdrawnAt: properties.withdrawnAt,
-      }).from(properties).where(and(...filters)).orderBy(desc(properties.createdAt), desc(properties.propertyId)).limit(criteria.limit + 1);
+      if (criteria.propertyType !== undefined) {
+        const parameter = bindRootParameter(criteria.propertyType);
+        matchConditions.push(`hierarchy.property_type = ${parameter}`);
+      }
 
-      const hasNextPage = rows.length > criteria.limit;
-      const pageRows = rows.slice(0, criteria.limit);
+      if (criteria.search !== undefined) {
+        const parameter = bindRootParameter(`%${escapeLikePattern(criteria.search)}%`);
+
+        matchConditions.push(`(
+          hierarchy.title ILIKE ${parameter} ESCAPE '\\'
+          OR hierarchy.description ILIKE ${parameter} ESCAPE '\\'
+          OR hierarchy.city ILIKE ${parameter} ESCAPE '\\'
+          OR hierarchy.district ILIKE ${parameter} ESCAPE '\\'
+          OR hierarchy.address_line ILIKE ${parameter} ESCAPE '\\'
+          OR EXISTS (
+            SELECT 1
+            FROM property_management.property_ownerships ownership
+            JOIN property_management.property_owners property_owner
+              ON property_owner.tenant_id = ownership.tenant_id
+             AND property_owner.owner_id = ownership.owner_id
+            WHERE ownership.tenant_id = $1::uuid
+              AND ownership.property_id = hierarchy.property_id
+              AND (
+                property_owner.first_name ILIKE ${parameter} ESCAPE '\\'
+                OR property_owner.last_name ILIKE ${parameter} ESCAPE '\\'
+                OR property_owner.legal_name ILIKE ${parameter} ESCAPE '\\'
+              )
+          )
+        )`);
+      }
+
+      if (criteria.ownerId !== undefined) {
+        const parameter = bindRootParameter(criteria.ownerId);
+
+        matchConditions.push(`EXISTS (
+          SELECT 1
+          FROM property_management.property_ownerships ownership
+          WHERE ownership.tenant_id = $1::uuid
+            AND ownership.property_id = hierarchy.property_id
+            AND ownership.owner_id = ${parameter}::uuid
+        )`);
+      }
+
+      const cursorConditions: string[] = [];
+
+      if (criteria.cursor !== undefined) {
+        const createdAtParameter = bindRootParameter(criteria.cursor.createdAt);
+        const propertyIdParameter = bindRootParameter(criteria.cursor.propertyId);
+
+        cursorConditions.push(`(
+          root.created_at < ${createdAtParameter}::timestamptz
+          OR (
+            root.created_at = ${createdAtParameter}::timestamptz
+            AND root.property_id < ${propertyIdParameter}::uuid
+          )
+        )`);
+      }
+
+      const limitParameter = bindRootParameter(criteria.limit + 1);
+
+      const rootRows = await scope.query<{
+        property_id: string;
+        created_at: string;
+      }>(`
+        WITH direct_relations AS (
+          SELECT
+            relation.tenant_id,
+            relation.child_property_id AS child_id,
+            relation.complex_property_id AS parent_id
+          FROM property_management.property_complex_children relation
+          WHERE relation.tenant_id = $1::uuid
+
+          UNION
+
+          SELECT
+            building.tenant_id,
+            building.building_property_id AS child_id,
+            building.property_id AS parent_id
+          FROM property_management.property_buildings building
+          WHERE building.tenant_id = $1::uuid
+            AND building.building_property_id IS NOT NULL
+            AND building.building_property_id <> building.property_id
+
+          UNION
+
+          SELECT
+            unit.tenant_id,
+            unit.unit_property_id AS child_id,
+            coalesce(building.building_property_id, building.property_id) AS parent_id
+          FROM property_management.property_building_units unit
+          JOIN property_management.property_buildings building
+            ON building.tenant_id = unit.tenant_id
+           AND building.building_id = unit.building_id
+          WHERE unit.tenant_id = $1::uuid
+        ),
+        hierarchy AS (
+          SELECT
+            property.*,
+            direct.parent_id,
+            parent_relation.parent_id AS grandparent_id,
+            coalesce(
+              parent_relation.parent_id,
+              direct.parent_id,
+              property.property_id
+            ) AS root_id
+          FROM property_management.properties property
+          LEFT JOIN direct_relations direct
+            ON direct.tenant_id = property.tenant_id
+           AND direct.child_id = property.property_id
+          LEFT JOIN direct_relations parent_relation
+            ON parent_relation.tenant_id = property.tenant_id
+           AND parent_relation.child_id = direct.parent_id
+          WHERE property.tenant_id = $1::uuid
+        ),
+        matching_roots AS (
+          SELECT DISTINCT hierarchy.root_id
+          FROM hierarchy
+          ${matchConditions.length === 0 ? "" : `WHERE ${matchConditions.join("\n            AND ")}`}
+        )
+        SELECT
+          root.property_id,
+          root.created_at
+        FROM property_management.properties root
+        JOIN matching_roots match
+          ON match.root_id = root.property_id
+        WHERE root.tenant_id = $1::uuid
+          ${cursorConditions.length === 0 ? "" : `AND ${cursorConditions.join("\n          AND ")}`}
+        ORDER BY
+          root.created_at DESC,
+          root.property_id DESC
+        LIMIT ${limitParameter}
+      `, rootParameters);
+
+      const hasNextPage = rootRows.length > criteria.limit;
+      const selectedRootRows = rootRows.slice(0, criteria.limit);
+      const selectedRootIds = selectedRootRows.map((row) => row.property_id);
+
+      const pageRows = selectedRootIds.length === 0 ? [] : await scope.query<PortfolioRow>(`
+        WITH direct_relations AS (
+          SELECT
+            relation.tenant_id,
+            relation.child_property_id AS child_id,
+            relation.complex_property_id AS parent_id
+          FROM property_management.property_complex_children relation
+          WHERE relation.tenant_id = $1::uuid
+
+          UNION
+
+          SELECT
+            building.tenant_id,
+            building.building_property_id AS child_id,
+            building.property_id AS parent_id
+          FROM property_management.property_buildings building
+          WHERE building.tenant_id = $1::uuid
+            AND building.building_property_id IS NOT NULL
+            AND building.building_property_id <> building.property_id
+
+          UNION
+
+          SELECT
+            unit.tenant_id,
+            unit.unit_property_id AS child_id,
+            coalesce(building.building_property_id, building.property_id) AS parent_id
+          FROM property_management.property_building_units unit
+          JOIN property_management.property_buildings building
+            ON building.tenant_id = unit.tenant_id
+           AND building.building_id = unit.building_id
+          WHERE unit.tenant_id = $1::uuid
+        ),
+        hierarchy AS (
+          SELECT
+            property.*,
+            direct.parent_id,
+            parent_relation.parent_id AS grandparent_id,
+            coalesce(
+              parent_relation.parent_id,
+              direct.parent_id,
+              property.property_id
+            ) AS root_id,
+            CASE
+              WHEN direct.parent_id IS NULL THEN 0
+              WHEN parent_relation.parent_id IS NULL THEN 1
+              ELSE 2
+            END AS hierarchy_depth
+          FROM property_management.properties property
+          LEFT JOIN direct_relations direct
+            ON direct.tenant_id = property.tenant_id
+           AND direct.child_id = property.property_id
+          LEFT JOIN direct_relations parent_relation
+            ON parent_relation.tenant_id = property.tenant_id
+           AND parent_relation.child_id = direct.parent_id
+          WHERE property.tenant_id = $1::uuid
+        )
+        SELECT
+          hierarchy.property_id AS "propertyId",
+          hierarchy.title AS "title",
+          hierarchy.description AS "description",
+          hierarchy.property_type AS "propertyType",
+          hierarchy.transaction_type AS "transactionType",
+          hierarchy.apartment_subtype AS "apartmentSubtype",
+          hierarchy.status AS "status",
+          hierarchy.structural_role AS "structuralRole",
+          hierarchy.country AS "country",
+          hierarchy.city AS "city",
+          hierarchy.district AS "district",
+          hierarchy.address_line AS "addressLine",
+          hierarchy.created_at AS "createdAt",
+          hierarchy.updated_at AS "updatedAt",
+          hierarchy.published_at AS "publishedAt",
+          hierarchy.withdrawn_at AS "withdrawnAt"
+        FROM hierarchy
+        WHERE hierarchy.root_id = ANY($2::uuid[])
+        ORDER BY
+          array_position($2::uuid[], hierarchy.root_id),
+          hierarchy.hierarchy_depth,
+          hierarchy.created_at DESC,
+          hierarchy.property_id DESC
+      `, [criteria.tenantId, selectedRootIds]);
+
       const propertyIds = pageRows.map((row) => row.propertyId);
       const parentRows = propertyIds.length === 0 ? [] : await scope.query<{
         child_id: string; parent_id: string; parent_title: string;
@@ -554,10 +754,16 @@ export class PostgresPropertyPortfolioQuery implements PropertyPortfolioQuery {
         title: parentByChild.get(row.propertyId)!.parent_title,
       } }) };
       });
-      const last = hasNextPage ? items.at(-1) : undefined;
+      const lastRoot = hasNextPage ? selectedRootRows.at(-1) : undefined;
+
       return {
         items,
-        ...(last === undefined ? {} : { nextCursor: { createdAt: last.createdAt, propertyId: last.propertyId } }),
+        ...(lastRoot === undefined ? {} : {
+          nextCursor: {
+            createdAt: new Date(lastRoot.created_at).toISOString(),
+            propertyId: lastRoot.property_id,
+          },
+        }),
       };
     });
   }

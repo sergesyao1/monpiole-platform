@@ -1050,6 +1050,169 @@ describe("Property portfolio hierarchy and inherited ownership", () => {
     expect(explicitlyOwned.owner?.inheritedFrom).toBeUndefined();
   });
 });
+describe("Property portfolio root-aware pagination PostgreSQL", () => {
+  it("pagine les racines, conserve leur branche et fait remonter une recherche enfant", async () => {
+    const propertyRepository = new PostgresPropertyRepository(runtime);
+    const compositionRepository = new PostgresPropertyCompositionRepository(runtime);
+
+    const residenceId = "91000000-0000-4000-8000-000000000001";
+    const buildingId = "91000000-0000-4000-8000-000000000002";
+    const buildingPropertyId = "91000000-0000-4000-8000-000000000003";
+    const apartmentA01Id = "91000000-0000-4000-8000-000000000004";
+    const apartmentA02Id = "91000000-0000-4000-8000-000000000005";
+    const villaId = "91000000-0000-4000-8000-000000000006";
+
+    const location = {
+      country: "CI",
+      city: "Abidjan",
+      district: "Cocody",
+      addressLine: "Riviera",
+    };
+
+    const compositionActor = {
+      ...compositionAuthority(TENANT_A),
+      grants: ["CREATE_PROPERTY", ...compositionAuthority(TENANT_A).grants] as const,
+    };
+
+    await new CreateProperty(
+      propertyRepository,
+      { generate: () => residenceId },
+      { now: () => "2026-09-12T15:00:00.000Z" },
+      compositionRepository,
+    ).execute({
+      authority: compositionActor,
+      correlationId: CORRELATION,
+      title: "Résidence Pagination",
+      propertyType: "COMPLEX",
+      transactionType: "LONG_TERM_RENTAL",
+      location,
+    });
+
+    const buildingIds = [buildingId, buildingPropertyId];
+
+    await new CreatePropertyBuilding(
+      propertyRepository,
+      compositionRepository,
+      { generate: () => buildingIds.shift()! },
+      { now: () => "2026-09-12T15:01:00.000Z" },
+    ).execute({
+      authority: compositionActor,
+      correlationId: CORRELATION,
+      propertyId: residenceId,
+      buildingCode: "BAT-P",
+      name: "Immeuble Pagination",
+      commercializationMode: "INDIVIDUAL_UNITS",
+    });
+
+    await new CreatePropertyUnit(
+      compositionRepository,
+      { generate: () => apartmentA01Id },
+      { now: () => "2026-09-12T15:02:00.000Z" },
+    ).execute({
+      authority: compositionActor,
+      correlationId: CORRELATION,
+      propertyId: buildingPropertyId,
+      buildingId,
+      unitCode: "A-01",
+      title: "Appartement A01",
+      propertyType: "APARTMENT",
+      apartmentSubtype: "STUDIO",
+      transactionType: "LONG_TERM_RENTAL",
+      location,
+    });
+
+    await new CreatePropertyUnit(
+      compositionRepository,
+      { generate: () => apartmentA02Id },
+      { now: () => "2026-09-12T15:03:00.000Z" },
+    ).execute({
+      authority: compositionActor,
+      correlationId: CORRELATION,
+      propertyId: buildingPropertyId,
+      buildingId,
+      unitCode: "A-02",
+      title: "Appartement A02",
+      propertyType: "APARTMENT",
+      apartmentSubtype: "STUDIO",
+      transactionType: "LONG_TERM_RENTAL",
+      location,
+    });
+
+    await new CreateProperty(
+      propertyRepository,
+      { generate: () => villaId },
+      { now: () => "2026-09-12T14:00:00.000Z" },
+      compositionRepository,
+    ).execute({
+      authority: compositionActor,
+      correlationId: CORRELATION,
+      title: "Villa indépendante",
+      propertyType: "HOUSE",
+      transactionType: "LONG_TERM_RENTAL",
+      location,
+    });
+
+    const list = new ListProperties(new PostgresPropertyPortfolioQuery(runtime));
+    const listAuthority = {
+      ...authority(TENANT_A),
+      grants: ["LIST_PROPERTIES"] as const,
+    };
+
+    const first = await list.execute({
+      authority: listAuthority,
+      limit: 1,
+    });
+
+    expect(first.items.map((item) => item.propertyId)).toEqual([
+      residenceId,
+      buildingPropertyId,
+      apartmentA02Id,
+      apartmentA01Id,
+    ]);
+
+    expect(first.nextCursor).toEqual({
+      createdAt: "2026-09-12T15:00:00.000Z",
+      propertyId: residenceId,
+    });
+
+    expect(first.items.find((item) => item.propertyId === buildingPropertyId)?.parent)
+      .toEqual({
+        propertyId: residenceId,
+        title: "Résidence Pagination",
+      });
+
+    expect(first.items.find((item) => item.propertyId === apartmentA02Id)?.parent)
+      .toEqual({
+        propertyId: buildingPropertyId,
+        title: "Immeuble Pagination",
+      });
+
+    const second = await list.execute({
+      authority: listAuthority,
+      limit: 1,
+      cursor: first.nextCursor,
+    });
+
+    expect(second.items.map((item) => item.propertyId)).toEqual([
+      villaId,
+    ]);
+    expect(second.nextCursor).toBeUndefined();
+
+    const childSearch = await list.execute({
+      authority: listAuthority,
+      search: "Appartement A02",
+      limit: 1,
+    });
+
+    expect(childSearch.items.map((item) => item.propertyId)).toEqual([
+      residenceId,
+      buildingPropertyId,
+      apartmentA02Id,
+      apartmentA01Id,
+    ]);
+    expect(childSearch.nextCursor).toBeUndefined();
+  });
+});
 describe("Property portfolio content summary PostgreSQL", () => {
   it("agrège les cibles commerciales selon la hiérarchie et le mode de commercialisation", async () => {
     const now = "2026-09-12T12:00:00.000Z";
