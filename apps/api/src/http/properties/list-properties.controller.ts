@@ -29,7 +29,7 @@ export class ListPropertiesController {
   @ApiQuery({ name: "limit", required: false, schema: { type: "integer", minimum: 1, maximum: 100, default: 20 } })
   @ApiQuery({ name: "cursor", required: false, schema: { type: "string", maxLength: 512 } })
   @ApiQuery({ name: "status", required: false, schema: { type: "string", enum: ["DRAFT", "PUBLISHED", "WITHDRAWN"] } })
-  @ApiQuery({ name: "type", required: false, schema: { type: "string", enum: ["APARTMENT", "HOUSE", "LAND", "COMMERCIAL", "OTHER"] } })
+  @ApiQuery({ name: "type", required: false, schema: { type: "string", enum: ["APARTMENT", "HOUSE", "LAND", "COMMERCIAL", "OFFICE", "SHOP", "BUILDING", "COMPLEX", "OTHER"] } })
   @ApiQuery({ name: "search", required: false, schema: { type: "string", minLength: 1, maxLength: 100 } })
   @ApiQuery({ name: "ownerId", required: false, schema: { type: "string", format: "uuid" } })
   @ApiOkResponse({ description: "A stable page from the tenant-owned Property portfolio", type: PropertyPortfolioResponseDto, headers: responseHeaders() })

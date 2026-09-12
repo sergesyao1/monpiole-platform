@@ -13,7 +13,7 @@ import {
   PostgresPropertyOwnerRepository, PostgresPropertyPortfolioQuery, PostgresPropertyRepository,
   RetrieveProperty, RetrievePropertyOwner, SetPropertyPricing, UpdatePropertyCoreInformation, UpdatePropertyDetails, UpdatePropertyOwner,
   AssignPropertyOwner, PostgresPropertyOwnershipRepository, RetrievePropertyOwnerships, RemovePropertyOwner,
-  CreatePropertyBuilding, ListPropertyBuildings, UpdatePropertyBuilding, CreatePropertyUnit, ListPropertyUnits, UpdatePropertyUnitStructure, PostgresPropertyCompositionRepository,
+  CreatePropertyBuilding, ListPropertyBuildings, UpdatePropertyBuilding, CreatePropertyUnit, ListPropertyUnits, UpdatePropertyUnitStructure, CreatePropertyComplexChild, ListPropertyComplexChildren, PostgresPropertyCompositionRepository,
   PublishProperty, WithdrawPropertyFromCatalog,
   PostgresPropertyPhotoRepository, RegisterPropertyPhoto, RetrievePropertyPhotoContent,
   ListPropertyPhotos, SelectPropertyPrimaryPhoto, DeletePropertyPhoto, ReorderPropertyPhotos,
@@ -125,7 +125,7 @@ export function createPostgresApiRuntime(
       { generate: randomUUID }, { now: () => new Date().toISOString() },
       authorityPolicy,
     ),
-    createProperty: new CreateProperty(propertyRepository, { generate: randomUUID }, { now: () => new Date().toISOString() }),
+    createProperty: new CreateProperty(propertyRepository, { generate: randomUUID }, { now: () => new Date().toISOString() }, propertyCompositionRepository),
     retrieveProperty: new RetrieveProperty(propertyRepository),
     listProperties: new ListProperties(new PostgresPropertyPortfolioQuery(pool)),
     updatePropertyDetails: new UpdatePropertyDetails(propertyRepository, { now: () => new Date().toISOString() }),
@@ -212,6 +212,8 @@ export function createPostgresApiRuntime(
     listPropertyBuildings: new ListPropertyBuildings(propertyCompositionRepository), updatePropertyBuilding: new UpdatePropertyBuilding(propertyCompositionRepository, compositionClock),
     createPropertyUnit: new CreatePropertyUnit(propertyCompositionRepository, { generate: randomUUID }, compositionClock),
     listPropertyUnits: new ListPropertyUnits(propertyCompositionRepository), updatePropertyUnitStructure: new UpdatePropertyUnitStructure(propertyCompositionRepository, compositionClock),
+    createPropertyComplexChild: new CreatePropertyComplexChild(propertyCompositionRepository, { generate: randomUUID }, compositionClock),
+    listPropertyComplexChildren: new ListPropertyComplexChildren(propertyCompositionRepository),
     runtimeShutdown: { onApplicationShutdown: () => closeDatabases(database, publicCatalogDatabase) },
   };
 

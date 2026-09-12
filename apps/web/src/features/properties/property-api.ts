@@ -3,7 +3,7 @@ import type {
   CreatePropertyInput, Property, PropertyOwner, PropertyOwnerDirectoryCriteria, PropertyOwnerDirectoryPage,
   PropertyOwnerInput, PropertyOwnership, PropertyPortfolioCriteria, PropertyPortfolioPage, UpdatePropertyDetailsInput,
   UpdatePropertyCoreInformationInput,
-  BuildingInput, CompositionPage, PropertyBuilding, PropertyUnit, UnitInput,
+  BuildingInput, CompositionPage, CreatePropertyComplexChildInput, PropertyBuilding, PropertyComplexChild, PropertyUnit, UnitInput,
   PropertyPhoto, PropertyPhotoCategory, PropertyPhotoStandard,
   PropertyGeolocation, UpdatePropertyGeolocationInput,
   PropertyAvailability, UpdatePropertyAvailabilityInput,
@@ -49,6 +49,8 @@ export interface PropertyApi {
   removePropertyOwner(propertyId: string, ownerId: string): Promise<void>;
   listBuildings(propertyId: string, cursor?: string): Promise<CompositionPage<PropertyBuilding>>;
   createBuilding(propertyId: string, input: BuildingInput): Promise<PropertyBuilding>;
+  listComplexChildren?(propertyId: string, cursor?: string): Promise<CompositionPage<PropertyComplexChild>>;
+  createComplexChild?(propertyId: string, input: CreatePropertyComplexChildInput): Promise<PropertyComplexChild>;
   updateBuilding(propertyId: string, buildingId: string, input: BuildingInput): Promise<PropertyBuilding>;
   listUnits(propertyId: string, buildingId: string, cursor?: string): Promise<CompositionPage<PropertyUnit>>;
   createUnit(propertyId: string, buildingId: string, input: UnitInput): Promise<PropertyUnit>;
@@ -173,6 +175,8 @@ export function createPropertyApi(tokens: AccessTokenProvider): PropertyManageme
     ),
     listBuildings: (propertyId, cursor) => request<CompositionPage<PropertyBuilding>>(compositionPath(propertyId, undefined, cursor)),
     createBuilding: (propertyId, input) => request<PropertyBuilding>(compositionPath(propertyId), { method: "POST", body: input }),
+    listComplexChildren: (propertyId, cursor) => request<CompositionPage<PropertyComplexChild>>(complexChildrenPath(propertyId, cursor)),
+    createComplexChild: (propertyId, input) => request<PropertyComplexChild>(complexChildrenPath(propertyId), { method: "POST", body: input }),
     updateBuilding: (propertyId, buildingId, input) => request<PropertyBuilding>(compositionPath(propertyId, buildingId), { method: "PUT", body: input }),
     listUnits: (propertyId, buildingId, cursor) => request<CompositionPage<PropertyUnit>>(compositionPath(propertyId, buildingId, cursor, true)),
     createUnit: (propertyId, buildingId, input) => request<PropertyUnit>(compositionPath(propertyId, buildingId, undefined, true), { method: "POST", body: input }),
@@ -233,6 +237,10 @@ function commercialJourneyPath(criteria: PropertyCommercialJourneyCriteria, curs
 }
 function compositionPath(propertyId: string, buildingId?: string, cursor?: string, units = false): `/v1/${string}` {
   const base = `/v1/properties/${encodeURIComponent(propertyId)}/buildings${buildingId ? `/${encodeURIComponent(buildingId)}` : ""}${units ? "/units" : ""}` as `/v1/${string}`;
+  return cursor ? `${base}?limit=20&cursor=${encodeURIComponent(cursor)}` : base;
+}
+function complexChildrenPath(propertyId: string, cursor?: string): `/v1/${string}` {
+  const base = `/v1/properties/${encodeURIComponent(propertyId)}/children` as `/v1/${string}`;
   return cursor ? `${base}?limit=20&cursor=${encodeURIComponent(cursor)}` : base;
 }
 

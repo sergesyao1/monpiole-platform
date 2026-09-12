@@ -13,6 +13,7 @@ import type {
 interface AvailabilityRow extends Record<string, unknown> {
   readonly property_id: string;
   readonly structural_role: "STANDALONE" | "COMPOSITE" | "UNIT";
+  readonly commercialization_mode: "WHOLE_BUILDING" | "INDIVIDUAL_UNITS" | null;
   readonly availability_status: PropertyAvailabilityStatus | null;
   readonly occupancy_status: PropertyOccupancyStatus | null;
   readonly availability_updated_at: Date | null;
@@ -33,6 +34,7 @@ export class PostgresPropertyAvailabilityQuery implements PropertyAvailabilityQu
         SELECT
           p.property_id,
           p.structural_role,
+          p.commercialization_mode,
           p.availability_status,
           p.occupancy_status,
           p.availability_updated_at,
@@ -44,16 +46,16 @@ export class PostgresPropertyAvailabilityQuery implements PropertyAvailabilityQu
           COUNT(bu.unit_property_id) FILTER (WHERE unit.occupancy_status = 'OCCUPIED')::integer AS occupied_unit_count
         FROM property_management.properties AS p
         LEFT JOIN property_management.property_buildings AS building
-          ON building.tenant_id = p.tenant_id AND building.property_id = p.property_id
+          ON building.tenant_id = p.tenant_id AND (building.property_id = p.property_id OR building.building_property_id = p.property_id)
         LEFT JOIN property_management.property_building_units AS bu
           ON bu.tenant_id = building.tenant_id AND bu.building_id = building.building_id
         LEFT JOIN property_management.properties AS unit
           ON unit.tenant_id = bu.tenant_id AND unit.property_id = bu.unit_property_id
         WHERE p.tenant_id = $1::uuid AND p.property_id = $2::uuid
-        GROUP BY p.property_id, p.structural_role, p.availability_status, p.occupancy_status, p.availability_updated_at
+        GROUP BY p.property_id, p.structural_role, p.commercialization_mode, p.availability_status, p.occupancy_status, p.availability_updated_at
       `, [tenantId, propertyId]))[0];
       if (row === undefined) return undefined;
-      if (row.structural_role !== "COMPOSITE") {
+      if (row.structural_role !== "COMPOSITE" || row.commercialization_mode === "WHOLE_BUILDING") {
         if (row.availability_status === null || row.occupancy_status === null || row.availability_updated_at === null) {
           return {
             propertyId: row.property_id,

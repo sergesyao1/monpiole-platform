@@ -9,6 +9,7 @@ export const properties = propertyManagement.table("properties", {
   propertyId: uuid("property_id").primaryKey(), tenantId: uuid("tenant_id").notNull(),
   title: text("title").notNull(), description: text("description"),
   propertyType: text("property_type").notNull(), transactionType: text("transaction_type").notNull(),
+  commercializationMode: text("commercialization_mode"),
   apartmentSubtype: text("apartment_subtype"),
   status: text("status").notNull(), country: text("country").notNull(), city: text("city").notNull(),
   structuralRole: text("structural_role").notNull().default("STANDALONE"),
@@ -46,7 +47,9 @@ export const properties = propertyManagement.table("properties", {
     .where(sql`${table.status} = 'PUBLISHED'`),
   check("properties_title_length_check", sql`char_length(${table.title}) BETWEEN 1 AND 200`),
   check("properties_description_length_check", sql`${table.description} IS NULL OR char_length(${table.description}) <= 5000`),
-  check("properties_type_check", sql`${table.propertyType} IN ('APARTMENT', 'HOUSE', 'LAND', 'COMMERCIAL', 'OTHER')`),
+  check("properties_type_check", sql`${table.propertyType} IN ('APARTMENT', 'HOUSE', 'LAND', 'COMMERCIAL', 'OFFICE', 'SHOP', 'BUILDING', 'COMPLEX', 'OTHER')`),
+  check("properties_commercialization_mode_check", sql`(${table.propertyType} = 'BUILDING' AND ${table.commercializationMode} IS NOT NULL AND ${table.commercializationMode} IN ('WHOLE_BUILDING', 'INDIVIDUAL_UNITS')) OR (${table.propertyType} <> 'BUILDING' AND ${table.commercializationMode} IS NULL)`),
+  check("properties_commercial_target_check", sql`${table.status} <> 'PUBLISHED' OR (${table.propertyType} <> 'COMPLEX' AND (${table.propertyType} <> 'BUILDING' OR ${table.commercializationMode} = 'WHOLE_BUILDING'))`),
   check("properties_transaction_type_check", sql`${table.transactionType} IN ('LONG_TERM_RENTAL', 'SHORT_TERM_RENTAL', 'SALE')`),
   check("properties_apartment_subtype_check", sql`
     ${table.apartmentSubtype} IS NULL
@@ -108,7 +111,7 @@ export const properties = propertyManagement.table("properties", {
       AND ${table.availabilityUpdatedAt} IS NULL AND ${table.availabilityUpdatedByActorId} IS NULL
       AND ${table.availabilityCorrelationId} IS NULL)
     OR
-    (${table.structuralRole} IN ('STANDALONE', 'UNIT')
+    ((${table.structuralRole} IN ('STANDALONE', 'UNIT') OR (${table.propertyType} = 'BUILDING' AND ${table.commercializationMode} = 'WHOLE_BUILDING'))
       AND ${table.availabilityStatus} IN ('AVAILABLE', 'UNAVAILABLE')
       AND ${table.occupancyStatus} IN ('VACANT', 'OCCUPIED')
       AND ${table.availabilityUpdatedAt} IS NOT NULL AND ${table.availabilityUpdatedByActorId} IS NOT NULL
@@ -292,9 +295,31 @@ export const propertyPrimaryPhotoAudits = propertyManagement.table("property_pri
   }),
 ]).enableRLS();
 
+export const propertyComplexChildren = propertyManagement.table("property_complex_children", {
+  tenantId: uuid("tenant_id").notNull(),
+  complexPropertyId: uuid("complex_property_id").notNull(),
+  childPropertyId: uuid("child_property_id").notNull(),
+  childCode: text("child_code").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+  correlationId: uuid("correlation_id").notNull(),
+  actorId: text("actor_id").notNull(),
+}, (table) => [
+  primaryKey({ name: "property_complex_children_pkey", columns: [table.tenantId, table.childPropertyId] }),
+  uniqueIndex("property_complex_children_tenant_complex_code_unique").on(table.tenantId, table.complexPropertyId, table.childCode),
+  foreignKey({ name: "property_complex_children_complex_tenant_fk", columns: [table.tenantId, table.complexPropertyId], foreignColumns: [properties.tenantId, properties.propertyId] }),
+  foreignKey({ name: "property_complex_children_child_tenant_fk", columns: [table.tenantId, table.childPropertyId], foreignColumns: [properties.tenantId, properties.propertyId] }),
+  check("property_complex_children_distinct_check", sql`${table.complexPropertyId} <> ${table.childPropertyId}`),
+  check("property_complex_children_code_check", sql`${table.childCode} ~ '^[A-Z0-9][A-Z0-9._/ -]{0,49}$'`),
+  pgPolicy("property_complex_children_tenant_isolation", {
+    using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+    withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+  }),
+]).enableRLS();
+
 export const propertyBuildings = propertyManagement.table("property_buildings", {
   buildingId: uuid("building_id").primaryKey(), tenantId: uuid("tenant_id").notNull(),
   propertyId: uuid("property_id").notNull(), buildingCode: text("building_code").notNull(), name: text("name").notNull(),
+  buildingPropertyId: uuid("building_property_id"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
   correlationId: uuid("correlation_id").notNull(), actorId: text("actor_id").notNull(),
@@ -302,6 +327,8 @@ export const propertyBuildings = propertyManagement.table("property_buildings", 
   uniqueIndex("property_buildings_tenant_building_unique").on(table.tenantId, table.buildingId),
   uniqueIndex("property_buildings_tenant_property_code_unique").on(table.tenantId, table.propertyId, table.buildingCode),
   foreignKey({ name: "property_buildings_property_tenant_fk", columns: [table.tenantId, table.propertyId], foreignColumns: [properties.tenantId, properties.propertyId] }),
+  foreignKey({ name: "property_buildings_building_property_tenant_fk", columns: [table.tenantId, table.buildingPropertyId], foreignColumns: [properties.tenantId, properties.propertyId] }),
+  uniqueIndex("property_buildings_tenant_building_property_unique").on(table.tenantId, table.buildingPropertyId),
   index("property_buildings_tenant_property_code_idx").on(table.tenantId, table.propertyId, table.buildingCode, table.buildingId),
   check("property_buildings_code_check", sql`${table.buildingCode} ~ '^[A-Z0-9][A-Z0-9._/ -]{0,49}$'`),
   check("property_buildings_name_check", sql`length(btrim(${table.name})) BETWEEN 1 AND 200`),

@@ -5,6 +5,8 @@ import type { Pool } from "pg";
 import type { PropertyRepository } from "../../../application/property-repository.js";
 import {
   PersistedPropertyCorruptionError,
+  PropertyPublicationRequirementsNotMetError,
+  PropertyCommercialTargetNotEligibleError,
   Property,
   PropertyStructuralRoleConflictError,
   type ApartmentSubtype,
@@ -13,6 +15,7 @@ import {
   type PropertyStatus,
   type PropertyStructuralRole,
   type PropertyType,
+  type PropertyValues,
   type TransactionType,
 } from "../../../domain/property.js";
 import { sameCommercialTerms, type CommercialTerms, type PropertyDetails } from "../../../domain/property-details.js";
@@ -37,6 +40,7 @@ export class PostgresPropertyRepository implements PropertyRepository {
       await scope.database().insert(properties).values({
         propertyId: value.propertyId, tenantId: value.tenantId, title: value.title,
         description: value.description, propertyType: value.propertyType,
+        commercializationMode: value.commercializationMode,
         transactionType: value.transactionType, status: value.status,
         apartmentSubtype: value.apartmentSubtype,
         structuralRole: value.structuralRole,
@@ -116,6 +120,21 @@ export class PostgresPropertyRepository implements PropertyRepository {
       const details = property.values.details;
       const terms = property.values.commercialTerms;
       const pricingChanged = terms !== undefined && !sameCommercialTerms(current.values.commercialTerms, terms);
+      if ((firstPublication || pricingChanged) && current.values.structuralRole === "UNIT") {
+        const parents = await scope.query<{ commercialization_mode: string | null }>(`
+          SELECT building_property.commercialization_mode
+          FROM property_management.property_building_units bu
+          JOIN property_management.property_buildings building
+            ON building.tenant_id = bu.tenant_id AND building.building_id = bu.building_id
+          LEFT JOIN property_management.properties building_property
+            ON building_property.tenant_id = building.tenant_id AND building_property.property_id = building.building_property_id
+          WHERE bu.tenant_id = $1::uuid AND bu.unit_property_id = $2::uuid
+        `, [tenantId, propertyId]);
+        if (parents[0]?.commercialization_mode === "WHOLE_BUILDING") {
+          if (firstPublication) throw new PropertyPublicationRequirementsNotMetError(["COMMERCIAL_TARGET"]);
+          throw new PropertyCommercialTargetNotEligibleError();
+        }
+      }
       await scope.database().update(properties).set({
         title: property.values.title, description: property.values.description ?? null,
         apartmentSubtype: property.values.apartmentSubtype ?? null,
@@ -183,6 +202,7 @@ export function toProperty(row: PropertyRow, photos: readonly PropertyPhotoValue
     propertyId: row.propertyId, tenantId: row.tenantId, title: row.title,
     ...(row.description === null ? {} : { description: row.description }),
     propertyType: row.propertyType as PropertyType, transactionType: row.transactionType as TransactionType,
+    ...(row.commercializationMode === null ? {} : { commercializationMode: row.commercializationMode as PropertyValues["commercializationMode"] }),
     ...(row.apartmentSubtype === null ? {} : { apartmentSubtype: row.apartmentSubtype as ApartmentSubtype }),
     status: row.status as PropertyStatus,
     structuralRole: row.structuralRole as PropertyStructuralRole,

@@ -1,4 +1,4 @@
-import type { PropertyStructuralRole, TransactionType } from "./property.js";
+import type { BuildingCommercializationMode, PropertyStructuralRole, PropertyType, TransactionType } from "./property.js";
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const REFERENCE = /^[A-Z0-9][A-Z0-9._/ -]{0,99}$/u;
@@ -31,6 +31,9 @@ export interface PropertyContractValues extends PropertyContractTerms {
 }
 
 export interface PropertyContractPropertyContext {
+  readonly propertyType?: PropertyType;
+  readonly commercializationMode?: BuildingCommercializationMode;
+  readonly parentBuildingCommercializationMode?: BuildingCommercializationMode;
   readonly structuralRole: PropertyStructuralRole;
   readonly transactionType: TransactionType;
   readonly buildingCount?: number;
@@ -43,6 +46,8 @@ export type PropertyLeaseEligibility = Readonly<{ eligible: true; blockedByActiv
 
 export function assessPropertyLeaseEligibility(property: PropertyContractPropertyContext): PropertyLeaseEligibility {
   if (property.transactionType !== "LONG_TERM_RENTAL") return { eligible: false, reasonCode: "NOT_LONG_TERM_RENTAL" };
+  if (property.propertyType === "COMPLEX" || property.commercializationMode === "INDIVIDUAL_UNITS"
+    || property.parentBuildingCommercializationMode === "WHOLE_BUILDING") return { eligible: false, reasonCode: "INVALID_RENTAL_TARGET" };
   if (property.structuralRole === "COMPOSITE" && (property.buildingCount !== 1 || property.wholeBuildingRentalConfigured !== true)) {
     return { eligible: false, reasonCode: "INVALID_RENTAL_TARGET" };
   }

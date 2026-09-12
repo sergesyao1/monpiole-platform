@@ -3,7 +3,7 @@ import { AmenitySchema } from "../properties/property-amenity.schema.js";
 
 const InstantSchema = z.iso.datetime({ offset: false }).refine((value) => value.endsWith("Z"));
 export const PublicPropertyIdSchema = z.uuid().meta({ id: "PublicPropertyId" });
-export const PublicPropertyTypeSchema = z.enum(["APARTMENT", "HOUSE", "LAND", "COMMERCIAL", "OTHER"]);
+export const PublicPropertyTypeSchema = z.enum(["APARTMENT", "HOUSE", "LAND", "COMMERCIAL", "OFFICE", "SHOP", "BUILDING", "COMPLEX", "OTHER"]);
 export const PublicTransactionTypeSchema = z.enum(["LONG_TERM_RENTAL", "SHORT_TERM_RENTAL", "SALE"]);
 export const PublicApartmentSubtypeSchema = z.enum(["STUDIO", "MULTI_ROOM"]);
 export const PublicPropertyStructuralRoleSchema = z.enum(["STANDALONE", "COMPOSITE", "UNIT"]);

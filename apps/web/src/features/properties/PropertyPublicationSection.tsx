@@ -94,6 +94,7 @@ export function PropertyPublicationSection({ property, publicationReadiness, api
   }
 
   const missing = new Set(publicationReadiness.missingRequirements);
+  const commercialTargetReady = !missing.has("COMMERCIAL_TARGET");
   const detailsReady = !missing.has("DETAILS");
   const commercialTermsReady = !missing.has("COMMERCIAL_TERMS");
   const subtypeReady = !missing.has("APARTMENT_SUBTYPE");
@@ -127,10 +128,12 @@ export function PropertyPublicationSection({ property, publicationReadiness, api
         <div><p className="eyebrow">Cycle de vie</p><h2 id="property-publication-title">Publication</h2></div>
         <StatusBadge>{propertyStatusLabels.DRAFT}</StatusBadge>
       </div>
-      <p>{ready ? "Ce bien est prêt à être publié." : !primaryPhotoReady
-        ? "Sélectionnez la photo principale qui représentera ce bien dans les annonces."
-        : "Complétez les prérequis avant de publier."}</p>
+      <p>{ready ? "Ce bien est prêt à être publié." : !commercialTargetReady
+        ? "Ce bien n’est pas une annonce commercialisable dans son mode actuel."
+        : !primaryPhotoReady ? "Sélectionnez la photo principale qui représentera ce bien dans les annonces."
+          : "Complétez les prérequis avant de publier."}</p>
       <ul className="publication-checklist" aria-label="Préparation à la publication">
+        {!commercialTargetReady && <li className="is-missing">Ce bien n’est pas publiable individuellement.</li>}
         <li className={detailsReady ? "is-ready" : "is-missing"}>Détails {detailsReady ? "renseignés" : "à compléter"}</li>
         <li className={commercialTermsReady ? "is-ready" : "is-missing"}>Conditions commerciales {commercialTermsReady ? "renseignées" : "à compléter"}</li>
         {property.propertyType === "APARTMENT" && property.transactionType === "LONG_TERM_RENTAL" && (

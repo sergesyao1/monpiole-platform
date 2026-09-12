@@ -1,0 +1,5 @@
+ALTER TABLE "property_management"."properties" DROP CONSTRAINT "properties_type_check";--> statement-breakpoint
+ALTER TABLE "property_management"."property_buildings" ADD COLUMN "building_property_id" uuid;--> statement-breakpoint
+ALTER TABLE "property_management"."property_buildings" ADD CONSTRAINT "property_buildings_building_property_tenant_fk" FOREIGN KEY ("tenant_id","building_property_id") REFERENCES "property_management"."properties"("tenant_id","property_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "property_buildings_tenant_building_property_unique" ON "property_management"."property_buildings" USING btree ("tenant_id","building_property_id");--> statement-breakpoint
+ALTER TABLE "property_management"."properties" ADD CONSTRAINT "properties_type_check" CHECK ("property_management"."properties"."property_type" IN ('APARTMENT', 'HOUSE', 'LAND', 'COMMERCIAL', 'OFFICE', 'SHOP', 'BUILDING', 'COMPLEX', 'OTHER'));

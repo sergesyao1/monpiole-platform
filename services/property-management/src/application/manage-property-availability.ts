@@ -56,7 +56,7 @@ export class UpdatePropertyAvailability {
       tenantId,
       command.propertyId,
       (current) => {
-        if (current.values.structuralRole === "COMPOSITE") {
+        if (current.values.structuralRole === "COMPOSITE" && current.values.commercializationMode !== "WHOLE_BUILDING") {
           throw new PropertyAvailabilityDerivedFromUnitsError();
         }
         if (current.values.availability?.availabilityStatus === command.availabilityStatus
@@ -66,7 +66,7 @@ export class UpdatePropertyAvailability {
       { correlationId: command.correlationId, actorId: command.authority.actorId },
     );
     if (property === undefined) throw new PropertyNotFoundError();
-    if (property.values.structuralRole === "COMPOSITE" || property.values.availability === undefined) {
+    if (property.values.availability === undefined) {
       throw new Error("Updated direct Property availability is unavailable");
     }
     return {

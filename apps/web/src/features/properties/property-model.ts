@@ -1,5 +1,6 @@
-export const propertyTypes = ["APARTMENT", "HOUSE", "LAND", "COMMERCIAL", "OTHER"] as const;
+export const propertyTypes = ["APARTMENT", "HOUSE", "LAND", "OFFICE", "SHOP", "BUILDING", "COMPLEX", "COMMERCIAL", "OTHER"] as const;
 export type PropertyType = typeof propertyTypes[number];
+export type BuildingCommercializationMode = "WHOLE_BUILDING" | "INDIVIDUAL_UNITS";
 
 export const transactionTypes = ["LONG_TERM_RENTAL", "SHORT_TERM_RENTAL", "SALE"] as const;
 export type TransactionType = typeof transactionTypes[number];
@@ -51,6 +52,10 @@ export const propertyTypeLabels: Readonly<Record<PropertyType, string>> = {
   HOUSE: "Maison",
   LAND: "Terrain",
   COMMERCIAL: "Local commercial",
+  OFFICE: "Bureau",
+  SHOP: "Boutique / Local commercial",
+  BUILDING: "Immeuble",
+  COMPLEX: "Ensemble immobilier / Résidence",
   OTHER: "Autre",
 };
 
@@ -100,6 +105,7 @@ interface PropertyBase {
   readonly title: string;
   readonly description?: string;
   readonly propertyType: PropertyType;
+  readonly commercializationMode?: BuildingCommercializationMode;
   readonly transactionType: TransactionType;
   readonly apartmentSubtype?: ApartmentSubtype;
   readonly structuralRole: PropertyStructuralRole;
@@ -162,6 +168,7 @@ export interface CreatePropertyInput {
   readonly title: string;
   readonly description?: string;
   readonly propertyType: PropertyType;
+  readonly commercializationMode?: BuildingCommercializationMode;
   readonly transactionType: TransactionType;
   readonly apartmentSubtype?: ApartmentSubtype;
   readonly location: PropertyLocation;
@@ -206,11 +213,11 @@ export interface UpdatePropertyGeolocationInput {
 
 export type PropertyAvailability =
   | Readonly<{
-    propertyId: string; source: "DIRECT"; structuralRole: "STANDALONE" | "UNIT";
+    propertyId: string; source: "DIRECT"; structuralRole: "STANDALONE" | "UNIT" | "COMPOSITE";
     configured: false; canUpdateAvailability: boolean;
   }>
   | Readonly<{
-    propertyId: string; source: "DIRECT"; structuralRole: "STANDALONE" | "UNIT";
+    propertyId: string; source: "DIRECT"; structuralRole: "STANDALONE" | "UNIT" | "COMPOSITE";
     configured: true; availabilityStatus: PropertyAvailabilityStatus;
     occupancyStatus: PropertyOccupancyStatus; updatedAt: string; canUpdateAvailability: boolean;
   }>
@@ -231,10 +238,12 @@ export interface PropertyPhotoStandard {
   readonly minimumCount: number;
   readonly additionalRequiredCategories: readonly PropertyPhotoCategory[];
 }
-export interface PropertyBuilding { readonly buildingId: string; readonly propertyId: string; readonly buildingCode: string; readonly name: string; readonly createdAt: string; readonly updatedAt: string; }
+export interface PropertyBuilding { readonly buildingId: string; readonly propertyId: string; readonly buildingPropertyId?: string; readonly buildingCode: string; readonly name: string; readonly createdAt: string; readonly updatedAt: string; }
 export interface PropertyUnit { readonly unitCode: string; readonly property: Property; }
+export interface PropertyComplexChild { readonly childCode: string; readonly property: Property; }
+export type CreatePropertyComplexChildInput = CreatePropertyInput & Readonly<{ childCode: string }>;
 export interface CompositionPage<T> { readonly items: readonly T[]; readonly pageInfo: { readonly nextCursor: string | null; readonly hasNextPage: boolean } }
-export interface BuildingInput { readonly buildingCode: string; readonly name: string; }
+export interface BuildingInput { readonly buildingCode: string; readonly name: string; readonly commercializationMode?: BuildingCommercializationMode; }
 export interface UnitInput extends CreatePropertyInput { readonly unitCode: string; }
 
 export interface PropertyOwnership {
@@ -340,7 +349,7 @@ export const propertyContractStatusLabels: Readonly<Record<PropertyContractStatu
 };
 
 export type PropertyPublicationRequirement = "DETAILS" | "COMMERCIAL_TERMS" | "APARTMENT_SUBTYPE"
-  | "PRIMARY_PHOTO" | "PHOTO_MINIMUM" | "PHOTO_REQUIRED_VIEWS";
+  | "PRIMARY_PHOTO" | "PHOTO_MINIMUM" | "PHOTO_REQUIRED_VIEWS" | "COMMERCIAL_TARGET";
 export interface PropertyPublicationReadiness {
   readonly ready: boolean;
   readonly missingRequirements: readonly PropertyPublicationRequirement[];
@@ -355,7 +364,10 @@ export interface PropertyWorkspace {
   readonly availability: PropertyAvailability;
   readonly publicationReadiness: PropertyPublicationReadiness;
   readonly owners: readonly PropertyWorkspaceOwnerSummary[];
-  readonly composition: Readonly<{ buildingCount: number; unitCount: number }>;
+  readonly composition: Readonly<{ buildingCount: number; unitCount: number; directChildCount?: number; parentComplex?: Readonly<{ propertyId: string; title: string }>; parentBuilding?: Readonly<{
+    buildingId: string; buildingCode: string; buildingName: string; parentPropertyId: string; parentPropertyTitle: string;
+    parentBuildingCommercializationMode?: BuildingCommercializationMode;
+  }> }>;
   readonly contracts: Readonly<{
     totalCount: number; draftCount: number; activeCount: number; endedCount: number; cancelledCount: number;
   }>;

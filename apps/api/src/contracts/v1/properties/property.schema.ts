@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 export const PropertyIdSchema = z.uuid().meta({ id: "PropertyId" });
-export const PropertyTypeSchema = z.enum(["APARTMENT", "HOUSE", "LAND", "COMMERCIAL", "OTHER"]);
+export const PropertyTypeSchema = z.enum(["APARTMENT", "HOUSE", "LAND", "COMMERCIAL", "OFFICE", "SHOP", "BUILDING", "COMPLEX", "OTHER"]);
+export const BuildingCommercializationModeSchema = z.enum(["WHOLE_BUILDING", "INDIVIDUAL_UNITS"]);
 export const TransactionTypeSchema = z.enum(["LONG_TERM_RENTAL", "SHORT_TERM_RENTAL", "SALE"]);
 export const ApartmentSubtypeSchema = z.enum(["STUDIO", "MULTI_ROOM"]);
 export const PropertyStatusSchema = z.enum(["DRAFT", "PUBLISHED", "WITHDRAWN"]);
@@ -68,10 +69,13 @@ export const CreatePropertyRequestSchema = z.object({
   title: z.string().trim().min(1).max(200),
   description: z.string().trim().max(5_000).optional(),
   propertyType: PropertyTypeSchema,
+  commercializationMode: BuildingCommercializationModeSchema.optional(),
   transactionType: TransactionTypeSchema,
   apartmentSubtype: ApartmentSubtypeSchema.optional(),
   location: PropertyLocationSchema,
 }).strict().superRefine((value, context) => {
+  if (value.propertyType === "BUILDING" && value.commercializationMode === undefined) context.addIssue({ code: "custom", path: ["commercializationMode"], message: "Building commercialization mode is required" });
+  if (value.propertyType !== "BUILDING" && value.commercializationMode !== undefined) context.addIssue({ code: "custom", path: ["commercializationMode"], message: "Commercialization mode applies only to buildings" });
   const requiresSubtype = value.propertyType === "APARTMENT" && value.transactionType === "LONG_TERM_RENTAL";
   if (requiresSubtype && value.apartmentSubtype === undefined) {
     context.addIssue({ code: "custom", path: ["apartmentSubtype"], message: "Apartment subtype is required" });
@@ -131,6 +135,7 @@ const PropertyResponseBaseShape = {
   propertyId: PropertyIdSchema,
   title: z.string(), description: z.string().optional(),
   propertyType: PropertyTypeSchema, transactionType: TransactionTypeSchema,
+  commercializationMode: BuildingCommercializationModeSchema.optional(),
   apartmentSubtype: ApartmentSubtypeSchema.optional(),
   location: PropertyLocationSchema,
   structuralRole: PropertyStructuralRoleSchema,

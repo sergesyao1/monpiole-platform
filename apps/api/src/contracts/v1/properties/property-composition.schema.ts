@@ -1,20 +1,27 @@
 import { z } from "zod";
-import { ApartmentSubtypeSchema, PropertyLocationSchema, PropertyResponseSchema, PropertyTypeSchema, TransactionTypeSchema } from "./property.schema.js";
+import { ApartmentSubtypeSchema, BuildingCommercializationModeSchema, CreatePropertyRequestSchema, PropertyLocationSchema, PropertyResponseSchema, PropertyTypeSchema, TransactionTypeSchema } from "./property.schema.js";
 export const StructuralCodeInputSchema = z.string().trim().min(1).max(50).regex(/^[A-Za-z0-9][A-Za-z0-9._/ -]{0,49}$/);
 export const CanonicalStructuralCodeSchema = z.string().min(1).max(50).regex(/^[A-Z0-9][A-Z0-9._/ -]{0,49}$/);
 export const PropertyCompositionPropertyPathSchema = z.object({ propertyId: z.uuid() }).strict().meta({ id: "PropertyCompositionPropertyPath" });
 export const PropertyCompositionBuildingPathSchema = z.object({ propertyId: z.uuid(), buildingId: z.uuid() }).strict().meta({ id: "PropertyCompositionBuildingPath" });
 export const PropertyCompositionUnitPathSchema = z.object({ propertyId: z.uuid(), buildingId: z.uuid(), unitPropertyId: z.uuid() }).strict().meta({ id: "PropertyCompositionUnitPath" });
 export const BuildingMutationSchema = z.object({ buildingCode: StructuralCodeInputSchema, name: z.string().trim().min(1).max(200) }).strict();
+export const CreateBuildingSchema = BuildingMutationSchema.extend({ commercializationMode: BuildingCommercializationModeSchema.optional() });
 export const UnitMutationSchema = z.object({ unitCode: StructuralCodeInputSchema }).strict();
 export const CreateUnitSchema = UnitMutationSchema.extend({ title: z.string().trim().min(1).max(200), description: z.string().trim().max(5_000).optional(), propertyType: PropertyTypeSchema, transactionType: TransactionTypeSchema, apartmentSubtype: ApartmentSubtypeSchema.optional(), location: PropertyLocationSchema }).strict().superRefine((value, context) => {
+  if (value.propertyType === "BUILDING" || value.propertyType === "COMPLEX") context.addIssue({ code: "custom", path: ["propertyType"], message: "A unit cannot be a building or complex" });
   const requiresSubtype = value.propertyType === "APARTMENT" && value.transactionType === "LONG_TERM_RENTAL";
   if (requiresSubtype && value.apartmentSubtype === undefined) context.addIssue({ code: "custom", path: ["apartmentSubtype"], message: "Apartment subtype is required" });
   if (!requiresSubtype && value.apartmentSubtype !== undefined) context.addIssue({ code: "custom", path: ["apartmentSubtype"], message: "Apartment subtype is not applicable" });
 });
 export const CompositionQuerySchema = z.object({ limit: z.coerce.number().int().min(1).max(100).default(20), cursor: z.string().min(1).max(512).optional() }).strict();
-export const BuildingResponseSchema = z.object({ buildingId: z.uuid(), propertyId: z.uuid(), buildingCode: CanonicalStructuralCodeSchema, name: z.string(), createdAt: z.iso.datetime(), updatedAt: z.iso.datetime() }).strict();
+export const BuildingResponseSchema = z.object({ buildingId: z.uuid(), propertyId: z.uuid(), buildingPropertyId: z.uuid().optional(), buildingCode: CanonicalStructuralCodeSchema, name: z.string(), createdAt: z.iso.datetime(), updatedAt: z.iso.datetime() }).strict();
 export const UnitResponseSchema = z.object({ unitCode: CanonicalStructuralCodeSchema, property: PropertyResponseSchema }).strict();
+export const CreateComplexChildSchema = CreatePropertyRequestSchema.safeExtend({ childCode: StructuralCodeInputSchema }).superRefine((value, context) => {
+  if (value.propertyType === "BUILDING" || value.propertyType === "COMPLEX") context.addIssue({ code: "custom", path: ["propertyType"], message: "Direct complex children must be individual properties" });
+}).meta({ id: "CreateComplexChild" });
+export const ComplexChildResponseSchema = z.object({ childCode: CanonicalStructuralCodeSchema, property: PropertyResponseSchema }).strict().meta({ id: "ComplexChildResponse" });
 const PageInfo = z.object({ nextCursor: z.string().nullable(), hasNextPage: z.boolean() }).strict();
 export const BuildingPageSchema = z.object({ items: z.array(BuildingResponseSchema), pageInfo: PageInfo }).strict();
 export const UnitPageSchema = z.object({ items: z.array(UnitResponseSchema), pageInfo: PageInfo }).strict();
+export const ComplexChildPageSchema = z.object({ items: z.array(ComplexChildResponseSchema), pageInfo: PageInfo }).strict().meta({ id: "ComplexChildPage" });

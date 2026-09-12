@@ -124,6 +124,19 @@ describe("Property client and contract domain", () => {
     expect(assessPropertyLeaseEligibility({ structuralRole: "COMPOSITE", transactionType: "LONG_TERM_RENTAL", buildingCount: 1 })).toMatchObject({ eligible: false, reasonCode: "INVALID_RENTAL_TARGET" });
     expect(assessPropertyLeaseEligibility({ structuralRole: "UNIT", transactionType: "LONG_TERM_RENTAL", unitAttached: false })).toMatchObject({ eligible: false, reasonCode: "INVALID_RENTAL_TARGET" });
   });
+  it("respecte le mode commercial canonique des immeubles et des résidences", () => {
+    const base = { transactionType: "LONG_TERM_RENTAL" as const };
+    expect(assessPropertyLeaseEligibility({ ...base, structuralRole: "COMPOSITE", propertyType: "BUILDING",
+      commercializationMode: "WHOLE_BUILDING", buildingCount: 1, wholeBuildingRentalConfigured: true })).toMatchObject({ eligible: true });
+    expect(assessPropertyLeaseEligibility({ ...base, structuralRole: "COMPOSITE", propertyType: "BUILDING",
+      commercializationMode: "INDIVIDUAL_UNITS", buildingCount: 1, wholeBuildingRentalConfigured: true })).toMatchObject({ eligible: false });
+    expect(assessPropertyLeaseEligibility({ ...base, structuralRole: "COMPOSITE", propertyType: "COMPLEX",
+      buildingCount: 1, wholeBuildingRentalConfigured: true })).toMatchObject({ eligible: false });
+    expect(assessPropertyLeaseEligibility({ ...base, structuralRole: "UNIT", unitAttached: true,
+      parentBuildingCommercializationMode: "WHOLE_BUILDING" })).toMatchObject({ eligible: false });
+    expect(assessPropertyLeaseEligibility({ ...base, structuralRole: "UNIT", unitAttached: true,
+      parentBuildingCommercializationMode: "INDIVIDUAL_UNITS" })).toMatchObject({ eligible: true });
+  });
   it("normalizes a reusable client without exposing SaaS Tenant semantics", () => {
     expect(client().values).toMatchObject({ displayName: "Awa Koné", email: "awa@example.com" });
     expect(() => PropertyClient.create({ ...client().values, displayName: " " })).toThrow(InvalidPropertyClientInputError);

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApiApplication } from "../../apps/api/src/bootstrap.js";
 import type { AuthorityGrant } from "../../apps/api/src/http/authenticated-authority/authenticated-authority.js";
-import { PropertyBuildingCodeConflictError, PropertyBuildingNotFoundError, PropertyForbiddenError, PropertyNotFoundError, PropertyUnitCodeConflictError, PropertyUnitNotFoundError } from "../../services/property-management/src/index.js";
+import { PropertyBuildingCodeConflictError, PropertyBuildingNotFoundError, PropertyComplexChildCodeConflictError, PropertyForbiddenError, PropertyNotFoundError, PropertyUnitCodeConflictError, PropertyUnitNotFoundError } from "../../services/property-management/src/index.js";
 
 const TENANT = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"; const PROPERTY = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"; const BUILDING = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"; const UNIT = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"; const NOW = "2026-08-28T12:00:00.000Z";
 const building = { buildingId: BUILDING, propertyId: PROPERTY, buildingCode: "BAT-A", name: "Immeuble A", createdAt: NOW, updatedAt: NOW };
@@ -20,12 +20,15 @@ async function expectProblem(response: Response, status: number, code?: string) 
 
 describe("Property composition HTTP", () => {
   let application: Awaited<ReturnType<typeof createApiApplication>> | undefined; let baseUrl = "";
-  const calls = { createBuilding: vi.fn(), listBuildings: vi.fn(), updateBuilding: vi.fn(), createUnit: vi.fn(), listUnits: vi.fn(), updateUnit: vi.fn() };
+  const calls = { createBuilding: vi.fn(), listBuildings: vi.fn(), updateBuilding: vi.fn(), createUnit: vi.fn(), listUnits: vi.fn(), updateUnit: vi.fn(), createChild: vi.fn(), listChildren: vi.fn() };
   async function start(options: { authenticated?: boolean; grants?: readonly AuthorityGrant[] } = {}) {
     calls.createBuilding.mockResolvedValue(building); calls.listBuildings.mockResolvedValue({ items: [building], nextCursor: { code: "BAT-A", id: BUILDING } }); calls.updateBuilding.mockResolvedValue({ ...building, name: "Immeuble Alpha" }); calls.createUnit.mockResolvedValue(unit); calls.listUnits.mockResolvedValue({ items: [unit], nextCursor: { code: "A-101", id: UNIT } }); calls.updateUnit.mockResolvedValue({ ...unit, unitCode: "A-102" });
+    calls.createChild.mockResolvedValue({ childCode: "V-01", property: { ...property, structuralRole: "STANDALONE", propertyType: "HOUSE" } });
+    calls.listChildren.mockResolvedValue({ items: [{ childCode: "V-01", property: { ...property, structuralRole: "STANDALONE", propertyType: "HOUSE" } }], nextCursor: { code: "V-01", id: UNIT } });
     application = await createApiApplication({ logger: false }, {
-      authenticatedAuthorityProvider: { resolve: async () => options.authenticated === false ? undefined : ({ actorId: "actor", authorityId: "authority", grants: options.grants ?? ["CREATE_PROPERTY_BUILDING", "RETRIEVE_PROPERTY_COMPOSITION", "UPDATE_PROPERTY_BUILDING", "CREATE_PROPERTY_UNIT", "UPDATE_PROPERTY_UNIT_STRUCTURE"], tenantIds: [TENANT] }) },
+      authenticatedAuthorityProvider: { resolve: async () => options.authenticated === false ? undefined : ({ actorId: "actor", authorityId: "authority", grants: options.grants ?? ["CREATE_PROPERTY", "CREATE_PROPERTY_BUILDING", "RETRIEVE_PROPERTY_COMPOSITION", "UPDATE_PROPERTY_BUILDING", "CREATE_PROPERTY_UNIT", "UPDATE_PROPERTY_UNIT_STRUCTURE"], tenantIds: [TENANT] }) },
       createPropertyBuilding: { execute: calls.createBuilding }, listPropertyBuildings: { execute: calls.listBuildings }, updatePropertyBuilding: { execute: calls.updateBuilding }, createPropertyUnit: { execute: calls.createUnit }, listPropertyUnits: { execute: calls.listUnits }, updatePropertyUnitStructure: { execute: calls.updateUnit },
+      createPropertyComplexChild: { execute: calls.createChild }, listPropertyComplexChildren: { execute: calls.listChildren },
     }); await application.listen(0, "127.0.0.1"); const address = application.getHttpServer().address(); if (!address || typeof address === "string") throw new Error("API did not bind"); baseUrl = `http://127.0.0.1:${address.port}`;
   }
   afterEach(async () => { await application?.close(); application = undefined; Object.values(calls).forEach((call) => call.mockReset()); });
@@ -62,5 +65,32 @@ describe("Property composition HTTP", () => {
     const response = await fetch(`${baseUrl}/v1/properties/${PROPERTY}/buildings/${BUILDING}/units`);
     const problem = await expectProblem(response, 500, "INTERNAL_ERROR");
     expect(JSON.stringify(problem)).not.toContain("sensitive persistence failure");
+  });
+  it("crée et liste un bien direct de résidence sans accepter de tenant client", async () => {
+    await start();
+    const path = `/v1/properties/${PROPERTY}/children`;
+    const body = { childCode: "V-01", title: "Villa 01", propertyType: "HOUSE", transactionType: "LONG_TERM_RENTAL", location: property.location };
+    const created = await fetch(`${baseUrl}${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    expect(created.status).toBe(201);
+    expect(await created.json()).toMatchObject({ childCode: "V-01", property: { propertyType: "HOUSE" } });
+    expect(calls.createChild.mock.calls[0]?.[0]).toMatchObject({ authority: { tenantIds: [TENANT] }, propertyId: PROPERTY });
+    expect(calls.createChild.mock.calls[0]?.[0]).not.toHaveProperty("tenantId");
+    const listed = await fetch(`${baseUrl}${path}?limit=1`);
+    expect(listed.status).toBe(200);
+    expect(await listed.json()).toMatchObject({ items: [{ childCode: "V-01" }], pageInfo: { hasNextPage: true, nextCursor: expect.any(String) } });
+    await expectProblem(await fetch(`${baseUrl}${path}?cursor=%%%`), 400);
+    await expectProblem(await fetch(`${baseUrl}${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...body, tenantId: TENANT }) }), 400);
+    await expectProblem(await fetch(`${baseUrl}${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...body, propertyType: "COMPLEX" }) }), 400);
+  });
+  it("traduit les erreurs d’autorité, de parent absent et de code enfant en Problem Details", async () => {
+    await start();
+    const path = `/v1/properties/${PROPERTY}/children`;
+    const body = { childCode: "V-01", title: "Villa 01", propertyType: "HOUSE", transactionType: "LONG_TERM_RENTAL", location: property.location };
+    calls.createChild.mockRejectedValueOnce(new PropertyForbiddenError());
+    await expectProblem(await fetch(`${baseUrl}${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }), 403, "FORBIDDEN");
+    calls.listChildren.mockRejectedValueOnce(new PropertyNotFoundError());
+    await expectProblem(await fetch(`${baseUrl}${path}`), 404, "PROPERTY_NOT_FOUND");
+    calls.createChild.mockRejectedValueOnce(new PropertyComplexChildCodeConflictError());
+    await expectProblem(await fetch(`${baseUrl}${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }), 409, "PROPERTY_COMPLEX_CHILD_CODE_CONFLICT");
   });
 });

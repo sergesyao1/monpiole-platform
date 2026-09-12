@@ -86,6 +86,11 @@ Buildings are structural entities identified by a code unique inside the parent
 Property. Units remain full Properties with structural role `UNIT` and belong to
 exactly one Building through a tenant-scoped relation. The model is deliberately
 non-recursive and exposes no move, detach, deletion, or reverse transition.
+The private workspace summary resolves a Unit's parent Building and parent
+Property through that relation under tenant RLS. Building has no independent
+Property workspace; its units are managed in the composite parent's workspace.
+The Building code is a mutable business identifier used for uniqueness and
+ordering, distinct from the generated Building UUID.
 
 Creation and structural updates use tenant-scoped PostgreSQL transactions and
 parent row locks. Composite foreign keys, unique constraints, and forced RLS
@@ -318,3 +323,11 @@ Une visite privée est planifiée depuis une demande `ACKNOWLEDGED`. Le bien et 
 ## Property viewing outcomes
 
 Une visite `COMPLETED` peut recevoir un unique résultat commercial privé, initialement `FOLLOW_UP_REQUIRED`, puis terminalement `PROCEED` ou `DECLINED`. La création reverrouille la visite et les décisions verrouillent le résultat. Aucun client, contrat, offre ou réservation n’est créé implicitement.
+
+## Hiérarchie immobilière canonique
+
+Une `Property` peut être indépendante, un `BUILDING`, un `COMPLEX`, une unité d'immeuble ou un enfant direct de résidence. `property_buildings.building_property_id` relie l'immeuble structurel à sa Property canonique ; les anciennes lignes non liées conservent leur sens historique. `property_complex_children` rattache directement Villas, Appartements et autres biens individuels à une résidence sans faux immeuble. Chaque enfant conserve ses propres tarifs, propriétaires et contrats ; aucun héritage implicite n'est appliqué.
+
+Le mode d'un nouvel immeuble est fixé à la création : `WHOLE_BUILDING` rend l'immeuble publiable, tarifable, disponible directement et éligible au bail longue durée lorsque les autres prérequis sont satisfaits. Ses unités ne peuvent être ni tarifées/publiées individuellement ni recevoir de bail individuel. `INDIVIDUAL_UNITS` rend l'immeuble non publiable et non tarifable, avec disponibilité dérivée ; ses unités éligibles sont les cibles commerciales. Une résidence `COMPLEX` reste un conteneur non publiable et non tarifable en V1. Les contrôles de publication, prix et bail sont côté serveur.
+
+Les migrations additives `0025` et `0026` préservent les identifiants et données antérieurs. La nouvelle relation utilise des FK tenant-scoped, une unicité du code par résidence, des transactions verrouillant le parent, la RLS forcée et des grants explicites. Le rattachement ultérieur d'un bien indépendant existant et le changement de mode d'un immeuble ne sont pas proposés en V1.

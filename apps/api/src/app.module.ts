@@ -5,7 +5,7 @@ import type {
   CreateProperty, CreatePropertyOwner, ListProperties, ListPropertyOwners, RetrieveProperty, RetrievePropertyOwner,
   SetPropertyPricing, UpdatePropertyCoreInformation, UpdatePropertyDetails, UpdatePropertyOwner, AssignPropertyOwner,
   RetrievePropertyOwnerships, RemovePropertyOwner, CreatePropertyBuilding, ListPropertyBuildings, UpdatePropertyBuilding,
-  CreatePropertyUnit, ListPropertyUnits, UpdatePropertyUnitStructure, PublishProperty, WithdrawPropertyFromCatalog,
+  CreatePropertyUnit, ListPropertyUnits, UpdatePropertyUnitStructure, CreatePropertyComplexChild, ListPropertyComplexChildren, PublishProperty, WithdrawPropertyFromCatalog,
   ListPropertyPhotos, RegisterPropertyPhoto, RetrievePropertyPhotoContent, SelectPropertyPrimaryPhoto, DeletePropertyPhoto, ReorderPropertyPhotos,
   RetrievePropertyPhotoStandard, UpdatePropertyPhotoStandard,
   ListPublicProperties, RetrievePublicProperty, RetrievePublicPrimaryPhoto, RetrievePublicPropertyMedia,
@@ -70,6 +70,7 @@ import {
   PlatformTenantCreationAuthorizationProbeController,
 } from "./http/authentication/platform-tenant-creation-authorization-probe.controller.js";
 import { PropertyCompositionController, CREATE_PROPERTY_BUILDING, LIST_PROPERTY_BUILDINGS, UPDATE_PROPERTY_BUILDING, CREATE_PROPERTY_UNIT, LIST_PROPERTY_UNITS, UPDATE_PROPERTY_UNIT } from "./http/properties/property-composition.controller.js";
+import { PropertyComplexChildrenController, CREATE_PROPERTY_COMPLEX_CHILD, LIST_PROPERTY_COMPLEX_CHILDREN } from "./http/properties/property-complex-children.controller.js";
 import { PUBLISH_PROPERTY_USE_CASE, WITHDRAW_PROPERTY_FROM_CATALOG_USE_CASE, PublishPropertyController } from "./http/properties/publish-property.controller.js";
 import { DELETE_PROPERTY_PHOTO_USE_CASE, LIST_PROPERTY_PHOTOS_USE_CASE, REGISTER_PROPERTY_PHOTO_USE_CASE, REORDER_PROPERTY_PHOTOS_USE_CASE, RETRIEVE_PROPERTY_PHOTO_CONTENT_USE_CASE, SELECT_PROPERTY_PRIMARY_PHOTO_USE_CASE, PropertyPhotosController } from "./http/properties/property-photos.controller.js";
 import { PropertyPhotoStandardController, RETRIEVE_PROPERTY_PHOTO_STANDARD_USE_CASE, UPDATE_PROPERTY_PHOTO_STANDARD_USE_CASE } from "./http/properties/property-photo-standard.controller.js";
@@ -200,6 +201,7 @@ export interface ApiComposition {
   readonly createPropertyBuilding?: Pick<CreatePropertyBuilding, "execute">; readonly listPropertyBuildings?: Pick<ListPropertyBuildings, "execute">;
   readonly updatePropertyBuilding?: Pick<UpdatePropertyBuilding, "execute">; readonly createPropertyUnit?: Pick<CreatePropertyUnit, "execute">;
   readonly listPropertyUnits?: Pick<ListPropertyUnits, "execute">; readonly updatePropertyUnitStructure?: Pick<UpdatePropertyUnitStructure, "execute">;
+  readonly createPropertyComplexChild?: Pick<CreatePropertyComplexChild, "execute">; readonly listPropertyComplexChildren?: Pick<ListPropertyComplexChildren, "execute">;
   readonly runtimeShutdown?: RuntimeShutdown;
 }
 
@@ -284,7 +286,7 @@ export class AppModule {
         PropertyPhotosController, PropertyPhotoStandardController, PropertyGeolocationController, PropertyAvailabilityController, PropertyAmenitiesController,
         PublicPropertiesController, PublicPropertyInquiriesController, PropertyInquiriesController, PropertyCommercialJourneysController, PropertyViewingsController, PropertyViewingOutcomesController, PropertyApplicationsController, PropertyApplicationClientConversionsController, PropertyApplicationContractsController,
         CreatePropertyOwnerController, ListPropertyOwnersController, RetrievePropertyOwnerController, UpdatePropertyOwnerController,
-        AssignPropertyOwnerController, RetrievePropertyOwnershipsController, RemovePropertyOwnerController, PropertyCompositionController,
+        AssignPropertyOwnerController, RetrievePropertyOwnershipsController, RemovePropertyOwnerController, PropertyCompositionController, PropertyComplexChildrenController,
         PropertyClientsController, PropertyContractsController, PropertyWorkspaceController,
       ],
       providers: [
@@ -378,6 +380,8 @@ export class AppModule {
         { provide: CREATE_PROPERTY_UNIT, useValue: composition.createPropertyUnit ?? unavailableComposition },
         { provide: LIST_PROPERTY_UNITS, useValue: composition.listPropertyUnits ?? unavailableComposition },
         { provide: UPDATE_PROPERTY_UNIT, useValue: composition.updatePropertyUnitStructure ?? unavailableComposition },
+        { provide: CREATE_PROPERTY_COMPLEX_CHILD, useValue: composition.createPropertyComplexChild ?? unavailableComposition },
+        { provide: LIST_PROPERTY_COMPLEX_CHILDREN, useValue: composition.listPropertyComplexChildren ?? unavailableComposition },
         { provide: CREATE_PROPERTY_CLIENT_USE_CASE, useValue: composition.createPropertyClient ?? unavailableClientContract },
         { provide: LIST_PROPERTY_CLIENTS_USE_CASE, useValue: composition.listPropertyClients ?? unavailableClientContract },
         { provide: RETRIEVE_PROPERTY_CLIENT_USE_CASE, useValue: composition.retrievePropertyClient ?? unavailableClientContract },

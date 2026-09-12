@@ -12,6 +12,7 @@ export function toPropertyResponse(property: PropertyView, authority: PropertyAu
     propertyId: property.propertyId, title: property.title,
     ...(property.description === undefined ? {} : { description: property.description }),
     propertyType: property.propertyType, transactionType: property.transactionType,
+    ...(property.commercializationMode === undefined ? {} : { commercializationMode: property.commercializationMode }),
     ...(property.apartmentSubtype === undefined ? {} : { apartmentSubtype: property.apartmentSubtype }),
     location: property.location,
     structuralRole: property.structuralRole,

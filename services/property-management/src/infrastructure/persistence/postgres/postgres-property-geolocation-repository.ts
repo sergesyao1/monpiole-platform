@@ -43,26 +43,27 @@ export class PostgresPropertyGeolocationRepository implements PropertyGeolocatio
           eq(propertyBuildingUnits.unitPropertyId, propertyId),
         )).limit(2));
       if (relation.length !== 1) throw new PersistedPropertyCorruptionError("buildingUnit");
-      const building = (await scope.database().select({ parentPropertyId: propertyBuildings.propertyId })
+      const building = (await scope.database().select({ parentPropertyId: propertyBuildings.propertyId, buildingPropertyId: propertyBuildings.buildingPropertyId })
         .from(propertyBuildings)
         .where(and(
           eq(propertyBuildings.tenantId, tenantId),
           eq(propertyBuildings.buildingId, relation[0]!.buildingId),
         )).limit(1))[0];
       if (building === undefined) throw new PersistedPropertyCorruptionError("buildingUnit");
+      const effectiveParentId = building.buildingPropertyId ?? building.parentPropertyId;
       const parent = (await scope.database().select({ structuralRole: properties.structuralRole })
         .from(properties)
         .where(and(
           eq(properties.tenantId, tenantId),
-          eq(properties.propertyId, building.parentPropertyId),
+          eq(properties.propertyId, effectiveParentId),
         )).limit(1))[0];
       if (parent?.structuralRole !== "COMPOSITE") throw new PersistedPropertyCorruptionError("buildingUnit");
-      const row = await findRow(scope.database(), tenantId, building.parentPropertyId);
+      const row = await findRow(scope.database(), tenantId, effectiveParentId);
       return row === undefined
-        ? { source: "INHERITED", inheritedFromPropertyId: building.parentPropertyId }
+        ? { source: "INHERITED", inheritedFromPropertyId: effectiveParentId }
         : {
           source: "INHERITED",
-          inheritedFromPropertyId: building.parentPropertyId,
+          inheritedFromPropertyId: effectiveParentId,
           geolocation: toGeolocation(row),
         };
     });

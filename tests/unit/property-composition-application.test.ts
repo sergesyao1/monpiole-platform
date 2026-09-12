@@ -69,6 +69,10 @@ class MemoryComposition implements PropertyCompositionRepository {
   }
   async listUnits(): Promise<CompositionPage<PropertyUnitView> | undefined> { return { items: [] }; }
   async updateUnitCode() { return undefined; }
+  async createComplexChild(_tenantId: string, _complexPropertyId: string, childCode: string, child: Property) {
+    return { childCode, property: child.values };
+  }
+  async listComplexChildren() { return { items: [] }; }
 }
 
 const unitFields = {

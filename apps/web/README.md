@@ -110,7 +110,7 @@ physiques et morales. La fiche d’un bien utilise ce même annuaire pour
 sélectionner un propriétaire existant lors d’une affectation, sans saisie
 manuelle d’UUID.
 
-La section « Composition du bien » de la fiche permet de créer, consulter et
+Sur une propriété `COMPOSITE`, la section « Immeubles de la propriété » permet de créer, consulter et
 modifier les immeubles, puis d’afficher leurs unités, d’en créer et d’en modifier
 le code. Les pages suivantes sont chargées explicitement avec les curseurs
 opaques fournis par l’API, dédupliquées côté interface et ajoutées aux résultats
@@ -119,9 +119,11 @@ une nouvelle tentative. Les validations, confirmations et erreurs 401, 403, 404
 et 409 sont présentées en français.
 
 La fiche affiche le rôle structurel avec les libellés « Bien autonome »,
-« Ensemble immobilier » et « Unité ». Après la création du premier immeuble,
-elle actualise immédiatement le rôle du parent en « Ensemble immobilier » sans
-rechargement. Le formulaire Unit préremplit mais laisse modifier pays, ville,
+« Ensemble immobilier » et « Unité ». Un bien autonome présente une composition
+en lecture seule, sans formulaire d’immeuble. Une unité affiche son immeuble et
+sa propriété parents lorsque le workspace les résout côté serveur, sans dépendre
+de l’état de navigation ; elle n’est jamais présentée comme conteneur.
+Le formulaire Unit préremplit mais laisse modifier pays, ville,
 quartier et adresse, ainsi que la description. Chaque Unit rend un résumé
 français du code, du titre, du type, du projet commercial et de l’adresse. Les
 états de chargement, vide, succès, erreur et nouvelle tentative sont locaux à la
@@ -181,9 +183,7 @@ section.
 
 Pour un ensemble immobilier, la fiche affiche la synthèse et les compteurs de
 ses Units sans proposer d’édition parent. Les Units chargées dans la composition
-exposent chacune leur propre lecture et formulaire. Après le premier immeuble,
-le message de succès explique que la disponibilité est désormais gérée unité
-par unité. En location courte durée, l’aide précise que « Disponible » accepte
+exposent chacune leur propre lecture et formulaire. En location courte durée, l’aide précise que « Disponible » accepte
 globalement des demandes sans garantir une date.
 
 Le catalogue anonyme emploie « Biens publiés ». Il n’affiche ni badge ni filtre
@@ -232,3 +232,9 @@ création, donnée owner, adresse exacte ou valeur enum technique n’y est rend
 TASK-058 n’autorise aucune exposition Internet de production. L’activation d’un
 tenant réel, la revue de ses données publiées et un rate limiting approuvé
 restent des portes opérationnelles obligatoires.
+
+## Hiérarchie des biens
+
+« Créer un bien » propose Appartement, Villa / Maison, Bureau, Boutique / Local commercial, Terrain, Immeuble et Ensemble immobilier. L'immeuble choisit à la création entre commercialisation entière et par unités. Sa fiche gère ses unités ; une résidence gère à la fois ses immeubles et ses biens individuels directs. Chaque enfant dispose d'un lien « Ouvrir la fiche ». Un appartement indépendant ne propose jamais « Ajouter un immeuble ».
+
+La fiche affiche le parent disponible et explique les sections financières et de publication selon le mode commercial. Les listes paginées conservent les éléments chargés en cas d'échec d'une page suivante. Les codes de structure et les statuts techniques restent absents des libellés normaux.

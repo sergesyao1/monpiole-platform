@@ -7,13 +7,13 @@ export type DirectPropertyAvailability =
   | Readonly<{
     propertyId: string;
     source: "DIRECT";
-    structuralRole: "STANDALONE" | "UNIT";
+    structuralRole: "STANDALONE" | "UNIT" | "COMPOSITE";
     configured: false;
   }>
   | Readonly<{
     propertyId: string;
     source: "DIRECT";
-    structuralRole: "STANDALONE" | "UNIT";
+    structuralRole: "STANDALONE" | "UNIT" | "COMPOSITE";
     configured: true;
     availabilityStatus: PropertyAvailabilityStatus;
     occupancyStatus: PropertyOccupancyStatus;

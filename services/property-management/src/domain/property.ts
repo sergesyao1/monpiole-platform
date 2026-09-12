@@ -18,9 +18,11 @@ import {
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const COUNTRY = /^[A-Z]{2}$/u;
 
-export const PROPERTY_TYPES = ["APARTMENT", "HOUSE", "LAND", "COMMERCIAL", "OTHER"] as const;
+export const PROPERTY_TYPES = ["APARTMENT", "HOUSE", "LAND", "COMMERCIAL", "OFFICE", "SHOP", "BUILDING", "COMPLEX", "OTHER"] as const;
 export const TRANSACTION_TYPES = ["LONG_TERM_RENTAL", "SHORT_TERM_RENTAL", "SALE"] as const;
 export type PropertyType = typeof PROPERTY_TYPES[number];
+export const BUILDING_COMMERCIALIZATION_MODES = ["WHOLE_BUILDING", "INDIVIDUAL_UNITS"] as const;
+export type BuildingCommercializationMode = typeof BUILDING_COMMERCIALIZATION_MODES[number];
 export type TransactionType = typeof TRANSACTION_TYPES[number];
 export const APARTMENT_SUBTYPES = ["STUDIO", "MULTI_ROOM"] as const;
 export type ApartmentSubtype = typeof APARTMENT_SUBTYPES[number];
@@ -52,6 +54,7 @@ export interface PropertyValues {
   readonly title: string;
   readonly description?: string;
   readonly propertyType: PropertyType;
+  readonly commercializationMode?: BuildingCommercializationMode;
   readonly transactionType: TransactionType;
   readonly apartmentSubtype?: ApartmentSubtype;
   readonly status: PropertyStatus;
@@ -113,7 +116,15 @@ export class Property {
   }
 
   static createUnit(input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt" | "withdrawnAt" | "availability">): Property {
+    if (input.propertyType === "BUILDING" || input.propertyType === "COMPLEX") throw new InvalidPropertyInputError("propertyType");
     return Property.createWithStructuralRole(input, "UNIT");
+  }
+
+  static createComposite(input: Omit<PropertyValues, "status" | "structuralRole" | "publishedAt" | "withdrawnAt" | "availability">): Property {
+    if (input.propertyType !== "BUILDING" && input.propertyType !== "COMPLEX") throw new InvalidPropertyInputError("propertyType");
+    return Property.createStandalone(input.propertyType === "BUILDING"
+      ? { ...input, commercializationMode: input.commercializationMode ?? "INDIVIDUAL_UNITS" }
+      : input).becomeComposite(input.updatedAt);
   }
 
   private static createWithStructuralRole(
@@ -145,6 +156,7 @@ export class Property {
 
   defineDetails(details: PropertyDetails, commercialTerms: CommercialTerms | undefined, updatedAt: string): Property {
     if (!validInstant(updatedAt)) throw new InvalidPropertyServerValueError("updatedAt");
+    if (commercialTerms !== undefined && !this.canOwnCommercialTerms()) throw new PropertyCommercialTargetNotEligibleError();
     return new Property(Object.freeze({
       ...this.values,
       details: validatePropertyDetails(details),
@@ -156,6 +168,7 @@ export class Property {
   }
 
   setPricing(pricing: CommercialTerms, updatedAt: string): Property {
+    if (!this.canOwnCommercialTerms()) throw new PropertyCommercialTargetNotEligibleError();
     const validated = validateCommercialTerms(this.values.transactionType, pricing);
     if (sameCommercialTerms(this.values.commercialTerms, validated)) return this;
     if (!validInstant(updatedAt)) throw new InvalidPropertyServerValueError("updatedAt");
@@ -185,6 +198,10 @@ export class Property {
     standardOverride?: PropertyPhotoStandardOverride,
   ): PropertyPublicationReadiness {
     const missingRequirements: PropertyPublicationRequirement[] = [];
+    if (this.values.propertyType === "COMPLEX"
+      || (this.values.propertyType === "BUILDING" && this.values.commercializationMode === "INDIVIDUAL_UNITS")) {
+      missingRequirements.push("COMMERCIAL_TARGET");
+    }
     if (this.values.details === undefined) missingRequirements.push("DETAILS");
     if (this.values.commercialTerms === undefined) missingRequirements.push("COMMERCIAL_TERMS");
     else {
@@ -238,7 +255,7 @@ export class Property {
     occupancyStatus: PropertyOccupancyStatus,
     updatedAt: string,
   ): Property {
-    if (this.values.structuralRole === "COMPOSITE") throw new PropertyAvailabilityDerivedFromUnitsError();
+    if (this.values.structuralRole === "COMPOSITE" && this.values.commercializationMode !== "WHOLE_BUILDING") throw new PropertyAvailabilityDerivedFromUnitsError();
     if (!PROPERTY_AVAILABILITY_STATUSES.includes(availabilityStatus)
       || !PROPERTY_OCCUPANCY_STATUSES.includes(occupancyStatus)) {
       throw new InvalidPropertyInputError("availability");
@@ -251,6 +268,11 @@ export class Property {
       availability: Object.freeze({ availabilityStatus, occupancyStatus, updatedAt }),
       updatedAt,
     }));
+  }
+
+  private canOwnCommercialTerms(): boolean {
+    return this.values.propertyType !== "COMPLEX"
+      && !(this.values.propertyType === "BUILDING" && this.values.commercializationMode === "INDIVIDUAL_UNITS");
   }
 
 
@@ -271,6 +293,9 @@ export class PropertyAvailabilityDerivedFromUnitsError extends Error {
   readonly code = "PROPERTY_AVAILABILITY_DERIVED_FROM_UNITS";
   constructor() { super("Composite Property availability is derived from its Units"); }
 }
+export class PropertyCommercialTargetNotEligibleError extends Error {
+  readonly code = "PROPERTY_COMMERCIAL_TARGET_NOT_ELIGIBLE";
+}
 
 export type PropertyPublicationRequirement =
   | "DETAILS"
@@ -278,7 +303,8 @@ export type PropertyPublicationRequirement =
   | "APARTMENT_SUBTYPE"
   | "PRIMARY_PHOTO"
   | "PHOTO_MINIMUM"
-  | "PHOTO_REQUIRED_VIEWS";
+  | "PHOTO_REQUIRED_VIEWS"
+  | "COMMERCIAL_TARGET";
 
 export class PropertyPublicationRequirementsNotMetError extends Error {
   readonly code = "PROPERTY_PUBLICATION_REQUIREMENTS_NOT_MET";
@@ -304,6 +330,11 @@ function validate(input: PropertyValues, allowLegacyPricing = false): Readonly<P
   const description = input.description === undefined ? undefined : input.description.trim();
   if (description !== undefined && description.length > 5_000) throw new PropertyInvariantViolation("description");
   if (!PROPERTY_TYPES.includes(input.propertyType)) throw new PropertyInvariantViolation("propertyType");
+  if (input.propertyType === "BUILDING") {
+    if (input.commercializationMode !== undefined && !BUILDING_COMMERCIALIZATION_MODES.includes(input.commercializationMode)) {
+      throw new PropertyInvariantViolation("commercializationMode");
+    }
+  } else if (input.commercializationMode !== undefined) throw new PropertyInvariantViolation("commercializationMode");
   if (!TRANSACTION_TYPES.includes(input.transactionType)) throw new PropertyInvariantViolation("transactionType");
   if (input.apartmentSubtype !== undefined && !APARTMENT_SUBTYPES.includes(input.apartmentSubtype)) {
     throw new PropertyInvariantViolation("apartmentSubtype");
@@ -312,7 +343,7 @@ function validate(input: PropertyValues, allowLegacyPricing = false): Readonly<P
     && input.apartmentSubtype !== undefined) throw new PropertyInvariantViolation("apartmentSubtype");
   if (!PROPERTY_STATUSES.includes(input.status)) throw new PropertyInvariantViolation("status");
   if (!PROPERTY_STRUCTURAL_ROLES.includes(input.structuralRole)) throw new PropertyInvariantViolation("structuralRole");
-  if (input.structuralRole === "COMPOSITE" && input.availability !== undefined) {
+  if (input.structuralRole === "COMPOSITE" && input.commercializationMode !== "WHOLE_BUILDING" && input.availability !== undefined) {
     throw new PropertyInvariantViolation("availability");
   }
   const availability = input.availability === undefined ? undefined : Object.freeze({

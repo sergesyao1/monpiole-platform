@@ -14,7 +14,7 @@ export const UpdatePropertyAvailabilityRequestSchema = z.object({
 const DirectBase = {
   propertyId: PropertyIdSchema,
   source: z.literal("DIRECT"),
-  structuralRole: z.enum(["STANDALONE", "UNIT"]),
+  structuralRole: z.enum(["STANDALONE", "UNIT", "COMPOSITE"]),
   canUpdateAvailability: z.boolean(),
 };
 export const UnconfiguredDirectPropertyAvailabilitySchema = z.object({

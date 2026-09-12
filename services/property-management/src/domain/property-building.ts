@@ -5,6 +5,7 @@ export interface PropertyBuildingValues {
   readonly buildingId: string;
   readonly tenantId: string;
   readonly propertyId: string;
+  readonly buildingPropertyId?: string;
   readonly buildingCode: string;
   readonly name: string;
   readonly createdAt: string;
@@ -47,6 +48,9 @@ export class PropertyBuilding {
 function validate(input: PropertyBuildingValues, clientFields: boolean): Readonly<PropertyBuildingValues> {
   for (const field of ["buildingId", "tenantId", "propertyId"] as const) {
     if (!UUID_V4.test(input[field])) throw new InvalidPropertyCompositionServerValueError(field);
+  }
+  if (input.buildingPropertyId !== undefined && !UUID_V4.test(input.buildingPropertyId)) {
+    throw new InvalidPropertyCompositionServerValueError("buildingPropertyId");
   }
   const buildingCode = clientFields
     ? normalizeStructuralCode(input.buildingCode, "buildingCode")

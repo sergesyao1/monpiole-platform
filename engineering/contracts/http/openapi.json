@@ -336,6 +336,11 @@
                   "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                   "type": "string"
                 },
+                "buildingPropertyId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
                 "createdAt": {
                   "format": "date-time",
                   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
@@ -411,6 +416,11 @@
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
+          "buildingPropertyId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
           "createdAt": {
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
@@ -437,6 +447,64 @@
           "name",
           "propertyId",
           "updatedAt"
+        ],
+        "type": "object"
+      },
+      "ComplexChildPage": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ComplexChildResponse"
+            },
+            "type": "array"
+          },
+          "pageInfo": {
+            "additionalProperties": false,
+            "properties": {
+              "hasNextPage": {
+                "type": "boolean"
+              },
+              "nextCursor": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "hasNextPage",
+              "nextCursor"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "items",
+          "pageInfo"
+        ],
+        "type": "object"
+      },
+      "ComplexChildResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "childCode": {
+            "maxLength": 50,
+            "minLength": 1,
+            "pattern": "^[A-Z0-9][A-Z0-9._/ -]{0,49}$",
+            "type": "string"
+          },
+          "property": {
+            "$ref": "#/components/schemas/PropertyResponse"
+          }
+        },
+        "required": [
+          "childCode",
+          "property"
         ],
         "type": "object"
       },
@@ -551,6 +619,7 @@
           },
           "structuralRole": {
             "enum": [
+              "COMPOSITE",
               "STANDALONE",
               "UNIT"
             ],
@@ -656,6 +725,129 @@
         "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
         "type": "string"
       },
+      "CreateBuildingDto": {
+        "additionalProperties": false,
+        "properties": {
+          "buildingCode": {
+            "maxLength": 50,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._/ -]{0,49}$",
+            "type": "string"
+          },
+          "commercializationMode": {
+            "enum": [
+              "INDIVIDUAL_UNITS",
+              "WHOLE_BUILDING"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "buildingCode",
+          "name"
+        ],
+        "type": "object"
+      },
+      "CreateComplexChild": {
+        "additionalProperties": false,
+        "properties": {
+          "apartmentSubtype": {
+            "enum": [
+              "MULTI_ROOM",
+              "STUDIO"
+            ],
+            "type": "string"
+          },
+          "childCode": {
+            "maxLength": 50,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._/ -]{0,49}$",
+            "type": "string"
+          },
+          "commercializationMode": {
+            "enum": [
+              "INDIVIDUAL_UNITS",
+              "WHOLE_BUILDING"
+            ],
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "location": {
+            "additionalProperties": false,
+            "properties": {
+              "addressLine": {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "city": {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "country": {
+                "pattern": "^[A-Z]{2}$",
+                "type": "string"
+              },
+              "district": {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "addressLine",
+              "city",
+              "country",
+              "district"
+            ],
+            "type": "object"
+          },
+          "propertyType": {
+            "enum": [
+              "APARTMENT",
+              "BUILDING",
+              "COMMERCIAL",
+              "COMPLEX",
+              "HOUSE",
+              "LAND",
+              "OFFICE",
+              "OTHER",
+              "SHOP"
+            ],
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "transactionType": {
+            "enum": [
+              "LONG_TERM_RENTAL",
+              "SALE",
+              "SHORT_TERM_RENTAL"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "childCode",
+          "location",
+          "propertyType",
+          "title",
+          "transactionType"
+        ],
+        "type": "object"
+      },
       "CreateDto": {
         "additionalProperties": false,
         "properties": {
@@ -745,6 +937,13 @@
             ],
             "type": "string"
           },
+          "commercializationMode": {
+            "enum": [
+              "INDIVIDUAL_UNITS",
+              "WHOLE_BUILDING"
+            ],
+            "type": "string"
+          },
           "description": {
             "maxLength": 5000,
             "type": "string"
@@ -783,10 +982,14 @@
           "propertyType": {
             "enum": [
               "APARTMENT",
+              "BUILDING",
               "COMMERCIAL",
+              "COMPLEX",
               "HOUSE",
               "LAND",
-              "OTHER"
+              "OFFICE",
+              "OTHER",
+              "SHOP"
             ],
             "type": "string"
           },
@@ -911,10 +1114,14 @@
           "propertyType": {
             "enum": [
               "APARTMENT",
+              "BUILDING",
               "COMMERCIAL",
+              "COMPLEX",
               "HOUSE",
               "LAND",
-              "OTHER"
+              "OFFICE",
+              "OTHER",
+              "SHOP"
             ],
             "type": "string"
           },
@@ -2729,10 +2936,14 @@
               "propertyType": {
                 "enum": [
                   "APARTMENT",
+                  "BUILDING",
                   "COMMERCIAL",
+                  "COMPLEX",
                   "HOUSE",
                   "LAND",
-                  "OTHER"
+                  "OFFICE",
+                  "OTHER",
+                  "SHOP"
                 ],
                 "type": "string"
               },
@@ -2897,10 +3108,14 @@
               "propertyType": {
                 "enum": [
                   "APARTMENT",
+                  "BUILDING",
                   "COMMERCIAL",
+                  "COMPLEX",
                   "HOUSE",
                   "LAND",
-                  "OTHER"
+                  "OFFICE",
+                  "OTHER",
+                  "SHOP"
                 ],
                 "type": "string"
               },
@@ -3071,10 +3286,14 @@
               "propertyType": {
                 "enum": [
                   "APARTMENT",
+                  "BUILDING",
                   "COMMERCIAL",
+                  "COMPLEX",
                   "HOUSE",
                   "LAND",
-                  "OTHER"
+                  "OFFICE",
+                  "OTHER",
+                  "SHOP"
                 ],
                 "type": "string"
               },
@@ -3314,6 +3533,13 @@
                 "const": false,
                 "type": "boolean"
               },
+              "commercializationMode": {
+                "enum": [
+                  "INDIVIDUAL_UNITS",
+                  "WHOLE_BUILDING"
+                ],
+                "type": "string"
+              },
               "commercialTerms": {
                 "oneOf": [
                   {
@@ -3520,10 +3746,14 @@
               "propertyType": {
                 "enum": [
                   "APARTMENT",
+                  "BUILDING",
                   "COMMERCIAL",
+                  "COMPLEX",
                   "HOUSE",
                   "LAND",
-                  "OTHER"
+                  "OFFICE",
+                  "OTHER",
+                  "SHOP"
                 ],
                 "type": "string"
               },
@@ -3584,6 +3814,13 @@
               "canWithdrawFromCatalog": {
                 "type": "boolean"
               },
+              "commercializationMode": {
+                "enum": [
+                  "INDIVIDUAL_UNITS",
+                  "WHOLE_BUILDING"
+                ],
+                "type": "string"
+              },
               "commercialTerms": {
                 "oneOf": [
                   {
@@ -3790,10 +4027,14 @@
               "propertyType": {
                 "enum": [
                   "APARTMENT",
+                  "BUILDING",
                   "COMMERCIAL",
+                  "COMPLEX",
                   "HOUSE",
                   "LAND",
-                  "OTHER"
+                  "OFFICE",
+                  "OTHER",
+                  "SHOP"
                 ],
                 "type": "string"
               },
@@ -3861,6 +4102,13 @@
                 "const": false,
                 "type": "boolean"
               },
+              "commercializationMode": {
+                "enum": [
+                  "INDIVIDUAL_UNITS",
+                  "WHOLE_BUILDING"
+                ],
+                "type": "string"
+              },
               "commercialTerms": {
                 "oneOf": [
                   {
@@ -4067,10 +4315,14 @@
               "propertyType": {
                 "enum": [
                   "APARTMENT",
+                  "BUILDING",
                   "COMMERCIAL",
+                  "COMPLEX",
                   "HOUSE",
                   "LAND",
-                  "OTHER"
+                  "OFFICE",
+                  "OTHER",
+                  "SHOP"
                 ],
                 "type": "string"
               },
@@ -4197,6 +4449,68 @@
                 "maximum": 9007199254740991,
                 "minimum": 0,
                 "type": "integer"
+              },
+              "directChildCount": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "parentBuilding": {
+                "additionalProperties": false,
+                "properties": {
+                  "buildingCode": {
+                    "type": "string"
+                  },
+                  "buildingId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "buildingName": {
+                    "type": "string"
+                  },
+                  "parentBuildingCommercializationMode": {
+                    "enum": [
+                      "INDIVIDUAL_UNITS",
+                      "WHOLE_BUILDING"
+                    ],
+                    "type": "string"
+                  },
+                  "parentPropertyId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "parentPropertyTitle": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "buildingCode",
+                  "buildingId",
+                  "buildingName",
+                  "parentPropertyId",
+                  "parentPropertyTitle"
+                ],
+                "type": "object"
+              },
+              "parentComplex": {
+                "additionalProperties": false,
+                "properties": {
+                  "propertyId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "propertyId",
+                  "title"
+                ],
+                "type": "object"
               },
               "unitCount": {
                 "maximum": 9007199254740991,
@@ -4327,6 +4641,7 @@
                 "items": {
                   "enum": [
                     "APARTMENT_SUBTYPE",
+                    "COMMERCIAL_TARGET",
                     "COMMERCIAL_TERMS",
                     "DETAILS",
                     "PHOTO_MINIMUM",
@@ -4658,10 +4973,14 @@
           "propertyType": {
             "enum": [
               "APARTMENT",
+              "BUILDING",
               "COMMERCIAL",
+              "COMPLEX",
               "HOUSE",
               "LAND",
-              "OTHER"
+              "OFFICE",
+              "OTHER",
+              "SHOP"
             ],
             "type": "string"
           },
@@ -4875,10 +5194,14 @@
           "propertyType": {
             "enum": [
               "APARTMENT",
+              "BUILDING",
               "COMMERCIAL",
+              "COMPLEX",
               "HOUSE",
               "LAND",
-              "OTHER"
+              "OFFICE",
+              "OTHER",
+              "SHOP"
             ],
             "type": "string"
           },
@@ -5133,6 +5456,7 @@
           },
           "structuralRole": {
             "enum": [
+              "COMPOSITE",
               "STANDALONE",
               "UNIT"
             ],
@@ -5992,10 +6316,14 @@
             "schema": {
               "enum": [
                 "APARTMENT",
+                "BUILDING",
                 "COMMERCIAL",
+                "COMPLEX",
                 "HOUSE",
                 "LAND",
-                "OTHER"
+                "OFFICE",
+                "OTHER",
+                "SHOP"
               ],
               "type": "string"
             }
@@ -7451,7 +7779,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BuildingMutationDto"
+                "$ref": "#/components/schemas/CreateBuildingDto"
               }
             }
           },
@@ -8322,6 +8650,403 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UnitResponseDto"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid composition request",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication required",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden composition authority",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Composition resource not found",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Composition conflict",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Safe internal failure",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Property composition"
+        ]
+      }
+    },
+    "/v1/properties/{propertyId}/children": {
+      "get": {
+        "operationId": "listPropertyComplexChildren",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "propertyId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplexChildPage"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid composition request",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication required",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden composition authority",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Composition resource not found",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Safe internal failure",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Property composition"
+        ]
+      },
+      "post": {
+        "operationId": "createPropertyComplexChild",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "propertyId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateComplexChild"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplexChildResponse"
                 }
               }
             },
@@ -14103,10 +14828,14 @@
             "schema": {
               "enum": [
                 "APARTMENT",
+                "BUILDING",
                 "COMMERCIAL",
+                "COMPLEX",
                 "HOUSE",
                 "LAND",
-                "OTHER"
+                "OFFICE",
+                "OTHER",
+                "SHOP"
               ],
               "type": "string"
             }

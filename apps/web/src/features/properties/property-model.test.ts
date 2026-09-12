@@ -11,7 +11,8 @@ describe("présentation française Property", () => {
     expect(propertyStatusLabels.PUBLISHED).toBe("Publié");
     expect(propertyStatusLabels.WITHDRAWN).toBe("Retiré du catalogue");
     expect(propertyTypeLabels).toEqual({
-      APARTMENT: "Appartement", HOUSE: "Maison", LAND: "Terrain", COMMERCIAL: "Local commercial", OTHER: "Autre",
+      APARTMENT: "Appartement", HOUSE: "Maison", LAND: "Terrain", OFFICE: "Bureau", SHOP: "Boutique / Local commercial",
+      BUILDING: "Immeuble", COMPLEX: "Ensemble immobilier / Résidence", COMMERCIAL: "Local commercial", OTHER: "Autre",
     });
     expect(transactionTypeLabels).toEqual({
       LONG_TERM_RENTAL: "Location longue durée", SHORT_TERM_RENTAL: "Location courte durée", SALE: "Vente",

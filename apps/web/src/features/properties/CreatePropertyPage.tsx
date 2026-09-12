@@ -17,6 +17,7 @@ export function CreatePropertyPage() {
   const [error, setError] = useState<PropertyUiError>();
   const [propertyType, setPropertyType] = useState<CreatePropertyInput["propertyType"]>("APARTMENT");
   const [transactionType, setTransactionType] = useState<CreatePropertyInput["transactionType"]>("LONG_TERM_RENTAL");
+  const [commercializationMode, setCommercializationMode] = useState<"WHOLE_BUILDING" | "INDIVIDUAL_UNITS">("INDIVIDUAL_UNITS");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -29,6 +30,7 @@ export function CreatePropertyPage() {
       title: String(values.get("title") ?? "").trim(),
       ...(description ? { description } : {}),
       propertyType,
+      ...(propertyType === "BUILDING" ? { commercializationMode } : {}),
       transactionType,
       ...(propertyType === "APARTMENT" && transactionType === "LONG_TERM_RENTAL"
         ? { apartmentSubtype: String(values.get("apartmentSubtype")) as "STUDIO" | "MULTI_ROOM" }
@@ -61,6 +63,7 @@ export function CreatePropertyPage() {
           <div className="form-grid two-columns">
             <Field label="Titre du bien"><input name="title" required maxLength={200} placeholder="Appartement lumineux à Cocody" /></Field>
             <Field label="Type de bien"><select name="propertyType" value={propertyType} onChange={(event) => setPropertyType(event.currentTarget.value as CreatePropertyInput["propertyType"])}>{propertyTypes.map((value) => <option key={value} value={value}>{propertyTypeLabels[value]}</option>)}</select></Field>
+            {propertyType === "BUILDING" && <Field label="Mode de commercialisation"><select name="commercializationMode" value={commercializationMode} onChange={(event) => setCommercializationMode(event.currentTarget.value as "WHOLE_BUILDING" | "INDIVIDUAL_UNITS")}><option value="INDIVIDUAL_UNITS">Unités commercialisées séparément</option><option value="WHOLE_BUILDING">Immeuble commercialisé en entier</option></select></Field>}
             <Field label="Projet commercial"><select name="transactionType" value={transactionType} onChange={(event) => setTransactionType(event.currentTarget.value as CreatePropertyInput["transactionType"])}>{transactionTypes.map((value) => <option key={value} value={value}>{transactionTypeLabels[value]}</option>)}</select></Field>
             {propertyType === "APARTMENT" && transactionType === "LONG_TERM_RENTAL" && (
               <Field label="Sous-type d’appartement"><select name="apartmentSubtype" defaultValue="STUDIO" required>

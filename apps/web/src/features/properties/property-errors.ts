@@ -49,7 +49,13 @@ export function toPropertyUiError(error: unknown, resource: PropertyErrorResourc
     if (error.problem.code === "PROPERTY_CONTRACT_PROPERTY_NOT_ELIGIBLE") {
       return { kind: "conflict", message: "Ce type de contrat n’est pas compatible avec ce bien." };
     }
+    if (error.problem.code === "PROPERTY_COMMERCIAL_TARGET_NOT_ELIGIBLE") {
+      return { kind: "conflict", message: "Ce bien n’est pas commercialisable individuellement dans son mode actuel." };
+    }
     if (error.problem.code === "PROPERTY_PUBLICATION_REQUIREMENTS_NOT_MET") {
+      if (error.problem.errors?.some((item) => item.code === "not_eligible_for_publication")) {
+        return { kind: "conflict", message: "Ce bien n’est pas publiable individuellement dans son mode actuel." };
+      }
       if (error.problem.errors?.some((item) => item.path === "property.primaryPhoto")) {
         return { kind: "conflict", message: "Sélectionnez la photo principale qui représentera ce bien dans les annonces." };
       }

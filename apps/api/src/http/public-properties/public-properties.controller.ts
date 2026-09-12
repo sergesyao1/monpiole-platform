@@ -57,7 +57,7 @@ export class PublicPropertiesController {
   @ApiOperation({ operationId: "listPublicProperties", summary: "List one activated tenant's published Properties", security: [] })
   @ApiQuery({ name: "limit", required: false, schema: { type: "integer", minimum: 1, maximum: 50, default: 20 } })
   @ApiQuery({ name: "cursor", required: false, schema: { type: "string", maxLength: 512 } })
-  @ApiQuery({ name: "type", required: false, schema: { type: "string", enum: ["APARTMENT", "HOUSE", "LAND", "COMMERCIAL", "OTHER"] } })
+  @ApiQuery({ name: "type", required: false, schema: { type: "string", enum: ["APARTMENT", "HOUSE", "LAND", "COMMERCIAL", "OFFICE", "SHOP", "BUILDING", "COMPLEX", "OTHER"] } })
   @ApiQuery({ name: "transactionType", required: false, schema: { type: "string", enum: ["LONG_TERM_RENTAL", "SHORT_TERM_RENTAL", "SALE"] } })
   @ApiOkResponse({ description: "Published Properties of the tenant resolved from the exact request host", type: PublicPropertyCatalogResponseDto, headers: responseHeaders() })
   @ApiResponse({ status: 400, description: "Invalid catalog query or cursor", content: problemContent() })

@@ -11,6 +11,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import {
   ActivatePropertyContract, CreateProperty, CreatePropertyClient, CreatePropertyContract, EndPropertyContract,
+  CreatePropertyUnit, PostgresPropertyCompositionRepository,
   PostgresPropertyClientRepository, PostgresPropertyContractRepository, PostgresPropertyRepository,
   PostgresPropertyWorkspaceSummaryQuery, PropertyContractNotFoundError, PropertyContractPeriodConflictError,
   PropertyContractPropertyNotEligibleError, RetrievePropertyContract,
@@ -97,6 +98,38 @@ async function createFixtures() {
 }
 
 describe("Property client and contract PostgreSQL persistence", () => {
+  it("évalue les baux selon le mode persistant des nouveaux immeubles et de leurs unités", async () => {
+    const properties = new PostgresPropertyRepository(runtime);
+    const composition = new PostgresPropertyCompositionRepository(runtime);
+    const contracts = new PostgresPropertyContractRepository(runtime);
+    const actor = { ...authority(), grants: [...authority().grants, "CREATE_PROPERTY_UNIT"] as PropertyAuthority["grants"] };
+    const clock = { now: () => NOW };
+    const location = { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Riviera" };
+    const createBuilding = async (propertyId: string, buildingId: string, mode: "WHOLE_BUILDING" | "INDIVIDUAL_UNITS") => {
+      const ids = [propertyId, buildingId];
+      await new CreateProperty(properties, { generate: () => ids.shift()! }, clock, composition).execute({
+        authority: actor, correlationId: CORRELATION, title: `Immeuble ${mode}`, propertyType: "BUILDING",
+        commercializationMode: mode, transactionType: "LONG_TERM_RENTAL", location,
+      });
+      return new CreatePropertyUnit(composition, { generate: () => mode === "WHOLE_BUILDING"
+        ? "11111111-1111-4111-8111-111111111111" : "22222222-2222-4222-8222-222222222222" }, clock).execute({
+        authority: actor, correlationId: CORRELATION, propertyId, buildingId, unitCode: "A-01", title: "Boutique A-01",
+        propertyType: "SHOP", transactionType: "LONG_TERM_RENTAL", location,
+      });
+    };
+    const wholeId = "33333333-3333-4333-8333-333333333333";
+    const wholeUnit = await createBuilding(wholeId, "44444444-4444-4444-8444-444444444444", "WHOLE_BUILDING");
+    await properties.updateAtomically(TENANT_A, wholeId,
+      (current) => current.setPricing({ kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 100000, rentPeriod: "MONTH" }, NOW),
+      { correlationId: CORRELATION, actorId: "administrator" });
+    expect((await contracts.assessLeaseTarget(TENANT_A, wholeId))?.eligibility).toMatchObject({ eligible: true });
+    expect((await contracts.assessLeaseTarget(TENANT_A, wholeUnit.property.propertyId))?.eligibility).toMatchObject({ eligible: false });
+    const individualId = "55555555-5555-4555-8555-555555555555";
+    const individualUnit = await createBuilding(individualId, "66666666-6666-4666-8666-666666666666", "INDIVIDUAL_UNITS");
+    expect((await contracts.assessLeaseTarget(TENANT_A, individualId))?.eligibility).toMatchObject({ eligible: false });
+    expect((await contracts.assessLeaseTarget(TENANT_A, individualUnit.property.propertyId))?.eligibility).toMatchObject({ eligible: true });
+    expect(await contracts.assessLeaseTarget(TENANT_B, wholeId)).toBeUndefined();
+  });
   it("rechecks project eligibility when activating an already prepared draft", async () => {
     const { contracts } = await createFixtures();
     await owner.query("UPDATE property_management.properties SET transaction_type='SALE' WHERE property_id=$1", [PROPERTY_ID]);
@@ -157,6 +190,9 @@ describe("Property client and contract PostgreSQL persistence", () => {
     await owner.query(`INSERT INTO property_management.property_building_units
       (tenant_id,building_id,unit_property_id,unit_code,created_at,updated_at,correlation_id,actor_id)
       VALUES ($1,$2,$3,'A1',now(),now(),$4,'administrator')`, [TENANT_A, buildingId, unitId, CORRELATION]);
+    expect((await new PostgresPropertyWorkspaceSummaryQuery(runtime).retrieve(TENANT_A, unitId))?.composition.parentBuilding)
+      .toMatchObject({ buildingId, buildingCode: "A", buildingName: "Bâtiment A", parentPropertyId: PROPERTY_ID });
+    expect(await new PostgresPropertyWorkspaceSummaryQuery(runtime).retrieve(TENANT_B, unitId)).toBeUndefined();
     expect((await contracts.assessLeaseTarget(TENANT_A, PROPERTY_ID))?.eligibility).toEqual({ eligible: true, blockedByActiveLease: false });
     expect((await contracts.assessLeaseTarget(TENANT_A, unitId))?.eligibility).toEqual({ eligible: true, blockedByActiveLease: false });
     await new CreatePropertyContract(contracts, clients, properties, { generate: () => unitContractId }, { now: () => NOW }).execute({

@@ -107,13 +107,22 @@ export const PropertyWorkspaceResponseSchema = z.object({
   publicationReadiness: z.object({
     ready: z.boolean(),
     missingRequirements: z.array(z.enum([
-      "DETAILS", "COMMERCIAL_TERMS", "APARTMENT_SUBTYPE", "PRIMARY_PHOTO", "PHOTO_MINIMUM", "PHOTO_REQUIRED_VIEWS",
+      "DETAILS", "COMMERCIAL_TERMS", "APARTMENT_SUBTYPE", "PRIMARY_PHOTO", "PHOTO_MINIMUM", "PHOTO_REQUIRED_VIEWS", "COMMERCIAL_TARGET",
     ])),
   }).strict(),
   owners: z.array(z.object({
     ownerId: z.uuid(), displayName: z.string(), ownershipShare: z.number().positive().max(100),
   }).strict()),
-  composition: z.object({ buildingCount: NonNegativeCountSchema, unitCount: NonNegativeCountSchema }).strict(),
+  composition: z.object({
+    buildingCount: NonNegativeCountSchema, unitCount: NonNegativeCountSchema,
+    directChildCount: NonNegativeCountSchema.optional(),
+    parentComplex: z.object({ propertyId: z.uuid(), title: z.string() }).strict().optional(),
+    parentBuilding: z.object({
+      buildingId: z.uuid(), buildingCode: z.string(), buildingName: z.string(),
+      parentPropertyId: z.uuid(), parentPropertyTitle: z.string(),
+      parentBuildingCommercializationMode: z.enum(["WHOLE_BUILDING", "INDIVIDUAL_UNITS"]).optional(),
+    }).strict().optional(),
+  }).strict(),
   contracts: z.object({
     totalCount: NonNegativeCountSchema, draftCount: NonNegativeCountSchema, activeCount: NonNegativeCountSchema,
     endedCount: NonNegativeCountSchema, cancelledCount: NonNegativeCountSchema,

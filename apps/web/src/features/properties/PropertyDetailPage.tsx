@@ -9,7 +9,7 @@ import { PropertyCoreInformationForm } from "./PropertyCoreInformationForm.js";
 import { PropertyFeedback } from "./PropertyFeedback.js";
 import { toPropertyUiError, type PropertyUiError } from "./property-errors.js";
 import {
-  formatMinorAmount, pricingUnitLabels, propertyStatusLabels, propertyStructuralRoleLabels, propertyTypeLabels,
+  formatMinorAmount, pricingUnitLabels, propertyStatusLabels, propertyTypeLabels,
   transactionTypeLabels, type CommercialTerms, type Property, type PropertyWorkspace,
 } from "./property-model.js";
 import { PropertyOwnershipSection } from "./PropertyOwnershipSection.js";
@@ -155,7 +155,8 @@ export function PropertyDetailPage() {
         <dl className="definition-grid">
           <div><dt>Type</dt><dd>{propertyTypeLabels[property.propertyType]}</dd></div>
           <div><dt>Projet</dt><dd>{transactionTypeLabels[property.transactionType]}</dd></div>
-          <div><dt>Rôle structurel</dt><dd>{propertyStructuralRoleLabels[property.structuralRole]}</dd></div>
+          <div><dt>Organisation</dt><dd>{property.propertyType === "BUILDING" ? "Immeuble" : property.propertyType === "COMPLEX" ? "Résidence"
+            : property.structuralRole === "UNIT" ? "Unité d’immeuble" : workspace.composition.parentComplex ? "Bien de la résidence" : "Bien indépendant"}</dd></div>
           <div><dt>Localisation</dt><dd>{property.location.addressLine}, {property.location.district}, {property.location.city} ({property.location.country})</dd></div>
           <div><dt>Description</dt><dd>{property.description ?? "Aucune description"}</dd></div>
           <div><dt>Conditions</dt><dd>{property.commercialTerms ? <CommercialTermsSummary terms={property.commercialTerms} /> : "Non renseignées"}</dd></div>
@@ -166,7 +167,17 @@ export function PropertyDetailPage() {
           <a href="#property-publication"><strong>{workspace.publicationReadiness.ready ? "Prêt" : `${workspace.publicationReadiness.missingRequirements.length} à compléter`}</strong><span>Publication</span></a>
           {leaseEligible ? <a href="#property-contracts"><strong>{workspace.contracts.activeCount} actif{workspace.contracts.activeCount > 1 ? "s" : ""}</strong><span>{workspace.contracts.totalCount} contrat{workspace.contracts.totalCount > 1 ? "s" : ""}</span></a> : <div title={leaseReason}><strong>Indisponible</strong><span>Contrats</span></div>}
           <a href="#property-owners"><strong>{workspace.owners.length}</strong><span>Propriétaire{workspace.owners.length > 1 ? "s" : ""}</span></a>
-          <a href="#property-composition"><strong>{workspace.composition.unitCount}</strong><span>Unité{workspace.composition.unitCount > 1 ? "s" : ""} dans {workspace.composition.buildingCount} bâtiment{workspace.composition.buildingCount > 1 ? "s" : ""}</span></a>
+          <a href="#property-composition">{property.propertyType === "BUILDING"
+            ? <><strong>{workspace.composition.unitCount} unité{workspace.composition.unitCount > 1 ? "s" : ""}</strong><span>Composition de l’immeuble</span></>
+            : property.propertyType === "COMPLEX"
+              ? <><strong>{workspace.composition.buildingCount} immeuble{workspace.composition.buildingCount > 1 ? "s" : ""}</strong><span>{workspace.composition.directChildCount ?? 0} bien{(workspace.composition.directChildCount ?? 0) > 1 ? "s" : ""} direct{(workspace.composition.directChildCount ?? 0) > 1 ? "s" : ""}</span></>
+            : property.structuralRole === "COMPOSITE"
+            ? <><strong>{workspace.composition.buildingCount} immeuble{workspace.composition.buildingCount > 1 ? "s" : ""}</strong><span>{workspace.composition.unitCount} unité{workspace.composition.unitCount > 1 ? "s" : ""}</span></>
+            : property.structuralRole === "UNIT"
+              ? <><strong>Unité</strong><span>{workspace.composition.parentBuilding?.buildingName ?? "Rattachement non disponible"}</span></>
+              : workspace.composition.parentComplex
+                ? <><strong>Résidence</strong><span>{workspace.composition.parentComplex.title}</span></>
+              : <><strong>Bien indépendant</strong><span>Composition</span></>}</a>
         </div>
       </section>
 
@@ -191,7 +202,12 @@ export function PropertyDetailPage() {
 
       <section className="content-panel" id="property-pricing" aria-labelledby="property-pricing-title">
         <div className="section-heading"><div><p className="eyebrow">Conditions financières</p><h2 id="property-pricing-title">Tarification du bien</h2></div></div>
-        <PropertyPricingForm property={property} saving={savingPricing} onSave={savePricing} />
+        {property.propertyType === "COMPLEX" ? <p>La résidence organise des biens qui disposent chacun de leur propre tarification.</p>
+          : property.propertyType === "BUILDING" && property.commercializationMode === "INDIVIDUAL_UNITS"
+            ? <p>Les unités de cet immeuble disposent chacune de leur propre tarification.</p>
+            : property.structuralRole === "UNIT" && workspace.composition.parentBuilding?.parentBuildingCommercializationMode === "WHOLE_BUILDING"
+              ? <p>Cet immeuble est commercialisé en entier ; sa tarification est gérée sur la fiche de l’immeuble.</p>
+              : <PropertyPricingForm property={property} saving={savingPricing} onSave={savePricing} />}
       </section>
 
       <div id="property-publication"><PropertyPublicationSection
@@ -238,7 +254,7 @@ export function PropertyDetailPage() {
       <PropertyApplicationsSection propertyId={property.propertyId} api={api}/>
 
       <div id="property-owners"><PropertyOwnershipSection propertyId={property.propertyId} api={api} initialOwners={workspace.owners} canManage={workspace.capabilities.canManageOwners} onChanged={loadWorkspace} /></div>
-      <div id="property-composition"><PropertyCompositionSection property={property} api={api} onStructuralRoleChange={(structuralRole) => { setProperty((current) => current === undefined ? current : { ...current, structuralRole }); void loadWorkspace(); }} /></div>
+      <div id="property-composition"><PropertyCompositionSection property={property} api={api} parentBuilding={workspace.composition.parentBuilding} parentComplex={workspace.composition.parentComplex} onChanged={loadWorkspace} /></div>
     </div>
   );
 }

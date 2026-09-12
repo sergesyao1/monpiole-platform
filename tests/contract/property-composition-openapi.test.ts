@@ -15,6 +15,8 @@ import { decodeCompositionCursor, encodeCompositionCursor } from "../../apps/api
 const artifact = new URL("../../engineering/contracts/http/openapi.json", import.meta.url);
 
 const operations = [
+  ["/v1/properties/{propertyId}/children", "post", "createPropertyComplexChild", ["propertyId"], ["201", "400", "401", "403", "404", "409", "500"], "ComplexChildResponse"],
+  ["/v1/properties/{propertyId}/children", "get", "listPropertyComplexChildren", ["propertyId"], ["200", "400", "401", "403", "404", "500"], "ComplexChildPage"],
   ["/v1/properties/{propertyId}/buildings", "post", "createPropertyBuilding", ["propertyId"], ["201", "400", "401", "403", "404", "409", "500"], "BuildingResponseDto"],
   ["/v1/properties/{propertyId}/buildings", "get", "listPropertyBuildings", ["propertyId"], ["200", "400", "401", "403", "404", "500"], "BuildingPageDto"],
   ["/v1/properties/{propertyId}/buildings/{buildingId}", "put", "updatePropertyBuilding", ["propertyId", "buildingId"], ["200", "400", "401", "403", "404", "409", "500"], "BuildingResponseDto"],
@@ -24,7 +26,7 @@ const operations = [
 ] as const;
 
 describe("Property composition OpenAPI contract", () => {
-  it("publishes the six authenticated operations with exact required path parameters", async () => {
+  it("publishes the eight authenticated operations with exact required path parameters", async () => {
     const document = JSON.parse(await readFile(artifact, "utf8"));
     for (const [path, method, operationId, expectedPathParameters] of operations) {
       const operation = document.paths[path]?.[method];

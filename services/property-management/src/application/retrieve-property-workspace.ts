@@ -61,13 +61,20 @@ export class RetrievePropertyWorkspace {
     if (property === undefined || availability === undefined || summary === undefined || leaseTarget === undefined) {
       throw new PropertyNotFoundError();
     }
+    const baseReadiness = property.assessPublicationReadiness(property.values.photos ?? [], standard);
+    const blockedByWholeBuilding = property.values.structuralRole === "UNIT"
+      && summary.composition.parentBuilding?.parentBuildingCommercializationMode === "WHOLE_BUILDING";
+    const publicationReadiness = blockedByWholeBuilding
+      ? { ...baseReadiness, ready: false, missingRequirements: [...new Set([...baseReadiness.missingRequirements, "COMMERCIAL_TARGET" as const])] }
+      : baseReadiness;
     return {
       property: property.values,
       availability,
-      publicationReadiness: property.assessPublicationReadiness(property.values.photos ?? [], standard),
+      publicationReadiness,
       ...summary,
       leaseEligibility: leaseTarget.eligibility,
-      capabilities: capabilities(query.authority, property.values.status, availability.source),
+      capabilities: capabilities(query.authority, property.values.status, availability.source, publicationReadiness.ready,
+        property.values.propertyType, property.values.commercializationMode),
     };
   }
 }
@@ -76,16 +83,20 @@ function capabilities(
   authority: PropertyAuthority,
   status: PropertyView["status"],
   availabilitySource: PropertyAvailabilityReadModel["source"],
+  readyForPublication: boolean,
+  propertyType: PropertyView["propertyType"],
+  commercializationMode: PropertyView["commercializationMode"],
 ): PropertyWorkspaceCapabilities {
   const has = (grant: PropertyAuthority["grants"][number]) => authority.grants.includes(grant);
   return {
     canUpdateCoreInformation: has("UPDATE_PROPERTY_CORE_INFORMATION"),
     canUpdateDetails: has("UPDATE_PROPERTY_DETAILS"),
-    canUpdatePricing: has("UPDATE_PROPERTY_PRICING"),
+    canUpdatePricing: propertyType !== "COMPLEX" && !(propertyType === "BUILDING" && commercializationMode === "INDIVIDUAL_UNITS")
+      && has("UPDATE_PROPERTY_PRICING"),
     canUpdateAvailability: availabilitySource === "DIRECT" && has("UPDATE_PROPERTY_AVAILABILITY"),
     canManagePhotos: has("CREATE_PROPERTY_PHOTO") || has("DELETE_PROPERTY_PHOTO")
       || has("REORDER_PROPERTY_PHOTOS") || has("SELECT_PROPERTY_PRIMARY_PHOTO"),
-    canPublish: status === "DRAFT" && has("PUBLISH_PROPERTY"),
+    canPublish: status === "DRAFT" && readyForPublication && has("PUBLISH_PROPERTY"),
     canWithdrawFromCatalog: status === "PUBLISHED" && has("WITHDRAW_PROPERTY_FROM_CATALOG"),
     canManageOwners: has("ASSIGN_PROPERTY_OWNER") || has("REMOVE_PROPERTY_OWNER"),
     canManageComposition: has("CREATE_PROPERTY_BUILDING") || has("UPDATE_PROPERTY_BUILDING")

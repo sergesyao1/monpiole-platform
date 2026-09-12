@@ -7,7 +7,7 @@ import { REQUEST_CONTEXT, type RequestWithContext } from "../request-context/req
 import { TenantContext } from "../request-context/request-context.decorator.js";
 import { toPropertyResponse } from "./property.mapper.js";
 import { decodeCompositionCursor, encodeCompositionCursor } from "./property-composition-cursor.js";
-import { BuildingMutationDto, BuildingPageDto, BuildingResponseDto, CompositionQueryDto, CreateUnitDto, PropertyCompositionBuildingPathDto, PropertyCompositionPropertyPathDto, PropertyCompositionUnitPathDto, UnitMutationDto, UnitPageDto, UnitResponseDto } from "./property-composition.dto.js";
+import { BuildingMutationDto, BuildingPageDto, BuildingResponseDto, CompositionQueryDto, CreateBuildingDto, CreateUnitDto, PropertyCompositionBuildingPathDto, PropertyCompositionPropertyPathDto, PropertyCompositionUnitPathDto, UnitMutationDto, UnitPageDto, UnitResponseDto } from "./property-composition.dto.js";
 import { PropertyProblemDetailsDto } from "./property.dto.js";
 import { problemContent, responseHeaders } from "./create-property.controller.js";
 
@@ -28,7 +28,7 @@ export class PropertyCompositionController {
   ) {}
   private async context(request: RequestWithContext) { const authenticated = await requireAuthenticatedAuthority(this.authorities, request); const value = request[REQUEST_CONTEXT]; if (!value) throw new Error("Request context missing"); return { authority: toPropertyAuthority(authenticated), correlationId: value.correlationId }; }
   @Post() @HttpCode(201) @ApiOperation({ operationId: "createPropertyBuilding" }) @ApiCreatedResponse({ type: BuildingResponseDto, headers: responseHeaders() }) @CompositionProblems(400, 401, 403, 404, 409, 500) @ZodSerializerDto(BuildingResponseDto)
-  async postBuilding(@Param() path: PropertyCompositionPropertyPathDto, @Body() body: BuildingMutationDto, @Req() request: RequestWithContext) { return toBuildingResponse(await this.createBuilding.execute({ ...await this.context(request), propertyId: path.propertyId, ...body })); }
+  async postBuilding(@Param() path: PropertyCompositionPropertyPathDto, @Body() body: CreateBuildingDto, @Req() request: RequestWithContext) { return toBuildingResponse(await this.createBuilding.execute({ ...await this.context(request), propertyId: path.propertyId, ...body })); }
   @Get() @ApiOperation({ operationId: "listPropertyBuildings" }) @ApiOkResponse({ type: BuildingPageDto, headers: responseHeaders() }) @CompositionProblems(400, 401, 403, 404, 500) @ZodSerializerDto(BuildingPageDto)
   async getBuildings(@Param() path: PropertyCompositionPropertyPathDto, @Query() query: CompositionQueryDto, @Req() request: RequestWithContext) { const page = await this.listBuildings.execute({ ...await this.context(request), propertyId: path.propertyId, limit: query.limit, ...(query.cursor ? { cursor: decodeCompositionCursor(query.cursor) } : {}) }); return pageResponse({ ...page, items: page.items.map(toBuildingResponse) }); }
   @Put(":buildingId") @ApiOperation({ operationId: "updatePropertyBuilding" }) @ApiOkResponse({ type: BuildingResponseDto, headers: responseHeaders() }) @CompositionProblems(400, 401, 403, 404, 409, 500) @ZodSerializerDto(BuildingResponseDto)
@@ -46,7 +46,7 @@ function toBuildingResponse<T extends { readonly tenantId: string }>(building: T
   return response;
 }
 type ProblemStatus = 400 | 401 | 403 | 404 | 409 | 500;
-function CompositionProblems(...statuses: readonly ProblemStatus[]) {
+export function CompositionProblems(...statuses: readonly ProblemStatus[]) {
   return applyDecorators(...statuses.map((status) => ApiResponse({ status, description: problemDescription(status), content: problemContent(), headers: responseHeaders() })));
 }
 function problemDescription(status: ProblemStatus) {

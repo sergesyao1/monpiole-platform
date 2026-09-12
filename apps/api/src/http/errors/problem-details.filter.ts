@@ -243,8 +243,12 @@ function businessProblem(exception: unknown) {
     status: 404, type: `https://api.monpiole.example/problems/${code === "PROPERTY_BUILDING_NOT_FOUND" ? "property-building" : "property-unit"}-not-found`,
     title: code === "PROPERTY_BUILDING_NOT_FOUND" ? "Property building not found" : "Property unit not found", code,
   };
-  if (code === "PROPERTY_COMPOSITION_ROLE_CONFLICT" || code === "PROPERTY_BUILDING_CODE_CONFLICT" || code === "PROPERTY_UNIT_CODE_CONFLICT") return {
+  if (code === "PROPERTY_COMPOSITION_ROLE_CONFLICT" || code === "PROPERTY_BUILDING_CODE_CONFLICT" || code === "PROPERTY_UNIT_CODE_CONFLICT" || code === "PROPERTY_COMPLEX_CHILD_CODE_CONFLICT") return {
     status: 409, type: "https://api.monpiole.example/problems/property-composition-conflict", title: "Property composition conflict", code,
+  };
+  if (code === "PROPERTY_COMMERCIAL_TARGET_NOT_ELIGIBLE") return {
+    status: 409, type: "https://api.monpiole.example/problems/property-commercial-target-not-eligible",
+    title: "Property commercial target not eligible", code,
   };
   if (code === "INVALID_PROPERTY_COMPOSITION_INPUT") return {
     status: 400, type: "https://api.monpiole.example/problems/invalid-request", title: "Invalid request", code: "INVALID_REQUEST",
@@ -332,6 +336,7 @@ function publicationErrors(exception: unknown): readonly { readonly path: string
     || !Array.isArray(exception.missingRequirements)) return undefined;
   const missing = new Set(exception.missingRequirements);
   return [
+    ...(missing.has("COMMERCIAL_TARGET") ? [{ path: "property.commercializationMode", code: "not_eligible_for_publication" }] : []),
     ...(missing.has("DETAILS") ? [{ path: "property.details", code: "required_for_publication" }] : []),
     ...(missing.has("COMMERCIAL_TERMS") ? [{ path: "property.commercialTerms", code: "required_for_publication" }] : []),
     ...(missing.has("APARTMENT_SUBTYPE") ? [{ path: "property.apartmentSubtype", code: "required_for_publication" }] : []),

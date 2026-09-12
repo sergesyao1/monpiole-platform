@@ -87,8 +87,8 @@ export {
   type PropertyContractRepository, type PropertyContractRecord, type PropertyContractCriteria,
   type PropertyContractCursor, type PropertyContractPage, type PropertyContractTrace,
 } from "./application/property-contract-repository.js";
-export { CreatePropertyBuilding, ListPropertyBuildings, UpdatePropertyBuilding, CreatePropertyUnit, ListPropertyUnits, UpdatePropertyUnitStructure, type CreateUnitFields } from "./application/property-composition.js";
-export { PropertyBuildingNotFoundError, PropertyUnitNotFoundError, PropertyBuildingCodeConflictError, PropertyUnitCodeConflictError, type PropertyCompositionRepository, type CompositionCursor, type CompositionPage, type PropertyUnitView } from "./application/property-composition-repository.js";
+export { CreatePropertyBuilding, ListPropertyBuildings, UpdatePropertyBuilding, CreatePropertyUnit, ListPropertyUnits, UpdatePropertyUnitStructure, CreatePropertyComplexChild, ListPropertyComplexChildren, type CreateUnitFields } from "./application/property-composition.js";
+export { PropertyBuildingNotFoundError, PropertyUnitNotFoundError, PropertyBuildingCodeConflictError, PropertyUnitCodeConflictError, PropertyComplexChildCodeConflictError, type PropertyCompositionRepository, type CompositionCursor, type CompositionPage, type PropertyUnitView, type PropertyComplexChildView } from "./application/property-composition-repository.js";
 export type { PropertyRepository } from "./application/property-repository.js";
 export type {
   PropertyPortfolioQuery, PropertyPortfolioCriteria, PropertyPortfolioCursor,
@@ -112,7 +112,7 @@ export type {
   PropertyOwnerDirectoryItem, PropertyOwnerDirectoryPage,
 } from "./application/property-owner-directory-query.js";
 export { PropertyOwnershipPersistenceFailureError, type PropertyOwnershipRepository } from "./application/property-ownership-repository.js";
-export { Property, InvalidPropertyInputError, InvalidPropertyServerValueError, PersistedPropertyCorruptionError, PropertyStructuralRoleConflictError, PropertyAvailabilityDerivedFromUnitsError, PropertyPublicationRequirementsNotMetError, PropertyNotPublishedError, PropertyRepublicationNotSupportedError, PROPERTY_TYPES, TRANSACTION_TYPES, APARTMENT_SUBTYPES, PROPERTY_STATUSES, PROPERTY_STRUCTURAL_ROLES, PROPERTY_AVAILABILITY_STATUSES, PROPERTY_OCCUPANCY_STATUSES, type PropertyCoreInformation, type PropertyLocation, type PropertyType, type TransactionType, type ApartmentSubtype, type PropertyStatus, type PropertyStructuralRole, type PropertyAvailabilityStatus, type PropertyOccupancyStatus, type PropertyAvailabilitySnapshot, type PropertyPublicationRequirement } from "./domain/property.js";
+export { Property, InvalidPropertyInputError, InvalidPropertyServerValueError, PersistedPropertyCorruptionError, PropertyStructuralRoleConflictError, PropertyAvailabilityDerivedFromUnitsError, PropertyCommercialTargetNotEligibleError, PropertyPublicationRequirementsNotMetError, PropertyNotPublishedError, PropertyRepublicationNotSupportedError, PROPERTY_TYPES, BUILDING_COMMERCIALIZATION_MODES, TRANSACTION_TYPES, APARTMENT_SUBTYPES, PROPERTY_STATUSES, PROPERTY_STRUCTURAL_ROLES, PROPERTY_AVAILABILITY_STATUSES, PROPERTY_OCCUPANCY_STATUSES, type PropertyCoreInformation, type PropertyLocation, type PropertyType, type BuildingCommercializationMode, type TransactionType, type ApartmentSubtype, type PropertyStatus, type PropertyStructuralRole, type PropertyAvailabilityStatus, type PropertyOccupancyStatus, type PropertyAvailabilitySnapshot, type PropertyPublicationRequirement } from "./domain/property.js";
 export {
   PropertyGeolocation, InvalidPropertyGeolocationInputError,
   InvalidPropertyGeolocationServerValueError, PersistedPropertyGeolocationCorruptionError,

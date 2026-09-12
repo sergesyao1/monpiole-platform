@@ -69,6 +69,31 @@ function workspace(current: Property, owners: readonly { ownerId: string; owners
 afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
 describe("vertical slice Web Property", () => {
+  it("crée directement un immeuble avec un mode commercial explicite", async () => {
+    const created = { ...property, title: "Immeuble Horizon", propertyType: "BUILDING" as const,
+      commercializationMode: "WHOLE_BUILDING" as const, structuralRole: "COMPOSITE" as const };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/v1/properties") && init?.method === "POST") return json(created, 201);
+      if (url.endsWith(`/v1/properties/${PROPERTY_ID}`)) return json(created);
+      if (url.endsWith("/owners")) return json([]);
+      if (url.includes("/v1/property-owners?")) return json(ownerPage());
+      if (url.endsWith("/buildings")) return json({ items: [], pageInfo: { nextCursor: null, hasNextPage: false } });
+      return problem(500, "UNEXPECTED");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderPath("/properties/new");
+    fireEvent.change(screen.getByLabelText("Titre du bien"), { target: { value: "Immeuble Horizon" } });
+    fireEvent.change(screen.getByLabelText("Type de bien"), { target: { value: "BUILDING" } });
+    fireEvent.change(screen.getByLabelText("Mode de commercialisation"), { target: { value: "WHOLE_BUILDING" } });
+    fireEvent.change(screen.getByLabelText("Ville"), { target: { value: "Abidjan" } });
+    fireEvent.change(screen.getByLabelText("Quartier"), { target: { value: "Cocody" } });
+    fireEvent.change(screen.getByLabelText("Adresse"), { target: { value: "Rue 1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Créer le bien" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/v1/properties"), expect.objectContaining({ method: "POST" })));
+    const post = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
+    expect(JSON.parse(String(post?.[1]?.body))).toMatchObject({ propertyType: "BUILDING", commercializationMode: "WHOLE_BUILDING" });
+  });
   it("désactive les contrats et explique la raison pour un bien en vente", async () => {
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -114,10 +139,9 @@ describe("vertical slice Web Property", () => {
   });
 
   it.each([
-    ["STANDALONE", "Bien autonome"],
-    ["COMPOSITE", "Ensemble immobilier"],
-    ["UNIT", "Unité"],
-  ] as const)("affiche le rôle structurel %s en français", async (structuralRole, label) => {
+    ["STANDALONE", "Bien indépendant"],
+    ["UNIT", "Unité d’immeuble"],
+  ] as const)("affiche l’organisation %s en français", async (structuralRole, label) => {
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.endsWith(`/v1/properties/${PROPERTY_ID}`)) return json({ ...property, structuralRole });
@@ -326,14 +350,15 @@ describe("vertical slice Web Property", () => {
   });
 
   it("exige la sélection d’un propriétaire avant toute affectation", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => String(input).includes("/v1/property-owners?") ? json(ownerPage()) : String(input).endsWith("/owners") ? json([]) : json(property));
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => String(input).includes("/v1/property-owners?") ? json(ownerPage()) : String(input).endsWith("/owners") ? json([]) : json(property));
     vi.stubGlobal("fetch", fetchMock);
     renderPath(`/properties/${PROPERTY_ID}`);
     await screen.findByRole("heading", { name: property.title });
     fireEvent.change(screen.getByLabelText("Quote-part (%)"), { target: { value: "60" } });
     fireEvent.click(screen.getByRole("button", { name: "Affecter le propriétaire" }));
     expect(await screen.findByText("Sélectionnez un propriétaire disponible.")).toBeInTheDocument();
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(9));
+    expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith("/buildings"))).toBe(false);
+    expect(fetchMock.mock.calls.some(([input, init]) => String(input).endsWith("/owners") && init?.method === "POST")).toBe(false);
   });
 
   it("affecte un propriétaire existant avec le bearer token", async () => {

@@ -227,6 +227,10 @@ grant. Missing and cross-tenant parents, Buildings, and Units return the same
 non-revealing 404 contract; duplicate codes and structural-role violations use
 stable 409 problem codes. There are intentionally no delete, move, or reparent
 routes in this slice.
+The authenticated Property Workspace response may include
+`composition.parentBuilding` for a Unit, resolved from the tenant-scoped
+Building/Unit relation. It is absent when no canonical relation is available;
+the browser does not supply or infer this parent.
 
 Each operation publishes only the path parameters present in its URL, all marked
 required. Mutation requests are strict, Unit descriptions accept up to 5,000
@@ -307,13 +311,13 @@ réponses Problem Details et en-têtes de traçage.
 La frontière privée authentifiée expose `GET` et `PUT
 /v1/properties/{propertyId}/availability`. `GET` requiert
 `RETRIEVE_PROPERTY_AVAILABILITY` et retourne soit l’absence ou le snapshot direct
-d’une Property `STANDALONE | UNIT`, soit les compteurs dérivés d’une Property
-`COMPOSITE`. `canUpdateAvailability` est une projection booléenne calculée depuis
+d’une Property `STANDALONE | UNIT` ou d'un immeuble `WHOLE_BUILDING`, soit les compteurs dérivés d’une Property
+`COMPOSITE` commercialisée par unités. `canUpdateAvailability` est une projection booléenne calculée depuis
 l’autorité interne ; aucun grant brut n’est sérialisé.
 
 `PUT` requiert `UPDATE_PROPERTY_AVAILABILITY`. Son body strict contient
 uniquement `availabilityStatus` (`AVAILABLE | UNAVAILABLE`) et
-`occupancyStatus` (`VACANT | OCCUPIED`). Une mutation de `COMPOSITE` retourne le
+`occupancyStatus` (`VACANT | OCCUPIED`). Une mutation de résidence ou d'immeuble `INDIVIDUAL_UNITS` retourne le
 Problem Details 409 stable `PROPERTY_AVAILABILITY_DERIVED_FROM_UNITS`; les
 erreurs d’authentification, d’autorisation et d’absence/cross-tenant conservent
 les conventions 401/403/404 non révélatrices. Le runtime PostgreSQL normal
@@ -330,3 +334,9 @@ Les routes privées `/v1/properties/{propertyId}/inquiries/{inquiryId}/viewing` 
 ## Property viewing outcomes
 
 Les routes privées `/v1/properties/{propertyId}/viewings/{viewingId}/outcome` enregistrent et consultent le résultat d’une visite terminée. Les sous-ressources `proceed` et `decline` prennent la décision terminale sous les grants Outcome dédiés, sans exposer le tenant ni créer de Client ou Contract.
+
+## Hiérarchie et commercialisation Property
+
+`POST /v1/properties` accepte `BUILDING` avec `commercializationMode` explicite (`WHOLE_BUILDING` ou `INDIVIDUAL_UNITS`) et `COMPLEX` comme résidence structurelle. `POST`/`GET /v1/properties/{propertyId}/children` créent et listent les biens individuels directement rattachés à une résidence, avec code unique et curseur opaque. Les routes `/buildings` et `/units` restent en place pour la hiérarchie immeuble/unité. Toutes ces routes déduisent le tenant de l'autorité authentifiée, valident strictement le body et appliquent RLS.
+
+La publication, la tarification, la disponibilité et l'éligibilité des baux suivent le mode persistant : immeuble entier comme cible directe, ou unités comme cibles individuelles. Une résidence n'est pas une annonce V1. Les refus métier sont retournés en Problem Details ; masquer un bouton Web n'est jamais le seul contrôle.

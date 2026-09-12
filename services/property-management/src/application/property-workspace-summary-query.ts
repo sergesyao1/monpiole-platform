@@ -7,6 +7,16 @@ export interface PropertyWorkspaceOwnerSummary {
 export interface PropertyWorkspaceCompositionSummary {
   readonly buildingCount: number;
   readonly unitCount: number;
+  readonly directChildCount?: number;
+  readonly parentComplex?: Readonly<{ propertyId: string; title: string }>;
+  readonly parentBuilding?: Readonly<{
+    buildingId: string;
+    buildingCode: string;
+    buildingName: string;
+    parentBuildingCommercializationMode?: "WHOLE_BUILDING" | "INDIVIDUAL_UNITS";
+    parentPropertyId: string;
+    parentPropertyTitle: string;
+  }>;
 }
 
 export interface PropertyWorkspaceContractSummary {

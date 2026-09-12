@@ -5,6 +5,7 @@ import {
   UpdatePropertyCoreInformation, UpdatePropertyDetails, InvalidPropertyDetailsError, IncompatibleCommercialTermsError,
   PublishProperty, PropertyPublicationRequirementsNotMetError, WithdrawPropertyFromCatalog,
   PropertyNotPublishedError, PropertyRepublicationNotSupportedError,
+  PropertyCommercialTargetNotEligibleError,
   assessPropertyPhotoReadiness, resolvePropertyPhotoStandard,
 } from "../../services/property-management/src/index.js";
 
@@ -53,6 +54,26 @@ function publishedProperty(): Property {
 }
 
 describe("Property Domain and Application", () => {
+  it("applique la matrice de publication des biens directs, immeubles et résidences", () => {
+    const base = { propertyId: PROPERTY_ID, tenantId: TENANT_A, title: "Bien test", transactionType: "LONG_TERM_RENTAL" as const,
+      location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue 1" },
+      createdAt: "2026-08-25T12:00:00.000Z", updatedAt: "2026-08-25T12:00:00.000Z" };
+    const terms = { kind: "LONG_TERM_RENTAL" as const, currency: "XOF" as const, rentAmountMinor: 100000, rentPeriod: "MONTH" as const };
+    const villa = Property.createStandalone({ ...base, propertyType: "HOUSE" }).defineDetails({ rooms: 3 }, terms, "2026-08-25T13:00:00.000Z");
+    expect(villa.publish("2026-08-25T14:00:00.000Z", STUDIO_PHOTOS).values.status).toBe("PUBLISHED");
+    const apartment = Property.createStandalone({ ...base, propertyType: "APARTMENT", apartmentSubtype: "STUDIO" })
+      .defineDetails({ rooms: 1 }, terms, "2026-08-25T13:00:00.000Z");
+    expect(apartment.publish("2026-08-25T14:00:00.000Z", STUDIO_PHOTOS).values.status).toBe("PUBLISHED");
+    const whole = Property.createComposite({ ...base, propertyType: "BUILDING", commercializationMode: "WHOLE_BUILDING" })
+      .defineDetails({ rooms: 4 }, terms, "2026-08-25T13:00:00.000Z");
+    expect(whole.publish("2026-08-25T14:00:00.000Z", STUDIO_PHOTOS).values.status).toBe("PUBLISHED");
+    const individual = Property.createComposite({ ...base, propertyType: "BUILDING", commercializationMode: "INDIVIDUAL_UNITS" });
+    expect(individual.assessPublicationReadiness(STUDIO_PHOTOS).missingRequirements).toContain("COMMERCIAL_TARGET");
+    expect(() => individual.setPricing(terms, "2026-08-25T13:00:00.000Z")).toThrow(PropertyCommercialTargetNotEligibleError);
+    const complex = Property.createComposite({ ...base, propertyType: "COMPLEX" });
+    expect(complex.assessPublicationReadiness(STUDIO_PHOTOS).missingRequirements).toContain("COMMERCIAL_TARGET");
+    expect(() => complex.setPricing(terms, "2026-08-25T13:00:00.000Z")).toThrow(PropertyCommercialTargetNotEligibleError);
+  });
   function useCases(repository = new MemoryRepository()) {
     return { repository, create: new CreateProperty(repository, { generate: () => PROPERTY_ID }, { now: () => "2026-08-25T12:00:00.000Z" }), retrieve: new RetrieveProperty(repository) };
   }
