@@ -82,7 +82,32 @@ export class PostgresPropertyWorkspaceSummaryQuery implements PropertyWorkspaceS
           ON building.tenant_id=parent.tenant_id AND building.property_id=parent.property_id
         WHERE building.tenant_id=$1::uuid AND building.building_property_id=$2::uuid
           AND building.property_id<>building.building_property_id
+        UNION ALL
+        SELECT parent.property_id, parent.title FROM property_management.properties parent
+        JOIN property_management.property_buildings building
+          ON building.tenant_id=parent.tenant_id AND building.property_id=parent.property_id
+        JOIN property_management.property_building_units unit
+          ON unit.tenant_id=building.tenant_id AND unit.building_id=building.building_id
+        WHERE unit.tenant_id=$1::uuid AND unit.unit_property_id=$2::uuid
+          AND building.building_property_id IS NOT NULL AND building.property_id<>building.building_property_id
       `, [tenantId, propertyId]);
+      const ownerParentIds = [parentRows[0]?.parentPropertyId, parentComplexRows[0]?.property_id]
+        .filter((id): id is string => id !== undefined && id !== propertyId);
+      const inheritedOwnerRows = ownerRows.length > 0 || ownerParentIds.length === 0 ? [] : await scope.query<{
+        owner_id: string; display_name: string; source_property_id: string; source_title: string;
+      }>(`
+        SELECT owner.owner_id,
+          CASE WHEN owner.owner_type='INDIVIDUAL' THEN concat_ws(' ', owner.first_name, owner.last_name) ELSE owner.legal_name END AS display_name,
+          parent.property_id AS source_property_id, parent.title AS source_title
+        FROM property_management.property_ownerships ownership
+        JOIN property_management.property_owners owner
+          ON owner.tenant_id=ownership.tenant_id AND owner.owner_id=ownership.owner_id
+        JOIN property_management.properties parent
+          ON parent.tenant_id=ownership.tenant_id AND parent.property_id=ownership.property_id
+        WHERE ownership.tenant_id=$1::uuid AND ownership.property_id=ANY($2::uuid[])
+        ORDER BY array_position($2::uuid[], ownership.property_id), ownership.created_at, ownership.owner_id
+        LIMIT 1
+      `, [tenantId, ownerParentIds]);
       const composition = compositionRow[0];
       const contracts = contractRow[0];
       if (composition === undefined || contracts === undefined) throw new Error("Property workspace aggregation failed");
@@ -94,6 +119,10 @@ export class PostgresPropertyWorkspaceSummaryQuery implements PropertyWorkspaceS
             : owner.legalName!,
           ownershipShare: ownership.ownershipShare,
         })),
+        ...(inheritedOwnerRows[0] === undefined ? {} : { effectiveOwner: {
+          ownerId: inheritedOwnerRows[0].owner_id, displayName: inheritedOwnerRows[0].display_name,
+          sourcePropertyId: inheritedOwnerRows[0].source_property_id, sourceTitle: inheritedOwnerRows[0].source_title,
+        } }),
         composition: { ...composition,
           ...(parentRows[0] === undefined ? {} : { parentBuilding: {
             buildingId: parentRows[0].buildingId, buildingCode: parentRows[0].buildingCode,

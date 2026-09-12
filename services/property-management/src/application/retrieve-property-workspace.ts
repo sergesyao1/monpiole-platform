@@ -11,6 +11,7 @@ import { PropertyNotFoundError } from "./retrieve-property.js";
 import type { PropertyPublicationReadiness } from "../domain/property.js";
 
 export interface PropertyWorkspaceCapabilities {
+  readonly isCommercialTarget: boolean;
   readonly canUpdateCoreInformation: boolean;
   readonly canUpdateDetails: boolean;
   readonly canUpdatePricing: boolean;
@@ -73,8 +74,8 @@ export class RetrievePropertyWorkspace {
       publicationReadiness,
       ...summary,
       leaseEligibility: leaseTarget.eligibility,
-      capabilities: capabilities(query.authority, property.values.status, availability.source, publicationReadiness.ready,
-        property.values.propertyType, property.values.commercializationMode),
+    capabilities: capabilities(query.authority, property.values.status, availability.source, publicationReadiness.ready,
+        !publicationReadiness.missingRequirements.includes("COMMERCIAL_TARGET")),
     };
   }
 }
@@ -84,15 +85,14 @@ function capabilities(
   status: PropertyView["status"],
   availabilitySource: PropertyAvailabilityReadModel["source"],
   readyForPublication: boolean,
-  propertyType: PropertyView["propertyType"],
-  commercializationMode: PropertyView["commercializationMode"],
+  isCommercialTarget: boolean,
 ): PropertyWorkspaceCapabilities {
   const has = (grant: PropertyAuthority["grants"][number]) => authority.grants.includes(grant);
   return {
+    isCommercialTarget,
     canUpdateCoreInformation: has("UPDATE_PROPERTY_CORE_INFORMATION"),
     canUpdateDetails: has("UPDATE_PROPERTY_DETAILS"),
-    canUpdatePricing: propertyType !== "COMPLEX" && !(propertyType === "BUILDING" && commercializationMode === "INDIVIDUAL_UNITS")
-      && has("UPDATE_PROPERTY_PRICING"),
+    canUpdatePricing: isCommercialTarget && has("UPDATE_PROPERTY_PRICING"),
     canUpdateAvailability: availabilitySource === "DIRECT" && has("UPDATE_PROPERTY_AVAILABILITY"),
     canManagePhotos: has("CREATE_PROPERTY_PHOTO") || has("DELETE_PROPERTY_PHOTO")
       || has("REORDER_PROPERTY_PHOTOS") || has("SELECT_PROPERTY_PRIMARY_PHOTO"),

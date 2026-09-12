@@ -9,10 +9,11 @@ import { Alert, Button, Field, LoadingState } from "../../ui/index.js";
 
 interface OwnershipView { readonly ownership: PropertyOwnership; readonly displayName: string; }
 
-export function PropertyOwnershipSection({ propertyId, api, initialOwners, canManage = true, onChanged }: Readonly<{
+export function PropertyOwnershipSection({ propertyId, api, initialOwners, inheritedOwner, canManage = true, onChanged }: Readonly<{
   propertyId: string;
   api: PropertyApi;
   initialOwners?: readonly PropertyWorkspaceOwnerSummary[];
+  inheritedOwner?: Readonly<{ displayName: string; sourcePropertyId: string; sourceTitle: string }>;
   canManage?: boolean;
   onChanged?: () => void | Promise<void>;
 }>) {
@@ -97,7 +98,8 @@ export function PropertyOwnershipSection({ propertyId, api, initialOwners, canMa
       <div className="section-heading"><div><p className="eyebrow">Propriété</p><h2 id="property-owners-title">Propriétaires affectés</h2></div></div>
       {error && <PropertyFeedback error={error} />}
       {loading ? <LoadingState label="Chargement des propriétaires…" /> : items.length === 0 ? (
-        <p className="muted-status">Aucun propriétaire n’est encore affecté à ce bien.</p>
+        inheritedOwner ? <p><strong>{inheritedOwner.displayName}</strong><br />Hérité de : <a href={`/properties/${inheritedOwner.sourcePropertyId}`}>{inheritedOwner.sourceTitle}</a></p>
+          : <p className="muted-status">Aucun propriétaire n’est encore affecté à ce bien.</p>
       ) : (
         <ul className="ownership-list">
           {items.map(({ ownership, displayName }) => <li key={ownership.ownerId}>

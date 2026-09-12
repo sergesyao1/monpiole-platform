@@ -29,6 +29,8 @@ export function PropertyGeolocationSection({ propertyId, api, onReconnect }: Pro
   const [reload, setReload] = useState(0);
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
+  const [editingOverride, setEditingOverride] = useState(false);
+  const editableGeolocation = geolocation?.source === "OWN" ? geolocation : { configured: false, source: "OWN" } as const;
 
   useEffect(() => {
     let active = true;
@@ -39,6 +41,7 @@ export function PropertyGeolocationSection({ propertyId, api, onReconnect }: Pro
         if (!active) return;
         const next = validResponse(value) ? value : { configured: false, source: "OWN" } as const;
         setGeolocation(next);
+        setEditingOverride(false);
         setLatitude(next.configured ? formatCoordinate(next.latitude) : "");
         setLongitude(next.configured ? formatCoordinate(next.longitude) : "");
       })
@@ -96,20 +99,21 @@ export function PropertyGeolocationSection({ propertyId, api, onReconnect }: Pro
       {!loading && error && <><PropertyFeedback error={error} onReconnect={onReconnect} /><Button variant="secondary" onClick={() => setReload((value) => value + 1)}>Réessayer</Button></>}
       {!loading && !error && geolocation?.source === "INHERITED" && (
         <div className="form-stack">
-          <p>Cette unité hérite de la géolocalisation de son ensemble immobilier. La position ne peut pas être modifiée ici.</p>
+          <p>Localisation héritée du bien parent. Vous pouvez définir une position propre à ce bien.</p>
           {geolocation.configured
             ? <dl className="definition-grid"><div><dt>Latitude</dt><dd>{formatCoordinate(geolocation.latitude)}</dd></div><div><dt>Longitude</dt><dd>{formatCoordinate(geolocation.longitude)}</dd></div><div><dt>Visibilité</dt><dd>{propertyGeolocationPublicVisibilityLabels[geolocation.publicVisibility]}</dd></div></dl>
             : <p role="status">Aucune géolocalisation n’est configurée sur l’ensemble immobilier parent.</p>}
           <Link className={buttonClassName("secondary", "inline-action")} to={`/properties/${geolocation.inheritedFromPropertyId}`}>Ouvrir l’ensemble immobilier parent</Link>
+          {!editingOverride && <Button variant="secondary" onClick={() => setEditingOverride(true)}>Définir une localisation propre</Button>}
         </div>
       )}
-      {!loading && !error && geolocation?.source === "OWN" && (
-        <form className="form-stack" onSubmit={(event) => void save(event)} key={formKey(geolocation)} noValidate>
-          {!geolocation.configured && <p role="status">Aucune géolocalisation n’est enregistrée pour ce bien.</p>}
+      {!loading && !error && (geolocation?.source === "OWN" || editingOverride) && (
+        <form className="form-stack" onSubmit={(event) => void save(event)} key={editingOverride ? "override" : formKey(editableGeolocation)} noValidate>
+          {!editableGeolocation.configured && <p role="status">Aucune géolocalisation n’est enregistrée pour ce bien.</p>}
           <div className="form-grid">
             <Field label="Latitude"><input name="latitude" required inputMode="decimal" placeholder="5.336000" value={latitude} onChange={(event) => setLatitude(event.currentTarget.value)} /></Field>
             <Field label="Longitude"><input name="longitude" required inputMode="decimal" placeholder="-4.027000" value={longitude} onChange={(event) => setLongitude(event.currentTarget.value)} /></Field>
-            <Field label="Visibilité de la position" help="La position approximative utilise une grille stable d’environ un kilomètre."><select name="publicVisibility" defaultValue={geolocation.configured ? geolocation.publicVisibility : "HIDDEN"}>
+            <Field label="Visibilité de la position" help="La position approximative utilise une grille stable d’environ un kilomètre."><select name="publicVisibility" defaultValue={editableGeolocation.configured ? editableGeolocation.publicVisibility : "HIDDEN"}>
               <option value="EXACT">Position exacte</option>
               <option value="APPROXIMATE">Position approximative</option>
               <option value="HIDDEN">Masquer la position</option>
@@ -121,7 +125,7 @@ export function PropertyGeolocationSection({ propertyId, api, onReconnect }: Pro
           {saved && <Alert tone="success" title="Géolocalisation à jour"><p>La décision de confidentialité a été enregistrée.</p></Alert>}
           <div className="form-actions">
             <Button type="submit" disabled={removing} loading={saving} loadingLabel="Enregistrement…">Enregistrer la géolocalisation</Button>
-            {geolocation.configured && <Button variant="danger" disabled={saving} loading={removing} loadingLabel="Suppression…" onClick={() => void remove()}>Supprimer la géolocalisation</Button>}
+            {editableGeolocation.configured && <Button variant="danger" disabled={saving} loading={removing} loadingLabel="Suppression…" onClick={() => void remove()}>Supprimer la géolocalisation</Button>}
           </div>
         </form>
       )}

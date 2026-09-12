@@ -29,6 +29,7 @@ export interface PropertyWorkspaceContractSummary {
 
 export interface PropertyWorkspaceSummary {
   readonly owners: readonly PropertyWorkspaceOwnerSummary[];
+  readonly effectiveOwner?: Readonly<{ ownerId: string; displayName: string; sourcePropertyId: string; sourceTitle: string }>;
   readonly composition: PropertyWorkspaceCompositionSummary;
   readonly contracts: PropertyWorkspaceContractSummary;
 }

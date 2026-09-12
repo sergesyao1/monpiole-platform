@@ -7,6 +7,7 @@ export interface PropertyPortfolioCursor {
 
 export interface PropertyPortfolioItem {
   readonly propertyId: string;
+  readonly parent?: Readonly<{ propertyId: string; title: string }>;
   readonly title: string;
   readonly description?: string;
   readonly propertyType: PropertyType;
@@ -31,6 +32,7 @@ export interface PropertyPortfolioItem {
     phoneNumber?: string;
     email?: string;
     additionalOwnerCount: number;
+    inheritedFrom?: Readonly<{ propertyId: string; title: string }>;
   }>;
 }
 

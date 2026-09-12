@@ -886,6 +886,170 @@ async function migrationsThrough(lastIndex: number) {
   return folder;
 }
 
+describe("Property portfolio hierarchy and inherited ownership", () => {
+  it("preserves Residence → Building → Unit hierarchy and applies nearest-owner inheritance", async () => {
+    const propertyRepository = new PostgresPropertyRepository(runtime);
+    const compositionRepository = new PostgresPropertyCompositionRepository(runtime);
+    const now = { now: () => "2026-09-12T12:00:00.000Z" };
+
+    const residenceId = "10101010-1010-4010-8010-101010101010";
+    const buildingId = "20202020-2020-4020-8020-202020202020";
+    const buildingPropertyId = "30303030-3030-4030-8030-303030303030";
+    const unitId = "40404040-4040-4040-8040-404040404040";
+
+    const residenceOwnerId = "50505050-5050-4050-8050-505050505050";
+    const buildingOwnerId = "60606060-6060-4060-8060-606060606060";
+    const unitOwnerId = "70707070-7070-4070-8070-707070707070";
+
+    const compositionActor = {
+      ...compositionAuthority(TENANT_A),
+      grants: ["CREATE_PROPERTY", ...compositionAuthority(TENANT_A).grants] as const,
+    };
+
+    const location = {
+      country: "CI",
+      city: "Abidjan",
+      district: "Cocody",
+      addressLine: "Rue des Jardins",
+    };
+
+    await new CreateProperty(
+      propertyRepository,
+      { generate: () => residenceId },
+      now,
+      compositionRepository,
+    ).execute({
+      authority: compositionActor,
+      correlationId: CORRELATION,
+      title: "Résidence YAO",
+      propertyType: "COMPLEX",
+      transactionType: "LONG_TERM_RENTAL",
+      location,
+    });
+
+    const buildingIds = [buildingId, buildingPropertyId];
+    const building = await new CreatePropertyBuilding(
+      propertyRepository,
+      compositionRepository,
+      { generate: () => buildingIds.shift()! },
+      now,
+    ).execute({
+      authority: compositionActor,
+      correlationId: CORRELATION,
+      propertyId: residenceId,
+      buildingCode: "BAT-A",
+      name: "Immeuble Horizon",
+      commercializationMode: "INDIVIDUAL_UNITS",
+    });
+
+    expect(building.buildingPropertyId).toBe(buildingPropertyId);
+
+    const unit = await new CreatePropertyUnit(
+      compositionRepository,
+      { generate: () => unitId },
+      now,
+    ).execute({
+      authority: compositionActor,
+      correlationId: CORRELATION,
+      propertyId: buildingPropertyId,
+      buildingId,
+      unitCode: "A-01",
+      title: "Appartement A01",
+      propertyType: "APARTMENT",
+      apartmentSubtype: "STUDIO",
+      transactionType: "LONG_TERM_RENTAL",
+      location,
+    });
+
+    expect(unit.property.propertyId).toBe(unitId);
+
+    await createOwner(undefined, TENANT_A, "INDIVIDUAL", residenceOwnerId);
+    await createOwner(undefined, TENANT_A, "LEGAL_ENTITY", buildingOwnerId);
+    await createOwner(undefined, TENANT_A, "INDIVIDUAL", unitOwnerId);
+
+    const ownershipRepository = new PostgresPropertyOwnershipRepository(runtime);
+    const assign = new AssignPropertyOwner(
+      ownershipRepository,
+      { now: () => "2026-09-12T13:00:00.000Z" },
+    );
+    const assignAuthority = {
+      ...authority(TENANT_A),
+      grants: ["ASSIGN_PROPERTY_OWNER"] as const,
+    };
+
+    const list = new ListProperties(new PostgresPropertyPortfolioQuery(runtime));
+    const listAuthority = {
+      ...authority(TENANT_A),
+      grants: ["LIST_PROPERTIES"] as const,
+    };
+
+    const findUnit = async () => {
+      const page = await list.execute({
+        authority: listAuthority,
+        limit: 20,
+      });
+
+      const item = page.items.find((candidate) => candidate.propertyId === unitId);
+      expect(item).toBeDefined();
+      return item!;
+    };
+
+    await assign.execute({
+      authority: assignAuthority,
+      correlationId: CORRELATION,
+      propertyId: residenceId,
+      ownerId: residenceOwnerId,
+      ownershipShare: 100,
+    });
+
+    const inheritedFromResidence = await findUnit();
+
+    expect(inheritedFromResidence.parent).toEqual({
+      propertyId: buildingPropertyId,
+      title: "Immeuble Horizon",
+    });
+    expect(inheritedFromResidence.owner).toMatchObject({
+      ownerId: residenceOwnerId,
+      inheritedFrom: {
+        propertyId: residenceId,
+        title: "Résidence YAO",
+      },
+    });
+
+    await assign.execute({
+      authority: assignAuthority,
+      correlationId: CORRELATION,
+      propertyId: buildingPropertyId,
+      ownerId: buildingOwnerId,
+      ownershipShare: 100,
+    });
+
+    const inheritedFromBuilding = await findUnit();
+
+    expect(inheritedFromBuilding.owner).toMatchObject({
+      ownerId: buildingOwnerId,
+      inheritedFrom: {
+        propertyId: buildingPropertyId,
+        title: "Immeuble Horizon",
+      },
+    });
+
+    await assign.execute({
+      authority: assignAuthority,
+      correlationId: CORRELATION,
+      propertyId: unitId,
+      ownerId: unitOwnerId,
+      ownershipShare: 100,
+    });
+
+    const explicitlyOwned = await findUnit();
+
+    expect(explicitlyOwned.owner).toMatchObject({
+      ownerId: unitOwnerId,
+    });
+    expect(explicitlyOwned.owner?.inheritedFrom).toBeUndefined();
+  });
+});
 function ownerAuthority(tenantId: string) {
   return { actorId: "actor", authorityId: "authority", grants: ["CREATE_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNER", "UPDATE_PROPERTY_OWNER"] as const, tenantIds: [tenantId] };
 }

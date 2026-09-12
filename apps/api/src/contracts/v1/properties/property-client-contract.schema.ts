@@ -113,6 +113,7 @@ export const PropertyWorkspaceResponseSchema = z.object({
   owners: z.array(z.object({
     ownerId: z.uuid(), displayName: z.string(), ownershipShare: z.number().positive().max(100),
   }).strict()),
+  effectiveOwner: z.object({ ownerId: z.uuid(), displayName: z.string(), sourcePropertyId: z.uuid(), sourceTitle: z.string() }).strict().optional(),
   composition: z.object({
     buildingCount: NonNegativeCountSchema, unitCount: NonNegativeCountSchema,
     directChildCount: NonNegativeCountSchema.optional(),
@@ -132,6 +133,7 @@ export const PropertyWorkspaceResponseSchema = z.object({
     z.object({ eligible: z.literal(false), reasonCode: z.enum(["NOT_LONG_TERM_RENTAL", "INVALID_RENTAL_TARGET"]) }).strict(),
   ]),
   capabilities: z.object({
+    isCommercialTarget: z.boolean(),
     canUpdateCoreInformation: z.boolean(), canUpdateDetails: z.boolean(), canUpdatePricing: z.boolean(),
     canUpdateAvailability: z.boolean(), canManagePhotos: z.boolean(), canPublish: z.boolean(),
     canWithdrawFromCatalog: z.boolean(), canManageOwners: z.boolean(), canManageComposition: z.boolean(),

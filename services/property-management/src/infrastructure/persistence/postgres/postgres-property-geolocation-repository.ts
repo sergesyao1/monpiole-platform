@@ -7,7 +7,6 @@ import {
   type PropertyGeolocationMutationTrace,
   type PropertyGeolocationRepository,
   type PropertyGeolocationResolution,
-  PropertyUnitGeolocationInheritedError,
 } from "../../../application/property-geolocation-repository.js";
 import {
   PropertyGeolocation,
@@ -31,9 +30,23 @@ export class PostgresPropertyGeolocationRepository implements PropertyGeolocatio
         .where(and(eq(properties.tenantId, tenantId), eq(properties.propertyId, propertyId)))
         .limit(1))[0];
       if (property === undefined) return undefined;
+      const own = await findRow(scope.database(), tenantId, propertyId);
+      if (own !== undefined) return { source: "OWN", geolocation: toGeolocation(own) };
+
       if (property.structuralRole !== "UNIT") {
-        const row = await findRow(scope.database(), tenantId, propertyId);
-        return row === undefined ? { source: "OWN" } : { source: "OWN", geolocation: toGeolocation(row) };
+        const parents = await scope.query<{ parent_id: string }>(`
+          SELECT complex_property_id AS parent_id FROM property_management.property_complex_children
+          WHERE tenant_id=$1::uuid AND child_property_id=$2::uuid
+          UNION ALL
+          SELECT property_id AS parent_id FROM property_management.property_buildings
+          WHERE tenant_id=$1::uuid AND building_property_id=$2::uuid AND property_id<>building_property_id
+        `, [tenantId, propertyId]);
+        const parentId = parents[0]?.parent_id;
+        if (parentId === undefined) return { source: "OWN" };
+        const inherited = await findRow(scope.database(), tenantId, parentId);
+        return inherited === undefined
+          ? { source: "INHERITED", inheritedFromPropertyId: parentId }
+          : { source: "INHERITED", inheritedFromPropertyId: parentId, geolocation: toGeolocation(inherited) };
       }
 
       const relation = (await scope.database().select({ buildingId: propertyBuildingUnits.buildingId })
@@ -58,14 +71,13 @@ export class PostgresPropertyGeolocationRepository implements PropertyGeolocatio
           eq(properties.propertyId, effectiveParentId),
         )).limit(1))[0];
       if (parent?.structuralRole !== "COMPOSITE") throw new PersistedPropertyCorruptionError("buildingUnit");
-      const row = await findRow(scope.database(), tenantId, effectiveParentId);
-      return row === undefined
-        ? { source: "INHERITED", inheritedFromPropertyId: effectiveParentId }
-        : {
-          source: "INHERITED",
-          inheritedFromPropertyId: effectiveParentId,
-          geolocation: toGeolocation(row),
-        };
+      const parentIds = effectiveParentId === building.parentPropertyId
+        ? [effectiveParentId] : [effectiveParentId, building.parentPropertyId];
+      for (const parentId of parentIds) {
+        const row = await findRow(scope.database(), tenantId, parentId);
+        if (row !== undefined) return { source: "INHERITED", inheritedFromPropertyId: parentId, geolocation: toGeolocation(row) };
+      }
+      return { source: "INHERITED", inheritedFromPropertyId: effectiveParentId };
     });
   }
 
@@ -82,7 +94,6 @@ export class PostgresPropertyGeolocationRepository implements PropertyGeolocatio
         .limit(1)
         .for("update"))[0];
       if (property === undefined) return undefined;
-      if (property.structuralRole === "UNIT") throw new PropertyUnitGeolocationInheritedError();
       const currentRow = await findRow(scope.database(), tenantId, propertyId);
       if (currentRow !== undefined) {
         const current = toGeolocation(currentRow);
@@ -120,7 +131,6 @@ export class PostgresPropertyGeolocationRepository implements PropertyGeolocatio
         .limit(1)
         .for("update"))[0];
       if (property === undefined) return undefined;
-      if (property.structuralRole === "UNIT") throw new PropertyUnitGeolocationInheritedError();
       const current = await findRow(scope.database(), tenantId, propertyId);
       if (current === undefined) return false;
       await scope.database().delete(propertyGeolocations).where(and(

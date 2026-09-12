@@ -138,7 +138,7 @@ export function PropertyWorkspacePage() {
         {!loading && !initialError && items.length > 0 && (
           <>
             <ul className="property-portfolio-list">
-              {items.map((property) => <PropertyPortfolioCard key={property.propertyId} property={property} />)}
+              {portfolioTree(items).map((node) => <PortfolioNode key={node.propertyId} node={node} />)}
             </ul>
             {nextPageError && <Alert tone="danger" title="La page suivante n’a pas pu être chargée."><p>{nextPageError.message} Les biens déjà affichés restent disponibles.</p></Alert>}
             <div className="portfolio-pagination">
@@ -152,9 +152,41 @@ export function PropertyWorkspacePage() {
   );
 }
 
+interface PortfolioTreeNode {
+  readonly propertyId: string;
+  readonly property?: PropertyPortfolioItem;
+  readonly title: string;
+  readonly children: readonly PortfolioTreeNode[];
+}
+
+function portfolioTree(items: readonly PropertyPortfolioItem[]): readonly PortfolioTreeNode[] {
+  const nodes = new Map<string, { propertyId: string; property?: PropertyPortfolioItem; title: string; children: PortfolioTreeNode[] }>();
+  for (const property of items) nodes.set(property.propertyId, { propertyId: property.propertyId, property, title: property.title, children: [] });
+  for (const property of items) {
+    if (property.parent && !nodes.has(property.parent.propertyId)) nodes.set(property.parent.propertyId, {
+      propertyId: property.parent.propertyId, title: property.parent.title, children: [],
+    });
+  }
+  const roots: PortfolioTreeNode[] = [];
+  for (const node of nodes.values()) {
+    const parent = node.property?.parent === undefined ? undefined : nodes.get(node.property.parent.propertyId);
+    if (parent && parent !== node) parent.children.push(node);
+    else roots.push(node);
+  }
+  return roots;
+}
+
+function PortfolioNode({ node }: Readonly<{ node: PortfolioTreeNode }>) {
+  return <li className="portfolio-tree-node">
+    {node.property ? <PropertyPortfolioCard property={node.property} />
+      : <div className="portfolio-parent-context"><strong>{node.title}</strong><Link to={`/properties/${node.propertyId}`}>Consulter la fiche</Link></div>}
+    {node.children.length > 0 && <ul className="portfolio-tree-children">{node.children.map((child) => <PortfolioNode key={child.propertyId} node={child} />)}</ul>}
+  </li>;
+}
+
 function PropertyPortfolioCard({ property }: Readonly<{ property: PropertyPortfolioItem }>) {
   return (
-    <li className="property-portfolio-card">
+    <article className="property-portfolio-card">
       <FeaturedPhoto property={property} />
       <div className="property-portfolio-card-body">
       <div className="portfolio-card-heading">
@@ -171,13 +203,14 @@ function PropertyPortfolioCard({ property }: Readonly<{ property: PropertyPortfo
         <span>Propriétaire</span>
         {property.owner ? <>
           <strong>{property.owner.displayName}{property.owner.additionalOwnerCount > 0 ? ` + ${property.owner.additionalOwnerCount} autre${property.owner.additionalOwnerCount > 1 ? "s" : ""}` : ""}</strong>
+          {property.owner.inheritedFrom && <small>Hérité de : {property.owner.inheritedFrom.title}</small>}
           {property.owner.phoneNumber && <a href={`tel:${property.owner.phoneNumber}`}>{property.owner.phoneNumber}</a>}
           {property.owner.email && <a href={`mailto:${property.owner.email}`}>{property.owner.email}</a>}
         </> : <strong>Non renseigné</strong>}
       </div>
       <Link className={buttonClassName("secondary", "inline-action")} to={`/properties/${property.propertyId}`} aria-label={`Consulter ${property.title}`}>Consulter la fiche</Link>
       </div>
-    </li>
+    </article>
   );
 }
 

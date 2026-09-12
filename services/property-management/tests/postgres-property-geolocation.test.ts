@@ -15,7 +15,6 @@ import {
   PostgresPropertyGeolocationRepository,
   PostgresPropertyRepository,
   PropertyNotFoundError,
-  PropertyUnitGeolocationInheritedError,
   RemovePropertyGeolocation,
   RetrievePropertyGeolocation,
   UpdatePropertyGeolocation,
@@ -193,7 +192,7 @@ describe("Property geolocation PostgreSQL persistence", () => {
       .rejects.toMatchObject({ code: "42501" });
   });
 
-  it("makes a Unit inherit its COMPOSITE parent and rejects own update or removal", async () => {
+  it("lets an explicit Unit position override inherited geolocation and restores inheritance on removal", async () => {
     await create(PARENT_ID);
     await owner.query("UPDATE property_management.properties SET structural_role = 'COMPOSITE' WHERE property_id = $1", [PARENT_ID]);
     await owner.query(`INSERT INTO property_management.properties
@@ -217,13 +216,17 @@ describe("Property geolocation PostgreSQL persistence", () => {
         configured: true, source: "INHERITED", inheritedFromPropertyId: PARENT_ID,
         latitude: 5.336789, longitude: -4.027123, publicVisibility: "HIDDEN",
       });
-    await expect(updater().execute({
+    await updater().execute({
       authority: authority(TENANT_A), correlationId: CORRELATION, propertyId: UNIT_ID,
       latitude: 5, longitude: -4, publicVisibility: "HIDDEN",
-    })).rejects.toBeInstanceOf(PropertyUnitGeolocationInheritedError);
-    await expect(new RemovePropertyGeolocation(repository).execute({
+    });
+    await expect(new RetrievePropertyGeolocation(repository).execute({ authority: authority(TENANT_A), propertyId: UNIT_ID }))
+      .resolves.toMatchObject({ configured: true, source: "OWN", latitude: 5, longitude: -4 });
+    await new RemovePropertyGeolocation(repository).execute({
       authority: authority(TENANT_A), correlationId: CORRELATION, propertyId: UNIT_ID,
-    })).rejects.toBeInstanceOf(PropertyUnitGeolocationInheritedError);
+    });
+    await expect(new RetrievePropertyGeolocation(repository).execute({ authority: authority(TENANT_A), propertyId: UNIT_ID }))
+      .resolves.toMatchObject({ configured: true, source: "INHERITED", inheritedFromPropertyId: PARENT_ID });
     expect((await owner.query("SELECT count(*)::int AS count FROM property_management.property_geolocations WHERE property_id = $1", [UNIT_ID])).rows[0])
       .toEqual({ count: 0 });
   });

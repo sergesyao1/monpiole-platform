@@ -131,6 +131,7 @@ export interface PropertyPortfolioFeaturedPhoto {
 }
 
 export interface PropertyPortfolioOwnerSummary {
+  readonly inheritedFrom?: Readonly<{ propertyId: string; title: string }>;
   readonly ownerId: string;
   readonly displayName: string;
   readonly phoneNumber?: string;
@@ -142,6 +143,7 @@ type PropertyPortfolioCore = Property extends infer Value
   ? Value extends Property ? Omit<Value, "details" | "commercialTerms" | "photos" | "primaryPhoto" | "canWithdrawFromCatalog"> : never
   : never;
 export type PropertyPortfolioItem = PropertyPortfolioCore & Readonly<{
+  parent?: Readonly<{ propertyId: string; title: string }>;
   featuredPhoto?: PropertyPortfolioFeaturedPhoto;
   photoCount: number;
   owner?: PropertyPortfolioOwnerSummary;
@@ -364,6 +366,7 @@ export interface PropertyWorkspace {
   readonly availability: PropertyAvailability;
   readonly publicationReadiness: PropertyPublicationReadiness;
   readonly owners: readonly PropertyWorkspaceOwnerSummary[];
+  readonly effectiveOwner?: Readonly<{ ownerId: string; displayName: string; sourcePropertyId: string; sourceTitle: string }>;
   readonly composition: Readonly<{ buildingCount: number; unitCount: number; directChildCount?: number; parentComplex?: Readonly<{ propertyId: string; title: string }>; parentBuilding?: Readonly<{
     buildingId: string; buildingCode: string; buildingName: string; parentPropertyId: string; parentPropertyTitle: string;
     parentBuildingCommercializationMode?: BuildingCommercializationMode;
@@ -373,6 +376,7 @@ export interface PropertyWorkspace {
   }>;
   readonly leaseEligibility: Readonly<{ eligible: true; blockedByActiveLease: boolean } | { eligible: false; reasonCode: "NOT_LONG_TERM_RENTAL" | "INVALID_RENTAL_TARGET" }>;
   readonly capabilities: Readonly<{
+    isCommercialTarget: boolean;
     canUpdateCoreInformation: boolean; canUpdateDetails: boolean; canUpdatePricing: boolean;
     canUpdateAvailability: boolean; canManagePhotos: boolean; canPublish: boolean;
     canWithdrawFromCatalog: boolean; canManageOwners: boolean; canManageComposition: boolean;

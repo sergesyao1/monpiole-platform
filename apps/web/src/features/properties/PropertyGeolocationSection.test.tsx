@@ -111,15 +111,17 @@ describe("Property geolocation Web", () => {
     confirm.mockRestore();
   });
 
-  it("renders a Unit's inherited position read-only with a parent link", async () => {
+  it("shows inherited position and offers an explicit override", async () => {
     const api = client({
       configured: true, source: "INHERITED", inheritedFromPropertyId: PARENT_ID,
       latitude: 5.336789, longitude: -4.027123, publicVisibility: "APPROXIMATE",
     });
     show(api);
-    expect(await screen.findByText(/Cette unité hérite/)).toBeVisible();
+    expect(await screen.findByText(/Localisation héritée/)).toBeVisible();
     expect(screen.getByText("Position approximative")).toBeVisible();
     expect(screen.queryByRole("button", { name: "Enregistrer la géolocalisation" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Définir une localisation propre" }));
+    expect(screen.getByRole("button", { name: "Enregistrer la géolocalisation" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Ouvrir l’ensemble immobilier parent" })).toHaveAttribute("href", `/properties/${PARENT_ID}`);
   });
 

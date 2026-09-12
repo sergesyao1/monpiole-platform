@@ -177,8 +177,10 @@ const PropertyPortfolioOwnerSchema = z.object({
   phoneNumber: z.string().min(1).optional(),
   email: z.email().optional(),
   additionalOwnerCount: z.number().int().nonnegative(),
+  inheritedFrom: z.object({ propertyId: z.uuid(), title: z.string() }).strict().optional(),
 }).strict();
 const PropertyPortfolioItemBaseShape = {
+  parent: z.object({ propertyId: z.uuid(), title: z.string() }).strict().optional(),
   propertyId: PropertyIdSchema,
   title: z.string(), description: z.string().optional(),
   propertyType: PropertyTypeSchema, transactionType: TransactionTypeSchema,
