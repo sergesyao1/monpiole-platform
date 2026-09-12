@@ -49,11 +49,16 @@ function page(items: readonly PropertyPortfolioItem[], nextCursor: string | null
   return { items, pageInfo: { nextCursor, hasNextPage: nextCursor !== null } };
 }
 
-function renderPortfolio(session: Session = authenticatedSession, owners: readonly PropertyOwner[] = []) {
+function renderPortfolio(
+  session: Session = authenticatedSession,
+  owners: readonly PropertyOwner[] = [],
+  initialEntry = "/properties",
+  interceptOwnerDirectory = true,
+) {
   const fixtureFetch = globalThis.fetch;
   vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
-    if (url.includes("/v1/property-owners?")) return json({ items: owners, pageInfo: { nextCursor: null, hasNextPage: false } });
+    if (interceptOwnerDirectory && url.includes("/v1/property-owners?")) return json({ items: owners, pageInfo: { nextCursor: null, hasNextPage: false } });
     if (!url.endsWith("/workspace")) return fixtureFetch(input, init);
     const response = await fixtureFetch(url.slice(0, -"/workspace".length), init);
     if (!response.ok) return response;
@@ -68,7 +73,15 @@ function renderPortfolio(session: Session = authenticatedSession, owners: readon
       capabilities: { canUpdateCoreInformation: true, canUpdateDetails: true, canUpdatePricing: true, canUpdateAvailability: true, canManagePhotos: true, canPublish: true, canWithdrawFromCatalog: false, canManageOwners: true, canManageComposition: true, canViewContracts: false, canCreateContract: false },
     });
   });
-  return render(<SessionContext value={session}><RouterProvider router={createMemoryRouter(applicationRoutes, { initialEntries: ["/properties"] })} /></SessionContext>);
+  return render(
+    <SessionContext value={session}>
+      <RouterProvider
+        router={createMemoryRouter(applicationRoutes, {
+          initialEntries: [initialEntry],
+        })}
+      />
+    </SessionContext>,
+  );
 }
 
 function deferred<ResponseValue>() {
@@ -313,9 +326,26 @@ describe("portefeuille immobilier Web", () => {
     fireEvent.change(screen.getByLabelText("Statut"), { target: { value: "DRAFT" } });
     fireEvent.change(screen.getByLabelText("Propriétaire"), { target: { value: owner.ownerId } });
     fireEvent.click(screen.getByRole("button", { name: "Appliquer les filtres" }));
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    const [url, options] = fetchMock.mock.calls[1]!;
-    expect(String(url)).toContain(`/v1/properties?limit=20&status=DRAFT&type=HOUSE&search=Lagune&ownerId=${owner.ownerId}`);
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(([input]) =>
+          String(input).includes(
+            `/v1/properties?limit=20&status=DRAFT&type=HOUSE&search=Lagune&ownerId=${owner.ownerId}`,
+          ),
+        ),
+      ).toBe(true);
+    });
+
+    const filteredPropertyRequest =
+      fetchMock.mock.calls.find(([input]) =>
+        String(input).includes(
+          `/v1/properties?limit=20&status=DRAFT&type=HOUSE&search=Lagune&ownerId=${owner.ownerId}`,
+        ),
+      );
+
+    expect(filteredPropertyRequest).toBeDefined();
+
+    const [url, options] = filteredPropertyRequest!;
     expect(new Headers(options?.headers).get("authorization")).toBe("Bearer portfolio-test-token");
     expect(String(url)).not.toContain("tenant");
   });
@@ -344,6 +374,286 @@ describe("portefeuille immobilier Web", () => {
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain("status=WITHDRAWN");
   });
 
+  it("restaure le filtre propriétaire depuis l’URL et le transmet à l’API", async () => {
+    const owner: PropertyOwner = {
+      ownerType: "INDIVIDUAL",
+      ownerId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+      firstName: "Blaise",
+      lastName: "Koffi",
+      createdAt: firstProperty.createdAt,
+      updatedAt: firstProperty.updatedAt,
+    };
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (
+        url.includes(
+          `/v1/property-owners/${owner.ownerId}`,
+        )
+      ) {
+        return json(owner);
+      }
+
+      if (url.includes("/v1/property-owners?")) {
+        return json({
+          items: [],
+          pageInfo: {
+            nextCursor: null,
+            hasNextPage: false,
+          },
+        });
+      }
+
+      return json(page([firstProperty]));
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderPortfolio(
+      authenticatedSession,
+      [],
+      `/properties?ownerId=${owner.ownerId}`,
+    );
+
+    await screen.findByRole("heading", {
+      name: firstProperty.title,
+    });
+
+    await waitFor(() => {
+      const propertyRequest = fetchMock.mock.calls.find(([input]) =>
+        String(input).includes("/v1/properties?"),
+      );
+
+      expect(propertyRequest).toBeDefined();
+      expect(String(propertyRequest?.[0])).toContain(
+        `ownerId=${owner.ownerId}`,
+      );
+    });
+
+    expect(
+      screen.getByLabelText("Propriétaire"),
+    ).toHaveValue(owner.ownerId);
+  });
+
+  it("recherche les propriétaires côté serveur avant sélection", async () => {
+    const owner: PropertyOwner = {
+      ownerType: "INDIVIDUAL",
+      ownerId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+      firstName: "Blaise",
+      lastName: "Koffi",
+      email: "blaise@example.ci",
+      createdAt: firstProperty.createdAt,
+      updatedAt: firstProperty.updatedAt,
+    };
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.includes("/v1/property-owners?")) {
+        return json({
+          items:
+            url.includes("search=Blaise")
+              ? [owner]
+              : [],
+          pageInfo: {
+            nextCursor: null,
+            hasNextPage: false,
+          },
+        });
+      }
+
+      return json(page([]));
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderPortfolio(
+      authenticatedSession,
+      [],
+      "/properties",
+      false,
+    );
+
+    await screen.findByRole("heading", {
+      name: "Aucun bien à afficher",
+    });
+
+    fireEvent.change(
+      screen.getByLabelText("Rechercher un propriétaire"),
+      {
+        target: {
+          value: "Blaise",
+        },
+      },
+    );
+
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(([input]) =>
+          String(input).includes(
+            "/v1/property-owners?limit=20&search=Blaise",
+          ),
+        ),
+      ).toBe(true);
+    });
+
+    expect(
+      await screen.findByRole("option", {
+        name: "Blaise Koffi",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("conserve ownerId pendant la pagination du portefeuille", async () => {
+    const owner: PropertyOwner = {
+      ownerType: "INDIVIDUAL",
+      ownerId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+      firstName: "Blaise",
+      lastName: "Koffi",
+      createdAt: firstProperty.createdAt,
+      updatedAt: firstProperty.updatedAt,
+    };
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (
+        url.includes(
+          `/v1/property-owners/${owner.ownerId}`,
+        )
+      ) {
+        return json(owner);
+      }
+
+      if (url.includes("/v1/property-owners?")) {
+        return json({
+          items: [owner],
+          pageInfo: {
+            nextCursor: null,
+            hasNextPage: false,
+          },
+        });
+      }
+
+      if (url.includes("cursor=next-owner-page")) {
+        return json(page([secondProperty]));
+      }
+
+      return json(page([firstProperty], "next-owner-page"));
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderPortfolio(
+      authenticatedSession,
+      [],
+      `/properties?ownerId=${owner.ownerId}`,
+    );
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Afficher plus de biens",
+      }),
+    );
+
+    expect(
+      await screen.findByRole("heading", {
+        name: secondProperty.title,
+      }),
+    ).toBeInTheDocument();
+
+    const paginatedRequest = fetchMock.mock.calls.find(([input]) =>
+      String(input).includes("cursor=next-owner-page"),
+    );
+
+    expect(paginatedRequest).toBeDefined();
+    expect(String(paginatedRequest?.[0])).toContain(
+      `ownerId=${owner.ownerId}`,
+    );
+  });
+
+  it("réinitialise les filtres et retire ownerId de l’URL applicative", async () => {
+    const owner: PropertyOwner = {
+      ownerType: "INDIVIDUAL",
+      ownerId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+      firstName: "Blaise",
+      lastName: "Koffi",
+      createdAt: firstProperty.createdAt,
+      updatedAt: firstProperty.updatedAt,
+    };
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (
+        url.includes(
+          `/v1/property-owners/${owner.ownerId}`,
+        )
+      ) {
+        return json(owner);
+      }
+
+      if (url.includes("/v1/property-owners?")) {
+        return json({
+          items: [owner],
+          pageInfo: {
+            nextCursor: null,
+            hasNextPage: false,
+          },
+        });
+      }
+
+      return json(page([firstProperty]));
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderPortfolio(
+      authenticatedSession,
+      [],
+      `/properties?search=Lagune&type=HOUSE&status=DRAFT&ownerId=${owner.ownerId}`,
+    );
+
+    await screen.findByRole("heading", {
+      name: firstProperty.title,
+    });
+
+    expect(screen.getByLabelText("Rechercher")).toHaveValue("Lagune");
+    expect(screen.getByLabelText("Type de bien")).toHaveValue("HOUSE");
+    expect(screen.getByLabelText("Statut")).toHaveValue("DRAFT");
+    expect(screen.getByLabelText("Propriétaire")).toHaveValue(
+      owner.ownerId,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Réinitialiser",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Rechercher")).toHaveValue("");
+      expect(screen.getByLabelText("Type de bien")).toHaveValue("");
+      expect(screen.getByLabelText("Statut")).toHaveValue("");
+      expect(screen.getByLabelText("Propriétaire")).toHaveValue("");
+    });
+
+    await waitFor(() => {
+      const propertyRequests = fetchMock.mock.calls.filter(([input]) =>
+        String(input).includes("/v1/properties"),
+      );
+
+      const lastRequest = String(
+        propertyRequests[propertyRequests.length - 1]?.[0],
+      );
+
+      expect(lastRequest).not.toContain("ownerId=");
+      expect(lastRequest).not.toContain("search=");
+      expect(lastRequest).not.toContain("status=");
+      expect(lastRequest).not.toContain("type=");
+    });
+  });
   it.each(["loading", "unauthenticated"] as const)("n’appelle pas l’API protégée avec une session %s", async (status) => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

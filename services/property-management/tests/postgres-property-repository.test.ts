@@ -1048,6 +1048,125 @@ describe("Property portfolio hierarchy and inherited ownership", () => {
       ownerId: unitOwnerId,
     });
     expect(explicitlyOwned.owner?.inheritedFrom).toBeUndefined();
+
+    const byResidenceOwner = await list.execute({
+      authority: listAuthority,
+      ownerId: residenceOwnerId,
+      limit: 20,
+    });
+
+    expect(byResidenceOwner.items.map((item) => item.propertyId)).toEqual([
+      residenceId,
+      buildingPropertyId,
+      unitId,
+    ]);
+
+    const byBuildingOwner = await list.execute({
+      authority: listAuthority,
+      ownerId: buildingOwnerId,
+      limit: 20,
+    });
+
+    expect(byBuildingOwner.items.map((item) => item.propertyId)).toEqual([
+      residenceId,
+      buildingPropertyId,
+      unitId,
+    ]);
+
+    const byUnitOwner = await list.execute({
+      authority: listAuthority,
+      ownerId: unitOwnerId,
+      limit: 20,
+    });
+
+    expect(byUnitOwner.items.map((item) => item.propertyId)).toEqual([
+      residenceId,
+      buildingPropertyId,
+      unitId,
+    ]);
+
+    const missingOwner = await list.execute({
+      authority: listAuthority,
+      ownerId: "80808080-8080-4080-8080-808080808080",
+      limit: 20,
+    });
+
+    expect(missingOwner.items).toEqual([]);
+    expect(missingOwner.nextCursor).toBeUndefined();
+
+    const crossTenant = await list.execute({
+      authority: {
+        ...authority(TENANT_B),
+        grants: ["LIST_PROPERTIES"] as const,
+      },
+      ownerId: residenceOwnerId,
+      limit: 20,
+    });
+
+    expect(crossTenant.items).toEqual([]);
+    expect(crossTenant.nextCursor).toBeUndefined();
+
+    const coOwnerId = "90909090-9090-4090-8090-909090909090";
+
+    await createOwner(
+      undefined,
+      TENANT_A,
+      "INDIVIDUAL",
+      coOwnerId,
+    );
+
+    await new RemovePropertyOwner(
+      ownershipRepository,
+      { now: () => "2026-09-12T14:00:00.000Z" },
+    ).execute({
+      authority: {
+        ...authority(TENANT_A),
+        grants: ["REMOVE_PROPERTY_OWNER"] as const,
+      },
+      correlationId: CORRELATION,
+      propertyId: buildingPropertyId,
+      ownerId: buildingOwnerId,
+    });
+
+    await assign.execute({
+      authority: assignAuthority,
+      correlationId: CORRELATION,
+      propertyId: buildingPropertyId,
+      ownerId: buildingOwnerId,
+      ownershipShare: 60,
+    });
+
+    await assign.execute({
+      authority: assignAuthority,
+      correlationId: CORRELATION,
+      propertyId: buildingPropertyId,
+      ownerId: coOwnerId,
+      ownershipShare: 40,
+    });
+
+    const byFirstCoOwner = await list.execute({
+      authority: listAuthority,
+      ownerId: buildingOwnerId,
+      limit: 20,
+    });
+
+    const bySecondCoOwner = await list.execute({
+      authority: listAuthority,
+      ownerId: coOwnerId,
+      limit: 20,
+    });
+
+    expect(byFirstCoOwner.items.map((item) => item.propertyId)).toEqual([
+      residenceId,
+      buildingPropertyId,
+      unitId,
+    ]);
+
+    expect(bySecondCoOwner.items.map((item) => item.propertyId)).toEqual([
+      residenceId,
+      buildingPropertyId,
+      unitId,
+    ]);
   });
 });
 describe("Property portfolio root-aware pagination PostgreSQL", () => {

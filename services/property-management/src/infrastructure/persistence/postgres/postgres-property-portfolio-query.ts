@@ -72,10 +72,38 @@ export class PostgresPropertyPortfolioQuery implements PropertyPortfolioQuery {
 
         matchConditions.push(`EXISTS (
           SELECT 1
-          FROM property_management.property_ownerships ownership
-          WHERE ownership.tenant_id = $1::uuid
-            AND ownership.property_id = hierarchy.property_id
-            AND ownership.owner_id = ${parameter}::uuid
+          FROM property_management.property_ownerships effective_ownership
+          WHERE effective_ownership.tenant_id = $1::uuid
+            AND effective_ownership.owner_id = ${parameter}::uuid
+            AND effective_ownership.property_id = CASE
+              WHEN EXISTS (
+                SELECT 1
+                FROM property_management.property_ownerships direct_ownership
+                WHERE direct_ownership.tenant_id = $1::uuid
+                  AND direct_ownership.property_id = hierarchy.property_id
+              )
+                THEN hierarchy.property_id
+
+              WHEN hierarchy.parent_id IS NOT NULL
+                AND EXISTS (
+                  SELECT 1
+                  FROM property_management.property_ownerships parent_ownership
+                  WHERE parent_ownership.tenant_id = $1::uuid
+                    AND parent_ownership.property_id = hierarchy.parent_id
+                )
+                THEN hierarchy.parent_id
+
+              WHEN hierarchy.grandparent_id IS NOT NULL
+                AND EXISTS (
+                  SELECT 1
+                  FROM property_management.property_ownerships grandparent_ownership
+                  WHERE grandparent_ownership.tenant_id = $1::uuid
+                    AND grandparent_ownership.property_id = hierarchy.grandparent_id
+                )
+                THEN hierarchy.grandparent_id
+
+              ELSE hierarchy.property_id
+            END
         )`);
       }
 
