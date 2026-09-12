@@ -192,6 +192,7 @@ export function createPostgresApiRuntime(
     retrievePropertyWorkspace: new RetrievePropertyWorkspace(
       propertyRepository, propertyAvailabilityQuery, propertyPhotoStandardRepository,
       new PostgresPropertyWorkspaceSummaryQuery(pool),
+      propertyContractRepository,
     ),
     publicCatalogTenantResolver: publicCatalogAllowlist.resolver,
     ...(publicCatalogQuery === undefined ? {} : {

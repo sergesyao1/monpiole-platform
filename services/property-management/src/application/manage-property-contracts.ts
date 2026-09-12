@@ -1,6 +1,7 @@
 import type { PropertyClient } from "../domain/property-client.js";
 import {
   PropertyContract,
+  PropertyContractPropertyNotEligibleError,
   type PropertyContractTerms,
   type PropertyContractType,
   type PropertyContractValues,
@@ -13,6 +14,7 @@ import type {
   PropertyContractRecord,
   PropertyContractRepository,
 } from "./property-contract-repository.js";
+import { PropertyContractPeriodConflictError } from "./property-contract-repository.js";
 import type { PropertyRepository } from "./property-repository.js";
 import { PropertyNotFoundError } from "./retrieve-property.js";
 
@@ -105,11 +107,17 @@ export class CreatePropertyContract {
     ]);
     if (property === undefined) throw new PropertyNotFoundError();
     if (client === undefined) throw new PropertyClientNotFoundError();
+    const target = await this.contracts.assessLeaseTarget(tenantId, command.propertyId);
+    if (target === undefined) throw new PropertyNotFoundError();
+    if (command.contractType === "LEASE" && !target.eligibility.eligible) throw new PropertyContractPropertyNotEligibleError();
+    if (command.contractType === "LEASE" && target.eligibility.eligible && target.eligibility.blockedByActiveLease) {
+      throw new PropertyContractPeriodConflictError();
+    }
     const now = this.clock.now();
     const contract = PropertyContract.create({
       contractId: this.identifiers.generate(), tenantId, propertyId: command.propertyId,
       ...toTerms(command), createdAt: now, updatedAt: now,
-    }, property.values);
+    }, target.context);
     await this.contracts.save(contract, trace(command));
     return toPropertyContractView({ contract, client }, command.authority);
   }
@@ -164,9 +172,12 @@ export class UpdatePropertyContract {
     ]);
     if (property === undefined) throw new PropertyNotFoundError();
     if (client === undefined) throw new PropertyClientNotFoundError();
+    const target = await this.contracts.assessLeaseTarget(tenantId, command.propertyId);
+    if (target === undefined) throw new PropertyNotFoundError();
+    if (command.contractType === "LEASE" && !target.eligibility.eligible) throw new PropertyContractPropertyNotEligibleError();
     const record = await this.contracts.updateAtomically(
       tenantId, command.propertyId, command.contractId,
-      (current) => current.update(toTerms(command), property.values, this.clock.now()),
+      (current) => current.update(toTerms(command), target.context, this.clock.now()),
       trace(command),
     );
     if (record === undefined) throw new PropertyContractNotFoundError();

@@ -1,5 +1,6 @@
 import type { PropertyClient } from "../domain/property-client.js";
 import type { PropertyContract } from "../domain/property-contract.js";
+import type { PropertyContractPropertyContext, PropertyLeaseEligibility } from "../domain/property-contract.js";
 
 export interface PropertyContractCursor {
   readonly createdAt: string;
@@ -29,6 +30,7 @@ export interface PropertyContractTrace {
 }
 
 export interface PropertyContractRepository {
+  assessLeaseTarget(tenantId: string, propertyId: string): Promise<Readonly<{ context: PropertyContractPropertyContext; eligibility: PropertyLeaseEligibility }> | undefined>;
   save(contract: PropertyContract, trace: PropertyContractTrace): Promise<void>;
   findById(tenantId: string, propertyId: string, contractId: string): Promise<PropertyContractRecord | undefined>;
   list(criteria: PropertyContractCriteria): Promise<PropertyContractPage | undefined>;
@@ -39,6 +41,11 @@ export interface PropertyContractRepository {
     update: (contract: PropertyContract) => PropertyContract,
     trace: PropertyContractTrace,
   ): Promise<PropertyContractRecord | undefined>;
+}
+
+export class PropertyContractPeriodConflictError extends Error {
+  readonly code = "PROPERTY_CONTRACT_PERIOD_CONFLICT";
+  constructor() { super("An active lease already exists for this rental target"); }
 }
 
 export class PropertyContractPersistenceFailureError extends Error {

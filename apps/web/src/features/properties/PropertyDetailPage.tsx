@@ -111,11 +111,15 @@ export function PropertyDetailPage() {
         ...(locationState.compositionContext.buildingName === undefined ? [] : [{ label: locationState.compositionContext.buildingName }]),
         { label: property.title },
       ];
+  const leaseEligible = workspace.leaseEligibility.eligible;
+  const leaseReason = workspace.leaseEligibility.eligible ? "" : workspace.leaseEligibility.reasonCode === "NOT_LONG_TERM_RENTAL"
+    ? "Les contrats de bail sont réservés aux biens proposés en location longue durée."
+    : "Ce bien ne constitue pas une cible de bail admissible. Vérifiez sa composition et son rattachement.";
 
   return (
     <div className="page-stack property-page">
       <PageHeader
-        actions={<><a className={buttonClassName("primary", "inline-action")} href="#property-contracts">Gérer les contrats</a><Link className={buttonClassName("secondary", "inline-action")} to="/properties">Retour aux biens</Link></>}
+        actions={<>{leaseEligible ? <a className={buttonClassName("primary", "inline-action")} href="#property-contracts">Gérer les contrats</a> : <button className={buttonClassName("primary", "inline-action")} disabled title={leaseReason}>Gérer les contrats</button>}<Link className={buttonClassName("secondary", "inline-action")} to="/properties">Retour aux biens</Link></>}
         breadcrumbs={breadcrumbs}
         eyebrow="Fiche du bien"
         title={property.title}
@@ -134,7 +138,7 @@ export function PropertyDetailPage() {
         <a aria-current={activeSection === "#property-overview" ? "location" : undefined} href="#property-overview">Vue d’ensemble</a>
         <a aria-current={activeSection === "#property-inquiries" ? "location" : undefined} href="#property-inquiries">Demandes</a>
         <a aria-current={activeSection === "#property-applications" ? "location" : undefined} href="#property-applications">Candidatures</a>
-        <a aria-current={activeSection === "#property-contracts" ? "location" : undefined} href="#property-contracts">Clients et contrats</a>
+        {leaseEligible ? <a aria-current={activeSection === "#property-contracts" ? "location" : undefined} href="#property-contracts">Clients et contrats</a> : <span aria-disabled="true" title={leaseReason}>Clients et contrats</span>}
         <a aria-current={activeSection === "#property-availability" ? "location" : undefined} href="#property-availability">Disponibilité</a>
         <a aria-current={activeSection === "#property-pricing" ? "location" : undefined} href="#property-pricing">Tarification</a>
         <a aria-current={activeSection === "#property-publication" ? "location" : undefined} href="#property-publication">Publication</a>
@@ -160,20 +164,21 @@ export function PropertyDetailPage() {
         <div className="workspace-summary-grid" aria-label="Synthèse opérationnelle">
           <a href="#property-availability"><strong>{availabilitySummary(workspace.availability)}</strong><span>Disponibilité</span></a>
           <a href="#property-publication"><strong>{workspace.publicationReadiness.ready ? "Prêt" : `${workspace.publicationReadiness.missingRequirements.length} à compléter`}</strong><span>Publication</span></a>
-          <a href="#property-contracts"><strong>{workspace.contracts.activeCount} actif{workspace.contracts.activeCount > 1 ? "s" : ""}</strong><span>{workspace.contracts.totalCount} contrat{workspace.contracts.totalCount > 1 ? "s" : ""}</span></a>
+          {leaseEligible ? <a href="#property-contracts"><strong>{workspace.contracts.activeCount} actif{workspace.contracts.activeCount > 1 ? "s" : ""}</strong><span>{workspace.contracts.totalCount} contrat{workspace.contracts.totalCount > 1 ? "s" : ""}</span></a> : <div title={leaseReason}><strong>Indisponible</strong><span>Contrats</span></div>}
           <a href="#property-owners"><strong>{workspace.owners.length}</strong><span>Propriétaire{workspace.owners.length > 1 ? "s" : ""}</span></a>
           <a href="#property-composition"><strong>{workspace.composition.unitCount}</strong><span>Unité{workspace.composition.unitCount > 1 ? "s" : ""} dans {workspace.composition.buildingCount} bâtiment{workspace.composition.buildingCount > 1 ? "s" : ""}</span></a>
         </div>
       </section>
 
-      <div id="property-contracts"><PropertyContractsSection
+      <div id="property-contracts">{leaseEligible ? <PropertyContractsSection
         propertyId={property.propertyId}
         api={api}
         canView={workspace.capabilities.canViewContracts}
         canCreate={workspace.capabilities.canCreateContract}
+        creationBlocked={workspace.leaseEligibility.eligible && workspace.leaseEligibility.blockedByActiveLease}
         onChanged={loadWorkspace}
         onReconnect={() => void session.login(`/properties/${propertyId}`)}
-      /></div>
+      /> : <section className="content-panel" aria-labelledby="property-contracts-unavailable"><h2 id="property-contracts-unavailable">Contrats indisponibles</h2><p>{leaseReason}</p></section>}</div>
 
       <div id="property-availability"><PropertyAvailabilitySection
         key={`${property.propertyId}:${property.structuralRole}`}

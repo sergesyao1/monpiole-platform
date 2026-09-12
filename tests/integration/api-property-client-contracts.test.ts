@@ -33,18 +33,27 @@ class Clients implements PropertyClientRepository {
   }
 }
 class Properties implements PropertyRepository {
-  readonly value = Property.createStandalone({
+  readonly value: Property;
+  constructor(transactionType: "LONG_TERM_RENTAL" | "SALE" = "LONG_TERM_RENTAL") { this.value = Property.createStandalone({
     propertyId: PROPERTY_ID, tenantId: TENANT, title: "Maison Lagune", propertyType: "HOUSE",
-    transactionType: "LONG_TERM_RENTAL", location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Riviera" },
+    transactionType, location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Riviera" },
     createdAt: NOW, updatedAt: NOW,
-  });
+  }); }
   async saveStandalone() {}
   async findById(tenantId: string, propertyId: string) { return tenantId === TENANT && propertyId === PROPERTY_ID ? this.value : undefined; }
   async updateAtomically() { return undefined; }
 }
 class Contracts implements PropertyContractRepository {
   readonly values = new Map<string, import("../../services/property-management/src/index.js").PropertyContract>();
-  constructor(private readonly clients: Clients) {}
+  constructor(private readonly clients: Clients, private readonly properties: Properties) {}
+  async assessLeaseTarget(tenantId: string, propertyId: string) {
+    return tenantId === TENANT && propertyId === PROPERTY_ID
+      ? { context: { structuralRole: "STANDALONE" as const, transactionType: this.properties.value.values.transactionType },
+        eligibility: this.properties.value.values.transactionType === "LONG_TERM_RENTAL"
+          ? { eligible: true as const, blockedByActiveLease: [...this.values.values()].some((value) => value.values.status === "ACTIVE" && value.values.contractType === "LEASE") }
+          : { eligible: false as const, reasonCode: "NOT_LONG_TERM_RENTAL" as const } }
+      : undefined;
+  }
   async save(value: import("../../services/property-management/src/index.js").PropertyContract) {
     if ([...this.values.values()].some((item) => item.values.tenantId === value.values.tenantId
       && item.values.reference === value.values.reference)) throw new PropertyContractReferenceConflictError();
@@ -78,8 +87,8 @@ describe("Property client, contract and workspace HTTP vertical slice", () => {
   let application: Awaited<ReturnType<typeof createApiApplication>> | undefined;
   let baseUrl = "";
 
-  async function start(options: { tenantId?: string | null; grants?: PropertyAuthority["grants"] } = {}) {
-    const clients = new Clients(); const properties = new Properties(); const contracts = new Contracts(clients);
+  async function start(options: { tenantId?: string | null; grants?: PropertyAuthority["grants"]; transactionType?: "LONG_TERM_RENTAL" | "SALE" } = {}) {
+    const clients = new Clients(); const properties = new Properties(options.transactionType); const contracts = new Contracts(clients, properties);
     const tenantId = options.tenantId === undefined ? TENANT : options.tenantId;
     const grants = options.grants ?? [
       "CREATE_PROPERTY_CLIENT", "RETRIEVE_PROPERTY_CLIENTS", "CREATE_PROPERTY_CONTRACT",
@@ -114,6 +123,7 @@ describe("Property client, contract and workspace HTTP vertical slice", () => {
             cancelledCount: [...contracts.values.values()].filter((value) => value.values.status === "CANCELLED").length,
           },
         }) : undefined },
+        contracts,
       ),
     });
     await application.listen(0, "127.0.0.1");
@@ -174,6 +184,32 @@ describe("Property client, contract and workspace HTTP vertical slice", () => {
     const cancelled = await request(`/v1/properties/${PROPERTY_ID}/contracts/${CONTRACT_ID}/cancel`, "POST");
     expect(cancelled.status).toBe(200);
     expect(PropertyContractResponseSchema.parse(await cancelled.json())).toMatchObject({ status: "CANCELLED" });
+  });
+  it("rejects a direct lease creation for a sale property and exposes the server reason", async () => {
+    await start({ transactionType: "SALE" });
+    await request("/v1/property-clients", "POST", { displayName: "Awa Koné" });
+    const workspace = PropertyWorkspaceResponseSchema.parse(await (await request(`/v1/properties/${PROPERTY_ID}/workspace`)).json());
+    expect(workspace.leaseEligibility).toEqual({ eligible: false, reasonCode: "NOT_LONG_TERM_RENTAL" });
+    const response = await request(`/v1/properties/${PROPERTY_ID}/contracts`, "POST", {
+      clientId: CLIENT_ID, contractType: "LEASE", reference: "bail-sale-001", startDate: "2026-10-01",
+    });
+    expect(response.status).toBe(409);
+    expect(ProblemDetailsSchema.parse(await response.json())).toMatchObject({ code: "PROPERTY_CONTRACT_PROPERTY_NOT_ELIGIBLE" });
+  });
+  it("rejects direct creation of a future lease while another lease is ACTIVE", async () => {
+    await start();
+    await request("/v1/property-clients", "POST", { displayName: "Awa Koné" });
+    await request(`/v1/properties/${PROPERTY_ID}/contracts`, "POST", {
+      clientId: CLIENT_ID, contractType: "LEASE", reference: "bail-current", startDate: "2026-10-01", endDate: "2026-12-31",
+    });
+    expect((await request(`/v1/properties/${PROPERTY_ID}/contracts/${CONTRACT_ID}/activate`, "POST")).status).toBe(200);
+    const workspace = PropertyWorkspaceResponseSchema.parse(await (await request(`/v1/properties/${PROPERTY_ID}/workspace`)).json());
+    expect(workspace.leaseEligibility).toEqual({ eligible: true, blockedByActiveLease: true });
+    const response = await request(`/v1/properties/${PROPERTY_ID}/contracts`, "POST", {
+      clientId: CLIENT_ID, contractType: "LEASE", reference: "bail-future", startDate: "2027-01-01",
+    });
+    expect(response.status).toBe(409);
+    expect(ProblemDetailsSchema.parse(await response.json())).toMatchObject({ code: "PROPERTY_CONTRACT_PERIOD_CONFLICT" });
   });
 
   it("rejects strict invalid bodies and forbidden authorities with safe Problem Details", async () => {

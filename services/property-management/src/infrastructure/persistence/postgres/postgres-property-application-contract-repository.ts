@@ -5,6 +5,7 @@ import type { PropertyApplicationContractRepository } from "../../../application
 import { PropertyContract } from "../../../domain/property-contract.js";
 import { toClient } from "./postgres-property-client-repository.js";
 import { properties, propertyApplicationClientConversions, propertyApplicationContractOrigins, propertyApplications, propertyClients, propertyContracts } from "./schema.js";
+import { hasActiveRelatedLease, loadPersistedLeaseTarget } from "./postgres-property-lease-eligibility.js";
 
 export class PostgresPropertyApplicationContractRepository implements PropertyApplicationContractRepository {
   constructor(private readonly pool:Pool){}
@@ -16,10 +17,13 @@ export class PostgresPropertyApplicationContractRepository implements PropertyAp
       if(application.application.status!=="APPROVED")return{kind:"NOT_ELIGIBLE"as const};
       const source=(await db.select({conversion:propertyApplicationClientConversions,client:propertyClients}).from(propertyApplicationClientConversions).innerJoin(propertyClients,and(eq(propertyClients.tenantId,propertyApplicationClientConversions.tenantId),eq(propertyClients.clientId,propertyApplicationClientConversions.clientId))).where(and(eq(propertyApplicationClientConversions.tenantId,input.tenantId),eq(propertyApplicationClientConversions.applicationId,input.applicationId))).limit(1))[0];
       if(!source)return{kind:"NOT_CONVERTED"as const};
-      if(application.property.transactionType!=="LONG_TERM_RENTAL"||application.property.structuralRole==="COMPOSITE")return{kind:"NOT_ELIGIBLE"as const};
+      const target=await loadPersistedLeaseTarget(scope,input.tenantId,input.propertyId);
+      if(!target?.eligibility.eligible)return{kind:"NOT_ELIGIBLE"as const};
       const existing=(await db.select({contract:propertyContracts}).from(propertyApplicationContractOrigins).innerJoin(propertyContracts,and(eq(propertyContracts.tenantId,propertyApplicationContractOrigins.tenantId),eq(propertyContracts.contractId,propertyApplicationContractOrigins.contractId))).where(and(eq(propertyApplicationContractOrigins.tenantId,input.tenantId),eq(propertyApplicationContractOrigins.applicationId,input.applicationId))).limit(1))[0];
       if(existing){const contract=fromContract(existing.contract);return sameTerms(contract,input)?{kind:"EXISTING"as const,record:{contract,client:toClient(source.client)}}:{kind:"INCOMPATIBLE_REPLAY"as const};}
-      const contract=PropertyContract.create({contractId:input.contractId,tenantId:input.tenantId,propertyId:input.propertyId,clientId:source.client.clientId,contractType:"LEASE",reference:input.reference,...(input.startDate===undefined?{}:{startDate:input.startDate}),...(input.endDate===undefined?{}:{endDate:input.endDate}),...(input.notes===undefined?{}:{notes:input.notes}),createdAt:input.createdAt,updatedAt:input.createdAt},{structuralRole:application.property.structuralRole as "STANDALONE"|"COMPOSITE"|"UNIT",transactionType:application.property.transactionType as "LONG_TERM_RENTAL"});
+      await scope.query("SELECT property_id FROM property_management.properties WHERE tenant_id=$1::uuid AND property_id=$2::uuid FOR UPDATE",[input.tenantId,target.rootPropertyId]);
+      if(await hasActiveRelatedLease(scope,input.tenantId,input.propertyId,target))return{kind:"NOT_ELIGIBLE"as const};
+      const contract=PropertyContract.create({contractId:input.contractId,tenantId:input.tenantId,propertyId:input.propertyId,clientId:source.client.clientId,contractType:"LEASE",reference:input.reference,...(input.startDate===undefined?{}:{startDate:input.startDate}),...(input.endDate===undefined?{}:{endDate:input.endDate}),...(input.notes===undefined?{}:{notes:input.notes}),createdAt:input.createdAt,updatedAt:input.createdAt},target.context);
       await db.insert(propertyContracts).values({...contract.values,startDate:contract.values.startDate??null,endDate:contract.values.endDate??null,notes:contract.values.notes??null,correlationId:input.correlationId,actorId:input.actorId});
       await db.insert(propertyApplicationContractOrigins).values({tenantId:input.tenantId,applicationId:input.applicationId,contractId:input.contractId,createdAt:input.createdAt,correlationId:input.correlationId,actorId:input.actorId});
       return{kind:"CREATED"as const,record:{contract,client:toClient(source.client)}};

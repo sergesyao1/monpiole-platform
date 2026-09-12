@@ -68,6 +68,7 @@ export {
   type PropertyContractLifecycleCommand, type EndPropertyContractCommand,
   type PropertyContractView, type PropertyContractCapabilities, type PropertyContractClientView,
 } from "./application/manage-property-contracts.js";
+export { PropertyContractPeriodConflictError } from "./application/property-contract-repository.js";
 export {
   RetrievePropertyWorkspace,
   type RetrievePropertyWorkspaceQuery, type PropertyWorkspaceView, type PropertyWorkspaceCapabilities,
@@ -148,7 +149,8 @@ export {
   PropertyContract, InvalidPropertyContractInputError, InvalidPropertyContractServerValueError,
   PersistedPropertyContractCorruptionError, PropertyContractTransitionNotAllowedError,
   PropertyContractUpdateNotAllowedError, PropertyContractPropertyNotEligibleError,
-  PROPERTY_CONTRACT_TYPES, PROPERTY_CONTRACT_STATUSES, assertPropertyContractEligible,
+  PROPERTY_CONTRACT_TYPES, PROPERTY_CONTRACT_STATUSES, assertPropertyContractEligible, assessPropertyLeaseEligibility,
+  type PropertyLeaseEligibility, type PropertyLeaseEligibilityReason,
   type PropertyContractValues, type PropertyContractTerms, type PropertyContractField,
   type PropertyContractType, type PropertyContractStatus, type PropertyContractPropertyContext,
 } from "./domain/property-contract.js";

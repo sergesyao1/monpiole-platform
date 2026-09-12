@@ -309,6 +309,10 @@ function businessProblem(exception: unknown) {
     status: 400, type: "https://api.monpiole.example/problems/invalid-request",
     title: "Invalid request", code: "INVALID_REQUEST",
   };
+  if (code === "PROPERTY_CONTRACT_PERIOD_CONFLICT") return {
+    status: 409, type: "https://api.monpiole.example/problems/property-contract-period-conflict",
+    title: "Property contract period conflict", code,
+  };
   if (code === "PROPERTY_CONTRACT_REFERENCE_CONFLICT") return {
     status: 409, type: "https://api.monpiole.example/problems/property-contract-reference-conflict",
     title: "Property contract reference conflict", code,

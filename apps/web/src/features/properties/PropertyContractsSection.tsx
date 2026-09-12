@@ -13,12 +13,13 @@ interface PropertyContractsSectionProps {
   readonly api: PropertyClientContractApi;
   readonly canView: boolean;
   readonly canCreate: boolean;
+  readonly creationBlocked?: boolean;
   readonly onChanged?: () => void | Promise<void>;
   readonly onReconnect?: () => void;
 }
 
 export function PropertyContractsSection({
-  propertyId, api, canView, canCreate, onChanged, onReconnect,
+  propertyId, api, canView, canCreate, creationBlocked = false, onChanged, onReconnect,
 }: Readonly<PropertyContractsSectionProps>) {
   const [contracts, setContracts] = useState<readonly PropertyContract[]>([]);
   const [clients, setClients] = useState<readonly PropertyClient[]>([]);
@@ -115,15 +116,16 @@ export function PropertyContractsSection({
     <section className="content-panel contract-panel" aria-labelledby="property-contracts-title" aria-busy={loading || saving}>
       <div className="section-heading">
         <div><p className="eyebrow">Relation client</p><h2 id="property-contracts-title">Clients et contrats</h2></div>
-        {canCreate && <Button variant="secondary" onClick={() => setShowCreate((visible) => !visible)}>Nouveau contrat</Button>}
+        {canCreate && <Button variant="secondary" disabled={creationBlocked} onClick={() => setShowCreate((visible) => !visible)}>Nouveau contrat</Button>}
       </div>
       <p className="form-help">Les contrats documentent la relation commerciale. Ils ne modifient pas automatiquement la disponibilité ou l’occupation du bien.</p>
+      {creationBlocked && <Alert tone="warning" title="Nouveau bail indisponible"><p>Un bail est déjà actif sur ce bien ou sur le bâtiment auquel il appartient. Terminez ou résiliez ce bail avant d’en créer un nouveau.</p></Alert>}
       {!canView && <Alert tone="warning" title="Accès limité"><p>Vous n’avez pas l’autorisation de consulter les contrats de ce bien.</p></Alert>}
       {loading && <LoadingState label="Chargement des contrats et des clients…" />}
       {error && <Alert tone="danger" title="Opération impossible"><p>{error.message}</p>{error.kind === "session" && onReconnect && <Button variant="secondary" onClick={onReconnect}>Se reconnecter</Button>}</Alert>}
       {success && <Alert tone="success" title={success} />}
 
-      {canView && !loading && showCreate && <form className="compact-form contract-form" onSubmit={createContract}>
+      {canView && !creationBlocked && !loading && showCreate && <form className="compact-form contract-form" onSubmit={createContract}>
         <h3>Créer un contrat brouillon</h3>
         <ContractFields clients={clients} />
         <div className="form-actions"><Button type="submit" loading={saving} loadingLabel="Création…">Créer le contrat</Button><Button variant="secondary" onClick={() => setShowCreate(false)}>Annuler</Button></div>

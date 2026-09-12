@@ -118,6 +118,10 @@ export const PropertyWorkspaceResponseSchema = z.object({
     totalCount: NonNegativeCountSchema, draftCount: NonNegativeCountSchema, activeCount: NonNegativeCountSchema,
     endedCount: NonNegativeCountSchema, cancelledCount: NonNegativeCountSchema,
   }).strict(),
+  leaseEligibility: z.discriminatedUnion("eligible", [
+    z.object({ eligible: z.literal(true), blockedByActiveLease: z.boolean() }).strict(),
+    z.object({ eligible: z.literal(false), reasonCode: z.enum(["NOT_LONG_TERM_RENTAL", "INVALID_RENTAL_TARGET"]) }).strict(),
+  ]),
   capabilities: z.object({
     canUpdateCoreInformation: z.boolean(), canUpdateDetails: z.boolean(), canUpdatePricing: z.boolean(),
     canUpdateAvailability: z.boolean(), canManagePhotos: z.boolean(), canPublish: z.boolean(),

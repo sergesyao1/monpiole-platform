@@ -7,7 +7,7 @@ import {
   PropertyContractNotFoundError,
   PropertyContractPropertyNotEligibleError, PropertyContractReferenceConflictError,
   PropertyContractTransitionNotAllowedError, PropertyForbiddenError, PropertyNotFoundError,
-  RetrievePropertyContract, RetrievePropertyWorkspace, UpdatePropertyContract,
+  RetrievePropertyContract, RetrievePropertyWorkspace, UpdatePropertyContract, assessPropertyLeaseEligibility,
   type PropertyAuthority, type PropertyAvailabilityQuery, type PropertyClientDirectoryCriteria,
   type PropertyClientRepository, type PropertyContractCriteria, type PropertyContractRecord,
   type PropertyContractRepository, type PropertyContractTrace, type PropertyPhotoStandardRepository,
@@ -78,6 +78,11 @@ class MemoryContracts implements PropertyContractRepository {
   readonly values = new Map<string, PropertyContract>();
   writes = 0;
   constructor(private readonly clients: MemoryClients) {}
+  async assessLeaseTarget(tenantId: string, propertyId: string) {
+    return tenantId === TENANT_A && propertyId === PROPERTY_ID
+      ? { context: { structuralRole: "STANDALONE" as const, transactionType: "LONG_TERM_RENTAL" as const }, eligibility: { eligible: true as const, blockedByActiveLease: false } }
+      : undefined;
+  }
   async save(value: PropertyContract) {
     if ([...this.values.values()].some((item) => item.values.tenantId === value.values.tenantId
       && item.values.reference === value.values.reference)) throw new PropertyContractReferenceConflictError();
@@ -111,6 +116,14 @@ class MemoryContracts implements PropertyContractRepository {
 }
 
 describe("Property client and contract domain", () => {
+  it("assesses standalone, attached unit and configured whole-building rental targets", () => {
+    expect(assessPropertyLeaseEligibility({ structuralRole: "STANDALONE", transactionType: "LONG_TERM_RENTAL" })).toEqual({ eligible: true, blockedByActiveLease: false });
+    expect(assessPropertyLeaseEligibility({ structuralRole: "UNIT", transactionType: "LONG_TERM_RENTAL", unitAttached: true })).toEqual({ eligible: true, blockedByActiveLease: false });
+    expect(assessPropertyLeaseEligibility({ structuralRole: "COMPOSITE", transactionType: "LONG_TERM_RENTAL", buildingCount: 1, wholeBuildingRentalConfigured: true })).toEqual({ eligible: true, blockedByActiveLease: false });
+    expect(assessPropertyLeaseEligibility({ structuralRole: "STANDALONE", transactionType: "SALE" })).toMatchObject({ eligible: false, reasonCode: "NOT_LONG_TERM_RENTAL" });
+    expect(assessPropertyLeaseEligibility({ structuralRole: "COMPOSITE", transactionType: "LONG_TERM_RENTAL", buildingCount: 1 })).toMatchObject({ eligible: false, reasonCode: "INVALID_RENTAL_TARGET" });
+    expect(assessPropertyLeaseEligibility({ structuralRole: "UNIT", transactionType: "LONG_TERM_RENTAL", unitAttached: false })).toMatchObject({ eligible: false, reasonCode: "INVALID_RENTAL_TARGET" });
+  });
   it("normalizes a reusable client without exposing SaaS Tenant semantics", () => {
     expect(client().values).toMatchObject({ displayName: "Awa Koné", email: "awa@example.com" });
     expect(() => PropertyClient.create({ ...client().values, displayName: " " })).toThrow(InvalidPropertyClientInputError);
@@ -229,7 +242,7 @@ describe("Property client and contract application", () => {
       composition: { buildingCount: 0, unitCount: 0 },
       contracts: { totalCount: 1, draftCount: 0, activeCount: 1, endedCount: 0, cancelledCount: 0 },
     }) };
-    const result = await new RetrievePropertyWorkspace(properties, availability, standards, summaries)
+    const result = await new RetrievePropertyWorkspace(properties, availability, standards, summaries, new MemoryContracts(new MemoryClients()))
       .execute({ authority: AUTHORITY, propertyId: PROPERTY_ID });
     expect(result.publicationReadiness).toMatchObject({ ready: false });
     expect(result.contracts.activeCount).toBe(1);

@@ -5,6 +5,7 @@ import type { Pool } from "pg";
 import {
   PropertyContractPersistenceFailureError,
   PropertyContractReferenceConflictError,
+  PropertyContractPeriodConflictError,
   type PropertyContractCriteria,
   type PropertyContractPage,
   type PropertyContractRecord,
@@ -19,14 +20,32 @@ import {
   PropertyContractTransitionNotAllowedError,
   PropertyContractUpdateNotAllowedError,
 } from "../../../domain/property-contract.js";
+import { hasActiveRelatedLease, loadPersistedLeaseTarget } from "./postgres-property-lease-eligibility.js";
 import { toClient } from "./postgres-property-client-repository.js";
 import { properties, propertyClients, propertyContracts } from "./schema.js";
 
 export class PostgresPropertyContractRepository implements PropertyContractRepository {
   constructor(private readonly pool: Pool) {}
 
+  assessLeaseTarget(tenantId: string, propertyId: string) {
+    return withTenantPostgresTransaction(this.pool, tenantId, async (scope) => {
+      const target = await loadPersistedLeaseTarget(scope, tenantId, propertyId);
+      if (target === undefined || !target.eligibility.eligible) return target;
+      return { ...target, eligibility: { eligible: true as const,
+        blockedByActiveLease: await hasActiveRelatedLease(scope, tenantId, propertyId, target) } };
+    });
+  }
+
   save(contract: PropertyContract, trace: PropertyContractTrace): Promise<void> {
     return this.persistence(async () => withTenantPostgresTransaction(this.pool, contract.values.tenantId, async (scope) => {
+      if (contract.values.contractType === "LEASE") {
+        const target = await loadPersistedLeaseTarget(scope, contract.values.tenantId, contract.values.propertyId);
+        if (!target?.eligibility.eligible) throw new PropertyContractPropertyNotEligibleError();
+        await scope.query("SELECT property_id FROM property_management.properties WHERE tenant_id=$1::uuid AND property_id=$2::uuid FOR UPDATE", [contract.values.tenantId, target.rootPropertyId]);
+        if (await hasActiveRelatedLease(scope, contract.values.tenantId, contract.values.propertyId, target)) {
+          throw new PropertyContractPeriodConflictError();
+        }
+      }
       await scope.database().insert(propertyContracts).values(toInsert(contract, trace));
     }));
   }
@@ -87,6 +106,9 @@ export class PostgresPropertyContractRepository implements PropertyContractRepos
     trace: PropertyContractTrace,
   ): Promise<PropertyContractRecord | undefined> {
     return this.persistence(async () => withTenantPostgresTransaction(this.pool, tenantId, async (scope) => {
+      const target = await loadPersistedLeaseTarget(scope, tenantId, propertyId);
+      if (target === undefined) return undefined;
+      await scope.query("SELECT property_id FROM property_management.properties WHERE tenant_id=$1::uuid AND property_id=$2::uuid FOR UPDATE", [tenantId, target.rootPropertyId]);
       const row = (await scope.database().select().from(propertyContracts).where(and(
         eq(propertyContracts.tenantId, tenantId), eq(propertyContracts.propertyId, propertyId),
         eq(propertyContracts.contractId, contractId),
@@ -94,6 +116,16 @@ export class PostgresPropertyContractRepository implements PropertyContractRepos
       if (row === undefined) return undefined;
       const current = toContract(row);
       const changed = update(current);
+      if (changed.values.contractType === "LEASE" && changed.values.status === "ACTIVE" && !target.eligibility.eligible) {
+        throw new PropertyContractPropertyNotEligibleError();
+      }
+      if (current.values.status !== "ACTIVE" && changed.values.status === "ACTIVE" && changed.values.contractType === "LEASE") {
+        const startDate = changed.values.startDate;
+        if (startDate === undefined) throw new InvalidPropertyContractInputError("startDate");
+        if (await hasActiveRelatedLease(scope, tenantId, propertyId, target, contractId)) {
+          throw new PropertyContractPeriodConflictError();
+        }
+      }
       if (changed !== current) {
         await scope.database().update(propertyContracts).set(toUpdate(row, current, changed, trace)).where(and(
           eq(propertyContracts.tenantId, tenantId), eq(propertyContracts.contractId, contractId),
@@ -118,7 +150,8 @@ export class PostgresPropertyContractRepository implements PropertyContractRepos
         || error instanceof InvalidPropertyContractServerValueError
         || error instanceof PropertyContractTransitionNotAllowedError
         || error instanceof PropertyContractUpdateNotAllowedError
-        || error instanceof PropertyContractPropertyNotEligibleError) throw error;
+        || error instanceof PropertyContractPropertyNotEligibleError
+        || error instanceof PropertyContractPeriodConflictError) throw error;
       if (error instanceof PropertyContractPersistenceFailureError) throw error;
       throw new PropertyContractPersistenceFailureError();
     }

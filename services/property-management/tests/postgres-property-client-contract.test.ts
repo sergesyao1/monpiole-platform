@@ -12,7 +12,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   ActivatePropertyContract, CreateProperty, CreatePropertyClient, CreatePropertyContract, EndPropertyContract,
   PostgresPropertyClientRepository, PostgresPropertyContractRepository, PostgresPropertyRepository,
-  PostgresPropertyWorkspaceSummaryQuery, PropertyContractNotFoundError, RetrievePropertyContract,
+  PostgresPropertyWorkspaceSummaryQuery, PropertyContractNotFoundError, PropertyContractPeriodConflictError,
+  PropertyContractPropertyNotEligibleError, RetrievePropertyContract,
   type PropertyAuthority,
 } from "../src/index.js";
 
@@ -96,6 +97,102 @@ async function createFixtures() {
 }
 
 describe("Property client and contract PostgreSQL persistence", () => {
+  it("rechecks project eligibility when activating an already prepared draft", async () => {
+    const { contracts } = await createFixtures();
+    await owner.query("UPDATE property_management.properties SET transaction_type='SALE' WHERE property_id=$1", [PROPERTY_ID]);
+    await expect(new ActivatePropertyContract(contracts, { now: () => ACTIVE_AT }).execute({
+      authority: authority(), correlationId: CORRELATION, propertyId: PROPERTY_ID, contractId: CONTRACT_ID,
+    })).rejects.toBeInstanceOf(PropertyContractPropertyNotEligibleError);
+  });
+  it("rejects even future lease creation while ACTIVE, then permits creation after END", async () => {
+    const { properties, clients, contracts } = await createFixtures();
+    await owner.query("UPDATE property_management.property_contracts SET end_date='2026-12-31' WHERE contract_id=$1", [CONTRACT_ID]);
+    const activate = new ActivatePropertyContract(contracts, { now: () => ACTIVE_AT });
+    await activate.execute({ authority: authority(), correlationId: CORRELATION, propertyId: PROPERTY_ID, contractId: CONTRACT_ID });
+    const secondId = "22222222-2222-4222-8222-222222222222";
+    await expect(new CreatePropertyContract(contracts, clients, properties, { generate: () => secondId }, { now: () => NOW }).execute({
+      authority: authority(), correlationId: CORRELATION, propertyId: PROPERTY_ID, clientId: CLIENT_ID,
+      contractType: "LEASE", reference: "bail-2027-001", startDate: "2027-01-01", endDate: "2027-12-31",
+    }))
+      .rejects.toBeInstanceOf(PropertyContractPeriodConflictError);
+    await new EndPropertyContract(contracts, { now: () => "2026-12-31T10:00:00.000Z" }).execute({
+      authority: authority(), correlationId: CORRELATION, propertyId: PROPERTY_ID, contractId: CONTRACT_ID, endDate: "2026-12-31",
+    });
+    const futureId = "88888888-8888-4888-8888-888888888888";
+    await new CreatePropertyContract(contracts, clients, properties, { generate: () => futureId }, { now: () => NOW }).execute({
+      authority: authority(), correlationId: CORRELATION, propertyId: PROPERTY_ID, clientId: CLIENT_ID,
+      contractType: "LEASE", reference: "bail-2027-001", startDate: "2027-01-01", endDate: "2027-12-31",
+    });
+    await expect(activate.execute({ authority: authority(), correlationId: CORRELATION, propertyId: PROPERTY_ID, contractId: futureId }))
+      .resolves.toMatchObject({ status: "ACTIVE" });
+  });
+  it("allows only one concurrent activation for the same rental target", async () => {
+    const { properties, clients, contracts } = await createFixtures();
+    const otherId = "77777777-7777-4777-8777-777777777777";
+    await new CreatePropertyContract(contracts, clients, properties, { generate: () => otherId }, { now: () => NOW }).execute({
+      authority: authority(), correlationId: CORRELATION, propertyId: PROPERTY_ID, clientId: CLIENT_ID,
+      contractType: "LEASE", reference: "bail-concurrent", startDate: "2026-11-01",
+    });
+    const activate = new ActivatePropertyContract(contracts, { now: () => ACTIVE_AT });
+    const results = await Promise.allSettled([CONTRACT_ID, otherId].map((contractId) => activate.execute({
+      authority: authority(), correlationId: CORRELATION, propertyId: PROPERTY_ID, contractId,
+    })));
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+    expect(results.find((result) => result.status === "rejected")).toMatchObject({ reason: { code: "PROPERTY_CONTRACT_PERIOD_CONFLICT" } });
+  });
+  it("serializes whole-building and child-unit lease activations in either order", async () => {
+    const { properties, clients, contracts } = await createFixtures();
+    const buildingId = "33333333-3333-4333-8333-333333333333";
+    const unitId = "44444444-4444-4444-8444-444444444444";
+    const unitContractId = "55555555-5555-4555-8555-555555555555";
+    await owner.query(`UPDATE property_management.properties SET structural_role='COMPOSITE', commercial_kind='LONG_TERM_RENTAL',
+      pricing_version=2, currency='XOF', rent_amount_minor=100000, rent_period='MONTH' WHERE property_id=$1`, [PROPERTY_ID]);
+    await owner.query(`INSERT INTO property_management.property_buildings
+      (building_id,tenant_id,property_id,building_code,name,created_at,updated_at,correlation_id,actor_id)
+      VALUES ($1,$2,$3,'A','Bâtiment A',now(),now(),$4,'administrator')`, [buildingId, TENANT_A, PROPERTY_ID, CORRELATION]);
+    await owner.query(`INSERT INTO property_management.properties
+      (property_id,tenant_id,title,property_type,transaction_type,structural_role,status,country,city,district,address_line,created_at,updated_at,correlation_id,actor_id)
+      VALUES ($1,$2,'Bureau A1','COMMERCIAL','LONG_TERM_RENTAL','UNIT','DRAFT','CI','Abidjan','Cocody','Riviera',$3,$3,$4,'administrator')`, [unitId, TENANT_A, NOW, CORRELATION]);
+    await owner.query(`INSERT INTO property_management.property_building_units
+      (tenant_id,building_id,unit_property_id,unit_code,created_at,updated_at,correlation_id,actor_id)
+      VALUES ($1,$2,$3,'A1',now(),now(),$4,'administrator')`, [TENANT_A, buildingId, unitId, CORRELATION]);
+    expect((await contracts.assessLeaseTarget(TENANT_A, PROPERTY_ID))?.eligibility).toEqual({ eligible: true, blockedByActiveLease: false });
+    expect((await contracts.assessLeaseTarget(TENANT_A, unitId))?.eligibility).toEqual({ eligible: true, blockedByActiveLease: false });
+    await new CreatePropertyContract(contracts, clients, properties, { generate: () => unitContractId }, { now: () => NOW }).execute({
+      authority: authority(), correlationId: CORRELATION, propertyId: unitId, clientId: CLIENT_ID,
+      contractType: "LEASE", reference: "bail-unit-a1", startDate: "2026-10-01",
+    });
+    const activate = new ActivatePropertyContract(contracts, { now: () => ACTIVE_AT });
+    await activate.execute({ authority: authority(), correlationId: CORRELATION, propertyId: unitId, contractId: unitContractId });
+    const siblingId = "aaaaaaaa-1111-4111-8111-111111111111";
+    await owner.query(`INSERT INTO property_management.properties
+      (property_id,tenant_id,title,property_type,transaction_type,structural_role,status,country,city,district,address_line,created_at,updated_at,correlation_id,actor_id)
+      VALUES ($1,$2,'Bureau A2','COMMERCIAL','LONG_TERM_RENTAL','UNIT','DRAFT','CI','Abidjan','Cocody','Riviera',$3,$3,$4,'administrator')`, [siblingId, TENANT_A, NOW, CORRELATION]);
+    await owner.query(`INSERT INTO property_management.property_building_units
+      (tenant_id,building_id,unit_property_id,unit_code,created_at,updated_at,correlation_id,actor_id)
+      VALUES ($1,$2,$3,'A2',now(),now(),$4,'administrator')`, [TENANT_A, buildingId, siblingId, CORRELATION]);
+    await expect(new CreatePropertyContract(contracts, clients, properties, { generate: () => "aaaaaaaa-2222-4222-8222-222222222222" }, { now: () => NOW }).execute({
+      authority: authority(), correlationId: CORRELATION, propertyId: siblingId, clientId: CLIENT_ID,
+      contractType: "LEASE", reference: "bail-sibling-a2", startDate: "2026-10-01",
+    })).resolves.toMatchObject({ status: "DRAFT" });
+    await expect(new CreatePropertyContract(contracts, clients, properties, { generate: () => "99999999-9999-4999-8999-999999999999" }, { now: () => NOW }).execute({
+      authority: authority(), correlationId: CORRELATION, propertyId: PROPERTY_ID, clientId: CLIENT_ID,
+      contractType: "LEASE", reference: "bail-whole-later", startDate: "2027-01-01",
+    })).rejects.toBeInstanceOf(PropertyContractPeriodConflictError);
+    await expect(activate.execute({ authority: authority(), correlationId: CORRELATION, propertyId: PROPERTY_ID, contractId: CONTRACT_ID }))
+      .rejects.toBeInstanceOf(PropertyContractPeriodConflictError);
+    await new EndPropertyContract(contracts, { now: () => "2026-12-31T10:00:00.000Z" }).execute({
+      authority: authority(), correlationId: CORRELATION, propertyId: unitId, contractId: unitContractId, endDate: "2026-12-31",
+    });
+    await activate.execute({ authority: authority(), correlationId: CORRELATION, propertyId: PROPERTY_ID, contractId: CONTRACT_ID });
+    const laterUnitContractId = "66666666-6666-4666-8666-666666666666";
+    await expect(new CreatePropertyContract(contracts, clients, properties, { generate: () => laterUnitContractId }, { now: () => NOW }).execute({
+      authority: authority(), correlationId: CORRELATION, propertyId: unitId, clientId: CLIENT_ID,
+      contractType: "LEASE", reference: "bail-unit-a1-later", startDate: "2027-01-01",
+    })).rejects.toBeInstanceOf(PropertyContractPeriodConflictError);
+    expect((await contracts.assessLeaseTarget(TENANT_B, unitId))).toBeUndefined();
+  });
   it("upgrades 0016 to 0017 without modifying legacy Properties or backfilling private records", async () => {
     const previous = await migrationsThrough(16);
     await owner.query("CREATE DATABASE property_client_contract_upgrade_test");

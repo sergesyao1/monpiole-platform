@@ -4,6 +4,8 @@ import { authorizedTenant } from "./property-authority.js";
 import type { PropertyAvailabilityQuery, PropertyAvailabilityReadModel } from "./property-availability-query.js";
 import type { PropertyPhotoStandardRepository } from "./property-photo-standard-repository.js";
 import type { PropertyRepository } from "./property-repository.js";
+import type { PropertyContractRepository } from "./property-contract-repository.js";
+import type { PropertyLeaseEligibility } from "../domain/property-contract.js";
 import type { PropertyWorkspaceSummary, PropertyWorkspaceSummaryQuery } from "./property-workspace-summary-query.js";
 import { PropertyNotFoundError } from "./retrieve-property.js";
 import type { PropertyPublicationReadiness } from "../domain/property.js";
@@ -29,6 +31,7 @@ export interface PropertyWorkspaceView {
   readonly owners: PropertyWorkspaceSummary["owners"];
   readonly composition: PropertyWorkspaceSummary["composition"];
   readonly contracts: PropertyWorkspaceSummary["contracts"];
+  readonly leaseEligibility: PropertyLeaseEligibility;
   readonly capabilities: PropertyWorkspaceCapabilities;
 }
 
@@ -43,17 +46,19 @@ export class RetrievePropertyWorkspace {
     private readonly availability: PropertyAvailabilityQuery,
     private readonly photoStandards: PropertyPhotoStandardRepository,
     private readonly summaries: PropertyWorkspaceSummaryQuery,
+    private readonly contracts: Pick<PropertyContractRepository, "assessLeaseTarget">,
   ) {}
 
   async execute(query: RetrievePropertyWorkspaceQuery): Promise<PropertyWorkspaceView> {
     const tenantId = authorizedTenant(query.authority, "RETRIEVE_PROPERTY_WORKSPACE");
-    const [property, availability, standard, summary] = await Promise.all([
+    const [property, availability, standard, summary, leaseTarget] = await Promise.all([
       this.properties.findById(tenantId, query.propertyId),
       this.availability.retrieve(tenantId, query.propertyId),
       this.photoStandards.retrieve(tenantId),
       this.summaries.retrieve(tenantId, query.propertyId),
+      this.contracts.assessLeaseTarget(tenantId, query.propertyId),
     ]);
-    if (property === undefined || availability === undefined || summary === undefined) {
+    if (property === undefined || availability === undefined || summary === undefined || leaseTarget === undefined) {
       throw new PropertyNotFoundError();
     }
     return {
@@ -61,6 +66,7 @@ export class RetrievePropertyWorkspace {
       availability,
       publicationReadiness: property.assessPublicationReadiness(property.values.photos ?? [], standard),
       ...summary,
+      leaseEligibility: leaseTarget.eligibility,
       capabilities: capabilities(query.authority, property.values.status, availability.source),
     };
   }

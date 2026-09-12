@@ -33,6 +33,23 @@ export interface PropertyContractValues extends PropertyContractTerms {
 export interface PropertyContractPropertyContext {
   readonly structuralRole: PropertyStructuralRole;
   readonly transactionType: TransactionType;
+  readonly buildingCount?: number;
+  readonly wholeBuildingRentalConfigured?: boolean;
+  readonly unitAttached?: boolean;
+}
+
+export type PropertyLeaseEligibilityReason = "NOT_LONG_TERM_RENTAL" | "INVALID_RENTAL_TARGET";
+export type PropertyLeaseEligibility = Readonly<{ eligible: true; blockedByActiveLease: boolean } | { eligible: false; reasonCode: PropertyLeaseEligibilityReason }>;
+
+export function assessPropertyLeaseEligibility(property: PropertyContractPropertyContext): PropertyLeaseEligibility {
+  if (property.transactionType !== "LONG_TERM_RENTAL") return { eligible: false, reasonCode: "NOT_LONG_TERM_RENTAL" };
+  if (property.structuralRole === "COMPOSITE" && (property.buildingCount !== 1 || property.wholeBuildingRentalConfigured !== true)) {
+    return { eligible: false, reasonCode: "INVALID_RENTAL_TARGET" };
+  }
+  if (property.structuralRole === "UNIT" && property.unitAttached === false) {
+    return { eligible: false, reasonCode: "INVALID_RENTAL_TARGET" };
+  }
+  return { eligible: true, blockedByActiveLease: false };
 }
 
 export type PropertyContractField = "contractId" | "tenantId" | "propertyId" | "clientId" | "contractType"
@@ -233,8 +250,7 @@ function sameTerms(left: PropertyContractValues, right: PropertyContractValues):
 }
 
 function assertEligible(contractType: PropertyContractType, property: PropertyContractPropertyContext): void {
-  if (contractType === "LEASE"
-    && (property.transactionType !== "LONG_TERM_RENTAL" || property.structuralRole === "COMPOSITE")) {
+  if (contractType === "LEASE" && !assessPropertyLeaseEligibility(property).eligible) {
     throw new PropertyContractPropertyNotEligibleError();
   }
 }

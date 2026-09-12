@@ -39,6 +39,14 @@ function fakeApi(contracts: readonly PropertyContract[] = []): PropertyClientCon
 afterEach(() => { vi.restoreAllMocks(); });
 
 describe("Property clients and contracts workspace", () => {
+  it("keeps active contracts visible but disables new contract creation", async () => {
+    const active = { ...draft, status: "ACTIVE" as const,
+      capabilities: { canUpdate: false, canActivate: false, canEnd: true, canCancel: true } };
+    render(<PropertyContractsSection propertyId={PROPERTY_ID} api={fakeApi([active])} canView canCreate creationBlocked />);
+    expect(screen.getByRole("button", { name: "Nouveau contrat" })).toBeDisabled();
+    expect(screen.getByText(/Un bail est déjà actif sur ce bien/)).toBeVisible();
+    expect(await screen.findByRole("button", { name: /BAIL-2026-001/ })).toBeInTheDocument();
+  });
   it("creates a draft from a reusable client without exposing deletion", async () => {
     const api = fakeApi();
     render(<PropertyContractsSection propertyId={PROPERTY_ID} api={api} canView canCreate />);

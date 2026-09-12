@@ -64,6 +64,7 @@ function renderPortfolio(session: Session = authenticatedSession, owners: readon
       publicationReadiness: { ready: false, missingRequirements: ["DETAILS", "COMMERCIAL_TERMS", "PRIMARY_PHOTO", "PHOTO_MINIMUM"] },
       owners: [], composition: { buildingCount: 0, unitCount: 0 },
       contracts: { totalCount: 0, draftCount: 0, activeCount: 0, endedCount: 0, cancelledCount: 0 },
+      leaseEligibility: { eligible: true, blockedByActiveLease: false },
       capabilities: { canUpdateCoreInformation: true, canUpdateDetails: true, canUpdatePricing: true, canUpdateAvailability: true, canManagePhotos: true, canPublish: true, canWithdrawFromCatalog: false, canManageOwners: true, canManageComposition: true, canViewContracts: false, canCreateContract: false },
     });
   });

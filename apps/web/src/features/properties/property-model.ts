@@ -359,6 +359,7 @@ export interface PropertyWorkspace {
   readonly contracts: Readonly<{
     totalCount: number; draftCount: number; activeCount: number; endedCount: number; cancelledCount: number;
   }>;
+  readonly leaseEligibility: Readonly<{ eligible: true; blockedByActiveLease: boolean } | { eligible: false; reasonCode: "NOT_LONG_TERM_RENTAL" | "INVALID_RENTAL_TARGET" }>;
   readonly capabilities: Readonly<{
     canUpdateCoreInformation: boolean; canUpdateDetails: boolean; canUpdatePricing: boolean;
     canUpdateAvailability: boolean; canManagePhotos: boolean; canPublish: boolean;

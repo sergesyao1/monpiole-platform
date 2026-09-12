@@ -4248,6 +4248,48 @@
             ],
             "type": "object"
           },
+          "leaseEligibility": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "blockedByActiveLease": {
+                    "type": "boolean"
+                  },
+                  "eligible": {
+                    "const": true,
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "blockedByActiveLease",
+                  "eligible"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "eligible": {
+                    "const": false,
+                    "type": "boolean"
+                  },
+                  "reasonCode": {
+                    "enum": [
+                      "INVALID_RENTAL_TARGET",
+                      "NOT_LONG_TERM_RENTAL"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "eligible",
+                  "reasonCode"
+                ],
+                "type": "object"
+              }
+            ]
+          },
           "owners": {
             "items": {
               "additionalProperties": false,
@@ -4311,6 +4353,7 @@
           "capabilities",
           "composition",
           "contracts",
+          "leaseEligibility",
           "owners",
           "property",
           "publicationReadiness"

@@ -60,6 +60,8 @@ function workspace(current: Property, owners: readonly { ownerId: string; owners
     owners,
     composition: { buildingCount: 0, unitCount: 0 },
     contracts: { totalCount: 0, draftCount: 0, activeCount: 0, endedCount: 0, cancelledCount: 0 },
+    leaseEligibility: current.transactionType === "LONG_TERM_RENTAL" && current.structuralRole !== "COMPOSITE"
+      ? { eligible: true, blockedByActiveLease: false } : { eligible: false, reasonCode: current.transactionType !== "LONG_TERM_RENTAL" ? "NOT_LONG_TERM_RENTAL" : "INVALID_RENTAL_TARGET" },
     capabilities: { canUpdateCoreInformation: true, canUpdateDetails: true, canUpdatePricing: true, canUpdateAvailability: true, canManagePhotos: true, canPublish: true, canWithdrawFromCatalog: current.canWithdrawFromCatalog, canManageOwners: true, canManageComposition: true, canViewContracts: false, canCreateContract: false },
   };
 }
@@ -67,6 +69,22 @@ function workspace(current: Property, owners: readonly { ownerId: string; owners
 afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
 describe("vertical slice Web Property", () => {
+  it("désactive les contrats et explique la raison pour un bien en vente", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith(`/v1/properties/${PROPERTY_ID}`)) return json({ ...property, transactionType: "SALE" });
+      if (url.endsWith("/owners")) return json([]);
+      if (url.includes("/v1/property-owners?")) return json(ownerPage());
+      if (url.endsWith("/buildings")) return json({ items: [], pageInfo: { nextCursor: null, hasNextPage: false } });
+      return problem(500, "UNEXPECTED");
+    }));
+    renderPath(`/properties/${PROPERTY_ID}`);
+    const navigation = await screen.findByRole("navigation", { name: "Sections de la fiche" });
+    expect(within(navigation).queryByRole("link", { name: "Clients et contrats" })).not.toBeInTheDocument();
+    expect(within(navigation).getByText("Clients et contrats")).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("button", { name: "Gérer les contrats" })).toBeDisabled();
+    expect(screen.getByText("Les contrats de bail sont réservés aux biens proposés en location longue durée.")).toBeVisible();
+  });
   it.each([
     ["#property-inquiries", "Demandes", "property-inquiries"],
     ["#property-applications", "Candidatures", "property-applications"],
