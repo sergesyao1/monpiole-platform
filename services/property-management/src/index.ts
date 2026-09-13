@@ -171,7 +171,7 @@ export { PostgresPropertyCompositionRepository } from "./infrastructure/persiste
 export { PostgresPropertyClientRepository } from "./infrastructure/persistence/postgres/postgres-property-client-repository.js";
 export { PostgresPropertyContractRepository } from "./infrastructure/persistence/postgres/postgres-property-contract-repository.js";
 export { PostgresPropertyWorkspaceSummaryQuery } from "./infrastructure/persistence/postgres/postgres-property-workspace-summary-query.js";
-export { PropertyInquiry, InvalidPropertyInquiryInputError, PropertyInquiryTransitionNotAllowedError, PROPERTY_INQUIRY_STATUSES, type PropertyInquiryValues, type PropertyInquiryStatus } from "./domain/property-inquiry.js";
+export { PropertyInquiry, InvalidPropertyInquiryInputError, PropertyInquiryTransitionNotAllowedError, PROPERTY_INQUIRY_STATUSES, PROPERTY_INQUIRY_INTENTS, PROPERTY_INQUIRY_PREFERRED_CONTACT_CHANNELS, type PropertyInquiryValues, type PropertyInquiryStatus, type PropertyInquiryIntent, type PropertyInquiryPreferredContactChannel } from "./domain/property-inquiry.js";
 export { SubmitPublicPropertyInquiry, ListPropertyInquiries, RetrievePropertyInquiry, AcknowledgePropertyInquiry, ClosePropertyInquiry, PropertyInquiryNotFoundError, InvalidPropertyInquiryListError } from "./application/manage-property-inquiries.js";
 export type { PropertyInquiryRepository, PropertyInquiryCursor, PropertyInquiryPage } from "./application/property-inquiry-repository.js";
 export { PostgresPropertyInquiryRepository } from "./infrastructure/persistence/postgres/postgres-property-inquiry-repository.js";
@@ -194,3 +194,7 @@ export { PostgresPropertyApplicationContractRepository } from "./infrastructure/
 export { ListPropertyCommercialJourneys, InvalidPropertyCommercialJourneyQueryError } from "./application/list-property-commercial-journeys.js";
 export type { PropertyCommercialJourneyQuery, PropertyCommercialJourneyItem, PropertyCommercialJourneyPage, PropertyCommercialJourneyCursor, PropertyCommercialJourneyCriteria, PropertyCommercialJourneySort, PropertyCommercialStage, PropertyCommercialNextAction } from "./application/property-commercial-journey-query.js";
 export { PostgresPropertyCommercialJourneyQuery } from "./infrastructure/persistence/postgres/postgres-property-commercial-journey-query.js";
+export * from "./domain/property-inquiry-communication.js";
+export * from "./application/property-inquiry-communication-repository.js";
+export * from "./infrastructure/persistence/postgres/postgres-property-inquiry-communication-repository.js";
+export * from "./application/manage-property-inquiry-communications.js";

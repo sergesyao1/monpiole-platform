@@ -28,6 +28,7 @@ import {
   UpdatePropertyContract, ActivatePropertyContract, EndPropertyContract, CancelPropertyContract,
   PostgresPropertyWorkspaceSummaryQuery, RetrievePropertyWorkspace,
   PostgresPropertyInquiryRepository, SubmitPublicPropertyInquiry, ListPropertyInquiries, RetrievePropertyInquiry, AcknowledgePropertyInquiry, ClosePropertyInquiry,
+  PostgresPropertyInquiryCommunicationRepository, RecordPropertyInquiryCommunication, ListPropertyInquiryCommunications,
   PostgresPropertyViewingRepository, SchedulePropertyViewing, RetrieveInquiryViewing, RetrievePropertyViewing, ReschedulePropertyViewing, CompletePropertyViewing, CancelPropertyViewing,
   PostgresPropertyViewingOutcomeRepository, CreatePropertyViewingOutcome, RetrievePropertyViewingOutcome, ProceedPropertyViewingOutcome, DeclinePropertyViewingOutcome,
   PostgresPropertyApplicationRepository, CreatePropertyApplication, RetrieveViewingPropertyApplication, ListPropertyApplications, RetrievePropertyApplication, ApprovePropertyApplication, RejectPropertyApplication, WithdrawPropertyApplication,
@@ -97,6 +98,7 @@ export function createPostgresApiRuntime(
   const propertyClientRepository = new PostgresPropertyClientRepository(pool);
   const propertyContractRepository = new PostgresPropertyContractRepository(pool);
   const propertyInquiryRepository = new PostgresPropertyInquiryRepository(pool);
+  const propertyInquiryCommunicationRepository = new PostgresPropertyInquiryCommunicationRepository(pool);
   const propertyViewingRepository = new PostgresPropertyViewingRepository(pool);
   const propertyViewingOutcomeRepository = new PostgresPropertyViewingOutcomeRepository(pool);
   const propertyApplicationRepository = new PostgresPropertyApplicationRepository(pool);
@@ -152,6 +154,14 @@ export function createPostgresApiRuntime(
     retrievePropertyInquiry: new RetrievePropertyInquiry(propertyInquiryRepository),
     acknowledgePropertyInquiry: new AcknowledgePropertyInquiry(propertyInquiryRepository, compositionClock),
     closePropertyInquiry: new ClosePropertyInquiry(propertyInquiryRepository, compositionClock),
+    recordPropertyInquiryCommunication: new RecordPropertyInquiryCommunication(
+      propertyInquiryCommunicationRepository,
+      { generate: randomUUID },
+      compositionClock,
+    ),
+    listPropertyInquiryCommunications: new ListPropertyInquiryCommunications(
+      propertyInquiryCommunicationRepository,
+    ),
     schedulePropertyViewing: new SchedulePropertyViewing(propertyInquiryRepository, propertyViewingRepository, { generate: randomUUID }, compositionClock),
     retrieveInquiryViewing: new RetrieveInquiryViewing(propertyViewingRepository),
     retrievePropertyViewing: new RetrievePropertyViewing(propertyViewingRepository),

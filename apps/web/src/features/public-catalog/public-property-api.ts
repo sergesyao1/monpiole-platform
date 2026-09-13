@@ -23,16 +23,29 @@ export function createPublicPropertyApi(): PublicPropertyApi {
   };
 }
 
-export interface PublicInquiryInput{readonly contactName:string;readonly email?:string;readonly phoneNumber?:string;readonly message?:string;readonly consent:true;readonly consentVersion:string;readonly idempotencyKey:string;}
+export type PublicInquiryIntent = "CONTACT" | "VIEWING_REQUEST";
+export type PublicInquiryPreferredContactChannel = "PHONE" | "SMS" | "EMAIL";
+
+export interface PublicInquiryInput {
+  readonly contactName: string;
+  readonly email?: string;
+  readonly phoneNumber?: string;
+  readonly message?: string;
+  readonly intent: PublicInquiryIntent;
+  readonly preferredContactChannel?: PublicInquiryPreferredContactChannel;
+  readonly consent: true;
+  readonly consentVersion: string;
+  readonly idempotencyKey: string;
+}
 async function requestPublicJson<ResponseBody>(path: `/v1/${string}`,options?:Readonly<{method:"POST";body:unknown}>): Promise<ResponseBody> {
   const headers = new Headers({ accept: "application/json", "x-correlation-id": crypto.randomUUID() });
   if(options)headers.set("content-type","application/json");const response = await fetch(path, { headers,method:options?.method,body:options?JSON.stringify(options.body):undefined });
   const payload: unknown = await response.json().catch(() => undefined);
   if (!response.ok) {
     if (isProblemDetails(payload)) throw new ApiProblem(payload);
-    throw new Error("La réponse du catalogue n'a pas pu être traitée.");
+    throw new Error("La rÃ©ponse du catalogue n'a pas pu Ãªtre traitÃ©e.");
   }
-  if (payload === undefined) throw new Error("La réponse du catalogue est vide.");
+  if (payload === undefined) throw new Error("La rÃ©ponse du catalogue est vide.");
   return payload as ResponseBody;
 }
 

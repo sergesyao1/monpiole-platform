@@ -137,6 +137,21 @@ function businessProblem(exception: unknown) {
   if (code === "PROPERTY_INQUIRY_TRANSITION_NOT_ALLOWED") return {
     status: 409, type: "https://api.monpiole.example/problems/property-inquiry-conflict", title: "Property inquiry conflict", code,
   };
+  if (
+    code === "INVALID_PROPERTY_INQUIRY_COMMUNICATION_INPUT"
+    || code === "INVALID_PROPERTY_INQUIRY_COMMUNICATION_LIST"
+  ) return {
+    status: 400,
+    type: "https://api.monpiole.example/problems/invalid-request",
+    title: "Invalid request",
+    code: "INVALID_REQUEST",
+  };
+  if (code === "PROPERTY_INQUIRY_COMMUNICATION_NOT_FOUND") return {
+    status: 404,
+    type: "https://api.monpiole.example/problems/property-inquiry-communication-not-found",
+    title: "Property inquiry communication not found",
+    code,
+  };
   if (code === "INVALID_PROPERTY_VIEWING_INPUT") return {
     status: 400, type: "https://api.monpiole.example/problems/invalid-request", title: "Invalid request", code: "INVALID_REQUEST",
   };

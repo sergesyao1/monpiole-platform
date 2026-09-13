@@ -511,24 +511,250 @@ export const propertyContracts = propertyManagement.table("property_contracts", 
 ]).enableRLS();
 
 export const propertyInquiries = propertyManagement.table("property_inquiries", {
-  inquiryId: uuid("inquiry_id").primaryKey(), tenantId: uuid("tenant_id").notNull(), propertyId: uuid("property_id").notNull(),
-  contactName: text("contact_name").notNull(), email: text("email"), phoneNumber: text("phone_number"), message: text("message"),
-  consentVersion: text("consent_version").notNull(), consentGivenAt: timestamp("consent_given_at", { withTimezone: true, mode: "string" }).notNull(),
-  idempotencyKey: text("idempotency_key").notNull(), status: text("status").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(), updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
-  correlationId: uuid("correlation_id").notNull(), actorId: text("actor_id").notNull(),
-  acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true, mode: "string" }), closedAt: timestamp("closed_at", { withTimezone: true, mode: "string" }),
+  inquiryId: uuid("inquiry_id").primaryKey(),
+  tenantId: uuid("tenant_id").notNull(),
+  propertyId: uuid("property_id").notNull(),
+  contactName: text("contact_name").notNull(),
+  email: text("email"),
+  phoneNumber: text("phone_number"),
+  message: text("message"),
+
+  intent: text("intent").notNull().default("CONTACT"),
+  preferredContactChannel: text("preferred_contact_channel"),
+
+  consentVersion: text("consent_version").notNull(),
+  consentGivenAt: timestamp("consent_given_at", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+
+  idempotencyKey: text("idempotency_key").notNull(),
+  status: text("status").notNull(),
+
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+
+  correlationId: uuid("correlation_id").notNull(),
+  actorId: text("actor_id").notNull(),
+
+  acknowledgedAt: timestamp("acknowledged_at", {
+    withTimezone: true,
+    mode: "string",
+  }),
+
+  closedAt: timestamp("closed_at", {
+    withTimezone: true,
+    mode: "string",
+  }),
 }, (table) => [
-  uniqueIndex("property_inquiries_tenant_inquiry_unique").on(table.tenantId, table.inquiryId),
-  uniqueIndex("property_inquiries_tenant_property_idempotency_unique").on(table.tenantId, table.propertyId, table.idempotencyKey),
-  foreignKey({ name: "property_inquiries_property_tenant_fk", columns: [table.tenantId, table.propertyId], foreignColumns: [properties.tenantId, properties.propertyId] }),
-  index("property_inquiries_tenant_property_created_idx").on(table.tenantId, table.propertyId, table.createdAt.desc(), table.inquiryId.desc()),
-  check("property_inquiries_contact_check", sql`char_length(btrim(${table.contactName})) BETWEEN 1 AND 200 AND (${table.email} IS NOT NULL OR ${table.phoneNumber} IS NOT NULL) AND (${table.email} IS NULL OR (char_length(${table.email}) BETWEEN 3 AND 320 AND ${table.email} = lower(${table.email}) AND ${table.email} ~ '^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$')) AND (${table.phoneNumber} IS NULL OR char_length(btrim(${table.phoneNumber})) BETWEEN 1 AND 100) AND (${table.message} IS NULL OR char_length(btrim(${table.message})) BETWEEN 1 AND 2000)`),
-  check("property_inquiries_consent_check", sql`char_length(btrim(${table.consentVersion})) BETWEEN 1 AND 50 AND char_length(btrim(${table.idempotencyKey})) BETWEEN 1 AND 100`),
-  check("property_inquiries_lifecycle_check", sql`(${table.status}='NEW' AND ${table.acknowledgedAt} IS NULL AND ${table.closedAt} IS NULL) OR (${table.status}='ACKNOWLEDGED' AND ${table.acknowledgedAt} IS NOT NULL AND ${table.closedAt} IS NULL) OR (${table.status}='CLOSED' AND ${table.closedAt} IS NOT NULL)`),
-  pgPolicy("property_inquiries_tenant_isolation", { using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`, withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid` }),
+  uniqueIndex("property_inquiries_tenant_inquiry_unique").on(
+    table.tenantId,
+    table.inquiryId,
+  ),
+
+  uniqueIndex("property_inquiries_tenant_property_inquiry_unique").on(
+    table.tenantId,
+    table.propertyId,
+    table.inquiryId,
+  ),
+
+  uniqueIndex("property_inquiries_tenant_property_idempotency_unique").on(
+    table.tenantId,
+    table.propertyId,
+    table.idempotencyKey,
+  ),
+
+  foreignKey({
+    name: "property_inquiries_property_tenant_fk",
+    columns: [table.tenantId, table.propertyId],
+    foreignColumns: [properties.tenantId, properties.propertyId],
+  }),
+
+  index("property_inquiries_tenant_property_created_idx").on(
+    table.tenantId,
+    table.propertyId,
+    table.createdAt.desc(),
+    table.inquiryId.desc(),
+  ),
+
+  check(
+    "property_inquiries_contact_check",
+    sql`char_length(btrim(${table.contactName})) BETWEEN 1 AND 200
+      AND (${table.email} IS NOT NULL OR ${table.phoneNumber} IS NOT NULL)
+      AND (
+        ${table.email} IS NULL
+        OR (
+          char_length(${table.email}) BETWEEN 3 AND 320
+          AND ${table.email} = lower(${table.email})
+          AND ${table.email} ~ '^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$'
+        )
+      )
+      AND (
+        ${table.phoneNumber} IS NULL
+        OR char_length(btrim(${table.phoneNumber})) BETWEEN 1 AND 100
+      )
+      AND (
+        ${table.message} IS NULL
+        OR char_length(btrim(${table.message})) BETWEEN 1 AND 2000
+      )`,
+  ),
+
+  check(
+    "property_inquiries_intent_check",
+    sql`${table.intent} IN ('CONTACT', 'VIEWING_REQUEST')`,
+  ),
+
+  check(
+    "property_inquiries_preferred_contact_channel_check",
+    sql`(
+      ${table.preferredContactChannel} IS NULL
+      OR (
+        ${table.preferredContactChannel} = 'EMAIL'
+        AND ${table.email} IS NOT NULL
+      )
+      OR (
+        ${table.preferredContactChannel} IN ('PHONE', 'SMS')
+        AND ${table.phoneNumber} IS NOT NULL
+      )
+    )`,
+  ),
+
+  check(
+    "property_inquiries_consent_check",
+    sql`char_length(btrim(${table.consentVersion})) BETWEEN 1 AND 50
+      AND char_length(btrim(${table.idempotencyKey})) BETWEEN 1 AND 100`,
+  ),
+
+  check(
+    "property_inquiries_lifecycle_check",
+    sql`(
+      ${table.status} = 'NEW'
+      AND ${table.acknowledgedAt} IS NULL
+      AND ${table.closedAt} IS NULL
+    )
+    OR (
+      ${table.status} = 'ACKNOWLEDGED'
+      AND ${table.acknowledgedAt} IS NOT NULL
+      AND ${table.closedAt} IS NULL
+    )
+    OR (
+      ${table.status} = 'CLOSED'
+      AND ${table.closedAt} IS NOT NULL
+    )`,
+  ),
+
+  pgPolicy("property_inquiries_tenant_isolation", {
+    using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+    withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+  }),
 ]).enableRLS();
 
+
+export const propertyInquiryCommunications = propertyManagement.table(
+  "property_inquiry_communications",
+  {
+    communicationId: uuid("communication_id").primaryKey(),
+    tenantId: uuid("tenant_id").notNull(),
+    propertyId: uuid("property_id").notNull(),
+    inquiryId: uuid("inquiry_id").notNull(),
+
+    channel: text("channel").notNull(),
+    direction: text("direction").notNull(),
+    status: text("status").notNull(),
+
+    summary: text("summary"),
+
+    occurredAt: timestamp("occurred_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+
+    performedByActorId: text("performed_by_actor_id").notNull(),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+
+    correlationId: uuid("correlation_id").notNull(),
+    actorId: text("actor_id").notNull(),
+  },
+  (table) => [
+    uniqueIndex(
+      "property_inquiry_communications_tenant_communication_unique",
+    ).on(
+      table.tenantId,
+      table.communicationId,
+    ),
+
+    foreignKey({
+      name: "property_inquiry_communications_inquiry_tenant_fk",
+      columns: [
+        table.tenantId,
+        table.propertyId,
+        table.inquiryId,
+      ],
+      foreignColumns: [
+        propertyInquiries.tenantId,
+        propertyInquiries.propertyId,
+        propertyInquiries.inquiryId,
+      ],
+    }),
+
+    index(
+      "property_inquiry_communications_tenant_property_inquiry_occurred_idx",
+    ).on(
+      table.tenantId,
+      table.propertyId,
+      table.inquiryId,
+      table.occurredAt.desc(),
+      table.communicationId.desc(),
+    ),
+
+    check(
+      "property_inquiry_communications_channel_check",
+      sql`${table.channel} IN ('PHONE', 'SMS', 'EMAIL')`,
+    ),
+
+    check(
+      "property_inquiry_communications_direction_check",
+      sql`${table.direction} IN ('OUTBOUND', 'INBOUND')`,
+    ),
+
+    check(
+      "property_inquiry_communications_status_check",
+      sql`${table.status} IN ('RECORDED', 'SENT', 'FAILED')`,
+    ),
+
+    check(
+      "property_inquiry_communications_summary_check",
+      sql`${table.summary} IS NULL
+        OR char_length(btrim(${table.summary})) BETWEEN 1 AND 2000`,
+    ),
+
+    check(
+      "property_inquiry_communications_actor_check",
+      sql`char_length(btrim(${table.performedByActorId})) BETWEEN 1 AND 200`,
+    ),
+
+    check(
+      "property_inquiry_communications_time_check",
+      sql`${table.occurredAt} <= ${table.createdAt}`,
+    ),
+
+    pgPolicy("property_inquiry_communications_tenant_isolation", {
+      using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+      withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+    }),
+  ],
+).enableRLS();
 export const propertyViewings=propertyManagement.table("property_viewings",{viewingId:uuid("viewing_id").primaryKey(),tenantId:uuid("tenant_id").notNull(),propertyId:uuid("property_id").notNull(),inquiryId:uuid("inquiry_id").notNull(),status:text("status").notNull(),startsAt:timestamp("starts_at",{withTimezone:true,mode:"string"}).notNull(),endsAt:timestamp("ends_at",{withTimezone:true,mode:"string"}).notNull(),timeZone:text("time_zone").notNull(),createdAt:timestamp("created_at",{withTimezone:true,mode:"string"}).notNull(),updatedAt:timestamp("updated_at",{withTimezone:true,mode:"string"}).notNull(),correlationId:uuid("correlation_id").notNull(),actorId:text("actor_id").notNull(),completedAt:timestamp("completed_at",{withTimezone:true,mode:"string"}),cancelledAt:timestamp("cancelled_at",{withTimezone:true,mode:"string"})},table=>[
  uniqueIndex("property_viewings_tenant_viewing_unique").on(table.tenantId,table.viewingId),uniqueIndex("property_viewings_tenant_property_viewing_unique").on(table.tenantId,table.propertyId,table.viewingId),uniqueIndex("property_viewings_tenant_inquiry_unique").on(table.tenantId,table.inquiryId),foreignKey({name:"property_viewings_property_tenant_fk",columns:[table.tenantId,table.propertyId],foreignColumns:[properties.tenantId,properties.propertyId]}),foreignKey({name:"property_viewings_inquiry_tenant_fk",columns:[table.tenantId,table.inquiryId],foreignColumns:[propertyInquiries.tenantId,propertyInquiries.inquiryId]}),index("property_viewings_tenant_property_time_idx").on(table.tenantId,table.propertyId,table.startsAt,table.viewingId),check("property_viewings_time_check",sql`${table.endsAt}>${table.startsAt} AND ${table.endsAt}<=${table.startsAt}+interval '4 hours' AND char_length(btrim(${table.timeZone})) BETWEEN 1 AND 100`),check("property_viewings_lifecycle_check",sql`(${table.status}='SCHEDULED' AND ${table.completedAt} IS NULL AND ${table.cancelledAt} IS NULL) OR (${table.status}='COMPLETED' AND ${table.completedAt} IS NOT NULL AND ${table.cancelledAt} IS NULL) OR (${table.status}='CANCELLED' AND ${table.cancelledAt} IS NOT NULL AND ${table.completedAt} IS NULL)`),pgPolicy("property_viewings_tenant_isolation",{using:sql`${table.tenantId}=NULLIF(current_setting('app.tenant_id',true),'')::uuid`,withCheck:sql`${table.tenantId}=NULLIF(current_setting('app.tenant_id',true),'')::uuid`})]).enableRLS();
 

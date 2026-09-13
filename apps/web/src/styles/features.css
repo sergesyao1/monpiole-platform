@@ -278,3 +278,15 @@
   .composition-building { padding: var(--space-4); }
   .workspace-summary-grid { grid-template-columns: 1fr; }
 }
+
+/* Public property commercial actions */
+.public-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+#public-property-inquiry {
+  scroll-margin-top: var(--space-6);
+}

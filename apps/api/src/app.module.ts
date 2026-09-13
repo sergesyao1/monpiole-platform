@@ -16,6 +16,7 @@ import type {
   ActivatePropertyContract, EndPropertyContract, CancelPropertyContract, RetrievePropertyWorkspace,
   RetrieveAmenityCatalog, RetrievePropertyAmenities, ReplacePropertyAmenities,
   SubmitPublicPropertyInquiry, ListPropertyInquiries, RetrievePropertyInquiry, AcknowledgePropertyInquiry, ClosePropertyInquiry,
+  RecordPropertyInquiryCommunication, ListPropertyInquiryCommunications,
   SchedulePropertyViewing, RetrieveInquiryViewing, RetrievePropertyViewing, ReschedulePropertyViewing, CompletePropertyViewing, CancelPropertyViewing,
   CreatePropertyViewingOutcome, RetrievePropertyViewingOutcome, ProceedPropertyViewingOutcome, DeclinePropertyViewingOutcome,
   CreatePropertyApplication, RetrieveViewingPropertyApplication, ListPropertyApplications, RetrievePropertyApplication,
@@ -107,6 +108,7 @@ import {
 } from "./http/properties/property-workspace.controller.js";
 import { PropertyAmenitiesController, REPLACE_PROPERTY_AMENITIES, RETRIEVE_AMENITY_CATALOG, RETRIEVE_PROPERTY_AMENITIES } from "./http/properties/property-amenities.controller.js";
 import { PublicPropertyInquiriesController, PropertyInquiriesController, SUBMIT_PUBLIC_PROPERTY_INQUIRY, LIST_PROPERTY_INQUIRIES, RETRIEVE_PROPERTY_INQUIRY, ACKNOWLEDGE_PROPERTY_INQUIRY, CLOSE_PROPERTY_INQUIRY } from "./http/properties/property-inquiries.controller.js";
+import { PropertyInquiryCommunicationsController, RECORD_PROPERTY_INQUIRY_COMMUNICATION, LIST_PROPERTY_INQUIRY_COMMUNICATIONS } from "./http/properties/property-inquiry-communications.controller.js";
 import { PropertyViewingsController, SCHEDULE_PROPERTY_VIEWING, RETRIEVE_INQUIRY_VIEWING, RETRIEVE_PROPERTY_VIEWING, RESCHEDULE_PROPERTY_VIEWING, COMPLETE_PROPERTY_VIEWING, CANCEL_PROPERTY_VIEWING } from "./http/properties/property-viewings.controller.js";
 import { PropertyViewingOutcomesController, CREATE_PROPERTY_VIEWING_OUTCOME, RETRIEVE_PROPERTY_VIEWING_OUTCOME, PROCEED_PROPERTY_VIEWING_OUTCOME, DECLINE_PROPERTY_VIEWING_OUTCOME } from "./http/properties/property-viewing-outcomes.controller.js";
 import { PropertyApplicationsController, CREATE_PROPERTY_APPLICATION, RETRIEVE_VIEWING_PROPERTY_APPLICATION, LIST_PROPERTY_APPLICATIONS, RETRIEVE_PROPERTY_APPLICATION, APPROVE_PROPERTY_APPLICATION, REJECT_PROPERTY_APPLICATION, WITHDRAW_PROPERTY_APPLICATION } from "./http/properties/property-applications.controller.js";
@@ -166,6 +168,8 @@ export interface ApiComposition {
   readonly retrievePropertyInquiry?: Pick<RetrievePropertyInquiry, "execute">;
   readonly acknowledgePropertyInquiry?: Pick<AcknowledgePropertyInquiry, "execute">;
   readonly closePropertyInquiry?: Pick<ClosePropertyInquiry, "execute">;
+  readonly recordPropertyInquiryCommunication?: Pick<RecordPropertyInquiryCommunication, "execute">;
+  readonly listPropertyInquiryCommunications?: Pick<ListPropertyInquiryCommunications, "execute">;
   readonly schedulePropertyViewing?: Pick<SchedulePropertyViewing, "execute">;
   readonly retrieveInquiryViewing?: Pick<RetrieveInquiryViewing, "execute">;
   readonly retrievePropertyViewing?: Pick<RetrievePropertyViewing, "execute">;
@@ -284,7 +288,7 @@ export class AppModule {
         UpdatePropertyCoreInformationController, UpdatePropertyDetailsController, SetPropertyPricingController,
         PublishPropertyController,
         PropertyPhotosController, PropertyPhotoStandardController, PropertyGeolocationController, PropertyAvailabilityController, PropertyAmenitiesController,
-        PublicPropertiesController, PublicPropertyInquiriesController, PropertyInquiriesController, PropertyCommercialJourneysController, PropertyViewingsController, PropertyViewingOutcomesController, PropertyApplicationsController, PropertyApplicationClientConversionsController, PropertyApplicationContractsController,
+        PublicPropertiesController, PublicPropertyInquiriesController, PropertyInquiriesController, PropertyInquiryCommunicationsController, PropertyCommercialJourneysController, PropertyViewingsController, PropertyViewingOutcomesController, PropertyApplicationsController, PropertyApplicationClientConversionsController, PropertyApplicationContractsController,
         CreatePropertyOwnerController, ListPropertyOwnersController, RetrievePropertyOwnerController, UpdatePropertyOwnerController,
         AssignPropertyOwnerController, RetrievePropertyOwnershipsController, RemovePropertyOwnerController, PropertyCompositionController, PropertyComplexChildrenController,
         PropertyClientsController, PropertyContractsController, PropertyWorkspaceController,
@@ -325,6 +329,8 @@ export class AppModule {
         { provide: RETRIEVE_PROPERTY_INQUIRY, useValue: composition.retrievePropertyInquiry ?? unavailableInquiryOperation },
         { provide: ACKNOWLEDGE_PROPERTY_INQUIRY, useValue: composition.acknowledgePropertyInquiry ?? unavailableInquiryOperation },
         { provide: CLOSE_PROPERTY_INQUIRY, useValue: composition.closePropertyInquiry ?? unavailableInquiryOperation },
+        { provide: RECORD_PROPERTY_INQUIRY_COMMUNICATION, useValue: composition.recordPropertyInquiryCommunication ?? unavailableInquiryOperation },
+        { provide: LIST_PROPERTY_INQUIRY_COMMUNICATIONS, useValue: composition.listPropertyInquiryCommunications ?? unavailableInquiryOperation },
         { provide: SCHEDULE_PROPERTY_VIEWING, useValue: composition.schedulePropertyViewing ?? unavailableViewingOperation },
         { provide: RETRIEVE_INQUIRY_VIEWING, useValue: composition.retrieveInquiryViewing ?? unavailableViewingOperation },
         { provide: RETRIEVE_PROPERTY_VIEWING, useValue: composition.retrievePropertyViewing ?? unavailableViewingOperation },

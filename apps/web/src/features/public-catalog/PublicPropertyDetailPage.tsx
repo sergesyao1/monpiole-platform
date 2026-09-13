@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
 
 import { ApiProblem } from "../../infrastructure/http/problem-details.js";
-import { createPublicPropertyApi } from "./public-property-api.js";
+import {
+  createPublicPropertyApi,
+  type PublicInquiryIntent,
+} from "./public-property-api.js";
 import {
   formatPublicPropertyPrice,
   formatPublicMinorAmount,
@@ -59,6 +62,22 @@ export function PublicPropertyDetailPage() {
 }
 
 function PublicPropertyDetailView({ property, backPath }: Readonly<{ property: PublicPropertyDetail; backPath: string }>) {
+  const [inquiryIntent, setInquiryIntent] =
+    useState<PublicInquiryIntent>();
+
+  function startInquiry(intent: PublicInquiryIntent) {
+    setInquiryIntent(intent);
+
+    window.setTimeout(() => {
+      document
+        .getElementById("public-property-inquiry")
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+    }, 0);
+  }
+
   return (
     <article className="public-detail">
       <Link className="public-back-link" to={backPath}>← Retour au catalogue</Link>
@@ -74,6 +93,24 @@ function PublicPropertyDetailView({ property, backPath }: Readonly<{ property: P
           <p className="public-property-location">{property.location.city} · {property.location.district} · {property.location.country}</p>
           <p className="public-detail-price">{formatPublicPropertyPrice(property.commercialTerms)}</p>
           <p className="public-property-role">{propertyStructuralRoleLabels[property.structuralRole]}</p>
+
+          <div
+            className="public-detail-actions"
+            aria-label="Contacter le gestionnaire"
+          >
+            <Button
+              onClick={() => startInquiry("CONTACT")}
+            >
+              Je suis intéressé
+            </Button>
+
+            <Button
+              variant="secondary"
+              onClick={() => startInquiry("VIEWING_REQUEST")}
+            >
+              Demander une visite
+            </Button>
+          </div>
         </div>
       </div>
       <div className="public-detail-sections">
@@ -96,7 +133,16 @@ function PublicPropertyDetailView({ property, backPath }: Readonly<{ property: P
         </dl></section>
         <section><h2>Conditions financières</h2><PublicPricingDetails terms={property.commercialTerms} /></section>
         {property.amenities.length>0?<section><h2>Commodités et équipements</h2><ul className="public-amenities">{property.amenities.map((amenity)=><li key={amenity.code}>{amenity.labelFr}</li>)}</ul></section>:null}
-        <PublicPropertyInquiryForm propertyId={property.publicPropertyId} api={api}/>
+        {inquiryIntent !== undefined ? (
+          <div id="public-property-inquiry">
+            <PublicPropertyInquiryForm
+              key={inquiryIntent}
+              propertyId={property.publicPropertyId}
+              api={api}
+              intent={inquiryIntent}
+            />
+          </div>
+        ) : null}
       </div>
     </article>
   );

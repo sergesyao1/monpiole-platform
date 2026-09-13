@@ -29,6 +29,7 @@ import {
   PropertyCommercialTargetNotEligibleError,
   SetPropertyPricing,
   PostgresPropertyInquiryRepository, PropertyInquiry,
+  PostgresPropertyInquiryCommunicationRepository, PropertyInquiryCommunication,
   PostgresPropertyViewingRepository, PropertyViewing, PropertyViewingConflictError,
   PostgresPropertyViewingOutcomeRepository, PropertyViewingOutcome, PropertyViewingOutcomeConflictError,
   PostgresPropertyApplicationRepository, PropertyApplication,
@@ -66,7 +67,7 @@ beforeAll(async () => {
     TO monpiole_runtime`);
   runtime = new Pool({ connectionString: connection("monpiole_runtime", "synthetic-runtime") });
 });
-afterEach(async () => owner.query("TRUNCATE property_management.property_complex_children, property_management.property_application_contract_origins, property_management.property_application_client_conversions, property_management.property_applications, property_management.property_viewing_outcomes, property_management.property_viewings, property_management.property_inquiries, property_management.property_amenities, property_management.property_contracts, property_management.property_clients, property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners"));
+afterEach(async () => owner.query("TRUNCATE property_management.property_complex_children, property_management.property_application_contract_origins, property_management.property_application_client_conversions, property_management.property_applications, property_management.property_viewing_outcomes, property_management.property_viewings, property_management.property_inquiry_communications, property_management.property_inquiries, property_management.property_amenities, property_management.property_contracts, property_management.property_clients, property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners"));
 afterAll(async () => { await runtime?.end(); await owner?.end(); await container?.stop(); });
 
 function authority(tenantId: string) { return { actorId: "actor", authorityId: "authority", grants: ["CREATE_PROPERTY", "RETRIEVE_PROPERTY"] as const, tenantIds: [tenantId] }; }
@@ -2538,5 +2539,763 @@ describe("Property availability PostgreSQL persistence", () => {
     await expect(journeys.list(TENANT_B, { sort: "RECENT" }, 20)).resolves.toEqual({ items: [], totalCount: 0, properties: [] });
     expect(await repository.list(TENANT_B, PROPERTY_ID, 20)).toBeUndefined();
     await expect(withTenantPostgresTransaction(runtime, TENANT_B, (scope) => scope.query("SELECT * FROM property_management.property_inquiries"))).resolves.toEqual([]);
+  });
+  it("persists inquiry intent and preferred contact channel and enforces database constraints", async () => {
+    await create();
+    await new SetPropertyPricing(
+      new PostgresPropertyRepository(runtime),
+      { now: () => "2026-09-09T14:00:00.000Z" },
+    ).execute({
+      authority: pricingAuthority(TENANT_A),
+      correlationId: CORRELATION,
+      propertyId: PROPERTY_ID,
+      pricing: {
+        kind: "SALE",
+        currency: "XOF",
+        salePriceAmountMinor: 10000000,
+      },
+    });
+
+    await owner.query(
+      "UPDATE property_management.properties SET status='PUBLISHED', published_at=now(), published_by_actor_id='actor', publication_correlation_id=$1 WHERE property_id=$2",
+      [CORRELATION, PROPERTY_ID],
+    );
+
+    const repository = new PostgresPropertyInquiryRepository(runtime);
+
+    const contactInquiry = PropertyInquiry.create({
+      inquiryId: randomUUID(),
+      tenantId: TENANT_A,
+      propertyId: PROPERTY_ID,
+      contactName: "Aminata Yao",
+      email: "aminata@example.com",
+      intent: "CONTACT",
+      preferredContactChannel: "EMAIL",
+      consentVersion: "inquiry-v1",
+      consentGivenAt: "2026-09-09T14:01:00.000Z",
+      idempotencyKey: "task099-contact-email",
+      createdAt: "2026-09-09T14:01:00.000Z",
+      updatedAt: "2026-09-09T14:01:00.000Z",
+    });
+
+    const viewingInquiry = PropertyInquiry.create({
+      inquiryId: randomUUID(),
+      tenantId: TENANT_A,
+      propertyId: PROPERTY_ID,
+      contactName: "Koffi N'Guessan",
+      phoneNumber: "+2250700000000",
+      intent: "VIEWING_REQUEST",
+      preferredContactChannel: "SMS",
+      consentVersion: "inquiry-v1",
+      consentGivenAt: "2026-09-09T14:02:00.000Z",
+      idempotencyKey: "task099-viewing-sms",
+      createdAt: "2026-09-09T14:02:00.000Z",
+      updatedAt: "2026-09-09T14:02:00.000Z",
+    });
+
+    await repository.submitForPublishedProperty(
+      contactInquiry,
+      PROPERTY_ID,
+      { actorId: "public-inquiry", correlationId: CORRELATION },
+    );
+
+    await repository.submitForPublishedProperty(
+      viewingInquiry,
+      PROPERTY_ID,
+      { actorId: "public-inquiry", correlationId: REPLAY_CORRELATION },
+    );
+
+    const inquiries = await repository.list(TENANT_A, PROPERTY_ID, 20);
+
+    expect(inquiries?.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          values: expect.objectContaining({
+            inquiryId: contactInquiry.values.inquiryId,
+            intent: "CONTACT",
+            preferredContactChannel: "EMAIL",
+            email: "aminata@example.com",
+          }),
+        }),
+        expect.objectContaining({
+          values: expect.objectContaining({
+            inquiryId: viewingInquiry.values.inquiryId,
+            intent: "VIEWING_REQUEST",
+            preferredContactChannel: "SMS",
+            phoneNumber: "+2250700000000",
+          }),
+        }),
+      ]),
+    );
+
+    const persisted = await owner.query(
+      `SELECT inquiry_id, intent, preferred_contact_channel
+       FROM property_management.property_inquiries
+       WHERE inquiry_id = ANY($1::uuid[])
+       ORDER BY inquiry_id`,
+      [[contactInquiry.values.inquiryId, viewingInquiry.values.inquiryId]],
+    );
+
+    expect(persisted.rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          inquiry_id: contactInquiry.values.inquiryId,
+          intent: "CONTACT",
+          preferred_contact_channel: "EMAIL",
+        }),
+        expect.objectContaining({
+          inquiry_id: viewingInquiry.values.inquiryId,
+          intent: "VIEWING_REQUEST",
+          preferred_contact_channel: "SMS",
+        }),
+      ]),
+    );
+
+    await expect(
+      owner.query(
+        "UPDATE property_management.property_inquiries SET intent='UNKNOWN' WHERE inquiry_id=$1",
+        [contactInquiry.values.inquiryId],
+      ),
+    ).rejects.toMatchObject({ code: "23514" });
+
+    await expect(
+      owner.query(
+        "UPDATE property_management.property_inquiries SET email=NULL, preferred_contact_channel='EMAIL' WHERE inquiry_id=$1",
+        [contactInquiry.values.inquiryId],
+      ),
+    ).rejects.toMatchObject({ code: "23514" });
+
+    await expect(
+      owner.query(
+        "UPDATE property_management.property_inquiries SET phone_number=NULL, preferred_contact_channel='SMS' WHERE inquiry_id=$1",
+        [viewingInquiry.values.inquiryId],
+      ),
+    ).rejects.toMatchObject({ code: "23514" });
+  });
+
+  it("records and paginates inquiry communications with tenant isolation", async () => {
+    await create();
+
+    await new SetPropertyPricing(
+      new PostgresPropertyRepository(runtime),
+      { now: () => "2026-09-09T15:00:00.000Z" },
+    ).execute({
+      authority: pricingAuthority(TENANT_A),
+      correlationId: CORRELATION,
+      propertyId: PROPERTY_ID,
+      pricing: {
+        kind: "SALE",
+        currency: "XOF",
+        salePriceAmountMinor: 10000000,
+      },
+    });
+
+    await owner.query(
+      "UPDATE property_management.properties SET status='PUBLISHED', published_at=now(), published_by_actor_id='actor', publication_correlation_id=$1 WHERE property_id=$2",
+      [CORRELATION, PROPERTY_ID],
+    );
+
+    const inquiryRepository = new PostgresPropertyInquiryRepository(runtime);
+
+    const inquiry = PropertyInquiry.create({
+      inquiryId: randomUUID(),
+      tenantId: TENANT_A,
+      propertyId: PROPERTY_ID,
+      contactName: "Awa Koné",
+      phoneNumber: "+2250700000000",
+      intent: "VIEWING_REQUEST",
+      preferredContactChannel: "PHONE",
+      consentVersion: "inquiry-v1",
+      consentGivenAt: "2026-09-09T15:01:00.000Z",
+      idempotencyKey: "task099-communication",
+      createdAt: "2026-09-09T15:01:00.000Z",
+      updatedAt: "2026-09-09T15:01:00.000Z",
+    });
+
+    const savedInquiry =
+      await inquiryRepository.submitForPublishedProperty(
+        inquiry,
+        PROPERTY_ID,
+        {
+          actorId: "public-inquiry",
+          correlationId: CORRELATION,
+        },
+      );
+
+    expect(savedInquiry).toBeDefined();
+
+    const repository =
+      new PostgresPropertyInquiryCommunicationRepository(runtime);
+
+    const firstId = "11111111-1111-4111-8111-111111111111";
+    const secondId = "22222222-2222-4222-8222-222222222222";
+    const thirdId = "33333333-3333-4333-8333-333333333333";
+
+    const communications = [
+      PropertyInquiryCommunication.create({
+        communicationId: firstId,
+        tenantId: TENANT_A,
+        propertyId: PROPERTY_ID,
+        inquiryId: inquiry.values.inquiryId,
+        channel: "PHONE",
+        direction: "OUTBOUND",
+        status: "RECORDED",
+        summary: "Premier appel au prospect",
+        occurredAt: "2026-09-09T15:10:00.000Z",
+        performedByActorId: "commercial-1",
+        createdAt: "2026-09-09T15:20:00.000Z",
+      }),
+
+      PropertyInquiryCommunication.create({
+        communicationId: secondId,
+        tenantId: TENANT_A,
+        propertyId: PROPERTY_ID,
+        inquiryId: inquiry.values.inquiryId,
+        channel: "SMS",
+        direction: "OUTBOUND",
+        status: "SENT",
+        summary: "Confirmation envoyée par SMS",
+        occurredAt: "2026-09-09T15:15:00.000Z",
+        performedByActorId: "commercial-1",
+        createdAt: "2026-09-09T15:20:00.000Z",
+      }),
+
+      PropertyInquiryCommunication.create({
+        communicationId: thirdId,
+        tenantId: TENANT_A,
+        propertyId: PROPERTY_ID,
+        inquiryId: inquiry.values.inquiryId,
+        channel: "PHONE",
+        direction: "INBOUND",
+        status: "RECORDED",
+        summary: "Le prospect rappelle",
+        occurredAt: "2026-09-09T15:15:00.000Z",
+        performedByActorId: "commercial-2",
+        createdAt: "2026-09-09T15:20:00.000Z",
+      }),
+    ];
+
+    for (const communication of communications) {
+      await expect(
+        repository.record(communication, {
+          actorId: communication.values.performedByActorId,
+          correlationId: CORRELATION,
+        }),
+      ).resolves.toBe("CREATED");
+    }
+
+    const firstPage = await repository.list(
+      TENANT_A,
+      PROPERTY_ID,
+      inquiry.values.inquiryId,
+      2,
+    );
+
+    expect(firstPage).toBeDefined();
+
+    expect(
+      firstPage?.items.map(
+        (item) => item.values.communicationId,
+      ),
+    ).toEqual([
+      thirdId,
+      secondId,
+    ]);
+
+    expect(firstPage?.nextCursor).toEqual({
+      occurredAt: "2026-09-09T15:15:00.000Z",
+      communicationId: secondId,
+    });
+
+    const secondPage = await repository.list(
+      TENANT_A,
+      PROPERTY_ID,
+      inquiry.values.inquiryId,
+      2,
+      firstPage?.nextCursor,
+    );
+
+    expect(
+      secondPage?.items.map(
+        (item) => item.values.communicationId,
+      ),
+    ).toEqual([
+      firstId,
+    ]);
+
+    expect(secondPage?.nextCursor).toBeUndefined();
+
+    const persisted = await owner.query(
+      `SELECT
+         communication_id,
+         channel,
+         direction,
+         status,
+         summary,
+         performed_by_actor_id
+       FROM property_management.property_inquiry_communications
+       WHERE tenant_id=$1
+         AND property_id=$2
+         AND inquiry_id=$3
+       ORDER BY occurred_at DESC, communication_id DESC`,
+      [
+        TENANT_A,
+        PROPERTY_ID,
+        inquiry.values.inquiryId,
+      ],
+    );
+
+    expect(persisted.rows).toMatchObject([
+      {
+        communication_id: thirdId,
+        channel: "PHONE",
+        direction: "INBOUND",
+        status: "RECORDED",
+        summary: "Le prospect rappelle",
+        performed_by_actor_id: "commercial-2",
+      },
+      {
+        communication_id: secondId,
+        channel: "SMS",
+        direction: "OUTBOUND",
+        status: "SENT",
+        summary: "Confirmation envoyée par SMS",
+        performed_by_actor_id: "commercial-1",
+      },
+      {
+        communication_id: firstId,
+        channel: "PHONE",
+        direction: "OUTBOUND",
+        status: "RECORDED",
+        summary: "Premier appel au prospect",
+        performed_by_actor_id: "commercial-1",
+      },
+    ]);
+
+    await expect(
+      repository.list(
+        TENANT_B,
+        PROPERTY_ID,
+        inquiry.values.inquiryId,
+        20,
+      ),
+    ).resolves.toBeUndefined();
+
+    const missingInquiryCommunication =
+      PropertyInquiryCommunication.create({
+        communicationId: randomUUID(),
+        tenantId: TENANT_A,
+        propertyId: PROPERTY_ID,
+        inquiryId: randomUUID(),
+        channel: "PHONE",
+        direction: "OUTBOUND",
+        status: "RECORDED",
+        occurredAt: "2026-09-09T15:30:00.000Z",
+        performedByActorId: "commercial-1",
+        createdAt: "2026-09-09T15:30:00.000Z",
+      });
+
+    await expect(
+      repository.record(
+        missingInquiryCommunication,
+        {
+          actorId: "commercial-1",
+          correlationId: REPLAY_CORRELATION,
+        },
+      ),
+    ).resolves.toBe("INQUIRY_NOT_FOUND");
+  });
+
+  it("enforces inquiry communication database constraints and append-only privileges", async () => {
+    await create();
+
+    await new SetPropertyPricing(
+      new PostgresPropertyRepository(runtime),
+      { now: () => "2026-09-09T16:00:00.000Z" },
+    ).execute({
+      authority: pricingAuthority(TENANT_A),
+      correlationId: CORRELATION,
+      propertyId: PROPERTY_ID,
+      pricing: {
+        kind: "SALE",
+        currency: "XOF",
+        salePriceAmountMinor: 10000000,
+      },
+    });
+
+    await owner.query(
+      "UPDATE property_management.properties SET status='PUBLISHED', published_at=now(), published_by_actor_id='actor', publication_correlation_id=$1 WHERE property_id=$2",
+      [CORRELATION, PROPERTY_ID],
+    );
+
+    const inquiryRepository =
+      new PostgresPropertyInquiryRepository(runtime);
+
+    const inquiry = PropertyInquiry.create({
+      inquiryId: randomUUID(),
+      tenantId: TENANT_A,
+      propertyId: PROPERTY_ID,
+      contactName: "Koffi Test",
+      email: "koffi@example.com",
+      intent: "CONTACT",
+      preferredContactChannel: "EMAIL",
+      consentVersion: "inquiry-v1",
+      consentGivenAt: "2026-09-09T16:01:00.000Z",
+      idempotencyKey: "task099-db-constraints",
+      createdAt: "2026-09-09T16:01:00.000Z",
+      updatedAt: "2026-09-09T16:01:00.000Z",
+    });
+
+    await inquiryRepository.submitForPublishedProperty(
+      inquiry,
+      PROPERTY_ID,
+      {
+        actorId: "public-inquiry",
+        correlationId: CORRELATION,
+      },
+    );
+
+    const validId = randomUUID();
+
+    await owner.query(
+      `INSERT INTO property_management.property_inquiry_communications (
+         communication_id,
+         tenant_id,
+         property_id,
+         inquiry_id,
+         channel,
+         direction,
+         status,
+         summary,
+         occurred_at,
+         performed_by_actor_id,
+         created_at,
+         correlation_id,
+         actor_id
+       )
+       VALUES (
+         $1,$2,$3,$4,
+         'EMAIL','OUTBOUND','RECORDED',
+         'Message manuel',
+         '2026-09-09T16:05:00.000Z',
+         'commercial-1',
+         '2026-09-09T16:06:00.000Z',
+         $5,
+         'commercial-1'
+       )`,
+      [
+        validId,
+        TENANT_A,
+        PROPERTY_ID,
+        inquiry.values.inquiryId,
+        CORRELATION,
+      ],
+    );
+
+    const invalidChecks = [
+      {
+        field: "channel",
+        value: "WHATSAPP",
+      },
+      {
+        field: "direction",
+        value: "SIDEWAYS",
+      },
+      {
+        field: "status",
+        value: "PENDING",
+      },
+    ] as const;
+
+    for (const invalid of invalidChecks) {
+      const candidateId = randomUUID();
+
+      const result = await owner.query(
+        `INSERT INTO property_management.property_inquiry_communications (
+           communication_id,
+           tenant_id,
+           property_id,
+           inquiry_id,
+           channel,
+           direction,
+           status,
+           occurred_at,
+           performed_by_actor_id,
+           created_at,
+           correlation_id,
+           actor_id
+         )
+         VALUES (
+           $1,$2,$3,$4,
+           $5,$6,$7,
+           '2026-09-09T16:10:00.000Z',
+           'commercial-1',
+           '2026-09-09T16:11:00.000Z',
+           $8,
+           'commercial-1'
+         )
+         ON CONFLICT DO NOTHING`,
+        [
+          candidateId,
+          TENANT_A,
+          PROPERTY_ID,
+          inquiry.values.inquiryId,
+          invalid.field === "channel"
+            ? invalid.value
+            : "PHONE",
+          invalid.field === "direction"
+            ? invalid.value
+            : "OUTBOUND",
+          invalid.field === "status"
+            ? invalid.value
+            : "RECORDED",
+          REPLAY_CORRELATION,
+        ],
+      ).then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+
+      expect(result).toMatchObject({
+        code: "23514",
+      });
+    }
+
+    const invalidSummary = await owner.query(
+      `INSERT INTO property_management.property_inquiry_communications (
+         communication_id,
+         tenant_id,
+         property_id,
+         inquiry_id,
+         channel,
+         direction,
+         status,
+         summary,
+         occurred_at,
+         performed_by_actor_id,
+         created_at,
+         correlation_id,
+         actor_id
+       )
+       VALUES (
+         $1,$2,$3,$4,
+         'PHONE','OUTBOUND','RECORDED',
+         '',
+         '2026-09-09T16:10:00.000Z',
+         'commercial-1',
+         '2026-09-09T16:11:00.000Z',
+         $5,
+         'commercial-1'
+       )`,
+      [
+        randomUUID(),
+        TENANT_A,
+        PROPERTY_ID,
+        inquiry.values.inquiryId,
+        REPLAY_CORRELATION,
+      ],
+    ).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+    expect(invalidSummary).toMatchObject({
+      code: "23514",
+    });
+
+    const invalidActor = await owner.query(
+      `INSERT INTO property_management.property_inquiry_communications (
+         communication_id,
+         tenant_id,
+         property_id,
+         inquiry_id,
+         channel,
+         direction,
+         status,
+         occurred_at,
+         performed_by_actor_id,
+         created_at,
+         correlation_id,
+         actor_id
+       )
+       VALUES (
+         $1,$2,$3,$4,
+         'PHONE','OUTBOUND','RECORDED',
+         '2026-09-09T16:10:00.000Z',
+         '   ',
+         '2026-09-09T16:11:00.000Z',
+         $5,
+         'commercial-1'
+       )`,
+      [
+        randomUUID(),
+        TENANT_A,
+        PROPERTY_ID,
+        inquiry.values.inquiryId,
+        REPLAY_CORRELATION,
+      ],
+    ).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+    expect(invalidActor).toMatchObject({
+      code: "23514",
+    });
+
+    const invalidTime = await owner.query(
+      `INSERT INTO property_management.property_inquiry_communications (
+         communication_id,
+         tenant_id,
+         property_id,
+         inquiry_id,
+         channel,
+         direction,
+         status,
+         occurred_at,
+         performed_by_actor_id,
+         created_at,
+         correlation_id,
+         actor_id
+       )
+       VALUES (
+         $1,$2,$3,$4,
+         'PHONE','OUTBOUND','RECORDED',
+         '2026-09-09T17:00:00.000Z',
+         'commercial-1',
+         '2026-09-09T16:00:00.000Z',
+         $5,
+         'commercial-1'
+       )`,
+      [
+        randomUUID(),
+        TENANT_A,
+        PROPERTY_ID,
+        inquiry.values.inquiryId,
+        REPLAY_CORRELATION,
+      ],
+    ).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+    expect(invalidTime).toMatchObject({
+      code: "23514",
+    });
+
+    const invalidFk = await owner.query(
+      `INSERT INTO property_management.property_inquiry_communications (
+         communication_id,
+         tenant_id,
+         property_id,
+         inquiry_id,
+         channel,
+         direction,
+         status,
+         occurred_at,
+         performed_by_actor_id,
+         created_at,
+         correlation_id,
+         actor_id
+       )
+       VALUES (
+         $1,$2,$3,$4,
+         'PHONE','OUTBOUND','RECORDED',
+         '2026-09-09T16:10:00.000Z',
+         'commercial-1',
+         '2026-09-09T16:11:00.000Z',
+         $5,
+         'commercial-1'
+       )`,
+      [
+        randomUUID(),
+        TENANT_A,
+        PROPERTY_ID,
+        randomUUID(),
+        REPLAY_CORRELATION,
+      ],
+    ).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+    expect(invalidFk).toMatchObject({
+      code: "23503",
+    });
+
+    const privileges = await owner.query(
+      `SELECT
+         has_table_privilege(
+           'monpiole_runtime',
+           'property_management.property_inquiry_communications',
+           'SELECT'
+         ) AS can_select,
+         has_table_privilege(
+           'monpiole_runtime',
+           'property_management.property_inquiry_communications',
+           'INSERT'
+         ) AS can_insert,
+         has_table_privilege(
+           'monpiole_runtime',
+           'property_management.property_inquiry_communications',
+           'UPDATE'
+         ) AS can_update,
+         has_table_privilege(
+           'monpiole_runtime',
+           'property_management.property_inquiry_communications',
+           'DELETE'
+         ) AS can_delete
+      `,
+    );
+
+    expect(privileges.rows[0]).toMatchObject({
+      can_select: true,
+      can_insert: true,
+      can_update: false,
+      can_delete: false,
+    });
+
+    const rls = await owner.query(
+      `SELECT
+         c.relrowsecurity,
+         c.relforcerowsecurity
+       FROM pg_class c
+       JOIN pg_namespace n
+         ON n.oid = c.relnamespace
+       WHERE n.nspname = 'property_management'
+         AND c.relname = 'property_inquiry_communications'`,
+    );
+
+    expect(rls.rows[0]).toMatchObject({
+      relrowsecurity: true,
+      relforcerowsecurity: true,
+    });
+
+    const runtimeUpdate = await runtime.query(
+      `UPDATE property_management.property_inquiry_communications
+       SET summary='Mutation interdite'
+       WHERE communication_id=$1`,
+      [validId],
+    ).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+    expect(runtimeUpdate).toMatchObject({
+      code: "42501",
+    });
+
+    const runtimeDelete = await runtime.query(
+      `DELETE FROM property_management.property_inquiry_communications
+       WHERE communication_id=$1`,
+      [validId],
+    ).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+    expect(runtimeDelete).toMatchObject({
+      code: "42501",
+    });
   });
 });

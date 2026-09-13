@@ -1,13 +1,13 @@
-import { InvalidPropertyInquiryInputError, PropertyInquiry, type PropertyInquiryStatus } from "../domain/property-inquiry.js";
+import { InvalidPropertyInquiryInputError, PropertyInquiry, type PropertyInquiryStatus, type PropertyInquiryIntent, type PropertyInquiryPreferredContactChannel } from "../domain/property-inquiry.js";
 import { authorizedTenant, type PropertyAuthority } from "./property-authority.js";
 import type { PropertyInquiryCursor, PropertyInquiryPage, PropertyInquiryRepository } from "./property-inquiry-repository.js";
 export class PropertyInquiryNotFoundError extends Error { readonly code="PROPERTY_INQUIRY_NOT_FOUND"; }
 export class InvalidPropertyInquiryListError extends Error { readonly code="INVALID_PROPERTY_INQUIRY_LIST"; }
 export class SubmitPublicPropertyInquiry {
   constructor(private readonly repository:PropertyInquiryRepository,private readonly ids:{generate():string},private readonly clock:{now():string}){}
-  async execute(command:Readonly<{tenantId:string;publicPropertyId:string;contactName:string;email?:string;phoneNumber?:string;message?:string;consent:boolean;consentVersion:string;idempotencyKey:string;correlationId:string}>):Promise<{inquiryId:string;receivedAt:string}>{
+  async execute(command:Readonly<{tenantId:string;publicPropertyId:string;contactName:string;email?:string;phoneNumber?:string;message?:string;intent:PropertyInquiryIntent;preferredContactChannel?:PropertyInquiryPreferredContactChannel;consent:boolean;consentVersion:string;idempotencyKey:string;correlationId:string}>):Promise<{inquiryId:string;receivedAt:string}>{
     if(!command.consent)throw new InvalidPropertyInquiryInputError("consent"); const now=this.clock.now();
-    const inquiry=PropertyInquiry.create({inquiryId:this.ids.generate(),tenantId:command.tenantId,propertyId:command.publicPropertyId,contactName:command.contactName,...(command.email===undefined?{}:{email:command.email}),...(command.phoneNumber===undefined?{}:{phoneNumber:command.phoneNumber}),...(command.message===undefined?{}:{message:command.message}),consentVersion:command.consentVersion,consentGivenAt:now,idempotencyKey:command.idempotencyKey,createdAt:now,updatedAt:now});
+    const inquiry=PropertyInquiry.create({inquiryId:this.ids.generate(),tenantId:command.tenantId,propertyId:command.publicPropertyId,contactName:command.contactName,...(command.email===undefined?{}:{email:command.email}),...(command.phoneNumber===undefined?{}:{phoneNumber:command.phoneNumber}),...(command.message===undefined?{}:{message:command.message}),intent:command.intent,...(command.preferredContactChannel===undefined?{}:{preferredContactChannel:command.preferredContactChannel}),consentVersion:command.consentVersion,consentGivenAt:now,idempotencyKey:command.idempotencyKey,createdAt:now,updatedAt:now});
     const saved=await this.repository.submitForPublishedProperty(inquiry,command.publicPropertyId,{correlationId:command.correlationId,actorId:"public-inquiry"}); if(saved===undefined)throw new PropertyInquiryNotFoundError(); return{inquiryId:saved.values.inquiryId,receivedAt:saved.values.createdAt};
   }
 }

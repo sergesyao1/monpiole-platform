@@ -345,8 +345,42 @@ export interface PropertyClientDirectoryPage {
 export type PropertyContractType = "LEASE" | "MANAGEMENT" | "OTHER";
 export type PropertyContractStatus = "DRAFT" | "ACTIVE" | "ENDED" | "CANCELLED";
 export type PropertyInquiryStatus="NEW"|"ACKNOWLEDGED"|"CLOSED";
-export interface PropertyInquiry{readonly inquiryId:string;readonly propertyId:string;readonly contactName:string;readonly email?:string;readonly phoneNumber?:string;readonly message?:string;readonly consentVersion:string;readonly consentGivenAt:string;readonly status:PropertyInquiryStatus;readonly createdAt:string;readonly updatedAt:string;readonly acknowledgedAt?:string;readonly closedAt?:string;}
+export type PropertyInquiryIntent="CONTACT"|"VIEWING_REQUEST";
+export type PropertyInquiryPreferredContactChannel="PHONE"|"SMS"|"EMAIL";
+export interface PropertyInquiry{readonly inquiryId:string;readonly propertyId:string;readonly contactName:string;readonly email?:string;readonly phoneNumber?:string;readonly message?:string;readonly intent:PropertyInquiryIntent;readonly preferredContactChannel?:PropertyInquiryPreferredContactChannel;readonly consentVersion:string;readonly consentGivenAt:string;readonly status:PropertyInquiryStatus;readonly createdAt:string;readonly updatedAt:string;readonly acknowledgedAt?:string;readonly closedAt?:string;}
 export interface PropertyInquiryPage{readonly items:readonly PropertyInquiry[];readonly pageInfo:{readonly hasNextPage:boolean;readonly nextCursor:string|null};}
+
+export type PropertyInquiryCommunicationChannel="PHONE"|"SMS"|"EMAIL";
+export type PropertyInquiryCommunicationDirection="OUTBOUND"|"INBOUND";
+export type PropertyInquiryCommunicationStatus="RECORDED"|"SENT"|"FAILED";
+
+export interface PropertyInquiryCommunication{
+  readonly communicationId:string;
+  readonly propertyId:string;
+  readonly inquiryId:string;
+  readonly channel:PropertyInquiryCommunicationChannel;
+  readonly direction:PropertyInquiryCommunicationDirection;
+  readonly status:PropertyInquiryCommunicationStatus;
+  readonly summary?:string;
+  readonly occurredAt:string;
+  readonly performedByActorId:string;
+  readonly createdAt:string;
+}
+
+export interface PropertyInquiryCommunicationPage{
+  readonly items:readonly PropertyInquiryCommunication[];
+  readonly pageInfo:{
+    readonly hasNextPage:boolean;
+    readonly nextCursor:string|null;
+  };
+}
+
+export interface RecordPropertyInquiryCommunicationInput{
+  readonly channel:PropertyInquiryCommunicationChannel;
+  readonly direction:PropertyInquiryCommunicationDirection;
+  readonly summary?:string;
+  readonly occurredAt?:string;
+}
 export type PropertyViewingStatus="SCHEDULED"|"COMPLETED"|"CANCELLED";
 export interface PropertyViewing{readonly viewingId:string;readonly propertyId:string;readonly inquiryId:string;readonly status:PropertyViewingStatus;readonly startsAt:string;readonly endsAt:string;readonly timeZone:string;readonly createdAt:string;readonly updatedAt:string;readonly completedAt?:string;readonly cancelledAt?:string;}
 export interface PropertyViewingScheduleInput{readonly startsAt:string;readonly endsAt:string;readonly timeZone:string;}
