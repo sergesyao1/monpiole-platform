@@ -1,4 +1,21 @@
+import type {
+  ApproveAgencyRegistration,
+  ListAgencyRegistrations,
+  RejectAgencyRegistration,
+  RetrieveAgencyRegistration,
+  StartAgencyRegistrationReview,
+  SubmitAgencyRegistration,
+} from "@monpiole/agency-onboarding";
 import { type DynamicModule, Module } from "@nestjs/common";
+import {
+  AgencyRegistrationsController,
+  APPROVE_AGENCY_REGISTRATION,
+  LIST_AGENCY_REGISTRATIONS,
+  REJECT_AGENCY_REGISTRATION,
+  RETRIEVE_AGENCY_REGISTRATION,
+  START_AGENCY_REGISTRATION_REVIEW,
+  SUBMIT_AGENCY_REGISTRATION,
+} from "./http/agency-onboarding/agency-registrations.controller.js";
 import type { ActivateTenant, CreateTenant, PlatformAuthorityAuthorizer } from "@monpiole/tenant-management";
 import type { ActivateTenantAdministrator, BootstrapTenantAdministrator } from "@monpiole/identity";
 import type {
@@ -120,7 +137,39 @@ const StrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
 });
 
+const unavailableAgencyOperation = {
+  async execute(): Promise<never> {
+    throw new Error(
+      "Agency onboarding composition is unavailable",
+    );
+  },
+};
+
 export interface ApiComposition {
+  readonly submitAgencyRegistration?: Pick<
+    SubmitAgencyRegistration,
+    "execute"
+  >;
+  readonly listAgencyRegistrations?: Pick<
+    ListAgencyRegistrations,
+    "execute"
+  >;
+  readonly retrieveAgencyRegistration?: Pick<
+    RetrieveAgencyRegistration,
+    "execute"
+  >;
+  readonly startAgencyRegistrationReview?: Pick<
+    StartAgencyRegistrationReview,
+    "execute"
+  >;
+  readonly rejectAgencyRegistration?: Pick<
+    RejectAgencyRegistration,
+    "execute"
+  >;
+  readonly approveAgencyRegistration?: Pick<
+    ApproveAgencyRegistration,
+    "execute"
+  >;
   readonly createTenant?: Pick<CreateTenant, "execute">;
   readonly authenticatedAuthorityProvider?: AuthenticatedAuthorityProvider;
   readonly platformAuthorityAuthorizer?: PlatformAuthorityAuthorizer;
@@ -279,6 +328,7 @@ export class AppModule {
     return {
       module: AppModule,
       controllers: [
+      AgencyRegistrationsController,
         HealthController, ContractBaselineController, AuthenticationSessionController,
         PlatformTenantCreationAuthorizationProbeController, CreateTenantController,
         BootstrapAdministratorController,
@@ -294,6 +344,42 @@ export class AppModule {
         PropertyClientsController, PropertyContractsController, PropertyWorkspaceController,
       ],
       providers: [
+      {
+        provide: SUBMIT_AGENCY_REGISTRATION,
+        useValue:
+          composition.submitAgencyRegistration ??
+          unavailableAgencyOperation,
+      },
+      {
+        provide: LIST_AGENCY_REGISTRATIONS,
+        useValue:
+          composition.listAgencyRegistrations ??
+          unavailableAgencyOperation,
+      },
+      {
+        provide: RETRIEVE_AGENCY_REGISTRATION,
+        useValue:
+          composition.retrieveAgencyRegistration ??
+          unavailableAgencyOperation,
+      },
+      {
+        provide: START_AGENCY_REGISTRATION_REVIEW,
+        useValue:
+          composition.startAgencyRegistrationReview ??
+          unavailableAgencyOperation,
+      },
+      {
+        provide: REJECT_AGENCY_REGISTRATION,
+        useValue:
+          composition.rejectAgencyRegistration ??
+          unavailableAgencyOperation,
+      },
+      {
+        provide: APPROVE_AGENCY_REGISTRATION,
+        useValue:
+          composition.approveAgencyRegistration ??
+          unavailableAgencyOperation,
+      },
         { provide: APP_PIPE, useClass: StrictZodValidationPipe },
         { provide: APP_INTERCEPTOR, useClass: RequestContextInterceptor },
         { provide: APP_INTERCEPTOR, useClass: ZodSerializerInterceptor },

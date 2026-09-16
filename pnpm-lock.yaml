@@ -29,6 +29,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@monpiole/agency-onboarding':
+        specifier: workspace:*
+        version: link:../../services/agency-onboarding
       '@monpiole/identity':
         specifier: workspace:*
         version: link:../../services/identity
@@ -132,6 +135,28 @@ importers:
 
   packages/persistence:
     dependencies:
+      drizzle-orm:
+        specifier: 0.45.2
+        version: 0.45.2(@types/pg@8.23.1)(pg@8.23.0)
+      pg:
+        specifier: 8.23.0
+        version: 8.23.0
+    devDependencies:
+      '@types/pg':
+        specifier: 8.23.1
+        version: 8.23.1
+      drizzle-kit:
+        specifier: 0.31.10
+        version: 0.31.10
+      testcontainers:
+        specifier: 12.1.0
+        version: 12.1.0(supports-color@7.2.0)
+
+  services/agency-onboarding:
+    dependencies:
+      '@monpiole/persistence':
+        specifier: workspace:*
+        version: link:../../packages/persistence
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(@types/pg@8.23.1)(pg@8.23.0)

@@ -1,11 +1,19 @@
 import { UnauthorizedException } from "@nestjs/common";
+import type {
+  AgencyOnboardingAuthority,
+  AgencyOnboardingGrant,
+} from "@monpiole/agency-onboarding";
 import type { IdentityOnboardingAuthority, IdentityOnboardingGrant } from "@monpiole/identity";
 import type { PlatformAuthority, TenantOnboardingGrant } from "@monpiole/tenant-management";
 import type { PropertyAuthority, PropertyGrant } from "@monpiole/property-management";
 
 import type { RequestWithContext } from "../request-context/request-context.js";
 
-export type AuthorityGrant = TenantOnboardingGrant | IdentityOnboardingGrant | PropertyGrant;
+export type AuthorityGrant =
+  | TenantOnboardingGrant
+  | IdentityOnboardingGrant
+  | PropertyGrant
+  | AgencyOnboardingGrant;
 
 export interface AuthenticatedAuthority {
   readonly actorId: string;
@@ -31,6 +39,20 @@ export async function requireAuthenticatedAuthority(
   return authority;
 }
 
+export function toAgencyOnboardingAuthority(
+  authority: AuthenticatedAuthority,
+): AgencyOnboardingAuthority {
+  return {
+    actorId: authority.actorId,
+    authorityId: authority.authorityId,
+    grants: authority.grants.filter(
+      (grant): grant is AgencyOnboardingGrant =>
+        grant === "RETRIEVE_AGENCY_REGISTRATIONS" ||
+        grant === "REVIEW_AGENCY_REGISTRATIONS" ||
+        grant === "DECIDE_AGENCY_REGISTRATIONS",
+    ),
+  };
+}
 export function toTenantManagementAuthority(authority: AuthenticatedAuthority): PlatformAuthority {
   return {
     actorId: authority.actorId,

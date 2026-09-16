@@ -21,6 +21,7 @@ try {
     { folder: fileURLToPath(new URL("services/tenant-management/migrations", repositoryRoot)), table: "tenant_management_migrations" },
     { folder: fileURLToPath(new URL("services/identity/migrations", repositoryRoot)), table: "identity_migrations" },
     { folder: fileURLToPath(new URL("services/property-management/migrations", repositoryRoot)), table: "property_management_migrations" },
+    { folder: fileURLToPath(new URL("services/agency-onboarding/migrations", repositoryRoot)), table: "agency_onboarding_migrations" },
   ]);
   process.stdout.write("PostgreSQL migrations applied.\n");
 } finally {

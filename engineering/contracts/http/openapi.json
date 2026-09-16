@@ -6245,6 +6245,264 @@
         ],
         "type": "object"
       },
+      "RegistrationDto": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "agencyLegalName": {
+            "type": "string"
+          },
+          "agencyTradeName": {
+            "type": "string"
+          },
+          "approvalProvisioningStartedAt": {
+            "type": "string"
+          },
+          "approvedAt": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "contactEmail": {
+            "type": "string"
+          },
+          "contactFirstName": {
+            "type": "string"
+          },
+          "contactLastName": {
+            "type": "string"
+          },
+          "contactPhone": {
+            "type": "string"
+          },
+          "correlationId": {
+            "type": "string"
+          },
+          "countryCode": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "provisionedTenantId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "registrationId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "registrationNumber": {
+            "type": "string"
+          },
+          "rejectedAt": {
+            "type": "string"
+          },
+          "rejectionReason": {
+            "type": "string"
+          },
+          "reviewedByIdentityId": {
+            "type": "string"
+          },
+          "reviewStartedAt": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "APPROVED",
+              "REJECTED",
+              "SUBMITTED",
+              "UNDER_REVIEW"
+            ],
+            "type": "string"
+          },
+          "submittedAt": {
+            "type": "string"
+          },
+          "taxIdentifier": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "website": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "agencyLegalName",
+          "city",
+          "contactEmail",
+          "contactFirstName",
+          "contactLastName",
+          "contactPhone",
+          "correlationId",
+          "countryCode",
+          "createdAt",
+          "email",
+          "phone",
+          "registrationId",
+          "registrationNumber",
+          "status",
+          "submittedAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "RegistrationListDto": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "address": {
+                  "type": "string"
+                },
+                "agencyLegalName": {
+                  "type": "string"
+                },
+                "agencyTradeName": {
+                  "type": "string"
+                },
+                "approvalProvisioningStartedAt": {
+                  "type": "string"
+                },
+                "approvedAt": {
+                  "type": "string"
+                },
+                "city": {
+                  "type": "string"
+                },
+                "contactEmail": {
+                  "type": "string"
+                },
+                "contactFirstName": {
+                  "type": "string"
+                },
+                "contactLastName": {
+                  "type": "string"
+                },
+                "contactPhone": {
+                  "type": "string"
+                },
+                "correlationId": {
+                  "type": "string"
+                },
+                "countryCode": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": "string"
+                },
+                "phone": {
+                  "type": "string"
+                },
+                "provisionedTenantId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "registrationId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "registrationNumber": {
+                  "type": "string"
+                },
+                "rejectedAt": {
+                  "type": "string"
+                },
+                "rejectionReason": {
+                  "type": "string"
+                },
+                "reviewedByIdentityId": {
+                  "type": "string"
+                },
+                "reviewStartedAt": {
+                  "type": "string"
+                },
+                "status": {
+                  "enum": [
+                    "APPROVED",
+                    "REJECTED",
+                    "SUBMITTED",
+                    "UNDER_REVIEW"
+                  ],
+                  "type": "string"
+                },
+                "submittedAt": {
+                  "type": "string"
+                },
+                "taxIdentifier": {
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "type": "string"
+                },
+                "website": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "address",
+                "agencyLegalName",
+                "city",
+                "contactEmail",
+                "contactFirstName",
+                "contactLastName",
+                "contactPhone",
+                "correlationId",
+                "countryCode",
+                "createdAt",
+                "email",
+                "phone",
+                "registrationId",
+                "registrationNumber",
+                "status",
+                "submittedAt",
+                "updatedAt"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "RejectDto": {
+        "additionalProperties": false,
+        "properties": {
+          "rejectionReason": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "rejectionReason"
+        ],
+        "type": "object"
+      },
       "ReorderPropertyPhotosRequest": {
         "additionalProperties": false,
         "properties": {
@@ -6388,6 +6646,29 @@
           "contactName",
           "idempotencyKey",
           "intent"
+        ],
+        "type": "object"
+      },
+      "SubmitResponseDto": {
+        "additionalProperties": false,
+        "properties": {
+          "registrationId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "status": {
+            "const": "SUBMITTED",
+            "type": "string"
+          },
+          "submittedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "registrationId",
+          "status",
+          "submittedAt"
         ],
         "type": "object"
       },
@@ -7132,6 +7413,226 @@
         },
         "tags": [
           "Health"
+        ]
+      }
+    },
+    "/v1/agency-registrations": {
+      "get": {
+        "operationId": "listAgencyRegistrations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationListDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      },
+      "post": {
+        "operationId": "submitAgencyRegistration",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/agency-registrations/{registrationId}": {
+      "get": {
+        "operationId": "retrieveAgencyRegistration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/agency-registrations/{registrationId}/approve": {
+      "post": {
+        "operationId": "approveAgencyRegistration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/agency-registrations/{registrationId}/reject": {
+      "post": {
+        "operationId": "rejectAgencyRegistration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/agency-registrations/{registrationId}/review": {
+      "post": {
+        "operationId": "startAgencyRegistrationReview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
         ]
       }
     },

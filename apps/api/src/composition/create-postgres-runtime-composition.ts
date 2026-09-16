@@ -9,6 +9,17 @@ import {
 } from "@monpiole/identity";
 import { PostgresPool, postgresConfigurationFromEnvironment } from "@monpiole/persistence";
 import {
+  ApproveAgencyRegistration,
+  ListAgencyRegistrations,
+  PostgresAgencyRegistrationQueryStore,
+  PostgresAgencyRegistrationReviewUnitOfWork,
+  PostgresSubmitAgencyRegistrationStore,
+  RejectAgencyRegistration,
+  RetrieveAgencyRegistration,
+  StartAgencyRegistrationReview,
+  SubmitAgencyRegistration,
+} from "@monpiole/agency-onboarding";
+import {
   CreateProperty, CreatePropertyOwner, ListProperties, ListPropertyOwners, PostgresPropertyOwnerDirectoryQuery,
   PostgresPropertyOwnerRepository, PostgresPropertyPortfolioQuery, PostgresPropertyRepository,
   RetrieveProperty, RetrievePropertyOwner, SetPropertyPricing, UpdatePropertyCoreInformation, UpdatePropertyDetails, UpdatePropertyOwner,
@@ -51,7 +62,12 @@ import { TenantExistenceAdapter } from "./tenant-existence.adapter.js";
 import { OnboardingAuthorityPolicy } from "./onboarding-authority-policy.js";
 import { OidcAccessTokenVerifier, oidcAccessTokenConfigurationFromEnvironment } from "../authentication/oidc-access-token-verifier.js";
 import { OidcAuthenticatedAuthorityProvider } from "../authentication/oidc-authenticated-authority-provider.js";
+import {
+  PlatformExternalAuthorityResolver,
+  platformSubjectAuthorityConfigurationFromEnvironment,
+} from "../authentication/platform-authenticated-authority-provider.js";
 import { IdentityExternalAuthorityAdapter } from "./identity-external-authority.adapter.js";
+import { AgencyTenantProvisioningAdapter } from "./agency-tenant-provisioning.adapter.js";
 import { publicCatalogHostAllowlistFromEnvironment } from "../configuration/public-catalog.js";
 
 export interface PostgresApiRuntime {
@@ -81,11 +97,30 @@ export function createPostgresApiRuntime(
   const externalIdentityStore = new PostgresExternalIdentityStore(pool);
   const authenticatedAuthorityProvider = new OidcAuthenticatedAuthorityProvider(
     accessTokenVerifier,
-    new IdentityExternalAuthorityAdapter(externalIdentityStore),
+    new PlatformExternalAuthorityResolver(
+      platformSubjectAuthorityConfigurationFromEnvironment(environment),
+      new IdentityExternalAuthorityAdapter(externalIdentityStore),
+    ),
   );
   const activeAdministrator = new HasActiveTenantAdministrator(identityStore);
   const tenantExists = new CheckTenantExists(new PostgresTenantExistenceRepository(pool));
   const authorityPolicy = new OnboardingAuthorityPolicy();
+  const compositionClock = { now: () => new Date().toISOString() };
+  const createTenant = new CreateTenant(
+    authorityPolicy,
+    new PostgresCreateTenantUnitOfWork(pool),
+    { generate: randomUUID },
+    { generate: randomUUID },
+    compositionClock,
+  );
+
+  const agencySubmitStore = new PostgresSubmitAgencyRegistrationStore(pool);
+  const agencyQueryStore = new PostgresAgencyRegistrationQueryStore(pool);
+  const agencyReviewUnitOfWork =
+    new PostgresAgencyRegistrationReviewUnitOfWork(pool);
+  const agencyTenantProvisioning =
+    new AgencyTenantProvisioningAdapter(createTenant);
+
   const propertyRepository = new PostgresPropertyRepository(pool);
   const propertyPhotoRepository = new PostgresPropertyPhotoRepository(pool);
   const propertyPhotoStandardRepository = new PostgresPropertyPhotoStandardRepository(pool);
@@ -104,19 +139,35 @@ export function createPostgresApiRuntime(
   const propertyApplicationRepository = new PostgresPropertyApplicationRepository(pool);
   const propertyApplicationClientConversionRepository = new PostgresPropertyApplicationClientConversionRepository(pool);
   const propertyApplicationContractRepository = new PostgresPropertyApplicationContractRepository(pool);
-  const compositionClock = { now: () => new Date().toISOString() };
   const publicCatalogQuery = publicCatalogDatabase === undefined
     ? undefined
     : new PostgresPublicPropertyCatalogQuery(publicCatalogDatabase.infrastructurePool());
 
   const composition: ApiComposition = {
     authenticatedAuthorityProvider,
-    platformAuthorityAuthorizer: authorityPolicy,
-    createTenant: new CreateTenant(
-      authorityPolicy,
-      new PostgresCreateTenantUnitOfWork(pool),
-      { generate: randomUUID }, { generate: randomUUID }, { now: () => new Date().toISOString() },
+
+    submitAgencyRegistration: new SubmitAgencyRegistration(
+      agencySubmitStore,
+      compositionClock,
+      { generate: randomUUID },
     ),
+    listAgencyRegistrations: new ListAgencyRegistrations(agencyQueryStore),
+    retrieveAgencyRegistration: new RetrieveAgencyRegistration(agencyQueryStore),
+    startAgencyRegistrationReview: new StartAgencyRegistrationReview(
+      agencyReviewUnitOfWork,
+      compositionClock,
+    ),
+    rejectAgencyRegistration: new RejectAgencyRegistration(
+      agencyReviewUnitOfWork,
+      compositionClock,
+    ),
+    approveAgencyRegistration: new ApproveAgencyRegistration(
+      agencyReviewUnitOfWork,
+      agencyTenantProvisioning,
+      compositionClock,
+    ),
+    platformAuthorityAuthorizer: authorityPolicy,
+    createTenant,
     bootstrapTenantAdministrator: new BootstrapTenantAdministrator(
       new TenantExistenceAdapter(tenantExists), identityStore, { generate: randomUUID }, authorityPolicy,
     ),

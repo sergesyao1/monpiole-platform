@@ -48,6 +48,7 @@ export default defineConfig({
         "services/tenant-management/tests/**/*.test.ts",
         "services/identity/tests/**/*.test.ts",
         "services/property-management/tests/**/*.test.ts",
+        "services/agency-onboarding/tests/**/*.test.ts",
       ], 60_000),
       nodeProject("contract", ["tests/contract/**/*.test.ts"]),
       webProject,

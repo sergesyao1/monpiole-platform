@@ -84,6 +84,36 @@ function businessProblem(exception: unknown) {
     status: 403, type: "https://api.monpiole.example/problems/forbidden",
     title: "Forbidden", code: "FORBIDDEN",
   };
+  if (code === "AGENCY_ONBOARDING_FORBIDDEN") return {
+    status: 403,
+    type: "https://api.monpiole.example/problems/forbidden",
+    title: "Forbidden",
+    code: "FORBIDDEN",
+  };
+  if (code === "AGENCY_REGISTRATION_NOT_FOUND") return {
+    status: 404,
+    type: "https://api.monpiole.example/problems/agency-registration-not-found",
+    title: "Agency registration not found",
+    code: "AGENCY_REGISTRATION_NOT_FOUND",
+  };
+  if (code === "INVALID_AGENCY_REGISTRATION_TRANSITION") return {
+    status: 409,
+    type: "https://api.monpiole.example/problems/agency-registration-conflict",
+    title: "Agency registration conflict",
+    code: "INVALID_AGENCY_REGISTRATION_TRANSITION",
+  };
+  if (code === "AGENCY_REGISTRATION_NUMBER_CONFLICT") return {
+    status: 409,
+    type: "https://api.monpiole.example/problems/agency-registration-number-conflict",
+    title: "Agency registration conflict",
+    code: "AGENCY_REGISTRATION_NUMBER_CONFLICT",
+  };
+  if (code === "AGENCY_DOCUMENT_STORAGE_KEY_CONFLICT") return {
+    status: 409,
+    type: "https://api.monpiole.example/problems/agency-document-storage-key-conflict",
+    title: "Agency document conflict",
+    code: "AGENCY_DOCUMENT_STORAGE_KEY_CONFLICT",
+  };
   if (code === "DUPLICATE_TENANT_EMAIL") return {
     status: 409, type: "https://api.monpiole.example/problems/duplicate-tenant",
     title: "Tenant conflict", code: "DUPLICATE_TENANT",

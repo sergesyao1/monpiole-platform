@@ -16,6 +16,7 @@
     "typecheck": "tsc --project tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@monpiole/agency-onboarding": "workspace:*",
     "@monpiole/identity": "workspace:*",
     "@monpiole/persistence": "workspace:*",
     "@monpiole/property-management": "workspace:*",
