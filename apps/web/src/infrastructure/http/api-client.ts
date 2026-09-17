@@ -48,12 +48,25 @@ async function performFetch(path: `/v1/${string}`, options: ApiRequestOptions, a
   const headers = new Headers(options.headers);
   headers.set("accept", "application/json");
   headers.set("x-correlation-id", crypto.randomUUID());
-  if (options.body !== undefined) headers.set("content-type", "application/json");
-  if (accessToken !== undefined) headers.set("authorization", `Bearer ${accessToken}`);
+
+  const isFormData = options.body instanceof FormData;
+
+  if (options.body !== undefined && !isFormData) {
+    headers.set("content-type", "application/json");
+  }
+
+  if (accessToken !== undefined) {
+    headers.set("authorization", `Bearer ${accessToken}`);
+  }
 
   return fetch(`${publicWebConfig.apiBaseUrl}${path}`, {
     ...options,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    body:
+      options.body === undefined
+        ? undefined
+        : isFormData
+          ? options.body
+          : JSON.stringify(options.body),
     headers,
   });
 }

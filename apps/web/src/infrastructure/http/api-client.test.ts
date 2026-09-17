@@ -61,4 +61,36 @@ describe("client HTTP", () => {
     expect(String(error)).not.toContain("bearer-ne-doit-pas-fuiter");
     expect(log).not.toHaveBeenCalled();
   });
+
+  it("laisse FormData intact et laisse le navigateur définir le Content-Type multipart", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 201,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    const form = new FormData();
+    const file = new File(
+      [new Uint8Array([0x25, 0x50, 0x44, 0x46])],
+      "document.pdf",
+      { type: "application/pdf" },
+    );
+
+    form.append("file", file);
+
+    await requestJson("/v1/example", {
+      method: "POST",
+      body: form,
+    });
+
+    const [, init] = fetchMock.mock.calls[0] ?? [];
+    const headers = new Headers(init?.headers);
+
+    expect(init?.body).toBe(form);
+    expect(init?.body).toBeInstanceOf(FormData);
+    expect(headers.has("content-type")).toBe(false);
+    expect(headers.get("accept")).toBe("application/json");
+    expect(headers.get("x-correlation-id")).toMatch(/^[0-9a-f-]{36}$/);
+  });
 });

@@ -41,6 +41,12 @@ export const managedApplicationRoutes: RouteObject[] = [
     hydrateFallbackElement: <LoadingPage />,
   },
   {
+    path: "/inscription-agence",
+    lazy: lazyComponent(() => import("../features/agency-registration/PublicAgencyRegistrationPage.js"), "PublicAgencyRegistrationPage"),
+    errorElement: <RouteErrorPage />,
+    hydrateFallbackElement: <LoadingPage />,
+  },
+  {
     path: "/catalogue/:publicPropertyId",
     lazy: lazyComponent(() => import("../features/public-catalog/PublicPropertyDetailPage.js"), "PublicPropertyDetailPage"),
     errorElement: <RouteErrorPage />,

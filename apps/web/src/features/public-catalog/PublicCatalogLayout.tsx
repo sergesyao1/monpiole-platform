@@ -9,8 +9,9 @@ export function PublicCatalogLayout({ children }: PropsWithChildren) {
         <Link className="public-brand" to="/catalogue" aria-label="Accueil du catalogue MonPiole">
           <span aria-hidden="true">M</span><strong>monPiole</strong>
         </Link>
-        <nav aria-label="Navigation du catalogue">
+        <nav aria-label="Navigation publique">
           <Link to="/catalogue">Catalogue</Link>
+          <Link to="/inscription-agence">Inscrire mon agence</Link>
           <Link to="/connexion">Espace de gestion</Link>
         </nav>
       </header>

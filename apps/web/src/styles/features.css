@@ -255,7 +255,7 @@
   .topbar { position: static; min-height: 4rem; }
   .hero { grid-template-columns: 1fr; }
   .hero-accent { display: none; }
-  .card-grid, .property-portfolio-list, .definition-grid, .composition-form-grid, .contract-workspace-grid { grid-template-columns: 1fr; }
+  .card-grid, .property-portfolio-list, .definition-grid, .composition-form-grid, .contract-workspace-grid, .agency-registration-grid { grid-template-columns: 1fr; }
   .property-page { --property-navigation-top: var(--space-2); }
   .ownership-list li { grid-template-columns: 1fr auto; }
   .ownership-list .danger-action, .ownership-list .ui-button--danger { grid-column: 1 / -1; width: 100%; }
@@ -289,4 +289,67 @@
 
 #public-property-inquiry {
   scroll-margin-top: var(--space-6);
+}
+/* Public agency registration */
+.public-agency-registration {
+  width: min(var(--content-wide), calc(100% - 2.5rem));
+  margin: 0 auto;
+  padding: clamp(3rem, 7vw, 6rem) 0;
+}
+
+.public-agency-registration__header {
+  max-width: 48rem;
+  margin-bottom: var(--space-8);
+}
+
+.public-agency-registration__header .eyebrow {
+  margin-bottom: var(--space-3);
+}
+
+.public-agency-registration__header h1 {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-page);
+  font-weight: var(--font-weight-medium);
+}
+
+.public-agency-registration__header > p:last-child {
+  max-width: 42rem;
+  margin: var(--space-4) 0 0;
+  color: var(--color-text-muted);
+  line-height: var(--line-height-body);
+}
+
+.public-agency-registration__form {
+  display: grid;
+  gap: var(--space-6);
+  padding: clamp(1.25rem, 4vw, 2rem);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.public-agency-registration__section {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.public-agency-registration__section + .public-agency-registration__section {
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border);
+}
+
+.public-agency-registration__section h2,
+.public-agency-registration__section h3 {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-family: var(--font-family-heading);
+}
+
+.agency-registration-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
 }

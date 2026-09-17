@@ -2,6 +2,7 @@ import { Navigate, type RouteObject } from "react-router";
 
 import { AuthenticationBoundary } from "../auth/AuthenticationBoundary.js";
 import { LoginPage } from "../auth/LoginPage.js";
+import { PublicAgencyRegistrationPage } from "../features/agency-registration/PublicAgencyRegistrationPage.js";
 import { CreatePropertyOwnerPage } from "../features/properties/CreatePropertyOwnerPage.js";
 import { CreatePropertyPage } from "../features/properties/CreatePropertyPage.js";
 import { PropertyDetailPage } from "../features/properties/PropertyDetailPage.js";
@@ -21,6 +22,7 @@ import { ApplicationShell } from "./shell/ApplicationShell.js";
 export const applicationRoutes: RouteObject[] = [
   { path: "/connexion", element: <LoginPage /> },
   { path: "/catalogue", element: <PublicPropertyCatalogPage />, errorElement: <RouteErrorPage /> },
+  { path: "/inscription-agence", element: <PublicAgencyRegistrationPage />, errorElement: <RouteErrorPage /> },
   { path: "/catalogue/:publicPropertyId", element: <PublicPropertyDetailPage />, errorElement: <RouteErrorPage /> },
   {
     element: <AuthenticationBoundary />,
