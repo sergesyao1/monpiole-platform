@@ -2,9 +2,30 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
+interface OpenApiSchema {
+  readonly type?: string;
+  readonly format?: string;
+  readonly required?: readonly string[];
+  readonly properties?: Record<string, OpenApiSchema>;
+  readonly items?: OpenApiSchema;
+  readonly $ref?: string;
+}
+
+interface OpenApiMediaType {
+  readonly schema?: OpenApiSchema;
+}
+
+interface OpenApiResponse {
+  readonly content?: Record<string, OpenApiMediaType>;
+}
+
 interface OpenApiOperation {
   readonly operationId?: string;
   readonly security?: readonly Record<string, readonly string[]>[];
+  readonly requestBody?: {
+    readonly content?: Record<string, OpenApiMediaType>;
+  };
+  readonly responses?: Record<string, OpenApiResponse>;
 }
 
 interface OpenApiPath {
@@ -32,6 +53,9 @@ describe("Agency registrations OpenAPI", () => {
 
   it("exposes the complete agency registration lifecycle", () => {
     expect(document.paths).toHaveProperty(
+      "/v1/agency-registration-documents",
+    );
+    expect(document.paths).toHaveProperty(
       "/v1/agency-registrations",
     );
     expect(document.paths).toHaveProperty(
@@ -48,16 +72,143 @@ describe("Agency registrations OpenAPI", () => {
     );
   });
 
-  it("keeps public submission unauthenticated", () => {
+  it("publishes the public agency document upload contract", () => {
+    const operation =
+      document.paths[
+        "/v1/agency-registration-documents"
+      ]?.post;
+
+    expect(operation?.operationId).toBe(
+      "uploadAgencyRegistrationDocument",
+    );
+    expect(operation?.security).toEqual([]);
+
+    const multipart =
+      operation?.requestBody?.content?.[
+        "multipart/form-data"
+      ]?.schema;
+
+    expect(multipart?.type).toBe("object");
+    expect(multipart?.required).toContain("file");
+    expect(multipart?.properties?.file).toMatchObject({
+      type: "string",
+      format: "binary",
+    });
+
+    const createdResponse =
+      operation?.responses?.["201"]?.content?.[
+        "application/json"
+      ]?.schema;
+
+    expect(createdResponse?.$ref).toBe(
+      "#/components/schemas/UploadDocumentResponseDto",
+    );
+
+    expect(document.components.schemas).toHaveProperty(
+      "UploadDocumentResponseDto",
+    );
+
+    const serializedResponseSchema = JSON.stringify(
+      document.components.schemas[
+        "UploadDocumentResponseDto"
+      ],
+    );
+
+    expect(serializedResponseSchema).toContain(
+      '"uploadId"',
+    );
+    expect(serializedResponseSchema).toContain(
+      '"checksumSha256"',
+    );
+    expect(serializedResponseSchema).toContain(
+      '"expiresAt"',
+    );
+    expect(serializedResponseSchema).not.toContain(
+      '"storageKey"',
+    );
+  });
+
+  it("publishes submission with staged upload references only", () => {
     const operation =
       document.paths["/v1/agency-registrations"]?.post;
 
     expect(operation?.operationId).toBe(
       "submitAgencyRegistration",
     );
-    expect(operation?.security).toEqual([]);
-  });
 
+    expect(operation?.security).toEqual([]);
+
+    const requestSchema =
+      operation?.requestBody?.content?.[
+        "application/json"
+      ]?.schema;
+
+    expect(requestSchema?.$ref).toBe(
+      "#/components/schemas/SubmitAgencyRegistrationRequestDto",
+    );
+
+    const submitSchema =
+      document.components.schemas[
+        "SubmitAgencyRegistrationRequestDto"
+      ];
+
+    expect(submitSchema).toBeDefined();
+
+    const documentsSchema =
+      submitSchema?.properties?.documents;
+
+    expect(documentsSchema?.type).toBe("array");
+    expect(documentsSchema?.minItems).toBe(1);
+    expect(documentsSchema?.maxItems).toBe(20);
+
+    const documentItemSchema =
+      documentsSchema?.items;
+
+    expect(documentItemSchema).toBeDefined();
+
+    const documentItemSchemaName =
+      documentItemSchema?.$ref?.split("/").at(-1);
+
+    const resolvedDocumentItemSchema =
+      documentItemSchemaName === undefined
+        ? documentItemSchema
+        : document.components.schemas[
+            documentItemSchemaName
+          ];
+
+    expect(resolvedDocumentItemSchema).toBeDefined();
+
+    const serializedDocumentItemSchema =
+      JSON.stringify(resolvedDocumentItemSchema);
+
+    expect(serializedDocumentItemSchema).toContain(
+      '"documentType"',
+    );
+
+    expect(serializedDocumentItemSchema).toContain(
+      '"uploadId"',
+    );
+
+    expect(serializedDocumentItemSchema).not.toContain(
+      '"storageKey"',
+    );
+
+    expect(serializedDocumentItemSchema).not.toContain(
+      '"originalFilename"',
+    );
+
+    expect(serializedDocumentItemSchema).not.toContain(
+      '"mimeType"',
+    );
+
+    expect(serializedDocumentItemSchema).not.toContain(
+      '"sizeBytes"',
+    );
+
+    expect(serializedDocumentItemSchema).not.toContain(
+      '"checksumSha256"',
+    );
+  });
   it("protects platform retrieval and decision operations with bearer authentication", () => {
     const operations = [
       document.paths["/v1/agency-registrations"]?.get,

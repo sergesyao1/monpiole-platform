@@ -12,9 +12,15 @@ export interface AgencyRegistrationDocument {
   readonly createdAt: string;
 }
 
+export interface SubmitAgencyRegistrationDocumentInput {
+  readonly documentId: string;
+  readonly documentType: string;
+  readonly uploadId: string;
+}
+
 export interface SubmitAgencyRegistrationInput {
   readonly registration: AgencyRegistration;
-  readonly documents: readonly AgencyRegistrationDocument[];
+  readonly documents: readonly SubmitAgencyRegistrationDocumentInput[];
 }
 
 export interface SubmitAgencyRegistrationStore {
@@ -46,4 +52,13 @@ export interface AgencyRegistrationQueryStore {
   ): Promise<AgencyRegistration | undefined>;
 
   list(): Promise<readonly AgencyRegistration[]>;
+
+  listDocuments(
+    registrationId: string,
+  ): Promise<readonly AgencyRegistrationDocument[]>;
+
+  findDocument(
+    registrationId: string,
+    documentId: string,
+  ): Promise<AgencyRegistrationDocument | undefined>;
 }

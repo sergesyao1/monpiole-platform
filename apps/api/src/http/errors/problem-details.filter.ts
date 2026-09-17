@@ -96,6 +96,45 @@ function businessProblem(exception: unknown) {
     title: "Agency registration not found",
     code: "AGENCY_REGISTRATION_NOT_FOUND",
   };
+  if (code === "AGENCY_REGISTRATION_DOCUMENT_UPLOAD_VALIDATION_ERROR") return {
+    status: 400,
+    type: "https://api.monpiole.example/problems/invalid-request",
+    title: "Invalid request",
+    code: "INVALID_REQUEST",
+  };
+  if (code === "AGENCY_REGISTRATION_DOCUMENT_UPLOAD_DUPLICATE") return {
+    status: 400,
+    type: "https://api.monpiole.example/problems/invalid-request",
+    title: "Invalid request",
+    code: "AGENCY_REGISTRATION_DOCUMENT_UPLOAD_DUPLICATE",
+  };
+  if (code === "AGENCY_REGISTRATION_DOCUMENT_UPLOAD_NOT_FOUND") return {
+    status: 400,
+    type: "https://api.monpiole.example/problems/invalid-request",
+    title: "Invalid request",
+    code: "AGENCY_REGISTRATION_DOCUMENT_UPLOAD_NOT_FOUND",
+  };
+  if (
+    code === "AGENCY_REGISTRATION_DOCUMENT_UPLOAD_CONSUMED"
+    || code === "AGENCY_REGISTRATION_DOCUMENT_UPLOAD_EXPIRED"
+  ) return {
+    status: 409,
+    type: "https://api.monpiole.example/problems/agency-registration-document-upload-conflict",
+    title: "Agency registration document upload conflict",
+    code,
+  };
+  if (code === "AGENCY_REGISTRATION_DOCUMENT_CONTENT_NOT_FOUND") return {
+    status: 404,
+    type: "https://api.monpiole.example/problems/agency-registration-document-not-found",
+    title: "Agency registration document not found",
+    code: "AGENCY_REGISTRATION_DOCUMENT_NOT_FOUND",
+  };
+  if (code === "AGENCY_REGISTRATION_DOCUMENT_INTEGRITY_ERROR") return {
+    status: 500,
+    type: "https://api.monpiole.example/problems/internal-error",
+    title: "Internal server error",
+    code: "INTERNAL_ERROR",
+  };
   if (code === "INVALID_AGENCY_REGISTRATION_TRANSITION") return {
     status: 409,
     type: "https://api.monpiole.example/problems/agency-registration-conflict",

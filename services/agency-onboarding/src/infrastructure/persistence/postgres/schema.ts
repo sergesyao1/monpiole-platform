@@ -200,6 +200,91 @@ export const agencyRegistrations = agencyOnboarding.table(
   ],
 ).enableRLS();
 
+export const agencyRegistrationDocumentUploads = agencyOnboarding.table(
+  "agency_registration_document_uploads",
+  {
+    uploadId: uuid("upload_id").primaryKey(),
+    storageKey: text("storage_key").notNull(),
+    originalFilename: text("original_filename").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
+    checksumSha256: text("checksum_sha256").notNull(),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+
+    consumedAt: timestamp("consumed_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+  },
+  (table) => [
+    uniqueIndex(
+      "agency_registration_document_uploads_storage_key_unique",
+    ).on(table.storageKey),
+
+    index("agency_registration_document_uploads_expiry_idx")
+      .on(table.expiresAt, table.uploadId)
+      .where(sql`${table.consumedAt} IS NULL`),
+
+    check(
+      "agency_registration_document_uploads_storage_key_check",
+      sql`char_length(btrim(${table.storageKey})) BETWEEN 1 AND 1000`,
+    ),
+
+    check(
+      "agency_registration_document_uploads_filename_check",
+      sql`char_length(btrim(${table.originalFilename})) BETWEEN 1 AND 255`,
+    ),
+
+    check(
+      "agency_registration_document_uploads_mime_type_check",
+      sql`char_length(btrim(${table.mimeType})) BETWEEN 1 AND 255`,
+    ),
+
+    check(
+      "agency_registration_document_uploads_size_check",
+      sql`${table.sizeBytes} > 0 AND ${table.sizeBytes} <= 52428800`,
+    ),
+
+    check(
+      "agency_registration_document_uploads_checksum_check",
+      sql`${table.checksumSha256} ~ '^[0-9a-f]{64}$'`,
+    ),
+
+    check(
+      "agency_registration_document_uploads_expiry_check",
+      sql`${table.expiresAt} > ${table.createdAt}`,
+    ),
+
+    check(
+      "agency_registration_document_uploads_consumed_check",
+      sql`
+        ${table.consumedAt} IS NULL
+        OR ${table.consumedAt} >= ${table.createdAt}
+      `,
+    ),
+
+    pgPolicy("agency_registration_document_uploads_public_submit", {
+      for: "all",
+      using: sql`
+        current_setting('app.platform_capability', true)
+          = 'agency-registration:submit'
+      `,
+      withCheck: sql`
+        current_setting('app.platform_capability', true)
+          = 'agency-registration:submit'
+      `,
+    }),
+  ],
+).enableRLS();
 export const agencyRegistrationDocuments = agencyOnboarding.table(
   "agency_registration_documents",
   {

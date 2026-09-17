@@ -20,6 +20,10 @@ import {
 import {
   AgencyDocumentStorageKeyConflictError,
   AgencyOnboardingForbiddenError,
+  AgencyRegistrationDocumentUploadConsumedError,
+  AgencyRegistrationDocumentUploadDuplicateError,
+  AgencyRegistrationDocumentUploadExpiredError,
+  AgencyRegistrationDocumentUploadNotFoundError,
   AgencyRegistrationNotFoundError,
   AgencyRegistrationNumberConflictError,
   ApproveAgencyRegistration,
@@ -144,6 +148,43 @@ function registration(): AgencyRegistration {
   });
 }
 
+async function stageAgencyDocumentUpload(input: {
+  uploadId: string;
+  storageKey: string;
+  originalFilename?: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  checksumSha256?: string;
+  createdAt?: string;
+  expiresAt?: string;
+  consumedAt?: string | null;
+}): Promise<void> {
+  await ownerPool.query(
+    `INSERT INTO agency_onboarding.agency_registration_document_uploads (
+       upload_id,
+       storage_key,
+       original_filename,
+       mime_type,
+       size_bytes,
+       checksum_sha256,
+       created_at,
+       expires_at,
+       consumed_at
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+    [
+      input.uploadId,
+      input.storageKey,
+      input.originalFilename ?? "rccm.pdf",
+      input.mimeType ?? "application/pdf",
+      input.sizeBytes ?? 1024,
+      input.checksumSha256 ??
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      input.createdAt ?? "2026-09-15T14:00:00.000Z",
+      input.expiresAt ?? "2026-09-15T16:00:00.000Z",
+      input.consumedAt ?? null,
+    ],
+  );
+}
 describe("Agency onboarding PostgreSQL RLS", () => {
   it("allows submit capability to create a registration", async () => {
     const value = registration();
@@ -206,79 +247,309 @@ describe("Agency onboarding PostgreSQL RLS", () => {
     ).toEqual([original.id]);
   });
 
-  it("translates duplicate document storage key and rolls back the registration", async () => {
-    const original = registration();
-    const conflicting = registration();
-
+  it("consumes a valid staged upload and persists trusted metadata", async () => {
+    const value = registration();
+    const uploadId = randomUUID();
     const storageKey =
-      `agency-registration/test/${randomUUID()}/rccm.pdf`;
+      `agency-registration-uploads/${randomUUID()}`;
 
-    const store =
-      new PostgresSubmitAgencyRegistrationStore(runtimePool);
+    await stageAgencyDocumentUpload({
+      uploadId,
+      storageKey,
+      originalFilename: "registre-commerce.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 4096,
+      checksumSha256:
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      createdAt: "2026-09-15T14:00:00.000Z",
+      expiresAt: "2026-09-15T16:00:00.000Z",
+    });
 
-    await store.submit({
-      registration: original,
+    const documentId = randomUUID();
+
+    await new PostgresSubmitAgencyRegistrationStore(
+      runtimePool,
+    ).submit({
+      registration: value,
       documents: [
         {
-          documentId: randomUUID(),
-          registrationId: original.id,
+          documentId,
           documentType: "REGISTRATION_CERTIFICATE",
-          storageKey,
-          originalFilename: "rccm.pdf",
-          mimeType: "application/pdf",
-          sizeBytes: 1024,
-          checksumSha256:
-            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-          createdAt: original.createdAt,
+          uploadId,
         },
       ],
     });
 
+    const persistedDocument = await ownerPool.query<{
+      document_id: string;
+      registration_id: string;
+      document_type: string;
+      storage_key: string;
+      original_filename: string;
+      mime_type: string;
+      size_bytes: string;
+      checksum_sha256: string;
+      created_at: Date;
+    }>(
+      `SELECT
+         document_id,
+         registration_id,
+         document_type,
+         storage_key,
+         original_filename,
+         mime_type,
+         size_bytes,
+         checksum_sha256,
+         created_at
+       FROM agency_onboarding.agency_registration_documents
+       WHERE document_id = $1`,
+      [documentId],
+    );
+
+    expect(persistedDocument.rows).toHaveLength(1);
+
+    expect(persistedDocument.rows[0]).toMatchObject({
+      document_id: documentId,
+      registration_id: value.id,
+      document_type: "REGISTRATION_CERTIFICATE",
+      storage_key: storageKey,
+      original_filename: "registre-commerce.pdf",
+      mime_type: "application/pdf",
+      size_bytes: "4096",
+      checksum_sha256:
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    });
+
+    expect(
+      persistedDocument.rows[0]?.created_at.toISOString(),
+    ).toBe("2026-09-15T14:00:00.000Z");
+
+    const staged = await ownerPool.query<{
+      consumed_at: Date | null;
+    }>(
+      `SELECT consumed_at
+       FROM agency_onboarding.agency_registration_document_uploads
+       WHERE upload_id = $1`,
+      [uploadId],
+    );
+
+    expect(staged.rows).toHaveLength(1);
+    expect(staged.rows[0]?.consumed_at?.toISOString()).toBe(
+      value.submittedAt,
+    );
+  });
+
+  it("rejects an unknown staged upload and does not create the registration", async () => {
+    const value = registration();
+
     await expect(
-      store.submit({
-        registration: conflicting,
+      new PostgresSubmitAgencyRegistrationStore(
+        runtimePool,
+      ).submit({
+        registration: value,
         documents: [
           {
             documentId: randomUUID(),
-            registrationId: conflicting.id,
             documentType: "REGISTRATION_CERTIFICATE",
-            storageKey,
-            originalFilename: "rccm-duplicate.pdf",
-            mimeType: "application/pdf",
-            sizeBytes: 2048,
-            checksumSha256:
-              "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-            createdAt: conflicting.createdAt,
+            uploadId: randomUUID(),
           },
         ],
       }),
     ).rejects.toBeInstanceOf(
-      AgencyDocumentStorageKeyConflictError,
+      AgencyRegistrationDocumentUploadNotFoundError,
     );
 
-    const rolledBackRegistration =
-      await ownerPool.query(
-        `SELECT registration_id
-           FROM agency_onboarding.agency_registrations
-          WHERE registration_id = $1`,
-        [conflicting.id],
-      );
+    const persisted = await ownerPool.query(
+      `SELECT registration_id
+       FROM agency_onboarding.agency_registrations
+       WHERE registration_id = $1`,
+      [value.id],
+    );
+
+    expect(persisted.rows).toHaveLength(0);
+  });
+
+  it("rejects an expired staged upload and does not create the registration", async () => {
+    const value = registration();
+    const uploadId = randomUUID();
+
+    await stageAgencyDocumentUpload({
+      uploadId,
+      storageKey: `agency-registration-uploads/${randomUUID()}`,
+      createdAt: "2026-09-15T13:00:00.000Z",
+      expiresAt: "2026-09-15T14:59:59.000Z",
+    });
+
+    await expect(
+      new PostgresSubmitAgencyRegistrationStore(
+        runtimePool,
+      ).submit({
+        registration: value,
+        documents: [
+          {
+            documentId: randomUUID(),
+            documentType: "REGISTRATION_CERTIFICATE",
+            uploadId,
+          },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(
+      AgencyRegistrationDocumentUploadExpiredError,
+    );
+
+    const persisted = await ownerPool.query(
+      `SELECT registration_id
+       FROM agency_onboarding.agency_registrations
+       WHERE registration_id = $1`,
+      [value.id],
+    );
+
+    expect(persisted.rows).toHaveLength(0);
+
+    const staged = await ownerPool.query<{
+      consumed_at: Date | null;
+    }>(
+      `SELECT consumed_at
+       FROM agency_onboarding.agency_registration_document_uploads
+       WHERE upload_id = $1`,
+      [uploadId],
+    );
+
+    expect(staged.rows[0]?.consumed_at).toBeNull();
+  });
+
+  it("rejects an already-consumed staged upload", async () => {
+    const value = registration();
+    const uploadId = randomUUID();
+
+    await stageAgencyDocumentUpload({
+      uploadId,
+      storageKey: `agency-registration-uploads/${randomUUID()}`,
+      createdAt: "2026-09-15T13:00:00.000Z",
+      expiresAt: "2026-09-15T16:00:00.000Z",
+      consumedAt: "2026-09-15T14:30:00.000Z",
+    });
+
+    await expect(
+      new PostgresSubmitAgencyRegistrationStore(
+        runtimePool,
+      ).submit({
+        registration: value,
+        documents: [
+          {
+            documentId: randomUUID(),
+            documentType: "REGISTRATION_CERTIFICATE",
+            uploadId,
+          },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(
+      AgencyRegistrationDocumentUploadConsumedError,
+    );
+  });
+
+  it("rejects a duplicate staged upload id in the same submission", async () => {
+    const value = registration();
+    const uploadId = randomUUID();
+
+    await stageAgencyDocumentUpload({
+      uploadId,
+      storageKey: `agency-registration-uploads/${randomUUID()}`,
+    });
+
+    await expect(
+      new PostgresSubmitAgencyRegistrationStore(
+        runtimePool,
+      ).submit({
+        registration: value,
+        documents: [
+          {
+            documentId: randomUUID(),
+            documentType: "REGISTRATION_CERTIFICATE",
+            uploadId,
+          },
+          {
+            documentId: randomUUID(),
+            documentType: "TAX_CERTIFICATE",
+            uploadId,
+          },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(
+      AgencyRegistrationDocumentUploadDuplicateError,
+    );
+
+    const staged = await ownerPool.query<{
+      consumed_at: Date | null;
+    }>(
+      `SELECT consumed_at
+       FROM agency_onboarding.agency_registration_document_uploads
+       WHERE upload_id = $1`,
+      [uploadId],
+    );
+
+    expect(staged.rows[0]?.consumed_at).toBeNull();
+  });
+
+  it("rolls back staged upload consumption when registration insertion fails", async () => {
+    const original = registration();
+
+    await new PostgresSubmitAgencyRegistrationStore(
+      runtimePool,
+    ).submit({
+      registration: original,
+      documents: [],
+    });
+
+    const conflicting = Object.freeze({
+      ...registration(),
+      registrationNumber: original.registrationNumber,
+    });
+
+    const uploadId = randomUUID();
+
+    await stageAgencyDocumentUpload({
+      uploadId,
+      storageKey: `agency-registration-uploads/${randomUUID()}`,
+    });
+
+    await expect(
+      new PostgresSubmitAgencyRegistrationStore(
+        runtimePool,
+      ).submit({
+        registration: conflicting,
+        documents: [
+          {
+            documentId: randomUUID(),
+            documentType: "REGISTRATION_CERTIFICATE",
+            uploadId,
+          },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(
+      AgencyRegistrationNumberConflictError,
+    );
+
+    const staged = await ownerPool.query<{
+      consumed_at: Date | null;
+    }>(
+      `SELECT consumed_at
+       FROM agency_onboarding.agency_registration_document_uploads
+       WHERE upload_id = $1`,
+      [uploadId],
+    );
+
+    expect(staged.rows).toHaveLength(1);
+    expect(staged.rows[0]?.consumed_at).toBeNull();
+
+    const rolledBackRegistration = await ownerPool.query(
+      `SELECT registration_id
+       FROM agency_onboarding.agency_registrations
+       WHERE registration_id = $1`,
+      [conflicting.id],
+    );
 
     expect(rolledBackRegistration.rows).toHaveLength(0);
-
-    const documents = await ownerPool.query<{
-      registration_id: string;
-    }>(
-      `SELECT registration_id
-         FROM agency_onboarding.agency_registration_documents
-        WHERE storage_key = $1`,
-      [storageKey],
-    );
-
-    expect(documents.rows).toHaveLength(1);
-    expect(documents.rows[0]?.registration_id).toBe(
-      original.id,
-    );
   });
   it("fails closed without an agency capability", async () => {
     await expect(
@@ -758,7 +1029,7 @@ describe("Agency onboarding PostgreSQL RLS", () => {
     ).execute({
       authority,
       registrationId: value.id,
-      rejectionReason: "PiÃ¨ce invalide",
+      rejectionReason: "PiÃƒÂ¨ce invalide",
     });
 
     const replay = await new RejectAgencyRegistration(
@@ -767,7 +1038,7 @@ describe("Agency onboarding PostgreSQL RLS", () => {
     ).execute({
       authority,
       registrationId: value.id,
-      rejectionReason: "PiÃ¨ce invalide",
+      rejectionReason: "PiÃƒÂ¨ce invalide",
     });
 
     expect(replay).toEqual(first);

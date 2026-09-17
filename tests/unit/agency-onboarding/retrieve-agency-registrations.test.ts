@@ -49,6 +49,8 @@ function store(
   return {
     findById: vi.fn().mockResolvedValue(registration),
     list: vi.fn().mockResolvedValue([registration]),
+    listDocuments: vi.fn().mockResolvedValue([]),
+    findDocument: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -93,9 +95,18 @@ describe("RetrieveAgencyRegistration", () => {
         authority: reviewer,
         registrationId: registration.id,
       }),
-    ).resolves.toBe(registration);
+    ).resolves.toEqual({
+      registration,
+      documents: [],
+    });
 
     expect(registrations.findById).toHaveBeenCalledWith(
+      registration.id,
+    );
+
+    expect(
+      registrations.listDocuments,
+    ).toHaveBeenCalledWith(
       registration.id,
     );
   });

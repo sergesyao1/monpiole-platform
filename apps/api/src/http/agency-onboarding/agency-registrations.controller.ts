@@ -7,7 +7,15 @@ import {
   Param,
   Post,
   Req,
+  Res,
+  StreamableFile,
 } from "@nestjs/common";
+interface HeaderResponse {
+  setHeader(
+    name: string,
+    value: string,
+  ): void;
+}
 import {
   ApiCreatedResponse,
   ApiOkResponse,
@@ -25,17 +33,21 @@ import type {
   ListAgencyRegistrations,
   RejectAgencyRegistration,
   RetrieveAgencyRegistration,
+  RetrieveAgencyRegistrationDocumentContent,
   StartAgencyRegistrationReview,
   SubmitAgencyRegistration,
 } from "@monpiole/agency-onboarding";
 
 import {
+  AgencyRegistrationDetailsSchema,
+  AgencyRegistrationDocumentPathSchema,
   AgencyRegistrationListSchema,
   AgencyRegistrationPathSchema,
   AgencyRegistrationSchema,
   RejectAgencyRegistrationRequestSchema,
   SubmitAgencyRegistrationRequestSchema,
   SubmitAgencyRegistrationResponseSchema,
+  type AgencyRegistrationDetailsResponse,
   type AgencyRegistrationList,
   type AgencyRegistrationResponse,
   type SubmitAgencyRegistrationResponse,
@@ -63,6 +75,8 @@ export const LIST_AGENCY_REGISTRATIONS = Symbol(
 export const RETRIEVE_AGENCY_REGISTRATION = Symbol(
   "retrieve-agency-registration",
 );
+export const RETRIEVE_AGENCY_REGISTRATION_DOCUMENT_CONTENT =
+  Symbol("retrieve-agency-registration-document-content");
 export const START_AGENCY_REGISTRATION_REVIEW = Symbol(
   "start-agency-registration-review",
 );
@@ -73,12 +87,16 @@ export const APPROVE_AGENCY_REGISTRATION = Symbol(
   "approve-agency-registration",
 );
 
-class SubmitDto extends createZodDto(
+class SubmitAgencyRegistrationRequestDto extends createZodDto(
   SubmitAgencyRegistrationRequestSchema,
 ) {}
 
 class RegistrationPathDto extends createZodDto(
   AgencyRegistrationPathSchema,
+) {}
+
+class RegistrationDocumentPathDto extends createZodDto(
+  AgencyRegistrationDocumentPathSchema,
 ) {}
 
 class RejectDto extends createZodDto(
@@ -87,6 +105,10 @@ class RejectDto extends createZodDto(
 
 class RegistrationDto extends createZodDto(
   AgencyRegistrationSchema,
+) {}
+
+class RegistrationDetailsDto extends createZodDto(
+  AgencyRegistrationDetailsSchema,
 ) {}
 
 class RegistrationListDto extends createZodDto(
@@ -117,6 +139,12 @@ export class AgencyRegistrationsController {
     @Inject(RETRIEVE_AGENCY_REGISTRATION)
     private readonly retrieve: Pick<
       RetrieveAgencyRegistration,
+      "execute"
+    >,
+
+    @Inject(RETRIEVE_AGENCY_REGISTRATION_DOCUMENT_CONTENT)
+    private readonly retrieveDocumentContent: Pick<
+      RetrieveAgencyRegistrationDocumentContent,
       "execute"
     >,
 
@@ -153,7 +181,7 @@ export class AgencyRegistrationsController {
   })
   @ZodSerializerDto(SubmitResponseDto)
   public async post(
-    @Body() body: SubmitDto,
+    @Body() body: SubmitAgencyRegistrationRequestDto,
     @Req() request: RequestWithContext,
   ): Promise<SubmitAgencyRegistrationResponse> {
     const context = request[REQUEST_CONTEXT];
@@ -201,18 +229,81 @@ export class AgencyRegistrationsController {
     operationId: "retrieveAgencyRegistration",
   })
   @ApiOkResponse({
-    type: RegistrationDto,
+    type: RegistrationDetailsDto,
   })
-  @ZodSerializerDto(RegistrationDto)
+  @ZodSerializerDto(RegistrationDetailsDto)
   public async one(
     @Param() path: RegistrationPathDto,
     @Req() request: RequestWithContext,
-  ): Promise<AgencyRegistrationResponse> {
-    return view(
-      await this.retrieve.execute({
+  ): Promise<AgencyRegistrationDetailsResponse> {
+    const details = await this.retrieve.execute({
+      authority: await this.agencyAuthority(request),
+      registrationId: path.registrationId,
+    });
+
+    return {
+      ...view(details.registration),
+
+      documents: details.documents.map((document) => ({
+        documentId: document.documentId,
+        documentType: document.documentType,
+        originalFilename: document.originalFilename,
+        mimeType: document.mimeType,
+        sizeBytes: document.sizeBytes,
+        checksumSha256: document.checksumSha256,
+        createdAt: document.createdAt,
+      })),
+    };
+  }
+
+  @Get(":registrationId/documents/:documentId/content")
+  @ApiSecurity("bearer")
+  @ApiOperation({
+    operationId: "retrieveAgencyRegistrationDocumentContent",
+  })
+  public async documentContent(
+    @Param() path: RegistrationDocumentPathDto,
+    @Req() request: RequestWithContext,
+    @Res({ passthrough: true }) response: HeaderResponse,
+  ): Promise<StreamableFile> {
+    const result =
+      await this.retrieveDocumentContent.execute({
         authority: await this.agencyAuthority(request),
         registrationId: path.registrationId,
-      }),
+        documentId: path.documentId,
+      });
+
+    const filename = safeAttachmentFilename(
+      result.document.originalFilename,
+    );
+
+    response.setHeader(
+      "Content-Type",
+      result.document.mimeType,
+    );
+    response.setHeader(
+      "Content-Length",
+      result.document.sizeBytes.toString(),
+    );
+    response.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${filename}"`,
+    );
+    response.setHeader(
+      "ETag",
+      `"${result.document.checksumSha256}"`,
+    );
+    response.setHeader(
+      "X-Content-Type-Options",
+      "nosniff",
+    );
+    response.setHeader(
+      "Cache-Control",
+      "private, no-store",
+    );
+
+    return new StreamableFile(
+      Buffer.from(result.content),
     );
   }
 
@@ -294,6 +385,19 @@ export class AgencyRegistrationsController {
       ),
     );
   }
+}
+
+function safeAttachmentFilename(
+  filename: string,
+): string {
+  const normalized = filename
+    .replace(/[\r\n"]/gu, "_")
+    .replace(/[\\/]/gu, "_")
+    .trim();
+
+  return normalized.length === 0
+    ? "document"
+    : normalized;
 }
 
 function view(

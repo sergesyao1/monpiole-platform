@@ -6245,6 +6245,167 @@
         ],
         "type": "object"
       },
+      "RegistrationDetailsDto": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "agencyLegalName": {
+            "type": "string"
+          },
+          "agencyTradeName": {
+            "type": "string"
+          },
+          "approvalProvisioningStartedAt": {
+            "type": "string"
+          },
+          "approvedAt": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "contactEmail": {
+            "type": "string"
+          },
+          "contactFirstName": {
+            "type": "string"
+          },
+          "contactLastName": {
+            "type": "string"
+          },
+          "contactPhone": {
+            "type": "string"
+          },
+          "correlationId": {
+            "type": "string"
+          },
+          "countryCode": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "documents": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "checksumSha256": {
+                  "pattern": "^[a-f0-9]{64}$",
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "documentId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "documentType": {
+                  "type": "string"
+                },
+                "mimeType": {
+                  "type": "string"
+                },
+                "originalFilename": {
+                  "type": "string"
+                },
+                "sizeBytes": {
+                  "maximum": 52428800,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "checksumSha256",
+                "createdAt",
+                "documentId",
+                "documentType",
+                "mimeType",
+                "originalFilename",
+                "sizeBytes"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "provisionedTenantId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "registrationId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "registrationNumber": {
+            "type": "string"
+          },
+          "rejectedAt": {
+            "type": "string"
+          },
+          "rejectionReason": {
+            "type": "string"
+          },
+          "reviewedByIdentityId": {
+            "type": "string"
+          },
+          "reviewStartedAt": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "APPROVED",
+              "REJECTED",
+              "SUBMITTED",
+              "UNDER_REVIEW"
+            ],
+            "type": "string"
+          },
+          "submittedAt": {
+            "type": "string"
+          },
+          "taxIdentifier": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "website": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "agencyLegalName",
+          "city",
+          "contactEmail",
+          "contactFirstName",
+          "contactLastName",
+          "contactPhone",
+          "correlationId",
+          "countryCode",
+          "createdAt",
+          "documents",
+          "email",
+          "phone",
+          "registrationId",
+          "registrationNumber",
+          "status",
+          "submittedAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
       "RegistrationDto": {
         "additionalProperties": false,
         "properties": {
@@ -6585,6 +6746,122 @@
       },
       "SetPropertyPricingRequest": {
         "$ref": "#/components/schemas/PropertyPricing"
+      },
+      "SubmitAgencyRegistrationRequestDto": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "agencyLegalName": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "agencyTradeName": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "city": {
+            "maxLength": 150,
+            "minLength": 1,
+            "type": "string"
+          },
+          "contactEmail": {
+            "format": "email",
+            "maxLength": 320,
+            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "type": "string"
+          },
+          "contactFirstName": {
+            "maxLength": 150,
+            "minLength": 1,
+            "type": "string"
+          },
+          "contactLastName": {
+            "maxLength": 150,
+            "minLength": 1,
+            "type": "string"
+          },
+          "contactPhone": {
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
+          },
+          "countryCode": {
+            "pattern": "^[A-Z]{2}$",
+            "type": "string"
+          },
+          "documents": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "documentType": {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "uploadId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "documentType",
+                "uploadId"
+              ],
+              "type": "object"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "type": "array"
+          },
+          "email": {
+            "format": "email",
+            "maxLength": 320,
+            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "type": "string"
+          },
+          "phone": {
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
+          },
+          "registrationNumber": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "taxIdentifier": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "website": {
+            "format": "uri",
+            "maxLength": 2048,
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "agencyLegalName",
+          "city",
+          "contactEmail",
+          "contactFirstName",
+          "contactLastName",
+          "contactPhone",
+          "countryCode",
+          "documents",
+          "email",
+          "phone",
+          "registrationNumber"
+        ],
+        "type": "object"
       },
       "SubmitDto": {
         "additionalProperties": false,
@@ -6992,6 +7269,43 @@
           "latitude",
           "longitude",
           "publicVisibility"
+        ],
+        "type": "object"
+      },
+      "UploadDocumentResponseDto": {
+        "additionalProperties": false,
+        "properties": {
+          "checksumSha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "originalFilename": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "maximum": 52428800,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "uploadId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "checksumSha256",
+          "expiresAt",
+          "mimeType",
+          "originalFilename",
+          "sizeBytes",
+          "uploadId"
         ],
         "type": "object"
       },
@@ -7416,6 +7730,48 @@
         ]
       }
     },
+    "/v1/agency-registration-documents": {
+      "post": {
+        "operationId": "uploadAgencyRegistrationDocument",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadDocumentResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
     "/v1/agency-registrations": {
       "get": {
         "operationId": "listAgencyRegistrations",
@@ -7449,7 +7805,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SubmitDto"
+                "$ref": "#/components/schemas/SubmitAgencyRegistrationRequestDto"
               }
             }
           },
@@ -7494,7 +7850,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RegistrationDto"
+                  "$ref": "#/components/schemas/RegistrationDetailsDto"
                 }
               }
             },
@@ -7536,6 +7892,47 @@
                 }
               }
             },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/agency-registrations/{registrationId}/documents/{documentId}/content": {
+      "get": {
+        "operationId": "retrieveAgencyRegistrationDocumentContent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "documentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
             "description": ""
           }
         },

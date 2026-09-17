@@ -1,14 +1,22 @@
-import type { AgencyRegistration } from "../domain/agency-registration.js";
+import type {
+  AgencyRegistration,
+} from "../domain/agency-registration.js";
 import {
   authorizeAgencyOnboarding,
   type AgencyOnboardingAuthority,
 } from "./agency-onboarding-authority.js";
 import type {
+  AgencyRegistrationDocument,
   AgencyRegistrationQueryStore,
 } from "./agency-registration-persistence.js";
 import {
   AgencyRegistrationNotFoundError,
 } from "./review-agency-registration.js";
+
+export interface AgencyRegistrationDetails {
+  readonly registration: AgencyRegistration;
+  readonly documents: readonly AgencyRegistrationDocument[];
+}
 
 export class ListAgencyRegistrations {
   public constructor(
@@ -39,7 +47,7 @@ export class RetrieveAgencyRegistration {
       registrationId: string;
       authority: AgencyOnboardingAuthority;
     }>,
-  ): Promise<AgencyRegistration> {
+  ): Promise<AgencyRegistrationDetails> {
     authorizeAgencyOnboarding(
       input.authority,
       "RETRIEVE_AGENCY_REGISTRATIONS",
@@ -55,6 +63,13 @@ export class RetrieveAgencyRegistration {
       );
     }
 
-    return registration;
+    const documents = await this.registrations.listDocuments(
+      input.registrationId,
+    );
+
+    return Object.freeze({
+      registration,
+      documents,
+    });
   }
 }

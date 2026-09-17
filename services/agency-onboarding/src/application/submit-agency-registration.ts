@@ -2,7 +2,6 @@ import type {
   AgencyRegistration,
 } from "../domain/agency-registration.js";
 import type {
-  AgencyRegistrationDocument,
   SubmitAgencyRegistrationStore,
 } from "./agency-registration-persistence.js";
 
@@ -31,11 +30,7 @@ export interface SubmitAgencyRegistrationCommand {
 
   readonly documents: readonly Readonly<{
     documentType: string;
-    storageKey: string;
-    originalFilename: string;
-    mimeType: string;
-    sizeBytes: number;
-    checksumSha256: string;
+    uploadId: string;
   }>[];
 
   readonly correlationId: string;
@@ -43,7 +38,6 @@ export interface SubmitAgencyRegistrationCommand {
 
 export interface SubmitAgencyRegistrationResult {
   readonly registration: AgencyRegistration;
-  readonly documents: readonly AgencyRegistrationDocument[];
 }
 
 export interface AgencySubmissionClock {
@@ -98,19 +92,12 @@ export class SubmitAgencyRegistration {
     });
 
     const documents = Object.freeze(
-      command.documents.map(
-        (document): AgencyRegistrationDocument =>
-          Object.freeze({
-            documentId: this.ids.generate(),
-            registrationId,
-            documentType: document.documentType,
-            storageKey: document.storageKey,
-            originalFilename: document.originalFilename,
-            mimeType: document.mimeType,
-            sizeBytes: document.sizeBytes,
-            checksumSha256: document.checksumSha256,
-            createdAt: occurredAt,
-          }),
+      command.documents.map((document) =>
+        Object.freeze({
+          documentId: this.ids.generate(),
+          documentType: document.documentType,
+          uploadId: document.uploadId,
+        }),
       ),
     );
 
@@ -121,7 +108,6 @@ export class SubmitAgencyRegistration {
 
     return Object.freeze({
       registration,
-      documents,
     });
   }
 }

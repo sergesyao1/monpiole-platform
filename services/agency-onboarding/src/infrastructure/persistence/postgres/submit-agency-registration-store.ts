@@ -1,7 +1,12 @@
+import { inArray } from "drizzle-orm";
 import type { Pool } from "pg";
 
 import {
   AgencyDocumentStorageKeyConflictError,
+  AgencyRegistrationDocumentUploadConsumedError,
+  AgencyRegistrationDocumentUploadDuplicateError,
+  AgencyRegistrationDocumentUploadExpiredError,
+  AgencyRegistrationDocumentUploadNotFoundError,
   AgencyRegistrationNumberConflictError,
 } from "../../../application/agency-registration-persistence-errors.js";
 import type {
@@ -10,6 +15,7 @@ import type {
 } from "../../../application/agency-registration-persistence.js";
 import {
   agencyRegistrationDocuments,
+  agencyRegistrationDocumentUploads,
   agencyRegistrations,
 } from "./schema.js";
 import { withAgencyOnboardingPostgresTransaction } from "./transaction.js";
@@ -87,6 +93,58 @@ export class PostgresSubmitAgencyRegistrationStore
             );
           }
 
+          const uploadIds = input.documents.map(
+            (document) => document.uploadId,
+          );
+
+          if (new Set(uploadIds).size !== uploadIds.length) {
+            throw new AgencyRegistrationDocumentUploadDuplicateError();
+          }
+
+          const stagedUploads =
+            uploadIds.length === 0
+              ? []
+              : await database
+                  .select()
+                  .from(agencyRegistrationDocumentUploads)
+                  .where(
+                    inArray(
+                      agencyRegistrationDocumentUploads.uploadId,
+                      uploadIds,
+                    ),
+                  )
+                  .for("update");
+
+          if (stagedUploads.length !== uploadIds.length) {
+            throw new AgencyRegistrationDocumentUploadNotFoundError();
+          }
+
+          const stagedUploadById = new Map(
+            stagedUploads.map((upload) => [
+              upload.uploadId,
+              upload,
+            ]),
+          );
+
+          for (const uploadId of uploadIds) {
+            const upload = stagedUploadById.get(uploadId);
+
+            if (upload === undefined) {
+              throw new AgencyRegistrationDocumentUploadNotFoundError();
+            }
+
+            if (upload.consumedAt !== null) {
+              throw new AgencyRegistrationDocumentUploadConsumedError();
+            }
+
+            if (
+              new Date(upload.expiresAt).getTime() <=
+              new Date(registration.submittedAt).getTime()
+            ) {
+              throw new AgencyRegistrationDocumentUploadExpiredError();
+            }
+          }
+
           await database.insert(agencyRegistrations).values({
             registrationId: registration.id,
             status: registration.status,
@@ -126,18 +184,38 @@ export class PostgresSubmitAgencyRegistrationStore
 
           if (input.documents.length > 0) {
             await database.insert(agencyRegistrationDocuments).values(
-              input.documents.map((document) => ({
-                documentId: document.documentId,
-                registrationId: registration.id,
-                documentType: document.documentType,
-                storageKey: document.storageKey,
-                originalFilename: document.originalFilename,
-                mimeType: document.mimeType,
-                sizeBytes: document.sizeBytes,
-                checksumSha256: document.checksumSha256,
-                createdAt: document.createdAt,
-              })),
+              input.documents.map((document) => {
+                const upload = stagedUploadById.get(document.uploadId);
+
+                if (upload === undefined) {
+                  throw new AgencyRegistrationDocumentUploadNotFoundError();
+                }
+
+                return {
+                  documentId: document.documentId,
+                  registrationId: registration.id,
+                  documentType: document.documentType,
+                  storageKey: upload.storageKey,
+                  originalFilename: upload.originalFilename,
+                  mimeType: upload.mimeType,
+                  sizeBytes: upload.sizeBytes,
+                  checksumSha256: upload.checksumSha256,
+                  createdAt: upload.createdAt,
+                };
+              }),
             );
+
+            await database
+              .update(agencyRegistrationDocumentUploads)
+              .set({
+                consumedAt: registration.submittedAt,
+              })
+              .where(
+                inArray(
+                  agencyRegistrationDocumentUploads.uploadId,
+                  uploadIds,
+                ),
+              );
           }
         },
       );

@@ -10,6 +10,17 @@ export {
 } from "./domain/agency-registration.js";
 
 export {
+  AgencyRegistrationDocumentUploadValidationError,
+  UploadAgencyRegistrationDocument,
+  type UploadAgencyRegistrationDocumentCommand,
+  type UploadAgencyRegistrationDocumentResult,
+} from "./application/upload-agency-registration-document.js";
+export {
+  type AgencyRegistrationDocumentUpload,
+  type AgencyRegistrationDocumentUploadStore,
+  type CreateAgencyRegistrationDocumentUploadInput,
+} from "./application/agency-registration-document-upload.js";
+export {
   AgencyOnboardingForbiddenError,
   agencyOnboardingGrants,
   authorizeAgencyOnboarding,
@@ -39,6 +50,9 @@ export {
 } from "./infrastructure/persistence/postgres/transaction.js";
 
 export {
+  PostgresAgencyRegistrationDocumentUploadStore,
+} from "./infrastructure/persistence/postgres/agency-registration-document-upload-store.js";
+export {
   PostgresSubmitAgencyRegistrationStore,
 } from "./infrastructure/persistence/postgres/submit-agency-registration-store.js";
 
@@ -66,7 +80,26 @@ export {
   type SubmitAgencyRegistrationResult,
 } from "./application/submit-agency-registration.js";
 export * from "./application/retrieve-agency-registrations.js";
+export type {
+  AgencyDocumentContent,
+  AgencyDocumentStorage,
+  StoreAgencyDocumentInput,
+} from "./application/agency-document-storage.js";
+export {
+  AgencyRegistrationDocumentNotFoundError,
+  RetrieveAgencyRegistrationDocument,
+} from "./application/retrieve-agency-registration-document.js";
+export {
+  AgencyRegistrationDocumentContentNotFoundError,
+  AgencyRegistrationDocumentIntegrityError,
+  RetrieveAgencyRegistrationDocumentContent,
+  type AgencyRegistrationDocumentContentResult,
+} from "./application/retrieve-agency-registration-document-content.js";
 export {
   AgencyDocumentStorageKeyConflictError,
   AgencyRegistrationNumberConflictError,
+  AgencyRegistrationDocumentUploadDuplicateError,
+  AgencyRegistrationDocumentUploadNotFoundError,
+  AgencyRegistrationDocumentUploadConsumedError,
+  AgencyRegistrationDocumentUploadExpiredError
 } from "./application/agency-registration-persistence-errors.js";

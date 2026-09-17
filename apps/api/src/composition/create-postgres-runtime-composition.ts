@@ -12,12 +12,15 @@ import {
   ApproveAgencyRegistration,
   ListAgencyRegistrations,
   PostgresAgencyRegistrationQueryStore,
+  PostgresAgencyRegistrationDocumentUploadStore,
   PostgresAgencyRegistrationReviewUnitOfWork,
   PostgresSubmitAgencyRegistrationStore,
   RejectAgencyRegistration,
   RetrieveAgencyRegistration,
+  RetrieveAgencyRegistrationDocumentContent,
   StartAgencyRegistrationReview,
   SubmitAgencyRegistration,
+  UploadAgencyRegistrationDocument,
 } from "@monpiole/agency-onboarding";
 import {
   CreateProperty, CreatePropertyOwner, ListProperties, ListPropertyOwners, PostgresPropertyOwnerDirectoryQuery,
@@ -68,6 +71,7 @@ import {
 } from "../authentication/platform-authenticated-authority-provider.js";
 import { IdentityExternalAuthorityAdapter } from "./identity-external-authority.adapter.js";
 import { AgencyTenantProvisioningAdapter } from "./agency-tenant-provisioning.adapter.js";
+import { FilesystemAgencyDocumentStorage } from "./filesystem-agency-document-storage.adapter.js";
 import { publicCatalogHostAllowlistFromEnvironment } from "../configuration/public-catalog.js";
 
 export interface PostgresApiRuntime {
@@ -116,6 +120,13 @@ export function createPostgresApiRuntime(
 
   const agencySubmitStore = new PostgresSubmitAgencyRegistrationStore(pool);
   const agencyQueryStore = new PostgresAgencyRegistrationQueryStore(pool);
+  const agencyDocumentUploadStore =
+    new PostgresAgencyRegistrationDocumentUploadStore(pool);
+  const agencyDocumentStorage =
+    new FilesystemAgencyDocumentStorage(
+      environment["AGENCY_DOCUMENT_STORAGE_PATH"]
+        ?? ".monpiole/agency-documents",
+    );
   const agencyReviewUnitOfWork =
     new PostgresAgencyRegistrationReviewUnitOfWork(pool);
   const agencyTenantProvisioning =
@@ -146,6 +157,12 @@ export function createPostgresApiRuntime(
   const composition: ApiComposition = {
     authenticatedAuthorityProvider,
 
+    uploadAgencyRegistrationDocument:
+      new UploadAgencyRegistrationDocument(
+        agencyDocumentStorage,
+        agencyDocumentUploadStore,
+      ),
+
     submitAgencyRegistration: new SubmitAgencyRegistration(
       agencySubmitStore,
       compositionClock,
@@ -153,6 +170,11 @@ export function createPostgresApiRuntime(
     ),
     listAgencyRegistrations: new ListAgencyRegistrations(agencyQueryStore),
     retrieveAgencyRegistration: new RetrieveAgencyRegistration(agencyQueryStore),
+    retrieveAgencyRegistrationDocumentContent:
+      new RetrieveAgencyRegistrationDocumentContent(
+        agencyQueryStore,
+        agencyDocumentStorage,
+      ),
     startAgencyRegistrationReview: new StartAgencyRegistrationReview(
       agencyReviewUnitOfWork,
       compositionClock,

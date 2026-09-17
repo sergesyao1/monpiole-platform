@@ -3,19 +3,31 @@ import type {
   ListAgencyRegistrations,
   RejectAgencyRegistration,
   RetrieveAgencyRegistration,
+  RetrieveAgencyRegistrationDocumentContent,
   StartAgencyRegistrationReview,
   SubmitAgencyRegistration,
+  UploadAgencyRegistrationDocument,
 } from "@monpiole/agency-onboarding";
-import { type DynamicModule, Module } from "@nestjs/common";
+import {
+  type ArgumentMetadata,
+  type DynamicModule,
+  Module,
+  type PipeTransform,
+} from "@nestjs/common";
 import {
   AgencyRegistrationsController,
   APPROVE_AGENCY_REGISTRATION,
   LIST_AGENCY_REGISTRATIONS,
   REJECT_AGENCY_REGISTRATION,
   RETRIEVE_AGENCY_REGISTRATION,
+    RETRIEVE_AGENCY_REGISTRATION_DOCUMENT_CONTENT,
   START_AGENCY_REGISTRATION_REVIEW,
   SUBMIT_AGENCY_REGISTRATION,
 } from "./http/agency-onboarding/agency-registrations.controller.js";
+import {
+  AgencyRegistrationDocumentsController,
+  UPLOAD_AGENCY_REGISTRATION_DOCUMENT,
+} from "./http/agency-onboarding/agency-registration-documents.controller.js";
 import type { ActivateTenant, CreateTenant, PlatformAuthorityAuthorizer } from "@monpiole/tenant-management";
 import type { ActivateTenantAdministrator, BootstrapTenantAdministrator } from "@monpiole/identity";
 import type {
@@ -133,9 +145,25 @@ import { PropertyApplicationClientConversionsController, CONVERT_PROPERTY_APPLIC
 import { PropertyApplicationContractsController, CREATE_PROPERTY_CONTRACT_FROM_APPLICATION } from "./http/properties/property-application-contracts.controller.js";
 import { PropertyCommercialJourneysController, LIST_PROPERTY_COMMERCIAL_JOURNEYS } from "./http/properties/property-commercial-journeys.controller.js";
 
-const StrictZodValidationPipe = createZodValidationPipe({
+const BaseStrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
 });
+
+class StrictZodValidationPipe
+  extends BaseStrictZodValidationPipe
+  implements PipeTransform
+{
+  override transform(
+    value: unknown,
+    metadata: ArgumentMetadata,
+  ): unknown {
+    if (metadata.type === "custom") {
+      return value;
+    }
+
+    return super.transform(value, metadata);
+  }
+}
 
 const unavailableAgencyOperation = {
   async execute(): Promise<never> {
@@ -146,6 +174,10 @@ const unavailableAgencyOperation = {
 };
 
 export interface ApiComposition {
+  readonly uploadAgencyRegistrationDocument?: Pick<
+    UploadAgencyRegistrationDocument,
+    "execute"
+  >;
   readonly submitAgencyRegistration?: Pick<
     SubmitAgencyRegistration,
     "execute"
@@ -158,6 +190,11 @@ export interface ApiComposition {
     RetrieveAgencyRegistration,
     "execute"
   >;
+  readonly retrieveAgencyRegistrationDocumentContent?: Pick<
+    RetrieveAgencyRegistrationDocumentContent,
+    "execute"
+  >;
+
   readonly startAgencyRegistrationReview?: Pick<
     StartAgencyRegistrationReview,
     "execute"
@@ -329,6 +366,7 @@ export class AppModule {
       module: AppModule,
       controllers: [
       AgencyRegistrationsController,
+      AgencyRegistrationDocumentsController,
         HealthController, ContractBaselineController, AuthenticationSessionController,
         PlatformTenantCreationAuthorizationProbeController, CreateTenantController,
         BootstrapAdministratorController,
@@ -344,6 +382,12 @@ export class AppModule {
         PropertyClientsController, PropertyContractsController, PropertyWorkspaceController,
       ],
       providers: [
+      {
+        provide: UPLOAD_AGENCY_REGISTRATION_DOCUMENT,
+        useValue:
+          composition.uploadAgencyRegistrationDocument ??
+          unavailableAgencyOperation,
+      },
       {
         provide: SUBMIT_AGENCY_REGISTRATION,
         useValue:
@@ -362,6 +406,13 @@ export class AppModule {
           composition.retrieveAgencyRegistration ??
           unavailableAgencyOperation,
       },
+      {
+          provide: RETRIEVE_AGENCY_REGISTRATION_DOCUMENT_CONTENT,
+          useValue:
+            composition.retrieveAgencyRegistrationDocumentContent ??
+            unavailableAgencyOperation,
+        },
+
       {
         provide: START_AGENCY_REGISTRATION_REVIEW,
         useValue:

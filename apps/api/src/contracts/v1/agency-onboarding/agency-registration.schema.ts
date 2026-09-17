@@ -11,13 +11,14 @@ export const AgencyRegistrationPathSchema = z.object({
   registrationId: z.string().uuid(),
 }).strict();
 
+export const AgencyRegistrationDocumentPathSchema = z.object({
+  registrationId: z.string().uuid(),
+  documentId: z.string().uuid(),
+}).strict();
+
 export const AgencyRegistrationDocumentInputSchema = z.object({
   documentType: z.string().trim().min(1).max(100),
-  storageKey: z.string().trim().min(1).max(1024),
-  originalFilename: z.string().trim().min(1).max(255),
-  mimeType: z.string().trim().min(1).max(255),
-  sizeBytes: z.number().int().min(1).max(50 * 1024 * 1024),
-  checksumSha256: z.string().regex(/^[a-f0-9]{64}$/u),
+  uploadId: z.string().uuid(),
 }).strict();
 
 export const SubmitAgencyRegistrationRequestSchema = z.object({
@@ -87,6 +88,21 @@ export const AgencyRegistrationSchema = z.object({
   updatedAt: z.string(),
 }).strict();
 
+export const AgencyRegistrationDocumentSchema = z.object({
+  documentId: z.string().uuid(),
+  documentType: z.string(),
+  originalFilename: z.string(),
+  mimeType: z.string(),
+  sizeBytes: z.number().int().min(1).max(50 * 1024 * 1024),
+  checksumSha256: z.string().regex(/^[a-f0-9]{64}$/u),
+  createdAt: z.string(),
+}).strict();
+
+export const AgencyRegistrationDetailsSchema =
+  AgencyRegistrationSchema.extend({
+    documents: z.array(AgencyRegistrationDocumentSchema),
+  }).strict();
+
 export const AgencyRegistrationListSchema = z.object({
   items: z.array(AgencyRegistrationSchema),
 }).strict();
@@ -106,8 +122,26 @@ export type RejectAgencyRegistrationRequest =
 export type AgencyRegistrationResponse =
   z.infer<typeof AgencyRegistrationSchema>;
 
+export type AgencyRegistrationDetailsResponse =
+  z.infer<typeof AgencyRegistrationDetailsSchema>;
+
 export type AgencyRegistrationList =
   z.infer<typeof AgencyRegistrationListSchema>;
 
 export type SubmitAgencyRegistrationResponse =
   z.infer<typeof SubmitAgencyRegistrationResponseSchema>;
+
+export const UploadAgencyRegistrationDocumentResponseSchema =
+  z.object({
+    uploadId: z.string().uuid(),
+    originalFilename: z.string(),
+    mimeType: z.string(),
+    sizeBytes: z.number().int().min(1).max(50 * 1024 * 1024),
+    checksumSha256: z.string().regex(/^[a-f0-9]{64}$/u),
+    expiresAt: z.string(),
+  }).strict();
+
+export type UploadAgencyRegistrationDocumentResponse =
+  z.infer<
+    typeof UploadAgencyRegistrationDocumentResponseSchema
+  >;
