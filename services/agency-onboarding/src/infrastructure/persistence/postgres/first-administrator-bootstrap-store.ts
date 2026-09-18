@@ -122,6 +122,58 @@ class PostgresFirstAdministratorBootstrapTransaction
       : toFirstAdministratorBootstrap(row);
   }
 
+  public async findAdministratorByBootstrapTokenHashForUpdate(
+    bootstrapTokenHash: string,
+  ): Promise<FirstAdministratorBootstrap | undefined> {
+    const rows =
+      await this.scope.query<FirstAdministratorBootstrapRow>(
+        `SELECT *
+           FROM agency_onboarding.agency_registration_administrators
+          WHERE bootstrap_token_hash = $1
+          FOR UPDATE`,
+        [bootstrapTokenHash],
+      );
+
+    const row = rows[0];
+
+    return row === undefined
+      ? undefined
+      : toFirstAdministratorBootstrap(row);
+  }
+
+  public async markAdministratorIdentityLinked(
+    bootstrapTokenHash: string,
+    internalIdentityId: string,
+    bootstrapTokenConsumedAt: string,
+    identityLinkedAt: string,
+  ): Promise<FirstAdministratorBootstrap | undefined> {
+    const rows =
+      await this.scope.query<FirstAdministratorBootstrapRow>(
+        `UPDATE agency_onboarding.agency_registration_administrators
+            SET status = 'IDENTITY_LINKED',
+                internal_identity_id = $2::uuid,
+                bootstrap_token_consumed_at = $3::timestamptz,
+                identity_linked_at = $4::timestamptz
+          WHERE bootstrap_token_hash = $1
+            AND internal_identity_id = $2::uuid
+            AND status = 'PENDING_IDENTITY'
+            AND bootstrap_token_consumed_at IS NULL
+            AND identity_linked_at IS NULL
+        RETURNING *`,
+        [
+          bootstrapTokenHash,
+          internalIdentityId,
+          bootstrapTokenConsumedAt,
+          identityLinkedAt,
+        ],
+      );
+
+    const row = rows[0];
+
+    return row === undefined
+      ? undefined
+      : toFirstAdministratorBootstrap(row);
+  }
   public async insertAdministrator(
     administrator: FirstAdministratorBootstrap,
   ): Promise<void> {

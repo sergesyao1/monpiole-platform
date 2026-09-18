@@ -457,5 +457,327 @@ describe(
         expect(secondCompleted).toBe(true);
       },
     );
+
+    it(
+      "atomically links the persisted identity and consumes the bootstrap token",
+      async () => {
+        const value = registration();
+
+        await new PostgresSubmitAgencyRegistrationStore(
+          runtimePool,
+        ).submit({
+          registration: value,
+          documents: [],
+        });
+
+        const tenantId = randomUUID();
+
+        await ownerPool.query(
+          `UPDATE agency_onboarding.agency_registrations
+              SET status = 'APPROVED',
+                  provisioned_tenant_id = $2,
+                  reviewed_by_identity_id = $3,
+                  review_started_at = $4,
+                  approval_provisioning_started_at = $5,
+                  approved_at = $6,
+                  updated_at = $6
+            WHERE registration_id = $1`,
+          [
+            value.id,
+            tenantId,
+            randomUUID(),
+            "2026-09-18T12:05:00.000Z",
+            "2026-09-18T12:10:00.000Z",
+            "2026-09-18T12:15:00.000Z",
+          ],
+        );
+
+        const unitOfWork =
+          new PostgresFirstAdministratorBootstrapUnitOfWork(
+            runtimePool,
+          );
+
+        const administrator: FirstAdministratorBootstrap =
+          Object.freeze({
+            registrationId: value.id,
+            tenantId,
+            internalIdentityId: randomUUID(),
+            administratorKind: "FIRST_ADMINISTRATOR",
+            status: "PENDING_IDENTITY",
+            bootstrapTokenHash: "b".repeat(64),
+            bootstrapTokenExpiresAt:
+              "2026-09-18T13:15:00.000Z",
+            createdByPlatformIdentityId: randomUUID(),
+            createdAt: "2026-09-18T12:15:00.000Z",
+          });
+
+        await unitOfWork.execute(async (transaction) => {
+          await transaction.insertAdministrator(
+            administrator,
+          );
+        });
+
+        const consumedAt =
+          "2026-09-18T12:30:00.000Z";
+
+        const linked = await unitOfWork.execute(
+          async (transaction) => {
+            const locked =
+              await transaction
+                .findAdministratorByBootstrapTokenHashForUpdate(
+                  administrator.bootstrapTokenHash,
+                );
+
+            expect(locked).toEqual(administrator);
+
+            return transaction.markAdministratorIdentityLinked(
+              administrator.bootstrapTokenHash,
+              administrator.internalIdentityId,
+              consumedAt,
+              consumedAt,
+            );
+          },
+        );
+
+        expect(linked).toEqual({
+          ...administrator,
+          status: "IDENTITY_LINKED",
+          bootstrapTokenConsumedAt: consumedAt,
+          identityLinkedAt: consumedAt,
+        });
+
+        const replay = await unitOfWork.execute(
+          async (transaction) => {
+            const locked =
+              await transaction
+                .findAdministratorByBootstrapTokenHashForUpdate(
+                  administrator.bootstrapTokenHash,
+                );
+
+            expect(locked).toEqual(linked);
+
+            return transaction.markAdministratorIdentityLinked(
+              administrator.bootstrapTokenHash,
+              administrator.internalIdentityId,
+              "2026-09-18T12:31:00.000Z",
+              "2026-09-18T12:31:00.000Z",
+            );
+          },
+        );
+
+        expect(replay).toBeUndefined();
+
+        const conflictingIdentity = await unitOfWork.execute(
+          async (transaction) => {
+            await transaction
+              .findAdministratorByBootstrapTokenHashForUpdate(
+                administrator.bootstrapTokenHash,
+              );
+
+            return transaction.markAdministratorIdentityLinked(
+              administrator.bootstrapTokenHash,
+              randomUUID(),
+              "2026-09-18T12:32:00.000Z",
+              "2026-09-18T12:32:00.000Z",
+            );
+          },
+        );
+
+        expect(conflictingIdentity).toBeUndefined();
+
+        const persisted = await ownerPool.query<{
+          status: string;
+          internal_identity_id: string;
+          bootstrap_token_consumed_at: Date;
+          identity_linked_at: Date;
+        }>(
+          `SELECT
+             status,
+             internal_identity_id,
+             bootstrap_token_consumed_at,
+             identity_linked_at
+           FROM agency_onboarding.agency_registration_administrators
+          WHERE registration_id = $1`,
+          [value.id],
+        );
+
+        expect(persisted.rows).toHaveLength(1);
+
+        expect(persisted.rows[0]).toMatchObject({
+          status: "IDENTITY_LINKED",
+          internal_identity_id:
+            administrator.internalIdentityId,
+        });
+
+        expect(
+          persisted.rows[0]?.bootstrap_token_consumed_at
+            .toISOString(),
+        ).toBe(consumedAt);
+
+        expect(
+          persisted.rows[0]?.identity_linked_at
+            .toISOString(),
+        ).toBe(consumedAt);
+      },
+    );
+
+    it(
+      "serializes concurrent completion lookups for the same bootstrap token",
+      async () => {
+        const value = registration();
+
+        await new PostgresSubmitAgencyRegistrationStore(
+          runtimePool,
+        ).submit({
+          registration: value,
+          documents: [],
+        });
+
+        const tenantId = randomUUID();
+
+        await ownerPool.query(
+          `UPDATE agency_onboarding.agency_registrations
+              SET status = 'APPROVED',
+                  provisioned_tenant_id = $2,
+                  reviewed_by_identity_id = $3,
+                  review_started_at = $4,
+                  approval_provisioning_started_at = $5,
+                  approved_at = $6,
+                  updated_at = $6
+            WHERE registration_id = $1`,
+          [
+            value.id,
+            tenantId,
+            randomUUID(),
+            "2026-09-18T12:05:00.000Z",
+            "2026-09-18T12:10:00.000Z",
+            "2026-09-18T12:15:00.000Z",
+          ],
+        );
+
+        const unitOfWork =
+          new PostgresFirstAdministratorBootstrapUnitOfWork(
+            runtimePool,
+          );
+
+        const administrator: FirstAdministratorBootstrap =
+          Object.freeze({
+            registrationId: value.id,
+            tenantId,
+            internalIdentityId: randomUUID(),
+            administratorKind: "FIRST_ADMINISTRATOR",
+            status: "PENDING_IDENTITY",
+            bootstrapTokenHash: "c".repeat(64),
+            bootstrapTokenExpiresAt:
+              "2026-09-18T13:15:00.000Z",
+            createdByPlatformIdentityId: randomUUID(),
+            createdAt: "2026-09-18T12:15:00.000Z",
+          });
+
+        await unitOfWork.execute(async (transaction) => {
+          await transaction.insertAdministrator(
+            administrator,
+          );
+        });
+
+        let releaseFirst!: () => void;
+
+        const holdFirst = new Promise<void>((resolve) => {
+          releaseFirst = resolve;
+        });
+
+        let firstHasLock!: () => void;
+
+        const firstLocked = new Promise<void>((resolve) => {
+          firstHasLock = resolve;
+        });
+
+        const first = unitOfWork.execute(
+          async (transaction) => {
+            const locked =
+              await transaction
+                .findAdministratorByBootstrapTokenHashForUpdate(
+                  administrator.bootstrapTokenHash,
+                );
+
+            expect(locked).toEqual(administrator);
+
+            firstHasLock();
+
+            await holdFirst;
+
+            return "first";
+          },
+        );
+
+        await firstLocked;
+
+        let secondEntered!: () => void;
+
+        const secondStarted = new Promise<void>((resolve) => {
+          secondEntered = resolve;
+        });
+
+        let secondCompleted = false;
+
+        const second = unitOfWork.execute(
+          async (transaction) => {
+            secondEntered();
+
+            const locked =
+              await transaction
+                .findAdministratorByBootstrapTokenHashForUpdate(
+                  administrator.bootstrapTokenHash,
+                );
+
+            secondCompleted = true;
+
+            expect(locked).toEqual(administrator);
+
+            return "second";
+          },
+        );
+
+        await secondStarted;
+
+        let waitingLocks = 0;
+
+        for (let attempt = 0; attempt < 50; attempt += 1) {
+          const waiting = await ownerPool.query<{
+            count: number;
+          }>(
+            `SELECT count(*)::int AS count
+               FROM pg_locks
+              WHERE locktype = 'tuple'
+                AND NOT granted`,
+          );
+
+          waitingLocks = waiting.rows[0]?.count ?? 0;
+
+          if (waitingLocks > 0) {
+            break;
+          }
+
+          await new Promise((resolve) =>
+            setTimeout(resolve, 10),
+          );
+        }
+
+        /*
+         * PostgreSQL row-lock waits are not guaranteed to be exposed
+         * as an ungranted tuple lock in pg_locks on every execution.
+         * The observable invariant is that the second transaction
+         * cannot pass SELECT ... FOR UPDATE before the first commits.
+         */
+        expect(secondCompleted).toBe(false);
+
+        releaseFirst();
+
+        await expect(first).resolves.toBe("first");
+        await expect(second).resolves.toBe("second");
+
+        expect(secondCompleted).toBe(true);
+      },
+    );
   },
 );

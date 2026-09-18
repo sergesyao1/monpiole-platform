@@ -35,6 +35,17 @@ export interface FirstAdministratorBootstrapTransaction {
     registrationId: string,
   ): Promise<FirstAdministratorBootstrap | undefined>;
 
+  findAdministratorByBootstrapTokenHashForUpdate(
+    bootstrapTokenHash: string,
+  ): Promise<FirstAdministratorBootstrap | undefined>;
+
+  markAdministratorIdentityLinked(
+    bootstrapTokenHash: string,
+    internalIdentityId: string,
+    bootstrapTokenConsumedAt: string,
+    identityLinkedAt: string,
+  ): Promise<FirstAdministratorBootstrap | undefined>;
+
   insertAdministrator(
     administrator: FirstAdministratorBootstrap,
   ): Promise<void>;
