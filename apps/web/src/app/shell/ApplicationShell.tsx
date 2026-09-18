@@ -1,5 +1,9 @@
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router";
 import { useSession } from "../../auth/session.js";
+import {
+  createPlatformAgencyRegistrationAuthorizationApi,
+} from "../../features/platform-agency-registrations/platform-agency-registration-authorization-api.js";
 import { Button } from "../../ui/index.js";
 
 const primaryNavigation = [
@@ -7,6 +11,10 @@ const primaryNavigation = [
   { to: "/properties", label: "Biens immobiliers", end: false },
   { to: "/demandes", label: "Demandes", end: false },
   { to: "/proprietaires", label: "Propriétaires", end: false },
+] as const;
+
+const platformNavigation = [
+  { to: "/plateforme/inscriptions-agences", label: "Inscriptions agences", end: false },
 ] as const;
 
 const supportNavigation = [
@@ -21,6 +29,7 @@ function routeContext(pathname: string) {
   if (pathname === "/proprietaires/new") return "Nouveau propriétaire";
   if (/^\/proprietaires\/[^/]+$/.test(pathname)) return "Fiche propriétaire";
   if (pathname.startsWith("/proprietaires")) return "Annuaire des propriétaires";
+  if (pathname.startsWith("/plateforme/inscriptions-agences")) return "Inscriptions agences";
   if (pathname.startsWith("/diagnostic-authentification")) return "Diagnostic de connexion";
   return "Tableau de bord";
 }
@@ -50,6 +59,38 @@ function NavigationGroup({ items, label }: Readonly<{
 export function ApplicationShell() {
   const session = useSession();
   const location = useLocation();
+  const [canRetrieveAgencyRegistrations, setCanRetrieveAgencyRegistrations] =
+    useState(false);
+
+  const platformAuthorizationApi = useMemo(
+    () =>
+      createPlatformAgencyRegistrationAuthorizationApi({
+        getAccessToken: session.getAccessToken,
+      }),
+    [session.getAccessToken],
+  );
+
+  useEffect(() => {
+    let active = true;
+
+    void platformAuthorizationApi
+      .canRetrieveRegistrations()
+      .then((authorized) => {
+        if (active) {
+          setCanRetrieveAgencyRegistrations(authorized);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setCanRetrieveAgencyRegistrations(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [platformAuthorizationApi]);
+
   const identity = session.user?.name ?? session.user?.email ?? "Utilisateur MonPiole";
   return (
     <div className="app-shell">
@@ -65,6 +106,12 @@ export function ApplicationShell() {
 
         <nav className="main-navigation" aria-label="Navigation principale">
           <NavigationGroup items={primaryNavigation} label="Espace de travail" />
+          {canRetrieveAgencyRegistrations ? (
+            <NavigationGroup
+              items={platformNavigation}
+              label="Administration plateforme"
+            />
+          ) : null}
           <NavigationGroup items={supportNavigation} label="Assistance" />
         </nav>
 

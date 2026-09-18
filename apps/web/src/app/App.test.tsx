@@ -11,7 +11,23 @@ const authenticatedSession: Session = {
   getAccessToken: async () => "test-token",
 };
 
+function stubPlatformAgencyRegistrationAuthorization(
+  status = 403,
+) {
+  return vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(new Response(null, { status })),
+  );
+}
+
 function renderRoute(path = "/", session: Session = authenticatedSession) {
+  if (
+    session.status === "authenticated" &&
+    !vi.isMockFunction(globalThis.fetch)
+  ) {
+    stubPlatformAgencyRegistrationAuthorization();
+  }
+
   return render(<SessionContext value={session}><RouterProvider router={createMemoryRouter(applicationRoutes, { initialEntries: [path] })} /></SessionContext>);
 }
 
@@ -35,6 +51,168 @@ describe("application web MonPiole", () => {
     expect(screen.getAllByRole("link", { name: "Créer un bien" })[0]).toHaveAttribute("href", "/properties/new");
   });
 
+  it("affiche l'administration plateforme seulement après un probe autorisé", async () => {
+    const fetchMock = vi.fn(
+      (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Promise<Response>((resolve) => {
+          setTimeout(() => resolve(new Response(null, { status: 204 })), 0);
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderRoute();
+
+    expect(
+      screen.queryByText("Administration plateforme"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Inscriptions agences" }),
+    ).not.toBeInTheDocument();
+
+    expect(
+      await screen.findByRole("link", { name: "Inscriptions agences" }),
+    ).toHaveAttribute("href", "/plateforme/inscriptions-agences");
+
+    expect(
+      screen.getByText("Administration plateforme"),
+    ).toBeInTheDocument();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "http://localhost:3000/v1/authentication/authorization/platform-agency-registration-read",
+    );
+
+    const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
+    expect(headers.get("authorization")).toBe("Bearer test-token");
+  });
+
+  it("masque l'administration plateforme lorsque le probe retourne 403", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(null, { status: 403 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderRoute();
+
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    expect(
+      screen.queryByText("Administration plateforme"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Inscriptions agences" }),
+    ).not.toBeInTheDocument();
+  });
+  it("bloque l'accès direct aux inscriptions agences lorsque le probe retourne 403", async () => {
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, _init?: RequestInit) => {
+        const url = String(input);
+
+        if (
+          url.endsWith(
+            "/v1/authentication/authorization/platform-agency-registration-read",
+          )
+        ) {
+          return new Response(null, { status: 403 });
+        }
+
+        throw new Error(`Unexpected request: ${url}`);
+      },
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderRoute("/plateforme/inscriptions-agences");
+
+    expect(
+      await screen.findByText("Accès plateforme non autorisé"),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.queryByRole("link", { name: "Inscriptions agences" }),
+    ).not.toBeInTheDocument();
+
+    const businessRequests = fetchMock.mock.calls.filter(
+      ([input]) =>
+        String(input) ===
+        "http://localhost:3000/v1/platform/agency-registrations",
+    );
+
+    expect(businessRequests).toHaveLength(0);
+
+    const probeRequests = fetchMock.mock.calls.filter(
+      ([input]) =>
+        String(input) ===
+        "http://localhost:3000/v1/authentication/authorization/platform-agency-registration-read",
+    );
+
+    expect(probeRequests.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("autorise l'accès direct aux inscriptions agences après un probe 204", async () => {
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, _init?: RequestInit) => {
+        const url = String(input);
+
+        if (
+          url.endsWith(
+            "/v1/authentication/authorization/platform-agency-registration-read",
+          )
+        ) {
+          return new Response(null, { status: 204 });
+        }
+
+        if (
+          url ===
+          "http://localhost:3000/v1/platform/agency-registrations"
+        ) {
+          return new Response(
+            JSON.stringify({ items: [] }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json",
+              },
+            },
+          );
+        }
+
+        throw new Error(`Unexpected request: ${url}`);
+      },
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderRoute("/plateforme/inscriptions-agences");
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Inscriptions agences",
+      }),
+    ).toBeInTheDocument();
+
+    expect(
+      await screen.findByText("Aucune inscription agence à examiner."),
+    ).toBeInTheDocument();
+
+    const businessRequests = fetchMock.mock.calls.filter(
+      ([input]) =>
+        String(input) ===
+        "http://localhost:3000/v1/platform/agency-registrations",
+    );
+
+    expect(businessRequests).toHaveLength(1);
+
+    const probeRequests = fetchMock.mock.calls.filter(
+      ([input]) =>
+        String(input) ===
+        "http://localhost:3000/v1/authentication/authorization/platform-agency-registration-read",
+    );
+
+    expect(probeRequests.length).toBeGreaterThanOrEqual(2);
+  });
   it("affiche une page 404 utile", () => {
     renderRoute("/route-inconnue");
     expect(screen.getByRole("heading", { name: "Cette page n'existe pas" })).toBeInTheDocument();
@@ -80,26 +258,107 @@ describe("application web MonPiole", () => {
   );
 
   it("vérifie la chaîne authentifiée vers l’API sans afficher le token", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ authenticated: true }), {
-      status: 200, headers: { "content-type": "application/json" },
-    }));
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, _init?: RequestInit) => {
+        const url = String(input);
+
+        if (
+          url.endsWith(
+            "/v1/authentication/authorization/platform-agency-registration-read",
+          )
+        ) {
+          return new Response(null, { status: 403 });
+        }
+
+        if (url.endsWith("/v1/authentication/session")) {
+          return new Response(
+            JSON.stringify({ authenticated: true }),
+            {
+              status: 200,
+              headers: { "content-type": "application/json" },
+            },
+          );
+        }
+
+        throw new Error(`Unexpected request: ${url}`);
+      },
+    );
+
     vi.stubGlobal("fetch", fetchMock);
     renderRoute("/diagnostic-authentification");
-    fireEvent.click(screen.getByRole("button", { name: "Vérifier ma session API" }));
-    expect(await screen.findByText("Connexion réussie : l’API reconnaît votre autorité MonPiole.")).toBeInTheDocument();
-    const headers = fetchMock.mock.calls[0]?.[1]?.headers as Headers;
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Vérifier ma session API" }),
+    );
+
+    expect(
+      await screen.findByText(
+        "Connexion réussie : l’API reconnaît votre autorité MonPiole.",
+      ),
+    ).toBeInTheDocument();
+
+    const sessionRequest = fetchMock.mock.calls.find(
+      ([input]) =>
+        String(input) ===
+        "http://localhost:3000/v1/authentication/session",
+    );
+
+    expect(sessionRequest).toBeDefined();
+
+    const headers = new Headers(sessionRequest?.[1]?.headers);
     expect(headers.get("authorization")).toBe("Bearer test-token");
     expect(screen.queryByText("test-token")).not.toBeInTheDocument();
   });
 
   it("distingue un refus métier sans invalider la session", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({}), { status: 403 })));
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, _init?: RequestInit) => {
+        const url = String(input);
+
+        if (
+          url.endsWith(
+            "/v1/authentication/authorization/platform-agency-registration-read",
+          )
+        ) {
+          return new Response(null, { status: 403 });
+        }
+
+        if (
+          url.endsWith(
+            "/v1/authentication/authorization/platform-tenant-creation",
+          )
+        ) {
+          return new Response(null, { status: 403 });
+        }
+
+        throw new Error(`Unexpected request: ${url}`);
+      },
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
     renderRoute("/diagnostic-authentification");
-    fireEvent.click(screen.getByRole("button", { name: "Tester le refus 403" }));
-    expect(await screen.findByText("Votre session reste authentifiée, mais cette opération est interdite.")).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Tester le refus 403" }),
+    );
+
+    expect(
+      await screen.findByText(
+        "Votre session reste authentifiée, mais cette opération est interdite.",
+      ),
+    ).toBeInTheDocument();
+
     expect(screen.getByText("Session sécurisée")).toBeInTheDocument();
-    const request = vi.mocked(fetch).mock.calls[0];
-    expect(request?.[0]).toBe("http://localhost:3000/v1/authentication/authorization/platform-tenant-creation");
-    expect((request?.[1]?.headers as Headers).get("authorization")).toBe("Bearer test-token");
+
+    const authorizationRequest = fetchMock.mock.calls.find(
+      ([input]) =>
+        String(input) ===
+        "http://localhost:3000/v1/authentication/authorization/platform-tenant-creation",
+    );
+
+    expect(authorizationRequest).toBeDefined();
+
+    const headers = new Headers(authorizationRequest?.[1]?.headers);
+    expect(headers.get("authorization")).toBe("Bearer test-token");
   });
 });

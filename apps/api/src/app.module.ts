@@ -98,6 +98,7 @@ import { ASSIGN_PROPERTY_OWNER_USE_CASE, AssignPropertyOwnerController } from ".
 import { RETRIEVE_PROPERTY_OWNERSHIPS_USE_CASE, RetrievePropertyOwnershipsController } from "./http/properties/retrieve-property-ownerships.controller.js";
 import { REMOVE_PROPERTY_OWNER_USE_CASE, RemovePropertyOwnerController } from "./http/properties/remove-property-owner.controller.js";
 import { AuthenticationSessionController } from "./http/authentication/authentication-session.controller.js";
+import { PlatformAgencyRegistrationReadAuthorizationProbeController } from "./http/authentication/platform-agency-registration-read-authorization-probe.controller.js";
 import {
   PLATFORM_AUTHORITY_AUTHORIZER,
   PlatformTenantCreationAuthorizationProbeController,
@@ -372,7 +373,7 @@ export class AppModule {
       PlatformAgencyRegistrationsController,
       AgencyRegistrationDocumentsController,
         HealthController, ContractBaselineController, AuthenticationSessionController,
-        PlatformTenantCreationAuthorizationProbeController, CreateTenantController,
+        PlatformTenantCreationAuthorizationProbeController, PlatformAgencyRegistrationReadAuthorizationProbeController, CreateTenantController,
         BootstrapAdministratorController,
         ActivateAdministratorController,
         ActivateTenantController,

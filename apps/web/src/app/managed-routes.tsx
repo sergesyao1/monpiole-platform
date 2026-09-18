@@ -22,6 +22,37 @@ const applicationChildren: RouteObject[] = [{
     { path: "biens", element: <Navigate to="/properties" replace /> },
     { path: "properties", lazy: lazyComponent(() => import("../features/properties/PropertyWorkspacePage.js"), "PropertyWorkspacePage") },
     { path: "demandes", lazy: lazyComponent(() => import("../features/properties/PropertyCommercialJourneysPage.js"), "PropertyCommercialJourneysPage") },
+    {
+      lazy: lazyComponent(
+        () =>
+          import(
+            "../features/platform-agency-registrations/PlatformAgencyRegistrationReadBoundary.js"
+          ),
+        "PlatformAgencyRegistrationReadBoundary",
+      ),
+      children: [
+        {
+          path: "plateforme/inscriptions-agences",
+          lazy: lazyComponent(
+            () =>
+              import(
+                "../features/platform-agency-registrations/PlatformAgencyRegistrationsPage.js"
+              ),
+            "PlatformAgencyRegistrationsPage",
+          ),
+        },
+        {
+          path: "plateforme/inscriptions-agences/:registrationId",
+          lazy: lazyComponent(
+            () =>
+              import(
+                "../features/platform-agency-registrations/PlatformAgencyRegistrationReviewPage.js"
+              ),
+            "PlatformAgencyRegistrationReviewPage",
+          ),
+        },
+      ],
+    },
     { path: "properties/new", lazy: lazyComponent(() => import("../features/properties/CreatePropertyPage.js"), "CreatePropertyPage") },
     { path: "properties/:propertyId", lazy: lazyComponent(() => import("../features/properties/PropertyDetailPage.js"), "PropertyDetailPage") },
     { path: "proprietaires", lazy: lazyComponent(() => import("../features/properties/PropertyOwnerDirectoryPage.js"), "PropertyOwnerDirectoryPage") },

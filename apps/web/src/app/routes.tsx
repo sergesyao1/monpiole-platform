@@ -10,6 +10,9 @@ import { PropertyOwnerDetailPage } from "../features/properties/PropertyOwnerDet
 import { PropertyOwnerDirectoryPage } from "../features/properties/PropertyOwnerDirectoryPage.js";
 import { PropertyWorkspacePage } from "../features/properties/PropertyWorkspacePage.js";
 import { PropertyCommercialJourneysPage } from "../features/properties/PropertyCommercialJourneysPage.js";
+import { PlatformAgencyRegistrationsPage } from "../features/platform-agency-registrations/PlatformAgencyRegistrationsPage.js";
+import { PlatformAgencyRegistrationReviewPage } from "../features/platform-agency-registrations/PlatformAgencyRegistrationReviewPage.js";
+import { PlatformAgencyRegistrationReadBoundary } from "../features/platform-agency-registrations/PlatformAgencyRegistrationReadBoundary.js";
 import { PublicPropertyCatalogPage } from "../features/public-catalog/PublicPropertyCatalogPage.js";
 import { PublicPropertyDetailPage } from "../features/public-catalog/PublicPropertyDetailPage.js";
 import { AuthenticationDiagnosticPage } from "./pages/AuthenticationDiagnosticPage.js";
@@ -36,6 +39,19 @@ export const applicationRoutes: RouteObject[] = [
         { path: "biens", element: <Navigate to="/properties" replace /> },
         { path: "properties", element: <PropertyWorkspacePage /> },
         { path: "demandes", element: <PropertyCommercialJourneysPage /> },
+        {
+          element: <PlatformAgencyRegistrationReadBoundary />,
+          children: [
+            {
+              path: "plateforme/inscriptions-agences",
+              element: <PlatformAgencyRegistrationsPage />,
+            },
+            {
+              path: "plateforme/inscriptions-agences/:registrationId",
+              element: <PlatformAgencyRegistrationReviewPage />,
+            },
+          ],
+        },
         { path: "properties/new", element: <CreatePropertyPage /> },
         { path: "properties/:propertyId", element: <PropertyDetailPage /> },
         { path: "proprietaires", element: <PropertyOwnerDirectoryPage /> },
