@@ -148,3 +148,11 @@ export {
   type LinkFirstAdministratorExternalIdentityInput,
   type LinkedFirstAdministratorExternalIdentity,
 } from "./application/complete-first-administrator-identity.js";
+export {
+  FinalizeFirstAdministratorActivation,
+  FirstAdministratorActivationConflictError,
+  FirstAdministratorActivationNotFoundError,
+  FirstAdministratorActivationNotReadyError,
+  type FinalizeFirstAdministratorActivationCommand,
+  type FinalizeFirstAdministratorActivationResult,
+} from "./application/finalize-first-administrator-activation.js";
