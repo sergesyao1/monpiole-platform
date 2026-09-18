@@ -2,6 +2,7 @@ export const agencyOnboardingGrants = [
   "RETRIEVE_AGENCY_REGISTRATIONS",
   "REVIEW_AGENCY_REGISTRATIONS",
   "DECIDE_AGENCY_REGISTRATIONS",
+  "MANAGE_AGENCY_ADMIN_BOOTSTRAP",
 ] as const;
 
 export type AgencyOnboardingGrant =

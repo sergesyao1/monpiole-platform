@@ -103,3 +103,27 @@ export {
   AgencyRegistrationDocumentUploadConsumedError,
   AgencyRegistrationDocumentUploadExpiredError
 } from "./application/agency-registration-persistence-errors.js";
+export {
+  firstAdministratorStatuses,
+  type FirstAdministratorBootstrap,
+  type FirstAdministratorBootstrapTransaction,
+  type FirstAdministratorBootstrapUnitOfWork,
+  type FirstAdministratorStatus,
+} from "./application/first-administrator-persistence.js";
+
+export {
+  CreateFirstAgencyAdministrator,
+  FirstAdministratorAlreadyExistsError,
+  FirstAdministratorRegistrationNotFoundError,
+  FirstAdministratorRegistrationNotReadyError,
+  InvalidFirstAdministratorBootstrapConfigurationError,
+  type CreateFirstAgencyAdministratorCommand,
+  type CreateFirstAgencyAdministratorResult,
+  type FirstAdministratorBootstrapClock,
+  type FirstAdministratorBootstrapConfiguration,
+  type FirstAdministratorBootstrapTokenGenerator,
+  type FirstAdministratorBootstrapTokenHasher,
+  type FirstAdministratorIdentityProvisioningPort,
+  type ProvisionFirstAdministratorIdentityInput,
+  type ProvisionFirstAdministratorIdentityResult,
+} from "./application/first-administrator-bootstrap.js";
