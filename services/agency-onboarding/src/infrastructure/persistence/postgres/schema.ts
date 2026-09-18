@@ -285,6 +285,163 @@ export const agencyRegistrationDocumentUploads = agencyOnboarding.table(
     }),
   ],
 ).enableRLS();
+export const agencyRegistrationAdministrators = agencyOnboarding.table(
+  "agency_registration_administrators",
+  {
+    registrationId: uuid("registration_id").primaryKey(),
+
+    tenantId: uuid("tenant_id").notNull(),
+
+    internalIdentityId: uuid("internal_identity_id").notNull(),
+
+    administratorKind: text("administrator_kind").notNull(),
+
+    status: text("status").notNull(),
+
+    bootstrapTokenHash: text("bootstrap_token_hash").notNull(),
+
+    bootstrapTokenExpiresAt: timestamp("bootstrap_token_expires_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+
+    bootstrapTokenConsumedAt: timestamp("bootstrap_token_consumed_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+
+    createdByPlatformIdentityId: uuid(
+      "created_by_platform_identity_id",
+    ).notNull(),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+
+    identityLinkedAt: timestamp("identity_linked_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+
+    activatedAt: timestamp("activated_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+
+    cancelledAt: timestamp("cancelled_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.registrationId],
+      foreignColumns: [agencyRegistrations.registrationId],
+      name: "agency_registration_administrators_registration_fk",
+    }),
+
+    uniqueIndex(
+      "agency_registration_administrators_tenant_unique",
+    ).on(table.tenantId),
+
+    uniqueIndex(
+      "agency_registration_administrators_identity_unique",
+    ).on(table.internalIdentityId),
+
+    uniqueIndex(
+      "agency_registration_administrators_token_hash_unique",
+    ).on(table.bootstrapTokenHash),
+
+    index("agency_registration_administrators_pending_token_idx")
+      .on(table.bootstrapTokenExpiresAt, table.registrationId)
+      .where(
+        sql`
+          ${table.bootstrapTokenConsumedAt} IS NULL
+          AND ${table.status} = 'PENDING_IDENTITY'
+        `,
+      ),
+
+    check(
+      "agency_registration_administrators_kind_check",
+      sql`${table.administratorKind} = 'FIRST_ADMINISTRATOR'`,
+    ),
+
+    check(
+      "agency_registration_administrators_status_check",
+      sql`
+        ${table.status} IN (
+          'PENDING_IDENTITY',
+          'IDENTITY_LINKED',
+          'ACTIVE',
+          'CANCELLED'
+        )
+      `,
+    ),
+
+    check(
+      "agency_registration_administrators_token_hash_check",
+      sql`${table.bootstrapTokenHash} ~ '^[0-9a-f]{64}$'`,
+    ),
+
+    check(
+      "agency_registration_administrators_expiry_check",
+      sql`${table.bootstrapTokenExpiresAt} > ${table.createdAt}`,
+    ),
+
+    check(
+      "agency_registration_administrators_consumed_check",
+      sql`
+        ${table.bootstrapTokenConsumedAt} IS NULL
+        OR ${table.bootstrapTokenConsumedAt} >= ${table.createdAt}
+      `,
+    ),
+
+    check(
+      "agency_registration_administrators_lifecycle_check",
+      sql`
+        (
+          ${table.status} = 'PENDING_IDENTITY'
+          AND ${table.identityLinkedAt} IS NULL
+          AND ${table.activatedAt} IS NULL
+          AND ${table.cancelledAt} IS NULL
+        )
+        OR
+        (
+          ${table.status} = 'IDENTITY_LINKED'
+          AND ${table.identityLinkedAt} IS NOT NULL
+          AND ${table.activatedAt} IS NULL
+          AND ${table.cancelledAt} IS NULL
+        )
+        OR
+        (
+          ${table.status} = 'ACTIVE'
+          AND ${table.identityLinkedAt} IS NOT NULL
+          AND ${table.activatedAt} IS NOT NULL
+          AND ${table.cancelledAt} IS NULL
+        )
+        OR
+        (
+          ${table.status} = 'CANCELLED'
+          AND ${table.activatedAt} IS NULL
+          AND ${table.cancelledAt} IS NOT NULL
+        )
+      `,
+    ),
+
+    pgPolicy("agency_registration_administrators_platform_manage", {
+      for: "all",
+      using: sql`
+        current_setting('app.platform_capability', true)
+          = 'agency-registration:administrator'
+      `,
+      withCheck: sql`
+        current_setting('app.platform_capability', true)
+          = 'agency-registration:administrator'
+      `,
+    }),
+  ],
+).enableRLS();
 export const agencyRegistrationDocuments = agencyOnboarding.table(
   "agency_registration_documents",
   {

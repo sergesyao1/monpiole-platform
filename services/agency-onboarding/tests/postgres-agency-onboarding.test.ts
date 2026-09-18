@@ -1654,3 +1654,416 @@ describe("Agency onboarding PostgreSQL RLS", () => {
   });
 
 });
+
+describe("First administrator bootstrap persistence", () => {
+  async function createApprovedRegistration(): Promise<{
+    registrationId: string;
+    tenantId: string;
+  }> {
+    const value = registration();
+
+    await new PostgresSubmitAgencyRegistrationStore(runtimePool).submit({
+      registration: value,
+      documents: [],
+    });
+
+    const unitOfWork =
+      new PostgresAgencyRegistrationReviewUnitOfWork(runtimePool);
+
+    const actorId = randomUUID();
+
+    await new StartAgencyRegistrationReview(
+      unitOfWork,
+      { now: () => "2026-09-18T10:00:00.000Z" },
+    ).execute({
+      authority: {
+        actorId,
+        authorityId: randomUUID(),
+        grants: ["REVIEW_AGENCY_REGISTRATIONS"],
+      },
+      registrationId: value.id,
+    });
+
+    const tenantId = randomUUID();
+
+    await new ApproveAgencyRegistration(
+      unitOfWork,
+      {
+        async provision() {
+          return {
+            tenantId,
+            lifecycleState: "PENDING" as const,
+          };
+        },
+      },
+      { now: () => "2026-09-18T10:10:00.000Z" },
+    ).execute({
+      authority: {
+        actorId,
+        authorityId: randomUUID(),
+        grants: ["DECIDE_AGENCY_REGISTRATIONS"],
+      },
+      registrationId: value.id,
+    });
+
+    return {
+      registrationId: value.id,
+      tenantId,
+    };
+  }
+
+  async function insertAdministrator(input: {
+    registrationId: string;
+    tenantId: string;
+    internalIdentityId?: string;
+    tokenHash?: string;
+    status?: string;
+    createdAt?: string;
+    expiresAt?: string;
+    consumedAt?: string | null;
+    identityLinkedAt?: string | null;
+    activatedAt?: string | null;
+    cancelledAt?: string | null;
+  }): Promise<void> {
+    await withAgencyOnboardingPostgresTransaction(
+      runtimePool,
+      "administrator",
+      async (scope) => {
+        await scope.query(
+          `INSERT INTO agency_onboarding.agency_registration_administrators (
+             registration_id,
+             tenant_id,
+             internal_identity_id,
+             administrator_kind,
+             status,
+             bootstrap_token_hash,
+             bootstrap_token_expires_at,
+             bootstrap_token_consumed_at,
+             created_by_platform_identity_id,
+             created_at,
+             identity_linked_at,
+             activated_at,
+             cancelled_at
+           ) VALUES (
+             $1,$2,$3,'FIRST_ADMINISTRATOR',$4,$5,$6,$7,$8,$9,$10,$11,$12
+           )`,
+          [
+            input.registrationId,
+            input.tenantId,
+            input.internalIdentityId ?? randomUUID(),
+            input.status ?? "PENDING_IDENTITY",
+            input.tokenHash ??
+              `${randomUUID().replaceAll("-", "")}${randomUUID().replaceAll("-", "")}`,
+            input.expiresAt ?? "2026-09-18T12:00:00.000Z",
+            input.consumedAt ?? null,
+            randomUUID(),
+            input.createdAt ?? "2026-09-18T11:00:00.000Z",
+            input.identityLinkedAt ?? null,
+            input.activatedAt ?? null,
+            input.cancelledAt ?? null,
+          ],
+        );
+      },
+    );
+  }
+
+  it("fails closed without administrator capability", async () => {
+    const { registrationId, tenantId } =
+      await createApprovedRegistration();
+
+    await expect(
+      runtimePool.query(
+        `INSERT INTO agency_onboarding.agency_registration_administrators (
+           registration_id,
+           tenant_id,
+           internal_identity_id,
+           administrator_kind,
+           status,
+           bootstrap_token_hash,
+           bootstrap_token_expires_at,
+           created_by_platform_identity_id,
+           created_at
+         ) VALUES (
+           $1,$2,$3,'FIRST_ADMINISTRATOR','PENDING_IDENTITY',$4,$5,$6,$7
+         )`,
+        [
+          registrationId,
+          tenantId,
+          randomUUID(),
+          "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "2026-09-18T12:00:00.000Z",
+          randomUUID(),
+          "2026-09-18T11:00:00.000Z",
+        ],
+      ),
+    ).rejects.toMatchObject({
+      code: "42501",
+    });
+  });
+
+  it("allows administrator capability to persist a pending first administrator", async () => {
+    const { registrationId, tenantId } =
+      await createApprovedRegistration();
+
+    const internalIdentityId = randomUUID();
+    const tokenHash =
+      "5656565656565656565656565656565656565656565656565656565656565656";
+
+    await insertAdministrator({
+      registrationId,
+      tenantId,
+      internalIdentityId,
+      tokenHash,
+    });
+
+    const persisted = await ownerPool.query<{
+      registration_id: string;
+      tenant_id: string;
+      internal_identity_id: string;
+      administrator_kind: string;
+      status: string;
+      bootstrap_token_hash: string;
+    }>(
+      `SELECT
+         registration_id,
+         tenant_id,
+         internal_identity_id,
+         administrator_kind,
+         status,
+         bootstrap_token_hash
+       FROM agency_onboarding.agency_registration_administrators
+       WHERE registration_id = $1`,
+      [registrationId],
+    );
+
+    expect(persisted.rows).toHaveLength(1);
+    expect(persisted.rows[0]).toMatchObject({
+      registration_id: registrationId,
+      tenant_id: tenantId,
+      internal_identity_id: internalIdentityId,
+      administrator_kind: "FIRST_ADMINISTRATOR",
+      status: "PENDING_IDENTITY",
+      bootstrap_token_hash: tokenHash,
+    });
+  });
+
+  it("rejects an invalid bootstrap token hash", async () => {
+    const { registrationId, tenantId } =
+      await createApprovedRegistration();
+
+    await expect(
+      insertAdministrator({
+        registrationId,
+        tenantId,
+        tokenHash: "not-a-sha256-hash",
+      }),
+    ).rejects.toMatchObject({
+      code: "23514",
+    });
+  });
+
+  it("rejects a bootstrap token that does not expire after creation", async () => {
+    const { registrationId, tenantId } =
+      await createApprovedRegistration();
+
+    await expect(
+      insertAdministrator({
+        registrationId,
+        tenantId,
+        createdAt: "2026-09-18T11:00:00.000Z",
+        expiresAt: "2026-09-18T11:00:00.000Z",
+      }),
+    ).rejects.toMatchObject({
+      code: "23514",
+    });
+  });
+
+  it("rejects an incoherent linked lifecycle", async () => {
+    const { registrationId, tenantId } =
+      await createApprovedRegistration();
+
+    await expect(
+      insertAdministrator({
+        registrationId,
+        tenantId,
+        status: "IDENTITY_LINKED",
+      }),
+    ).rejects.toMatchObject({
+      code: "23514",
+    });
+  });
+
+  it("accepts the identity-linked lifecycle", async () => {
+    const { registrationId, tenantId } =
+      await createApprovedRegistration();
+
+    await insertAdministrator({
+      registrationId,
+      tenantId,
+      status: "IDENTITY_LINKED",
+      consumedAt: "2026-09-18T11:10:00.000Z",
+      identityLinkedAt: "2026-09-18T11:10:00.000Z",
+    });
+  });
+
+  it("accepts the active lifecycle only after identity linkage", async () => {
+    const { registrationId, tenantId } =
+      await createApprovedRegistration();
+
+    await insertAdministrator({
+      registrationId,
+      tenantId,
+      status: "ACTIVE",
+      consumedAt: "2026-09-18T11:10:00.000Z",
+      identityLinkedAt: "2026-09-18T11:10:00.000Z",
+      activatedAt: "2026-09-18T11:20:00.000Z",
+    });
+  });
+
+  it("rejects active without identity linkage", async () => {
+    const { registrationId, tenantId } =
+      await createApprovedRegistration();
+
+    await expect(
+      insertAdministrator({
+        registrationId,
+        tenantId,
+        status: "ACTIVE",
+        activatedAt: "2026-09-18T11:20:00.000Z",
+      }),
+    ).rejects.toMatchObject({
+      code: "23514",
+    });
+  });
+
+  it("accepts the cancelled terminal lifecycle", async () => {
+    const { registrationId, tenantId } =
+      await createApprovedRegistration();
+
+    await insertAdministrator({
+      registrationId,
+      tenantId,
+      status: "CANCELLED",
+      cancelledAt: "2026-09-18T11:15:00.000Z",
+    });
+  });
+
+  it("rejects a consumed timestamp before creation", async () => {
+    const { registrationId, tenantId } =
+      await createApprovedRegistration();
+
+    await expect(
+      insertAdministrator({
+        registrationId,
+        tenantId,
+        consumedAt: "2026-09-18T10:59:59.000Z",
+      }),
+    ).rejects.toMatchObject({
+      code: "23514",
+    });
+  });
+
+  it("enforces one first administrator per registration", async () => {
+    const { registrationId, tenantId } =
+      await createApprovedRegistration();
+
+    await insertAdministrator({
+      registrationId,
+      tenantId,
+    });
+
+    await expect(
+      insertAdministrator({
+        registrationId,
+        tenantId: randomUUID(),
+        tokenHash:
+          "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      }),
+    ).rejects.toMatchObject({
+      code: "23505",
+    });
+  });
+
+  it("enforces one first administrator per tenant", async () => {
+    const first = await createApprovedRegistration();
+    const second = await createApprovedRegistration();
+
+    await insertAdministrator({
+      registrationId: first.registrationId,
+      tenantId: first.tenantId,
+    });
+
+    await expect(
+      insertAdministrator({
+        registrationId: second.registrationId,
+        tenantId: first.tenantId,
+        tokenHash:
+          "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      }),
+    ).rejects.toMatchObject({
+      code: "23505",
+    });
+  });
+
+  it("enforces unique internal identity provenance", async () => {
+    const first = await createApprovedRegistration();
+    const second = await createApprovedRegistration();
+
+    const internalIdentityId = randomUUID();
+
+    await insertAdministrator({
+      registrationId: first.registrationId,
+      tenantId: first.tenantId,
+      internalIdentityId,
+    });
+
+    await expect(
+      insertAdministrator({
+        registrationId: second.registrationId,
+        tenantId: second.tenantId,
+        internalIdentityId,
+        tokenHash:
+          "abababababababababababababababababababababababababababababababab",
+      }),
+    ).rejects.toMatchObject({
+      code: "23505",
+    });
+  });
+
+  it("enforces unique bootstrap token hashes", async () => {
+    const first = await createApprovedRegistration();
+    const second = await createApprovedRegistration();
+
+    const tokenHash =
+      "1212121212121212121212121212121212121212121212121212121212121212";
+
+    await insertAdministrator({
+      registrationId: first.registrationId,
+      tenantId: first.tenantId,
+      tokenHash,
+    });
+
+    await expect(
+      insertAdministrator({
+        registrationId: second.registrationId,
+        tenantId: second.tenantId,
+        tokenHash,
+      }),
+    ).rejects.toMatchObject({
+      code: "23505",
+    });
+  });
+
+  it("enforces registration provenance through the foreign key", async () => {
+    await expect(
+      insertAdministrator({
+        registrationId: randomUUID(),
+        tenantId: randomUUID(),
+        tokenHash:
+          "3434343434343434343434343434343434343434343434343434343434343434",
+      }),
+    ).rejects.toMatchObject({
+      code: "23503",
+    });
+  });
+});

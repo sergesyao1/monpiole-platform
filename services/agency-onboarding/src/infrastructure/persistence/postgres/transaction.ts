@@ -8,13 +8,15 @@ export type AgencyOnboardingDatabaseCapability =
   | "submit"
   | "retrieve"
   | "review"
-  | "decide";
+  | "decide"
+  | "administrator";
 
 const CAPABILITIES = Object.freeze({
   submit: "agency-registration:submit",
   retrieve: "agency-registration:retrieve",
   review: "agency-registration:review",
   decide: "agency-registration:decide",
+  administrator: "agency-registration:administrator",
 } satisfies Record<AgencyOnboardingDatabaseCapability, string>);
 
 export async function withAgencyOnboardingPostgresTransaction<Result>(

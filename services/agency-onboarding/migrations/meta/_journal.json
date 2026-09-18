@@ -22,6 +22,13 @@
                         "when":  1789664313886,
                         "tag":  "0002_agency_document_upload_staging",
                         "breakpoints":  true
+                    },
+                    {
+                        "idx":  3,
+                        "version":  "7",
+                        "when":  1789664313887,
+                        "tag":  "0003_first_administrator_bootstrap",
+                        "breakpoints":  true
                     }
                 ]
 }
