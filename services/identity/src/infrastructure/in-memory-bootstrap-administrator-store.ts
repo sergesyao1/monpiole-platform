@@ -1,5 +1,6 @@
 import {
   BootstrapAdministratorConflictError,
+  type BootstrapAdministratorReplay,
   type BootstrapAdministratorStore,
 } from "../application/bootstrap-tenant-administrator.js";
 import type { Identity, TenantMembership } from "../domain/identity.js";
@@ -13,30 +14,76 @@ BootstrapAdministratorStore, ActivateTenantAdministratorStore, ActiveTenantAdmin
   readonly #membershipsByTenant = new Map<string, TenantMembership>();
   readonly #correlationsByIdentity = new Map<string, string>();
 
-  async findIdentityByEmail(email: string, _tenantId: string) { return this.#identitiesByEmail.get(email); }
+  async findBootstrapByCorrelation(
+    correlationId: string,
+    tenantId: string,
+  ): Promise<BootstrapAdministratorReplay | undefined> {
+    const membership = this.#membershipsByTenant.get(tenantId);
+
+    if (membership === undefined) return undefined;
+
+    if (this.#correlationsByIdentity.get(membership.identityId) !== correlationId) {
+      return undefined;
+    }
+
+    const identity = this.#identitiesById.get(membership.identityId);
+
+    if (identity === undefined) return undefined;
+
+    return { identity, membership };
+  }
+
+  async findIdentityByEmail(email: string, _tenantId: string) {
+    return this.#identitiesByEmail.get(email);
+  }
+
   async findIdentityById(administratorId: string, tenantId: string) {
     const membership = this.#membershipsByTenant.get(tenantId);
-    return membership?.identityId === administratorId ? this.#identitiesById.get(administratorId) : undefined;
+    return membership?.identityId === administratorId
+      ? this.#identitiesById.get(administratorId)
+      : undefined;
   }
-  async findMembership(tenantId: string) { return this.#membershipsByTenant.get(tenantId); }
 
-  async saveAtomically(identity: Identity, membership: TenantMembership, correlationId: string): Promise<void> {
-    if (this.#identitiesByEmail.has(identity.email) || this.#membershipsByTenant.has(membership.tenantId)) {
+  async findMembership(tenantId: string) {
+    return this.#membershipsByTenant.get(tenantId);
+  }
+
+  async saveAtomically(
+    identity: Identity,
+    membership: TenantMembership,
+    correlationId: string,
+  ): Promise<void> {
+    if (
+      this.#identitiesByEmail.has(identity.email) ||
+      this.#membershipsByTenant.has(membership.tenantId)
+    ) {
       throw new BootstrapAdministratorConflictError();
     }
+
     this.#identitiesByEmail.set(identity.email, identity);
     this.#identitiesById.set(identity.id, identity);
     this.#membershipsByTenant.set(membership.tenantId, membership);
     this.#correlationsByIdentity.set(identity.id, correlationId);
   }
 
-  async saveActivatedIdentity(identity: Identity, tenantId: string, correlationId: string): Promise<void> {
-    if (this.#membershipsByTenant.get(tenantId)?.identityId !== identity.id) return;
+  async saveActivatedIdentity(
+    identity: Identity,
+    tenantId: string,
+    correlationId: string,
+  ): Promise<void> {
+    if (this.#membershipsByTenant.get(tenantId)?.identityId !== identity.id) {
+      return;
+    }
+
     this.#identitiesById.set(identity.id, identity);
     this.#identitiesByEmail.set(identity.email, identity);
-    this.#correlationsByIdentity.set(identity.id, correlationId);
   }
 
-  identityCount() { return this.#identitiesByEmail.size; }
-  membershipCount() { return this.#membershipsByTenant.size; }
+  identityCount() {
+    return this.#identitiesByEmail.size;
+  }
+
+  membershipCount() {
+    return this.#membershipsByTenant.size;
+  }
 }

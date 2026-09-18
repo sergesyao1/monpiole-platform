@@ -17,6 +17,43 @@ export class PostgresIdentityStore implements
 BootstrapAdministratorStore, ActivateTenantAdministratorStore, ActiveTenantAdministratorStore {
   constructor(private readonly pool: Pool) {}
 
+  findBootstrapByCorrelation(
+    correlationId: string,
+    tenantId: string,
+  ): Promise<{ identity: Identity; membership: TenantMembership } | undefined> {
+    return withTenantPostgresTransaction(this.pool, tenantId, async (scope) => {
+      const row = (await scope.database()
+        .select({
+          identity: identities,
+          membership: tenantMemberships,
+        })
+        .from(identities)
+        .innerJoin(
+          tenantMemberships,
+          and(
+            eq(tenantMemberships.identityId, identities.id),
+            eq(tenantMemberships.tenantId, identities.tenantId),
+          ),
+        )
+        .where(and(
+          eq(identities.tenantId, tenantId),
+          eq(identities.correlationId, correlationId),
+          eq(tenantMemberships.correlationId, correlationId),
+        ))
+        .limit(1))[0];
+
+      if (row === undefined) return undefined;
+
+      return {
+        identity: toIdentity(row.identity),
+        membership: TenantMembership.rehydrate(
+          row.membership.tenantId,
+          row.membership.identityId,
+        ),
+      };
+    });
+  }
+
   findIdentityByEmail(email: string, tenantId: string): Promise<Identity | undefined> {
     return withTenantPostgresTransaction(this.pool, tenantId, async (scope) => {
       const row = (await scope.database().select().from(identities).where(and(
@@ -66,7 +103,7 @@ BootstrapAdministratorStore, ActivateTenantAdministratorStore, ActiveTenantAdmin
 
   async saveActivatedIdentity(identity: Identity, tenantId: string, correlationId: string): Promise<void> {
     await withTenantPostgresTransaction(this.pool, tenantId, async (scope) => {
-      await scope.database().update(identities).set({ status: identity.status, correlationId })
+      await scope.database().update(identities).set({ status: identity.status })
         .where(and(eq(identities.id, identity.id), eq(identities.tenantId, tenantId)));
     });
   }

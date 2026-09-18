@@ -19,6 +19,7 @@ const TENANT_B = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const ADMIN_A = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const ADMIN_B = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 const CORRELATION_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const ACTIVATION_CORRELATION_ID = "ffffffff-ffff-4fff-8fff-ffffffffffff";
 const migrationsFolder = fileURLToPath(new URL("../migrations", import.meta.url));
 const AUTHORITY = { actorId: "actor-1", authorityId: "authority-1", grants: ["BOOTSTRAP_TENANT_ADMINISTRATOR", "ACTIVATE_TENANT_ADMINISTRATOR"] as const, tenantIds: [TENANT_A, TENANT_B] };
 const AUTHORIZER = { authorize: async () => true };
@@ -76,6 +77,48 @@ describe("Identity PostgreSQL persistence", () => {
     }]);
   });
 
+  it("converges the same bootstrap correlation through a fresh PostgreSQL store", async () => {
+    const first = await bootstrap(
+      new PostgresIdentityStore(runtimePool),
+    );
+
+    const replay = await bootstrap(
+      new PostgresIdentityStore(runtimePool),
+    );
+
+    expect(replay).toEqual(first);
+
+    expect(
+      (
+        await ownerPool.query(
+          "SELECT count(*)::text AS count FROM identity.identities",
+        )
+      ).rows[0]?.count,
+    ).toBe("1");
+
+    expect(
+      (
+        await ownerPool.query(
+          "SELECT count(*)::text AS count FROM identity.tenant_memberships",
+        )
+      ).rows[0]?.count,
+    ).toBe("1");
+
+    const persisted =
+      await new PostgresIdentityStore(
+        runtimePool,
+      ).findBootstrapByCorrelation(
+        CORRELATION_ID,
+        TENANT_A,
+      );
+
+    expect(persisted?.identity.id).toBe(ADMIN_A);
+    expect(persisted?.identity.email).toBe("admin@example.com");
+    expect(persisted?.identity.status).toBe("PENDING_ACTIVATION");
+    expect(persisted?.membership.tenantId).toBe(TENANT_A);
+    expect(persisted?.membership.identityId).toBe(ADMIN_A);
+    expect(persisted?.membership.role).toBe("TENANT_ADMINISTRATOR");
+  });
   it("rehydrates the same domain state through a fresh store instance", async () => {
     await bootstrap(new PostgresIdentityStore(runtimePool));
     const reloaded = await new PostgresIdentityStore(runtimePool).findIdentityById(ADMIN_A, TENANT_A);
@@ -84,14 +127,42 @@ describe("Identity PostgreSQL persistence", () => {
     });
   });
 
-  it("persists ACTIVE and reloads it through another store instance", async () => {
+  it("persists ACTIVE without replacing bootstrap provenance", async () => {
     await bootstrap(new PostgresIdentityStore(runtimePool));
-    await new ActivateTenantAdministrator(new PostgresIdentityStore(runtimePool), AUTHORIZER).execute({
-      tenantId: TENANT_A, administratorId: ADMIN_A, correlationId: CORRELATION_ID, authority: AUTHORITY,
+
+    await new ActivateTenantAdministrator(
+      new PostgresIdentityStore(runtimePool),
+      AUTHORIZER,
+    ).execute({
+      tenantId: TENANT_A,
+      administratorId: ADMIN_A,
+      correlationId: ACTIVATION_CORRELATION_ID,
+      authority: AUTHORITY,
     });
-    const reloaded = await new PostgresIdentityStore(runtimePool).findIdentityById(ADMIN_A, TENANT_A);
+
+    const reloaded =
+      await new PostgresIdentityStore(runtimePool)
+        .findIdentityById(ADMIN_A, TENANT_A);
+
     expect(reloaded?.status).toBe("ACTIVE");
-    expect((await ownerPool.query("SELECT status FROM identity.identities")).rows[0]?.status).toBe("ACTIVE");
+
+    const identity = await ownerPool.query(
+      "SELECT status, correlation_id FROM identity.identities WHERE id = $1",
+      [ADMIN_A],
+    );
+
+    expect(identity.rows[0]).toEqual({
+      status: "ACTIVE",
+      correlation_id: CORRELATION_ID,
+    });
+
+    const membership = await ownerPool.query(
+      "SELECT correlation_id FROM identity.tenant_memberships WHERE tenant_id = $1",
+      [TENANT_A],
+    );
+
+    expect(membership.rows[0]?.correlation_id)
+      .toBe(CORRELATION_ID);
   });
 
   it("translates database uniqueness into the existing bootstrap conflict", async () => {
