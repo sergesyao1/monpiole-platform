@@ -38,13 +38,17 @@ import {
   PlatformFirstAdministratorController,
 } from "./http/agency-onboarding/platform-first-administrator.controller.js";
 import {
-  COMPLETE_FIRST_ADMINISTRATOR_IDENTITY,
+  FINALIZE_FIRST_ADMINISTRATOR_BOOTSTRAP,
   FirstAdministratorBootstrapCompletionController,
   VERIFIED_AUTHENTICATION_CONTEXT_PROVIDER,
 } from "./http/agency-onboarding/first-administrator-bootstrap-completion.controller.js";
 import type {
   VerifiedAuthenticationContextProvider,
 } from "./authentication/verified-authentication-context-provider.js";
+
+import type {
+  FinalizeFirstAdministratorBootstrap,
+} from "./operations/finalize-first-administrator-bootstrap.js";
 import type { ActivateTenant, CreateTenant, PlatformAuthorityAuthorizer } from "@monpiole/tenant-management";
 import type { ActivateTenantAdministrator, BootstrapTenantAdministrator } from "@monpiole/identity";
 import type {
@@ -231,6 +235,10 @@ export interface ApiComposition {
   >;
   readonly completeFirstAdministratorIdentity?: Pick<
     CompleteFirstAdministratorIdentity,
+    "execute"
+  >;
+  readonly finalizeFirstAdministratorBootstrap?: Pick<
+    FinalizeFirstAdministratorBootstrap,
     "execute"
   >;
   readonly createTenant?: Pick<CreateTenant, "execute">;
@@ -473,9 +481,9 @@ export class AppModule {
           unavailableAgencyOperation,
       },
       {
-        provide: COMPLETE_FIRST_ADMINISTRATOR_IDENTITY,
+        provide: FINALIZE_FIRST_ADMINISTRATOR_BOOTSTRAP,
         useValue:
-          composition.completeFirstAdministratorIdentity ??
+          composition.finalizeFirstAdministratorBootstrap ??
           unavailableAgencyOperation,
       },
       {

@@ -21,8 +21,9 @@ const RESULT = Object.freeze({
   tenantId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
   administratorId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
   role: "TENANT_ADMINISTRATOR" as const,
-  status: "IDENTITY_LINKED" as const,
+  status: "ACTIVE" as const,
   identityLinkedAt: "2026-09-18T22:00:00.000Z",
+  activatedAt: "2026-09-18T22:05:00.000Z",
 });
 
 const REQUEST = {

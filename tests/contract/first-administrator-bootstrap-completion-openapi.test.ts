@@ -98,7 +98,7 @@ describe("First administrator bootstrap completion OpenAPI", () => {
     expect(schema?.properties).not.toHaveProperty("role");
   });
 
-  it("publishes the identity-linked response contract", () => {
+  it("publishes the active finalization response contract", () => {
     const responseSchema =
       operation?.responses?.["200"]?.content?.[
         "application/json"
@@ -123,6 +123,7 @@ describe("First administrator bootstrap completion OpenAPI", () => {
         "role",
         "status",
         "identityLinkedAt",
+        "activatedAt",
       ]),
     );
 
@@ -132,6 +133,7 @@ describe("First administrator bootstrap completion OpenAPI", () => {
     expect(schema?.properties).toHaveProperty("role");
     expect(schema?.properties).toHaveProperty("status");
     expect(schema?.properties).toHaveProperty("identityLinkedAt");
+    expect(schema?.properties).toHaveProperty("activatedAt");
   });
 
   it("documents completion boundary errors", () => {

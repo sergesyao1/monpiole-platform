@@ -49,8 +49,9 @@ export const CompleteFirstAdministratorIdentityResponseSchema = z
     tenantId: z.string().uuid(),
     administratorId: z.string().uuid(),
     role: z.literal("TENANT_ADMINISTRATOR"),
-    status: z.literal("IDENTITY_LINKED"),
+    status: z.literal("ACTIVE"),
     identityLinkedAt: z.string().datetime(),
+    activatedAt: z.string().datetime(),
   })
   .strict();
 

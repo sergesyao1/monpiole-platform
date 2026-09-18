@@ -12,6 +12,7 @@ import {
   ApproveAgencyRegistration,
   CompleteFirstAdministratorIdentity,
   CreateFirstAgencyAdministrator,
+  FinalizeFirstAdministratorActivation,
   PostgresFirstAdministratorBootstrapUnitOfWork,
   SecureFirstAdministratorBootstrapTokenGenerator,
   Sha256FirstAdministratorBootstrapTokenHasher,
@@ -79,6 +80,7 @@ import {
 import { IdentityExternalAuthorityAdapter } from "./identity-external-authority.adapter.js";
 import { AgencyTenantProvisioningAdapter } from "./agency-tenant-provisioning.adapter.js";
 import { AgencyIdentityProvisioningAdapter } from "./agency-identity-provisioning.adapter.js";
+import { FinalizeFirstAdministratorBootstrap } from "../operations/finalize-first-administrator-bootstrap.js";
 import { AgencyExternalIdentityLinkAdapter } from "./agency-external-identity-link.adapter.js";
 import { firstAdministratorBootstrapConfigurationFromEnvironment } from "../configuration/first-administrator-bootstrap.js";
 import { FilesystemAgencyDocumentStorage } from "./filesystem-agency-document-storage.adapter.js";
@@ -185,6 +187,32 @@ export function createPostgresApiRuntime(
       new AgencyExternalIdentityLinkAdapter(externalIdentityStore),
     );
 
+  const activateTenantAdministrator =
+    new ActivateTenantAdministrator(identityStore, authorityPolicy);
+
+  const activateTenant = new ActivateTenant(
+    new PostgresActivateTenantUnitOfWork(pool),
+    new IdentityActiveTenantAdministratorAdapter(activeAdministrator),
+    { generate: randomUUID },
+    { now: () => new Date().toISOString() },
+    authorityPolicy,
+  );
+
+  const finalizeFirstAdministratorActivation =
+    new FinalizeFirstAdministratorActivation(
+      firstAdministratorBootstrapUnitOfWork,
+      firstAdministratorBootstrapClock,
+    );
+
+  const finalizeFirstAdministratorBootstrap =
+    new FinalizeFirstAdministratorBootstrap({
+      completeIdentity: completeFirstAdministratorIdentity,
+      activateAdministrator: activateTenantAdministrator,
+      activateTenant,
+      finalizeActivation: finalizeFirstAdministratorActivation,
+      correlationIds: { generate: randomUUID },
+    });
+
   const propertyRepository = new PostgresPropertyRepository(pool);
   const propertyPhotoRepository = new PostgresPropertyPhotoRepository(pool);
   const propertyPhotoStandardRepository = new PostgresPropertyPhotoStandardRepository(pool);
@@ -247,13 +275,9 @@ export function createPostgresApiRuntime(
     platformAuthorityAuthorizer: authorityPolicy,
     createTenant,
     bootstrapTenantAdministrator,
-    activateTenantAdministrator: new ActivateTenantAdministrator(identityStore, authorityPolicy),
-    activateTenant: new ActivateTenant(
-      new PostgresActivateTenantUnitOfWork(pool),
-      new IdentityActiveTenantAdministratorAdapter(activeAdministrator),
-      { generate: randomUUID }, { now: () => new Date().toISOString() },
-      authorityPolicy,
-    ),
+    activateTenantAdministrator,
+    activateTenant,
+    finalizeFirstAdministratorBootstrap,
     createProperty: new CreateProperty(propertyRepository, { generate: randomUUID }, { now: () => new Date().toISOString() }, propertyCompositionRepository),
     retrieveProperty: new RetrieveProperty(propertyRepository),
     listProperties: new ListProperties(new PostgresPropertyPortfolioQuery(pool)),

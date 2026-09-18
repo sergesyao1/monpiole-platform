@@ -31,8 +31,11 @@ import {
   FirstAdministratorBootstrapTokenExpiredError,
   FirstAdministratorBootstrapTokenNotFoundError,
   FirstAdministratorIdentityLinkConflictError,
-  type CompleteFirstAdministratorIdentity,
 } from "@monpiole/agency-onboarding";
+
+import type {
+  FinalizeFirstAdministratorBootstrap,
+} from "../../operations/finalize-first-administrator-bootstrap.js";
 
 import {
   CompleteFirstAdministratorIdentityRequestSchema,
@@ -49,8 +52,8 @@ import {
   TenantContext,
 } from "../request-context/request-context.decorator.js";
 
-export const COMPLETE_FIRST_ADMINISTRATOR_IDENTITY =
-  Symbol("complete-first-administrator-identity");
+export const FINALIZE_FIRST_ADMINISTRATOR_BOOTSTRAP =
+  Symbol("finalize-first-administrator-bootstrap");
 
 export const VERIFIED_AUTHENTICATION_CONTEXT_PROVIDER =
   Symbol("verified-authentication-context-provider");
@@ -68,9 +71,9 @@ class CompleteFirstAdministratorIdentityResponseDto extends createZodDto(
 @TenantContext("not-applicable")
 export class FirstAdministratorBootstrapCompletionController {
   public constructor(
-    @Inject(COMPLETE_FIRST_ADMINISTRATOR_IDENTITY)
-    private readonly completeIdentity: Pick<
-      CompleteFirstAdministratorIdentity,
+    @Inject(FINALIZE_FIRST_ADMINISTRATOR_BOOTSTRAP)
+    private readonly finalizeBootstrap: Pick<
+      FinalizeFirstAdministratorBootstrap,
       "execute"
     >,
 
@@ -116,7 +119,7 @@ export class FirstAdministratorBootstrapCompletionController {
     }
 
     try {
-      return await this.completeIdentity.execute({
+      return await this.finalizeBootstrap.execute({
         bootstrapToken: body.bootstrapToken,
         issuer: authentication.issuer,
         subject: authentication.subject,
