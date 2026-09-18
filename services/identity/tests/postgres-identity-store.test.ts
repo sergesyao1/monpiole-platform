@@ -218,13 +218,39 @@ describe("Identity PostgreSQL persistence", () => {
       tenantId: TENANT_A, createdAt: "2026-08-26T12:00:00Z",
     });
     await new PostgresExternalIdentityStore(runtimePool).link(external);
-    await expect(new PostgresExternalIdentityStore(runtimePool).link(external))
-      .rejects.toBeInstanceOf(ExternalIdentityAlreadyLinkedError);
+    await expect(
+      new PostgresExternalIdentityStore(runtimePool).link(external),
+    ).resolves.toBeUndefined();
     expect((await ownerPool.query("SELECT issuer, subject, internal_identity_id FROM identity.external_identities")).rows)
       .toEqual([{ issuer: "https://tenant.auth0.com/", subject: "auth0|stable-subject", internal_identity_id: ADMIN_A }]);
     expect((await runtimePool.query("SELECT * FROM identity.external_identities")).rows).toHaveLength(0);
   });
 
+  it("rejects the same external subject linked to another internal identity", async () => {
+    await bootstrap(new PostgresIdentityStore(runtimePool));
+
+    await new PostgresExternalIdentityStore(runtimePool).link(
+      ExternalIdentity.create({
+        issuer: "https://tenant.auth0.com/",
+        subject: "auth0|conflicting-subject",
+        internalIdentityId: ADMIN_A,
+        tenantId: TENANT_A,
+        createdAt: "2026-08-26T12:00:00Z",
+      }),
+    );
+
+    await expect(
+      new PostgresExternalIdentityStore(runtimePool).link(
+        ExternalIdentity.create({
+          issuer: "https://tenant.auth0.com/",
+          subject: "auth0|conflicting-subject",
+          internalIdentityId: ADMIN_B,
+          tenantId: TENANT_A,
+          createdAt: "2026-08-26T12:01:00Z",
+        }),
+      ),
+    ).rejects.toBeInstanceOf(ExternalIdentityAlreadyLinkedError);
+  });
   it("preserves the relation to an existing internal identity", async () => {
     const error = await new PostgresExternalIdentityStore(runtimePool).link(ExternalIdentity.create({
       issuer: "https://tenant.auth0.com/", subject: "auth0|orphan", internalIdentityId: ADMIN_A,

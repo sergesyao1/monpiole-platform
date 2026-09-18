@@ -26,10 +26,38 @@ export class PostgresExternalIdentityStore implements ExternalIdentityResolver, 
         });
       });
     } catch (error) {
-      if (postgresConstraint(error) === "external_identities_issuer_subject_unique") {
-        throw new ExternalIdentityAlreadyLinkedError();
+      if (postgresConstraint(error) !== "external_identities_issuer_subject_unique") {
+        throw error;
       }
-      throw error;
+
+      const existing = await withPostgresTransaction(this.pool, async (scope) => {
+        await scope.query(
+          "SELECT set_config('app.external_identity_resolution', 'resolve', true)",
+        );
+
+        return (
+          await scope.database()
+            .select({
+              internalIdentityId: externalIdentities.internalIdentityId,
+              tenantId: externalIdentities.tenantId,
+            })
+            .from(externalIdentities)
+            .where(and(
+              eq(externalIdentities.issuer, externalIdentity.issuer),
+              eq(externalIdentities.subject, externalIdentity.subject),
+            ))
+            .limit(1)
+        )[0];
+      });
+
+      if (
+        existing?.internalIdentityId === externalIdentity.internalIdentityId &&
+        existing.tenantId === externalIdentity.tenantId
+      ) {
+        return;
+      }
+
+      throw new ExternalIdentityAlreadyLinkedError();
     }
   }
 
