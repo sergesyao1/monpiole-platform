@@ -132,7 +132,10 @@ export class CompleteFirstAdministratorIdentity {
         throw new FirstAdministratorBootstrapTokenNotFoundError();
       }
 
-      if (administrator.status === "IDENTITY_LINKED") {
+      if (
+        administrator.status === "IDENTITY_LINKED" ||
+        administrator.status === "ACTIVE"
+      ) {
         const canonicalIdentity = this.identities.canonicalize({
           issuer: command.issuer,
           subject: command.subject,
@@ -205,7 +208,8 @@ function toResult(
   administrator: FirstAdministratorBootstrap,
 ): CompleteFirstAdministratorIdentityResult {
   if (
-    administrator.status !== "IDENTITY_LINKED" ||
+    (administrator.status !== "IDENTITY_LINKED" &&
+      administrator.status !== "ACTIVE") ||
     administrator.identityLinkedAt === undefined
   ) {
     throw new FirstAdministratorIdentityLinkConflictError();

@@ -59,6 +59,16 @@ function linkedAdministrator(
   });
 }
 
+function activeAdministrator(
+  overrides: Partial<FirstAdministratorBootstrap> = {},
+): FirstAdministratorBootstrap {
+  return linkedAdministrator({
+    status: "ACTIVE",
+    activatedAt: "2026-09-18T10:10:00.000Z",
+    ...overrides,
+  });
+}
+
 function createHarness(initial: FirstAdministratorBootstrap | undefined) {
   let administrator = initial;
 
@@ -419,5 +429,50 @@ describe("CompleteFirstAdministratorIdentity", () => {
     expect(
       harness.markAdministratorIdentityLinked,
     ).toHaveBeenCalledTimes(1);
+  });
+
+  it("converges when the bootstrap is already active", async () => {
+    const harness = createHarness(activeAdministrator());
+
+    await expect(
+      harness.useCase.execute({
+        bootstrapToken: RAW_TOKEN,
+        issuer: ISSUER,
+        subject: SUBJECT,
+      }),
+    ).resolves.toEqual({
+      registrationId: REGISTRATION_ID,
+      tenantId: TENANT_ID,
+      administratorId: ADMINISTRATOR_ID,
+      role: "TENANT_ADMINISTRATOR",
+      status: "IDENTITY_LINKED",
+      identityLinkedAt: NOW,
+    });
+
+    expect(harness.identities.canonicalize).toHaveBeenCalledTimes(1);
+    expect(harness.identities.link).not.toHaveBeenCalled();
+    expect(
+      harness.markAdministratorIdentityLinked,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("rejects an active bootstrap replayed by another external identity", async () => {
+    const harness = createHarness(activeAdministrator());
+
+    await expect(
+      harness.useCase.execute({
+        bootstrapToken: RAW_TOKEN,
+        issuer: ISSUER,
+        subject: "auth0|another-administrator",
+      }),
+    ).rejects.toBeInstanceOf(
+      FirstAdministratorIdentityLinkConflictError,
+    );
+
+    expect(harness.identities.canonicalize).toHaveBeenCalledTimes(1);
+    expect(harness.identities.link).not.toHaveBeenCalled();
+    expect(
+      harness.markAdministratorIdentityLinked,
+    ).not.toHaveBeenCalled();
   });
 });
