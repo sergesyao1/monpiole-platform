@@ -519,6 +519,10 @@ describe(
 
         const consumedAt =
           "2026-09-18T12:30:00.000Z";
+        const externalIssuer =
+          "https://monpiole-dev-ci.eu.auth0.com/";
+        const externalSubject =
+          "auth0|first-administrator";
 
         const linked = await unitOfWork.execute(
           async (transaction) => {
@@ -533,6 +537,8 @@ describe(
             return transaction.markAdministratorIdentityLinked(
               administrator.bootstrapTokenHash,
               administrator.internalIdentityId,
+              externalIssuer,
+              externalSubject,
               consumedAt,
               consumedAt,
             );
@@ -542,6 +548,8 @@ describe(
         expect(linked).toEqual({
           ...administrator,
           status: "IDENTITY_LINKED",
+          externalIssuer,
+          externalSubject,
           bootstrapTokenConsumedAt: consumedAt,
           identityLinkedAt: consumedAt,
         });
@@ -559,6 +567,8 @@ describe(
             return transaction.markAdministratorIdentityLinked(
               administrator.bootstrapTokenHash,
               administrator.internalIdentityId,
+              externalIssuer,
+              externalSubject,
               "2026-09-18T12:31:00.000Z",
               "2026-09-18T12:31:00.000Z",
             );
@@ -577,6 +587,8 @@ describe(
             return transaction.markAdministratorIdentityLinked(
               administrator.bootstrapTokenHash,
               randomUUID(),
+              externalIssuer,
+              externalSubject,
               "2026-09-18T12:32:00.000Z",
               "2026-09-18T12:32:00.000Z",
             );
@@ -589,12 +601,16 @@ describe(
           status: string;
           internal_identity_id: string;
           bootstrap_token_consumed_at: Date;
+          external_issuer: string;
+          external_subject: string;
           identity_linked_at: Date;
         }>(
           `SELECT
              status,
              internal_identity_id,
              bootstrap_token_consumed_at,
+             external_issuer,
+             external_subject,
              identity_linked_at
            FROM agency_onboarding.agency_registration_administrators
           WHERE registration_id = $1`,
@@ -607,6 +623,8 @@ describe(
           status: "IDENTITY_LINKED",
           internal_identity_id:
             administrator.internalIdentityId,
+          external_issuer: externalIssuer,
+          external_subject: externalSubject,
         });
 
         expect(

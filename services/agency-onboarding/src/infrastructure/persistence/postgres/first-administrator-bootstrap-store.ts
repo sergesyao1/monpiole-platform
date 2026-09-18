@@ -26,6 +26,8 @@ interface FirstAdministratorBootstrapRow
   readonly bootstrap_token_consumed_at: Date | null;
   readonly created_by_platform_identity_id: string;
   readonly created_at: Date;
+  readonly external_issuer: string | null;
+  readonly external_subject: string | null;
   readonly identity_linked_at: Date | null;
   readonly activated_at: Date | null;
   readonly cancelled_at: Date | null;
@@ -52,6 +54,12 @@ function toFirstAdministratorBootstrap(
     createdByPlatformIdentityId:
       row.created_by_platform_identity_id,
     createdAt: row.created_at.toISOString(),
+    ...(row.external_issuer === null
+      ? {}
+      : { externalIssuer: row.external_issuer }),
+    ...(row.external_subject === null
+      ? {}
+      : { externalSubject: row.external_subject }),
     ...(row.identity_linked_at === null
       ? {}
       : {
@@ -144,6 +152,8 @@ class PostgresFirstAdministratorBootstrapTransaction
   public async markAdministratorIdentityLinked(
     bootstrapTokenHash: string,
     internalIdentityId: string,
+    externalIssuer: string,
+    externalSubject: string,
     bootstrapTokenConsumedAt: string,
     identityLinkedAt: string,
   ): Promise<FirstAdministratorBootstrap | undefined> {
@@ -151,18 +161,23 @@ class PostgresFirstAdministratorBootstrapTransaction
       await this.scope.query<FirstAdministratorBootstrapRow>(
         `UPDATE agency_onboarding.agency_registration_administrators
             SET status = 'IDENTITY_LINKED',
-                internal_identity_id = $2::uuid,
-                bootstrap_token_consumed_at = $3::timestamptz,
-                identity_linked_at = $4::timestamptz
+                external_issuer = $3,
+                external_subject = $4,
+                bootstrap_token_consumed_at = $5::timestamptz,
+                identity_linked_at = $6::timestamptz
           WHERE bootstrap_token_hash = $1
             AND internal_identity_id = $2::uuid
             AND status = 'PENDING_IDENTITY'
+            AND external_issuer IS NULL
+            AND external_subject IS NULL
             AND bootstrap_token_consumed_at IS NULL
             AND identity_linked_at IS NULL
         RETURNING *`,
         [
           bootstrapTokenHash,
           internalIdentityId,
+          externalIssuer,
+          externalSubject,
           bootstrapTokenConsumedAt,
           identityLinkedAt,
         ],

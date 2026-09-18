@@ -136,3 +136,15 @@ export {
   Sha256FirstAdministratorBootstrapTokenHasher,
 } from "./infrastructure/security/first-administrator-bootstrap-token.js";
 export { SystemFirstAdministratorBootstrapClock } from "./infrastructure/time/system-first-administrator-bootstrap-clock.js";
+export {
+  CompleteFirstAdministratorIdentity,
+  FirstAdministratorBootstrapNotCompletableError,
+  FirstAdministratorBootstrapTokenExpiredError,
+  FirstAdministratorBootstrapTokenNotFoundError,
+  FirstAdministratorIdentityLinkConflictError,
+  type CompleteFirstAdministratorIdentityCommand,
+  type CompleteFirstAdministratorIdentityResult,
+  type FirstAdministratorExternalIdentityLinkPort,
+  type LinkFirstAdministratorExternalIdentityInput,
+  type LinkedFirstAdministratorExternalIdentity,
+} from "./application/complete-first-administrator-identity.js";

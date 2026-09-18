@@ -21,6 +21,8 @@ export interface FirstAdministratorBootstrap {
   readonly bootstrapTokenConsumedAt?: string;
   readonly createdByPlatformIdentityId: string;
   readonly createdAt: string;
+  readonly externalIssuer?: string;
+  readonly externalSubject?: string;
   readonly identityLinkedAt?: string;
   readonly activatedAt?: string;
   readonly cancelledAt?: string;
@@ -42,6 +44,8 @@ export interface FirstAdministratorBootstrapTransaction {
   markAdministratorIdentityLinked(
     bootstrapTokenHash: string,
     internalIdentityId: string,
+    externalIssuer: string,
+    externalSubject: string,
     bootstrapTokenConsumedAt: string,
     identityLinkedAt: string,
   ): Promise<FirstAdministratorBootstrap | undefined>;

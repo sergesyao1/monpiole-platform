@@ -1,5 +1,6 @@
 import type {
   ApproveAgencyRegistration,
+  CompleteFirstAdministratorIdentity,
   CreateFirstAgencyAdministrator,
   ListAgencyRegistrations,
   RejectAgencyRegistration,
@@ -218,6 +219,10 @@ export interface ApiComposition {
   >;
   readonly createFirstAgencyAdministrator?: Pick<
     CreateFirstAgencyAdministrator,
+    "execute"
+  >;
+  readonly completeFirstAdministratorIdentity?: Pick<
+    CompleteFirstAdministratorIdentity,
     "execute"
   >;
   readonly createTenant?: Pick<CreateTenant, "execute">;

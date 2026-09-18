@@ -10,6 +10,7 @@ import {
 import { PostgresPool, postgresConfigurationFromEnvironment } from "@monpiole/persistence";
 import {
   ApproveAgencyRegistration,
+  CompleteFirstAdministratorIdentity,
   CreateFirstAgencyAdministrator,
   PostgresFirstAdministratorBootstrapUnitOfWork,
   SecureFirstAdministratorBootstrapTokenGenerator,
@@ -77,6 +78,7 @@ import {
 import { IdentityExternalAuthorityAdapter } from "./identity-external-authority.adapter.js";
 import { AgencyTenantProvisioningAdapter } from "./agency-tenant-provisioning.adapter.js";
 import { AgencyIdentityProvisioningAdapter } from "./agency-identity-provisioning.adapter.js";
+import { AgencyExternalIdentityLinkAdapter } from "./agency-external-identity-link.adapter.js";
 import { firstAdministratorBootstrapConfigurationFromEnvironment } from "../configuration/first-administrator-bootstrap.js";
 import { FilesystemAgencyDocumentStorage } from "./filesystem-agency-document-storage.adapter.js";
 import { publicCatalogHostAllowlistFromEnvironment } from "../configuration/public-catalog.js";
@@ -152,14 +154,29 @@ export function createPostgresApiRuntime(
       bootstrapTenantAdministrator,
     );
 
+  const firstAdministratorBootstrapUnitOfWork =
+    new PostgresFirstAdministratorBootstrapUnitOfWork(pool);
+  const firstAdministratorBootstrapTokenHasher =
+    new Sha256FirstAdministratorBootstrapTokenHasher();
+  const firstAdministratorBootstrapClock =
+    new SystemFirstAdministratorBootstrapClock();
+
   const createFirstAgencyAdministrator =
     new CreateFirstAgencyAdministrator(
-      new PostgresFirstAdministratorBootstrapUnitOfWork(pool),
+      firstAdministratorBootstrapUnitOfWork,
       agencyIdentityProvisioning,
       new SecureFirstAdministratorBootstrapTokenGenerator(),
-      new Sha256FirstAdministratorBootstrapTokenHasher(),
-      new SystemFirstAdministratorBootstrapClock(),
+      firstAdministratorBootstrapTokenHasher,
+      firstAdministratorBootstrapClock,
       firstAdministratorBootstrapConfigurationFromEnvironment(environment),
+    );
+
+  const completeFirstAdministratorIdentity =
+    new CompleteFirstAdministratorIdentity(
+      firstAdministratorBootstrapUnitOfWork,
+      firstAdministratorBootstrapTokenHasher,
+      firstAdministratorBootstrapClock,
+      new AgencyExternalIdentityLinkAdapter(externalIdentityStore),
     );
 
   const propertyRepository = new PostgresPropertyRepository(pool);
