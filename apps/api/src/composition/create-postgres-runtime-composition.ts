@@ -10,6 +10,11 @@ import {
 import { PostgresPool, postgresConfigurationFromEnvironment } from "@monpiole/persistence";
 import {
   ApproveAgencyRegistration,
+  CreateFirstAgencyAdministrator,
+  PostgresFirstAdministratorBootstrapUnitOfWork,
+  SecureFirstAdministratorBootstrapTokenGenerator,
+  Sha256FirstAdministratorBootstrapTokenHasher,
+  SystemFirstAdministratorBootstrapClock,
   ListAgencyRegistrations,
   PostgresAgencyRegistrationQueryStore,
   PostgresAgencyRegistrationDocumentUploadStore,
@@ -71,6 +76,8 @@ import {
 } from "../authentication/platform-authenticated-authority-provider.js";
 import { IdentityExternalAuthorityAdapter } from "./identity-external-authority.adapter.js";
 import { AgencyTenantProvisioningAdapter } from "./agency-tenant-provisioning.adapter.js";
+import { AgencyIdentityProvisioningAdapter } from "./agency-identity-provisioning.adapter.js";
+import { firstAdministratorBootstrapConfigurationFromEnvironment } from "../configuration/first-administrator-bootstrap.js";
 import { FilesystemAgencyDocumentStorage } from "./filesystem-agency-document-storage.adapter.js";
 import { publicCatalogHostAllowlistFromEnvironment } from "../configuration/public-catalog.js";
 
@@ -132,6 +139,29 @@ export function createPostgresApiRuntime(
   const agencyTenantProvisioning =
     new AgencyTenantProvisioningAdapter(createTenant);
 
+  const bootstrapTenantAdministrator =
+    new BootstrapTenantAdministrator(
+      new TenantExistenceAdapter(tenantExists),
+      identityStore,
+      { generate: randomUUID },
+      authorityPolicy,
+    );
+
+  const agencyIdentityProvisioning =
+    new AgencyIdentityProvisioningAdapter(
+      bootstrapTenantAdministrator,
+    );
+
+  const createFirstAgencyAdministrator =
+    new CreateFirstAgencyAdministrator(
+      new PostgresFirstAdministratorBootstrapUnitOfWork(pool),
+      agencyIdentityProvisioning,
+      new SecureFirstAdministratorBootstrapTokenGenerator(),
+      new Sha256FirstAdministratorBootstrapTokenHasher(),
+      new SystemFirstAdministratorBootstrapClock(),
+      firstAdministratorBootstrapConfigurationFromEnvironment(environment),
+    );
+
   const propertyRepository = new PostgresPropertyRepository(pool);
   const propertyPhotoRepository = new PostgresPropertyPhotoRepository(pool);
   const propertyPhotoStandardRepository = new PostgresPropertyPhotoStandardRepository(pool);
@@ -188,11 +218,10 @@ export function createPostgresApiRuntime(
       agencyTenantProvisioning,
       compositionClock,
     ),
+    createFirstAgencyAdministrator,
     platformAuthorityAuthorizer: authorityPolicy,
     createTenant,
-    bootstrapTenantAdministrator: new BootstrapTenantAdministrator(
-      new TenantExistenceAdapter(tenantExists), identityStore, { generate: randomUUID }, authorityPolicy,
-    ),
+    bootstrapTenantAdministrator,
     activateTenantAdministrator: new ActivateTenantAdministrator(identityStore, authorityPolicy),
     activateTenant: new ActivateTenant(
       new PostgresActivateTenantUnitOfWork(pool),

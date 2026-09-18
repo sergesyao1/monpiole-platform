@@ -49,7 +49,8 @@ export function toAgencyOnboardingAuthority(
       (grant): grant is AgencyOnboardingGrant =>
         grant === "RETRIEVE_AGENCY_REGISTRATIONS" ||
         grant === "REVIEW_AGENCY_REGISTRATIONS" ||
-        grant === "DECIDE_AGENCY_REGISTRATIONS",
+        grant === "DECIDE_AGENCY_REGISTRATIONS" ||
+        grant === "MANAGE_AGENCY_ADMIN_BOOTSTRAP",
     ),
   };
 }

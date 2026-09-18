@@ -90,9 +90,26 @@ afterEach(async () => {
   application = undefined;
   await runtime?.close();
   runtime = undefined;
+  const agencyOnboardingSchemaExists = await ownerPool.query<{ exists: boolean }>(`
+    SELECT EXISTS (
+      SELECT 1
+      FROM pg_namespace
+      WHERE nspname = 'agency_onboarding'
+    ) AS exists
+  `);
+
+  if (agencyOnboardingSchemaExists.rows[0]?.exists) {
+    await ownerPool.query(`
+      TRUNCATE
+        agency_onboarding.agency_registration_administrators,
+        agency_onboarding.agency_registration_documents,
+        agency_onboarding.agency_registration_document_uploads,
+        agency_onboarding.agency_registrations
+    `);
+  }
   await ownerPool.query("TRUNCATE identity.tenant_memberships, identity.identities CASCADE");
   await ownerPool.query("TRUNCATE tenant_management.outbox, tenant_management.create_tenant_idempotency, tenant_management.tenants CASCADE");
-  await ownerPool.query("TRUNCATE property_management.property_application_contract_origins, property_management.property_application_client_conversions, property_management.property_applications, property_management.property_viewing_outcomes, property_management.property_viewings, property_management.property_inquiries, property_management.property_amenities, property_management.property_contracts, property_management.property_clients, property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_complex_children, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners");
+  await ownerPool.query("TRUNCATE property_management.property_application_contract_origins, property_management.property_application_client_conversions, property_management.property_applications, property_management.property_viewing_outcomes, property_management.property_viewings, property_management.property_inquiry_communications, property_management.property_inquiries, property_management.property_amenities, property_management.property_contracts, property_management.property_clients, property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_complex_children, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners");
   authorizedTenantIds.clear();
 });
 
@@ -138,6 +155,7 @@ function runtimeEnvironment(): NodeJS.ProcessEnv {
     AUTHENTICATION_ISSUER: "https://login.runtime.test/",
     AUTHENTICATION_AUDIENCE: "https://api.monpiole.test",
     AUTHENTICATION_JWKS_URI: "https://login.runtime.test/.well-known/jwks.json",
+    AGENCY_FIRST_ADMIN_BOOTSTRAP_TOKEN_TTL_SECONDS: "3600",
   };
 }
 
@@ -315,7 +333,7 @@ describe("API PostgreSQL Identity runtime composition", () => {
     const authenticatedHeaders = { authorization: "Bearer known-token", "content-type": "application/json" };
     const rootResponse = await fetch(`${baseUrl}/v1/properties`, {
       method: "POST", headers: authenticatedHeaders, body: JSON.stringify({
-        title: "Résidence OIDC", propertyType: "HOUSE", transactionType: "SALE",
+        title: "RÃ©sidence OIDC", propertyType: "HOUSE", transactionType: "SALE",
         location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue OIDC" },
       }),
     });
@@ -326,7 +344,7 @@ describe("API PostgreSQL Identity runtime composition", () => {
     expect(buildingResponse.status).toBe(201); const building = await buildingResponse.json() as { buildingId: string };
     const unitResponse = await fetch(`${baseUrl}/v1/properties/${root.propertyId}/buildings/${building.buildingId}/units`, {
       method: "POST", headers: authenticatedHeaders, body: JSON.stringify({
-        unitCode: "OIDC-101", title: "Unité OIDC", propertyType: "APARTMENT", transactionType: "SALE",
+        unitCode: "OIDC-101", title: "UnitÃ© OIDC", propertyType: "APARTMENT", transactionType: "SALE",
         location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue OIDC, 101" },
       }),
     });
@@ -382,12 +400,12 @@ describe("API PostgreSQL Identity runtime composition", () => {
     });
     const coreUpdated = await fetch(`${baseUrl}/v1/properties/${property.propertyId}`, {
       method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({
-        title: "Villa Lagune", description: "Rénovée",
+        title: "Villa Lagune", description: "RÃ©novÃ©e",
         location: { country: "CI", city: "Abidjan", district: "Marcory", addressLine: "Zone 4" },
       }),
     });
     expect(coreUpdated.status).toBe(200); expect(await coreUpdated.json()).toMatchObject({
-      title: "Villa Lagune", description: "Rénovée", propertyType: "APARTMENT",
+      title: "Villa Lagune", description: "RÃ©novÃ©e", propertyType: "APARTMENT",
       transactionType: "LONG_TERM_RENTAL", status: "DRAFT", location: { district: "Marcory" },
     });
     expect((await ownerPool.query("SELECT title, district FROM property_management.properties WHERE property_id = $1", [property.propertyId])).rows[0])
@@ -492,7 +510,7 @@ describe("API PostgreSQL Identity runtime composition", () => {
     });
   });
 
-  it("récupère les lectures et la gestion photo via le rôle monpiole_runtime migré", async () => {
+  it("rÃ©cupÃ¨re les lectures et la gestion photo via le rÃ´le monpiole_runtime migrÃ©", async () => {
     await start(); await createTenant("runtime-photo");
     expect((await runtimePool.query("SELECT current_user")).rows[0]).toEqual({ current_user: "monpiole_runtime" });
 
@@ -552,11 +570,11 @@ describe("API PostgreSQL Identity runtime composition", () => {
       .toEqual([{ selected_photo_id: firstPhotoId, actor_id: "runtime-test" }]);
   });
 
-  it("exécute le parcours Property vers Building puis Unit avec détails et ownership sur le runtime réel", async () => {
+  it("exÃ©cute le parcours Property vers Building puis Unit avec dÃ©tails et ownership sur le runtime rÃ©el", async () => {
     await start(); const tenantId = await createTenant("composition");
     const rootResponse = await fetch(`${baseUrl}/v1/properties`, {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
-        title: "Résidence Lagune", propertyType: "HOUSE", transactionType: "SALE",
+        title: "RÃ©sidence Lagune", propertyType: "HOUSE", transactionType: "SALE",
         location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue des Jardins" },
       }),
     });
@@ -572,7 +590,7 @@ describe("API PostgreSQL Identity runtime composition", () => {
 
     const unitResponse = await fetch(`${baseUrl}/v1/properties/${root.propertyId}/buildings/${building.buildingId}/units`, {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
-        unitCode: "a-101", title: "Appartement A-101", description: "Premier étage",
+        unitCode: "a-101", title: "Appartement A-101", description: "Premier Ã©tage",
         propertyType: "APARTMENT", transactionType: "LONG_TERM_RENTAL", apartmentSubtype: "STUDIO",
         location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue des Jardins, A-101" },
       }),
@@ -597,7 +615,7 @@ describe("API PostgreSQL Identity runtime composition", () => {
     expect(details.status).toBe(200); expect(await details.json()).toMatchObject({ structuralRole: "UNIT", details: { rooms: 3 } });
 
     const ownerResponse = await fetch(`${baseUrl}/v1/property-owners`, {
-      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerType: "INDIVIDUAL", firstName: "Awa", lastName: "Koné" }),
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerType: "INDIVIDUAL", firstName: "Awa", lastName: "KonÃ©" }),
     });
     expect(ownerResponse.status).toBe(201); const propertyOwner = await ownerResponse.json() as { ownerId: string };
     const assignment = await fetch(`${baseUrl}/v1/properties/${unit.property.propertyId}/owners`, {
@@ -656,7 +674,7 @@ describe("API PostgreSQL Identity runtime composition", () => {
          published_by_actor_id,publication_correlation_id,usable_surface_square_meters,rooms,
          commercial_kind,currency,sale_price_amount_minor)
         VALUES ($1,$2,'Maison publique','Description publique','HOUSE','SALE','PUBLISHED','STANDALONE',
-          'CI','Abidjan','Cocody','Adresse privée',now(),now(),$3,'publisher',now(),'publisher',$3,
+          'CI','Abidjan','Cocody','Adresse privÃ©e',now(),now(),$3,'publisher',now(),'publisher',$3,
           100,4,'SALE','XOF',125000000)`, [propertyId, tenantId, randomUUID()]);
       await client.query(`INSERT INTO property_management.property_photos
         (photo_id,tenant_id,property_id,category,status,is_primary,content_base64,content_type,

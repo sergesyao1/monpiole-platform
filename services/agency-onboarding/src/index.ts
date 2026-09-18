@@ -112,6 +112,10 @@ export {
 } from "./application/first-administrator-persistence.js";
 
 export {
+  PostgresFirstAdministratorBootstrapUnitOfWork,
+} from "./infrastructure/persistence/postgres/first-administrator-bootstrap-store.js";
+
+export {
   CreateFirstAgencyAdministrator,
   FirstAdministratorAlreadyExistsError,
   FirstAdministratorRegistrationNotFoundError,
@@ -127,3 +131,8 @@ export {
   type ProvisionFirstAdministratorIdentityInput,
   type ProvisionFirstAdministratorIdentityResult,
 } from "./application/first-administrator-bootstrap.js";
+export {
+  SecureFirstAdministratorBootstrapTokenGenerator,
+  Sha256FirstAdministratorBootstrapTokenHasher,
+} from "./infrastructure/security/first-administrator-bootstrap-token.js";
+export { SystemFirstAdministratorBootstrapClock } from "./infrastructure/time/system-first-administrator-bootstrap-clock.js";

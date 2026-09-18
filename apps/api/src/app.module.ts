@@ -1,5 +1,6 @@
 import type {
   ApproveAgencyRegistration,
+  CreateFirstAgencyAdministrator,
   ListAgencyRegistrations,
   RejectAgencyRegistration,
   RetrieveAgencyRegistration,
@@ -31,6 +32,10 @@ import {
   RETRIEVE_AGENCY_REGISTRATION_DOCUMENT_CONTENT,
   START_AGENCY_REGISTRATION_REVIEW,
 } from "./http/agency-onboarding/platform-agency-registrations.controller.js";
+import {
+  CREATE_FIRST_AGENCY_ADMINISTRATOR,
+  PlatformFirstAdministratorController,
+} from "./http/agency-onboarding/platform-first-administrator.controller.js";
 import type { ActivateTenant, CreateTenant, PlatformAuthorityAuthorizer } from "@monpiole/tenant-management";
 import type { ActivateTenantAdministrator, BootstrapTenantAdministrator } from "@monpiole/identity";
 import type {
@@ -211,6 +216,10 @@ export interface ApiComposition {
     ApproveAgencyRegistration,
     "execute"
   >;
+  readonly createFirstAgencyAdministrator?: Pick<
+    CreateFirstAgencyAdministrator,
+    "execute"
+  >;
   readonly createTenant?: Pick<CreateTenant, "execute">;
   readonly authenticatedAuthorityProvider?: AuthenticatedAuthorityProvider;
   readonly platformAuthorityAuthorizer?: PlatformAuthorityAuthorizer;
@@ -371,6 +380,7 @@ export class AppModule {
       controllers: [
       AgencyRegistrationsController,
       PlatformAgencyRegistrationsController,
+      PlatformFirstAdministratorController,
       AgencyRegistrationDocumentsController,
         HealthController, ContractBaselineController, AuthenticationSessionController,
         PlatformTenantCreationAuthorizationProbeController, PlatformAgencyRegistrationReadAuthorizationProbeController, CreateTenantController,
@@ -434,6 +444,12 @@ export class AppModule {
         provide: APPROVE_AGENCY_REGISTRATION,
         useValue:
           composition.approveAgencyRegistration ??
+          unavailableAgencyOperation,
+      },
+      {
+        provide: CREATE_FIRST_AGENCY_ADMINISTRATOR,
+        useValue:
+          composition.createFirstAgencyAdministrator ??
           unavailableAgencyOperation,
       },
         { provide: APP_PIPE, useClass: StrictZodValidationPipe },

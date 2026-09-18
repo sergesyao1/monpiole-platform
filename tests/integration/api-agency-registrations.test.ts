@@ -27,6 +27,9 @@ import {
   SubmitAgencyRegistrationResponseSchema,
   UploadAgencyRegistrationDocumentResponseSchema,
 } from "../../apps/api/src/contracts/v1/agency-onboarding/agency-registration.schema.js";
+import {
+  CreateFirstAgencyAdministratorResponseSchema,
+} from "../../apps/api/src/contracts/v1/agency-onboarding/first-administrator.schema.js";
 
 const REGISTRATION_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const TENANT_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -194,6 +197,7 @@ describe("Agency registrations HTTP", () => {
                 "RETRIEVE_AGENCY_REGISTRATIONS",
                 "REVIEW_AGENCY_REGISTRATIONS",
                 "DECIDE_AGENCY_REGISTRATIONS",
+                "MANAGE_AGENCY_ADMIN_BOOTSTRAP",
               ],
               tenantIds: [],
             };
@@ -282,6 +286,19 @@ describe("Agency registrations HTTP", () => {
           ),
         },
 
+        createFirstAgencyAdministrator: {
+          execute: vi.fn(async () => ({
+            registrationId: REGISTRATION_ID,
+            tenantId: TENANT_ID,
+            administratorId:
+              "99999999-9999-4999-8999-999999999999",
+            role: "TENANT_ADMINISTRATOR" as const,
+            status: "PENDING_IDENTITY" as const,
+            bootstrapToken: "first-admin-bootstrap-token",
+            bootstrapTokenExpiresAt:
+              "2026-09-18T13:00:00.000Z",
+          })),
+        },
         ...overrides,
       },
     );
@@ -1058,5 +1075,198 @@ describe("Agency registrations HTTP", () => {
       title: "Agency registration document upload conflict",
       code: "AGENCY_REGISTRATION_DOCUMENT_UPLOAD_EXPIRED",
     });
+  });
+
+  it("creates the first agency administrator and returns the bootstrap token once", async () => {
+    await start("platform");
+
+    const response = await post(
+      `/v1/platform/agency-registrations/${REGISTRATION_ID}/first-administrator`,
+      {
+        firstName: "Awa",
+        lastName: "Kone",
+        email: "awa.kone@example.ci",
+      },
+    );
+
+    expect(response.status).toBe(201);
+
+    const body =
+      CreateFirstAgencyAdministratorResponseSchema.parse(
+        await response.json(),
+      );
+
+    expect(body).toEqual({
+      registrationId: REGISTRATION_ID,
+      tenantId: TENANT_ID,
+      administratorId:
+        "99999999-9999-4999-8999-999999999999",
+      role: "TENANT_ADMINISTRATOR",
+      status: "PENDING_IDENTITY",
+      bootstrapToken: "first-admin-bootstrap-token",
+      bootstrapTokenExpiresAt:
+        "2026-09-18T13:00:00.000Z",
+    });
+  });
+
+  it("derives first administrator authority and correlation server-side", async () => {
+    const execute = vi.fn(async () => ({
+      registrationId: REGISTRATION_ID,
+      tenantId: TENANT_ID,
+      administratorId:
+        "99999999-9999-4999-8999-999999999999",
+      role: "TENANT_ADMINISTRATOR" as const,
+      status: "PENDING_IDENTITY" as const,
+      bootstrapToken: "first-admin-bootstrap-token",
+      bootstrapTokenExpiresAt:
+        "2026-09-18T13:00:00.000Z",
+    }));
+
+    await start("platform", {
+      createFirstAgencyAdministrator: { execute },
+    });
+
+    const response = await post(
+      `/v1/platform/agency-registrations/${REGISTRATION_ID}/first-administrator`,
+      {
+        firstName: "Awa",
+        lastName: "Kone",
+        email: "awa.kone@example.ci",
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(execute).toHaveBeenCalledTimes(1);
+
+    const command = execute.mock.calls[0]?.[0];
+
+    expect(command).toMatchObject({
+      registrationId: REGISTRATION_ID,
+      firstName: "Awa",
+      lastName: "Kone",
+      email: "awa.kone@example.ci",
+      authority: {
+        actorId: "platform:reviewer",
+        authorityId: "platform:reviewer",
+        grants: expect.arrayContaining([
+          "MANAGE_AGENCY_ADMIN_BOOTSTRAP",
+        ]),
+      },
+    });
+
+    // Neither identifier is accepted from the browser.
+    expect(command).not.toHaveProperty("tenantId");
+
+    // Deterministic server-generated UUID v5.
+    expect(command?.correlationId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+  });
+
+  it("does not expose the bootstrap token on first administrator replay", async () => {
+    await start("platform", {
+      createFirstAgencyAdministrator: {
+        execute: vi.fn(async () => ({
+          registrationId: REGISTRATION_ID,
+          tenantId: TENANT_ID,
+          administratorId:
+            "99999999-9999-4999-8999-999999999999",
+          role: "TENANT_ADMINISTRATOR" as const,
+          status: "PENDING_IDENTITY" as const,
+          bootstrapTokenExpiresAt:
+            "2026-09-18T13:00:00.000Z",
+        })),
+      },
+    });
+
+    const response = await post(
+      `/v1/platform/agency-registrations/${REGISTRATION_ID}/first-administrator`,
+      {
+        firstName: "Awa",
+        lastName: "Kone",
+        email: "awa.kone@example.ci",
+      },
+    );
+
+    expect(response.status).toBe(201);
+
+    const body =
+      CreateFirstAgencyAdministratorResponseSchema.parse(
+        await response.json(),
+      );
+
+    expect(body.bootstrapToken).toBeUndefined();
+    expect(body.status).toBe("PENDING_IDENTITY");
+  });
+
+  it("rejects client-controlled tenant and correlation identifiers", async () => {
+    const execute = vi.fn();
+
+    await start("platform", {
+      createFirstAgencyAdministrator: { execute },
+    });
+
+    const response = await post(
+      `/v1/platform/agency-registrations/${REGISTRATION_ID}/first-administrator`,
+      {
+        firstName: "Awa",
+        lastName: "Kone",
+        email: "awa.kone@example.ci",
+        tenantId: TENANT_ID,
+        correlationId:
+          "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      },
+    );
+
+    expect(response.status).toBe(400);
+    expect(execute).not.toHaveBeenCalled();
+
+    expect(
+      ProblemDetailsSchema.parse(await response.json()).code,
+    ).toBe("INVALID_REQUEST");
+  });
+
+  it("returns 401 when first administrator creation is unauthenticated", async () => {
+    await start("none");
+
+    const response = await post(
+      `/v1/platform/agency-registrations/${REGISTRATION_ID}/first-administrator`,
+      {
+        firstName: "Awa",
+        lastName: "Kone",
+        email: "awa.kone@example.ci",
+      },
+    );
+
+    expect(response.status).toBe(401);
+
+    expect(
+      ProblemDetailsSchema.parse(await response.json()).code,
+    ).toBe("UNAUTHORIZED");
+  });
+
+  it("returns 403 when tenant authority attempts first administrator creation", async () => {
+    await start("tenant", {
+      createFirstAgencyAdministrator: {
+        execute: vi.fn(async () => {
+          throw new AgencyOnboardingForbiddenError();
+        }),
+      },
+    });
+
+    const response = await post(
+      `/v1/platform/agency-registrations/${REGISTRATION_ID}/first-administrator`,
+      {
+        firstName: "Awa",
+        lastName: "Kone",
+        email: "awa.kone@example.ci",
+      },
+    );
+
+    expect(response.status).toBe(403);
+
+    expect(
+      ProblemDetailsSchema.parse(await response.json()).code,
+    ).toBe("FORBIDDEN");
   });
 });

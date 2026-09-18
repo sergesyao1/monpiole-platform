@@ -1,0 +1,461 @@
+import { randomUUID } from "node:crypto";
+import { fileURLToPath } from "node:url";
+
+import { drizzle } from "drizzle-orm/node-postgres";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
+import { Pool } from "pg";
+import {
+  GenericContainer,
+  Wait,
+  type StartedTestContainer,
+} from "testcontainers";
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  it,
+} from "vitest";
+
+import {
+  PostgresFirstAdministratorBootstrapUnitOfWork,
+  PostgresSubmitAgencyRegistrationStore,
+  type AgencyRegistration,
+  type FirstAdministratorBootstrap,
+} from "../src/index.js";
+
+const POSTGRES_IMAGE =
+  "postgres@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687";
+
+const OWNER_PASSWORD = "synthetic-owner-password";
+const RUNTIME_PASSWORD = "synthetic-agency-runtime-password";
+
+const migrationsFolder = fileURLToPath(
+  new URL("../migrations", import.meta.url),
+);
+
+let container: StartedTestContainer;
+let ownerPool: Pool;
+let runtimePool: Pool;
+
+function connectionString(
+  user: string,
+  password: string,
+): string {
+  return (
+    `postgresql://${user}:${password}` +
+    `@${container.getHost()}` +
+    `:${container.getMappedPort(5432)}` +
+    "/first_admin_bootstrap_test"
+  );
+}
+
+function registration(): AgencyRegistration {
+  const now = "2026-09-18T12:00:00.000Z";
+
+  return Object.freeze({
+    id: randomUUID(),
+    status: "SUBMITTED",
+    agencyLegalName: "Agence First Admin CI",
+    agencyTradeName: "First Admin Immobilier",
+    registrationNumber: `CI-ABJ-${randomUUID()}`,
+    taxIdentifier: `TAX-${randomUUID()}`,
+    phone: "+2250102030405",
+    email: `agency-${randomUUID()}@example.invalid`,
+    website: "https://example.invalid",
+    address: "Cocody",
+    city: "Abidjan",
+    countryCode: "CI",
+    contactFirstName: "Awa",
+    contactLastName: "Kone",
+    contactEmail:
+      `contact-${randomUUID()}@example.invalid`,
+    contactPhone: "+2250506070809",
+    submittedAt: now,
+    createdAt: now,
+    updatedAt: now,
+    correlationId: randomUUID(),
+  });
+}
+
+beforeAll(async () => {
+  container = await new GenericContainer(POSTGRES_IMAGE)
+    .withEnvironment({
+      POSTGRES_DB: "first_admin_bootstrap_test",
+      POSTGRES_PASSWORD: OWNER_PASSWORD,
+      POSTGRES_USER: "migration_owner",
+    })
+    .withExposedPorts(5432)
+    .withWaitStrategy(
+      Wait.forLogMessage(
+        /database system is ready to accept connections/,
+        2,
+      ),
+    )
+    .start();
+
+  ownerPool = new Pool({
+    connectionString: connectionString(
+      "migration_owner",
+      OWNER_PASSWORD,
+    ),
+  });
+
+  await ownerPool.query(`
+    CREATE ROLE monpiole_runtime
+      LOGIN
+      PASSWORD '${RUNTIME_PASSWORD}'
+      NOSUPERUSER
+      NOCREATEDB
+      NOCREATEROLE
+      NOINHERIT
+      NOBYPASSRLS
+  `);
+
+  await migrate(drizzle(ownerPool), {
+    migrationsFolder,
+    migrationsTable:
+      "__drizzle_migrations_agency_onboarding",
+    migrationsSchema: "drizzle",
+  });
+
+  await ownerPool.query(
+    "GRANT USAGE ON SCHEMA agency_onboarding TO monpiole_runtime",
+  );
+
+  await ownerPool.query(
+    "GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA agency_onboarding TO monpiole_runtime",
+  );
+
+  runtimePool = new Pool({
+    connectionString: connectionString(
+      "monpiole_runtime",
+      RUNTIME_PASSWORD,
+    ),
+    max: 4,
+  });
+});
+
+afterAll(async () => {
+  await runtimePool?.end();
+  await ownerPool?.end();
+  await container?.stop();
+});
+
+describe(
+  "PostgresFirstAdministratorBootstrapUnitOfWork",
+  () => {
+    it(
+      "persists and replays one first administrator bootstrap under administrator capability",
+      async () => {
+        const value = registration();
+
+        await new PostgresSubmitAgencyRegistrationStore(
+          runtimePool,
+        ).submit({
+          registration: value,
+          documents: [],
+        });
+
+        const tenantId = randomUUID();
+
+        /*
+         * Upstream fixture only:
+         * CreateFirstAgencyAdministrator requires APPROVED +
+         * provisionedTenantId.
+         */
+        await ownerPool.query(
+          `UPDATE agency_onboarding.agency_registrations
+              SET status = 'APPROVED',
+                  provisioned_tenant_id = $2,
+                  reviewed_by_identity_id = $3,
+                  review_started_at = $4,
+                  approval_provisioning_started_at = $5,
+                  approved_at = $6,
+                  updated_at = $6
+            WHERE registration_id = $1`,
+          [
+            value.id,
+            tenantId,
+            randomUUID(),
+            "2026-09-18T12:05:00.000Z",
+            "2026-09-18T12:10:00.000Z",
+            "2026-09-18T12:15:00.000Z",
+          ],
+        );
+
+        const unitOfWork =
+          new PostgresFirstAdministratorBootstrapUnitOfWork(
+            runtimePool,
+          );
+
+        const prepared = await unitOfWork.execute(
+          async (transaction) => {
+            const lockedRegistration =
+              await transaction.findRegistrationForUpdate(
+                value.id,
+              );
+
+            const existing =
+              await transaction.findAdministratorByRegistration(
+                value.id,
+              );
+
+            return {
+              registration: lockedRegistration,
+              existing,
+            };
+          },
+        );
+
+        expect(prepared.registration).toMatchObject({
+          id: value.id,
+          status: "APPROVED",
+          provisionedTenantId: tenantId,
+        });
+
+        expect(prepared.existing).toBeUndefined();
+
+        const administrator: FirstAdministratorBootstrap =
+          Object.freeze({
+            registrationId: value.id,
+            tenantId,
+            internalIdentityId: randomUUID(),
+            administratorKind: "FIRST_ADMINISTRATOR",
+            status: "PENDING_IDENTITY",
+            bootstrapTokenHash: "a".repeat(64),
+            bootstrapTokenExpiresAt:
+              "2026-09-18T13:15:00.000Z",
+            createdByPlatformIdentityId: randomUUID(),
+            createdAt: "2026-09-18T12:15:00.000Z",
+          });
+
+        await unitOfWork.execute(async (transaction) => {
+          const lockedRegistration =
+            await transaction.findRegistrationForUpdate(
+              value.id,
+            );
+
+          expect(lockedRegistration).toMatchObject({
+            id: value.id,
+            status: "APPROVED",
+            provisionedTenantId: tenantId,
+          });
+
+          const existing =
+            await transaction.findAdministratorByRegistration(
+              value.id,
+            );
+
+          expect(existing).toBeUndefined();
+
+          await transaction.insertAdministrator(
+            administrator,
+          );
+        });
+
+        const replayed = await unitOfWork.execute(
+          async (transaction) => {
+            await transaction.findRegistrationForUpdate(
+              value.id,
+            );
+
+            return transaction.findAdministratorByRegistration(
+              value.id,
+            );
+          },
+        );
+
+        expect(replayed).toEqual(administrator);
+
+        const persisted = await ownerPool.query<{
+          registration_id: string;
+          tenant_id: string;
+          internal_identity_id: string;
+          administrator_kind: string;
+          status: string;
+          bootstrap_token_hash: string;
+          created_by_platform_identity_id: string;
+        }>(
+          `SELECT
+             registration_id,
+             tenant_id,
+             internal_identity_id,
+             administrator_kind,
+             status,
+             bootstrap_token_hash,
+             created_by_platform_identity_id
+           FROM agency_onboarding.agency_registration_administrators
+          WHERE registration_id = $1`,
+          [value.id],
+        );
+
+        expect(persisted.rows).toHaveLength(1);
+
+        expect(persisted.rows[0]).toEqual({
+          registration_id: administrator.registrationId,
+          tenant_id: administrator.tenantId,
+          internal_identity_id:
+            administrator.internalIdentityId,
+          administrator_kind: "FIRST_ADMINISTRATOR",
+          status: "PENDING_IDENTITY",
+          bootstrap_token_hash:
+            administrator.bootstrapTokenHash,
+          created_by_platform_identity_id:
+            administrator.createdByPlatformIdentityId,
+        });
+
+        const count = await ownerPool.query<{
+          count: string;
+        }>(
+          `SELECT count(*)::text AS count
+             FROM agency_onboarding.agency_registration_administrators
+            WHERE registration_id = $1`,
+          [value.id],
+        );
+
+        expect(count.rows[0]?.count).toBe("1");
+      },
+    );
+
+    it(
+      "serializes concurrent first administrator bootstrap transactions for the same registration",
+      async () => {
+        const value = registration();
+
+        await new PostgresSubmitAgencyRegistrationStore(
+          runtimePool,
+        ).submit({
+          registration: value,
+          documents: [],
+        });
+
+        const tenantId = randomUUID();
+
+        await ownerPool.query(
+          `UPDATE agency_onboarding.agency_registrations
+              SET status = 'APPROVED',
+                  provisioned_tenant_id = $2,
+                  reviewed_by_identity_id = $3,
+                  review_started_at = $4,
+                  approval_provisioning_started_at = $5,
+                  approved_at = $6,
+                  updated_at = $6
+            WHERE registration_id = $1`,
+          [
+            value.id,
+            tenantId,
+            randomUUID(),
+            "2026-09-18T12:05:00.000Z",
+            "2026-09-18T12:10:00.000Z",
+            "2026-09-18T12:15:00.000Z",
+          ],
+        );
+
+        const unitOfWork =
+          new PostgresFirstAdministratorBootstrapUnitOfWork(
+            runtimePool,
+          );
+
+        let releaseFirst!: () => void;
+
+        const holdFirst = new Promise<void>((resolve) => {
+          releaseFirst = resolve;
+        });
+
+        let firstHasLock!: () => void;
+
+        const firstLocked = new Promise<void>((resolve) => {
+          firstHasLock = resolve;
+        });
+
+        const first = unitOfWork.execute(
+          async (transaction) => {
+            const locked =
+              await transaction.findRegistrationForUpdate(
+                value.id,
+              );
+
+            expect(locked).toMatchObject({
+              id: value.id,
+              status: "APPROVED",
+              provisionedTenantId: tenantId,
+            });
+
+            firstHasLock();
+
+            await holdFirst;
+
+            return "first";
+          },
+        );
+
+        await firstLocked;
+
+        let secondEntered!: () => void;
+
+        const secondStarted = new Promise<void>((resolve) => {
+          secondEntered = resolve;
+        });
+
+        let secondCompleted = false;
+
+        const second = unitOfWork.execute(
+          async (transaction) => {
+            secondEntered();
+
+            const locked =
+              await transaction.findRegistrationForUpdate(
+                value.id,
+              );
+
+            secondCompleted = true;
+
+            expect(locked).toMatchObject({
+              id: value.id,
+              status: "APPROVED",
+              provisionedTenantId: tenantId,
+            });
+
+            return "second";
+          },
+        );
+
+        await secondStarted;
+
+        let waitingLocks = 0;
+
+        for (let attempt = 0; attempt < 50; attempt += 1) {
+          const waiting = await ownerPool.query<{
+            count: number;
+          }>(
+            `SELECT count(*)::int AS count
+               FROM pg_locks
+              WHERE locktype = 'advisory'
+                AND NOT granted`,
+          );
+
+          waitingLocks = waiting.rows[0]?.count ?? 0;
+
+          if (waitingLocks > 0) {
+            break;
+          }
+
+          await new Promise((resolve) =>
+            setTimeout(resolve, 10),
+          );
+        }
+
+        expect(waitingLocks).toBeGreaterThan(0);
+        expect(secondCompleted).toBe(false);
+
+        releaseFirst();
+
+        await expect(first).resolves.toBe("first");
+        await expect(second).resolves.toBe("second");
+
+        expect(secondCompleted).toBe(true);
+      },
+    );
+  },
+);

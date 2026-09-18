@@ -172,7 +172,8 @@ export const agencyRegistrations = agencyOnboarding.table(
           IN (
             'agency-registration:retrieve',
             'agency-registration:review',
-            'agency-registration:decide'
+            'agency-registration:decide',
+            'agency-registration:administrator'
           )
       `,
     }),
