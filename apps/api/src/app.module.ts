@@ -16,18 +16,21 @@ import {
 } from "@nestjs/common";
 import {
   AgencyRegistrationsController,
-  APPROVE_AGENCY_REGISTRATION,
-  LIST_AGENCY_REGISTRATIONS,
-  REJECT_AGENCY_REGISTRATION,
-  RETRIEVE_AGENCY_REGISTRATION,
-    RETRIEVE_AGENCY_REGISTRATION_DOCUMENT_CONTENT,
-  START_AGENCY_REGISTRATION_REVIEW,
   SUBMIT_AGENCY_REGISTRATION,
 } from "./http/agency-onboarding/agency-registrations.controller.js";
 import {
   AgencyRegistrationDocumentsController,
   UPLOAD_AGENCY_REGISTRATION_DOCUMENT,
 } from "./http/agency-onboarding/agency-registration-documents.controller.js";
+import {
+  APPROVE_AGENCY_REGISTRATION,
+  LIST_AGENCY_REGISTRATIONS,
+  PlatformAgencyRegistrationsController,
+  REJECT_AGENCY_REGISTRATION,
+  RETRIEVE_AGENCY_REGISTRATION,
+  RETRIEVE_AGENCY_REGISTRATION_DOCUMENT_CONTENT,
+  START_AGENCY_REGISTRATION_REVIEW,
+} from "./http/agency-onboarding/platform-agency-registrations.controller.js";
 import type { ActivateTenant, CreateTenant, PlatformAuthorityAuthorizer } from "@monpiole/tenant-management";
 import type { ActivateTenantAdministrator, BootstrapTenantAdministrator } from "@monpiole/identity";
 import type {
@@ -366,6 +369,7 @@ export class AppModule {
       module: AppModule,
       controllers: [
       AgencyRegistrationsController,
+      PlatformAgencyRegistrationsController,
       AgencyRegistrationDocumentsController,
         HealthController, ContractBaselineController, AuthenticationSessionController,
         PlatformTenantCreationAuthorizationProbeController, CreateTenantController,

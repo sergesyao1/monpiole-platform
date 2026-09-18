@@ -107,6 +107,10 @@ export const AgencyRegistrationListSchema = z.object({
   items: z.array(AgencyRegistrationSchema),
 }).strict();
 
+export const AgencyRegistrationDocumentListSchema = z.object({
+  items: z.array(AgencyRegistrationDocumentSchema),
+}).strict();
+
 export const SubmitAgencyRegistrationResponseSchema = z.object({
   registrationId: z.string().uuid(),
   status: z.literal("SUBMITTED"),
@@ -127,6 +131,9 @@ export type AgencyRegistrationDetailsResponse =
 
 export type AgencyRegistrationList =
   z.infer<typeof AgencyRegistrationListSchema>;
+
+export type AgencyRegistrationDocumentList =
+  z.infer<typeof AgencyRegistrationDocumentListSchema>;
 
 export type SubmitAgencyRegistrationResponse =
   z.infer<typeof SubmitAgencyRegistrationResponseSchema>;
