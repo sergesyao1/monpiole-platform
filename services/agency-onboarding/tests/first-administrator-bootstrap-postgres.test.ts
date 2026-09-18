@@ -797,5 +797,244 @@ describe(
         expect(secondCompleted).toBe(true);
       },
     );
+
+    it(
+      "finalizes an identity-linked first administrator exactly once",
+      async () => {
+        const value = registration();
+
+        await new PostgresSubmitAgencyRegistrationStore(
+          runtimePool,
+        ).submit({
+          registration: value,
+          documents: [],
+        });
+
+        const tenantId = randomUUID();
+        const internalIdentityId = randomUUID();
+
+        const administrator: FirstAdministratorBootstrap =
+          Object.freeze({
+            registrationId: value.id,
+            tenantId,
+            internalIdentityId,
+            administratorKind: "FIRST_ADMINISTRATOR",
+            status: "PENDING_IDENTITY",
+            bootstrapTokenHash: "d".repeat(64),
+            bootstrapTokenExpiresAt:
+              "2026-09-18T13:00:00.000Z",
+            createdByPlatformIdentityId: randomUUID(),
+            createdAt:
+              "2026-09-18T12:10:00.000Z",
+          });
+
+        const unitOfWork =
+          new PostgresFirstAdministratorBootstrapUnitOfWork(
+            runtimePool,
+          );
+
+        await unitOfWork.execute(async (transaction) => {
+          await transaction.insertAdministrator(
+            administrator,
+          );
+        });
+
+        const identityLinkedAt =
+          "2026-09-18T12:15:00.000Z";
+
+        const linked = await unitOfWork.execute(
+          (transaction) =>
+            transaction.markAdministratorIdentityLinked(
+              administrator.bootstrapTokenHash,
+              administrator.internalIdentityId,
+              "https://monpiole-dev-ci.eu.auth0.com/",
+              "auth0|finalization-test",
+              identityLinkedAt,
+              identityLinkedAt,
+            ),
+        );
+
+        expect(linked).toMatchObject({
+          registrationId: value.id,
+          tenantId,
+          internalIdentityId,
+          status: "IDENTITY_LINKED",
+          externalIssuer:
+            "https://monpiole-dev-ci.eu.auth0.com/",
+          externalSubject:
+            "auth0|finalization-test",
+          identityLinkedAt,
+        });
+
+        const activatedAt =
+          "2026-09-18T12:20:00.000Z";
+
+        const finalized = await unitOfWork.execute(
+          (transaction) =>
+            transaction.markAdministratorActive(
+              value.id,
+              tenantId,
+              internalIdentityId,
+              activatedAt,
+            ),
+        );
+
+        expect(finalized).toMatchObject({
+          registrationId: value.id,
+          tenantId,
+          internalIdentityId,
+          status: "ACTIVE",
+          activatedAt,
+          externalIssuer:
+            "https://monpiole-dev-ci.eu.auth0.com/",
+          externalSubject:
+            "auth0|finalization-test",
+          identityLinkedAt,
+        });
+
+        const replay = await unitOfWork.execute(
+          (transaction) =>
+            transaction.markAdministratorActive(
+              value.id,
+              tenantId,
+              internalIdentityId,
+              "2026-09-18T12:25:00.000Z",
+            ),
+        );
+
+        expect(replay).toBeUndefined();
+
+        const persisted = await ownerPool.query<{
+          status: string;
+          activated_at: Date | null;
+          external_issuer: string | null;
+          external_subject: string | null;
+          identity_linked_at: Date | null;
+        }>(
+          `SELECT
+             status,
+             activated_at,
+             external_issuer,
+             external_subject,
+             identity_linked_at
+           FROM agency_onboarding.agency_registration_administrators
+          WHERE registration_id = $1::uuid`,
+          [value.id],
+        );
+
+        expect(persisted.rows).toHaveLength(1);
+        expect(persisted.rows[0]?.status).toBe("ACTIVE");
+
+        expect(
+          persisted.rows[0]?.activated_at?.toISOString(),
+        ).toBe(activatedAt);
+
+        expect(persisted.rows[0]?.external_issuer).toBe(
+          "https://monpiole-dev-ci.eu.auth0.com/",
+        );
+
+        expect(persisted.rows[0]?.external_subject).toBe(
+          "auth0|finalization-test",
+        );
+
+        expect(
+          persisted.rows[0]?.identity_linked_at?.toISOString(),
+        ).toBe(identityLinkedAt);
+      },
+    );
+    it(
+      "refuses finalization before identity linkage and for mismatched identity coordinates",
+      async () => {
+        const value = registration();
+
+        await new PostgresSubmitAgencyRegistrationStore(
+          runtimePool,
+        ).submit({
+          registration: value,
+          documents: [],
+        });
+
+        const tenantId = randomUUID();
+        const internalIdentityId = randomUUID();
+
+const administrator: FirstAdministratorBootstrap =
+          Object.freeze({
+            registrationId: value.id,
+            tenantId,
+            internalIdentityId,
+            administratorKind: "FIRST_ADMINISTRATOR",
+            status: "PENDING_IDENTITY",
+            bootstrapTokenHash: "e".repeat(64),
+            bootstrapTokenExpiresAt:
+              "2026-09-18T13:00:00.000Z",
+            createdByPlatformIdentityId: randomUUID(),
+            createdAt:
+              "2026-09-18T12:10:00.000Z",
+          });
+
+        const unitOfWork =
+          new PostgresFirstAdministratorBootstrapUnitOfWork(
+            runtimePool,
+          );
+
+        await unitOfWork.execute(async (transaction) => {
+          await transaction.insertAdministrator(
+            administrator,
+          );
+        });
+
+        const beforeLink = await unitOfWork.execute(
+          (transaction) =>
+            transaction.markAdministratorActive(
+              value.id,
+              tenantId,
+              internalIdentityId,
+              "2026-09-18T12:20:00.000Z",
+            ),
+        );
+
+        expect(beforeLink).toBeUndefined();
+
+        const wrongTenant = await unitOfWork.execute(
+          (transaction) =>
+            transaction.markAdministratorActive(
+              value.id,
+              randomUUID(),
+              internalIdentityId,
+              "2026-09-18T12:20:00.000Z",
+            ),
+        );
+
+        expect(wrongTenant).toBeUndefined();
+
+        const wrongIdentity = await unitOfWork.execute(
+          (transaction) =>
+            transaction.markAdministratorActive(
+              value.id,
+              tenantId,
+              randomUUID(),
+              "2026-09-18T12:20:00.000Z",
+            ),
+        );
+
+        expect(wrongIdentity).toBeUndefined();
+
+        const persisted = await ownerPool.query<{
+          status: string;
+          activated_at: Date | null;
+        }>(
+          `SELECT status, activated_at
+             FROM agency_onboarding.agency_registration_administrators
+            WHERE registration_id = $1::uuid`,
+          [value.id],
+        );
+
+        expect(persisted.rows).toHaveLength(1);
+        expect(persisted.rows[0]?.status).toBe(
+          "PENDING_IDENTITY",
+        );
+        expect(persisted.rows[0]?.activated_at).toBeNull();
+      },
+    );
   },
 );

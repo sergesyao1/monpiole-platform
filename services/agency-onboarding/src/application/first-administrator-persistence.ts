@@ -50,6 +50,13 @@ export interface FirstAdministratorBootstrapTransaction {
     identityLinkedAt: string,
   ): Promise<FirstAdministratorBootstrap | undefined>;
 
+  markAdministratorActive(
+    registrationId: string,
+    tenantId: string,
+    internalIdentityId: string,
+    activatedAt: string,
+  ): Promise<FirstAdministratorBootstrap | undefined>;
+
   insertAdministrator(
     administrator: FirstAdministratorBootstrap,
   ): Promise<void>;

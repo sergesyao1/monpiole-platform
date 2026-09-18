@@ -189,6 +189,42 @@ class PostgresFirstAdministratorBootstrapTransaction
       ? undefined
       : toFirstAdministratorBootstrap(row);
   }
+  public async markAdministratorActive(
+    registrationId: string,
+    tenantId: string,
+    internalIdentityId: string,
+    activatedAt: string,
+  ): Promise<FirstAdministratorBootstrap | undefined> {
+    const rows =
+      await this.scope.query<FirstAdministratorBootstrapRow>(
+        `UPDATE agency_onboarding.agency_registration_administrators
+            SET status = 'ACTIVE',
+                activated_at = $4::timestamptz
+          WHERE registration_id = $1::uuid
+            AND tenant_id = $2::uuid
+            AND internal_identity_id = $3::uuid
+            AND status = 'IDENTITY_LINKED'
+            AND external_issuer IS NOT NULL
+            AND external_subject IS NOT NULL
+            AND bootstrap_token_consumed_at IS NOT NULL
+            AND identity_linked_at IS NOT NULL
+            AND activated_at IS NULL
+        RETURNING *`,
+        [
+          registrationId,
+          tenantId,
+          internalIdentityId,
+          activatedAt,
+        ],
+      );
+
+    const row = rows[0];
+
+    return row === undefined
+      ? undefined
+      : toFirstAdministratorBootstrap(row);
+  }
+
   public async insertAdministrator(
     administrator: FirstAdministratorBootstrap,
   ): Promise<void> {
