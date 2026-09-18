@@ -59,16 +59,16 @@ describe("Agency registrations OpenAPI", () => {
       "/v1/agency-registrations",
     );
     expect(document.paths).toHaveProperty(
-      "/v1/agency-registrations/{registrationId}",
+      "/v1/platform/agency-registrations/{registrationId}",
     );
     expect(document.paths).toHaveProperty(
-      "/v1/agency-registrations/{registrationId}/review",
+      "/v1/platform/agency-registrations/{registrationId}/review",
     );
     expect(document.paths).toHaveProperty(
-      "/v1/agency-registrations/{registrationId}/reject",
+      "/v1/platform/agency-registrations/{registrationId}/reject",
     );
     expect(document.paths).toHaveProperty(
-      "/v1/agency-registrations/{registrationId}/approve",
+      "/v1/platform/agency-registrations/{registrationId}/approve",
     );
   });
 
@@ -211,18 +211,18 @@ describe("Agency registrations OpenAPI", () => {
   });
   it("protects platform retrieval and decision operations with bearer authentication", () => {
     const operations = [
-      document.paths["/v1/agency-registrations"]?.get,
+      document.paths["/v1/platform/agency-registrations"]?.get,
       document.paths[
-        "/v1/agency-registrations/{registrationId}"
+        "/v1/platform/agency-registrations/{registrationId}"
       ]?.get,
       document.paths[
-        "/v1/agency-registrations/{registrationId}/review"
+        "/v1/platform/agency-registrations/{registrationId}/review"
       ]?.post,
       document.paths[
-        "/v1/agency-registrations/{registrationId}/reject"
+        "/v1/platform/agency-registrations/{registrationId}/reject"
       ]?.post,
       document.paths[
-        "/v1/agency-registrations/{registrationId}/approve"
+        "/v1/platform/agency-registrations/{registrationId}/approve"
       ]?.post,
     ];
 

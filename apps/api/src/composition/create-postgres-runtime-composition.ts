@@ -71,6 +71,7 @@ import { TenantExistenceAdapter } from "./tenant-existence.adapter.js";
 import { OnboardingAuthorityPolicy } from "./onboarding-authority-policy.js";
 import { OidcAccessTokenVerifier, oidcAccessTokenConfigurationFromEnvironment } from "../authentication/oidc-access-token-verifier.js";
 import { OidcAuthenticatedAuthorityProvider } from "../authentication/oidc-authenticated-authority-provider.js";
+import { OidcVerifiedAuthenticationContextProvider } from "../authentication/verified-authentication-context-provider.js";
 import {
   PlatformExternalAuthorityResolver,
   platformSubjectAuthorityConfigurationFromEnvironment,
@@ -108,6 +109,11 @@ export function createPostgresApiRuntime(
   const pool = database.infrastructurePool();
   const identityStore = new PostgresIdentityStore(pool);
   const externalIdentityStore = new PostgresExternalIdentityStore(pool);
+  const verifiedAuthenticationContextProvider =
+    new OidcVerifiedAuthenticationContextProvider(
+      accessTokenVerifier,
+    );
+
   const authenticatedAuthorityProvider = new OidcAuthenticatedAuthorityProvider(
     accessTokenVerifier,
     new PlatformExternalAuthorityResolver(
@@ -203,6 +209,7 @@ export function createPostgresApiRuntime(
 
   const composition: ApiComposition = {
     authenticatedAuthorityProvider,
+    verifiedAuthenticationContextProvider,
 
     uploadAgencyRegistrationDocument:
       new UploadAgencyRegistrationDocument(
@@ -236,6 +243,7 @@ export function createPostgresApiRuntime(
       compositionClock,
     ),
     createFirstAgencyAdministrator,
+    completeFirstAdministratorIdentity,
     platformAuthorityAuthorizer: authorityPolicy,
     createTenant,
     bootstrapTenantAdministrator,

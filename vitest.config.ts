@@ -41,7 +41,10 @@ export default defineConfig({
   test: {
     passWithNoTests: false,
     projects: [
-      nodeProject("unit", ["tests/unit/**/*.test.ts"]),
+      nodeProject("unit", [
+        "tests/unit/**/*.test.ts",
+        "apps/api/tests/unit/**/*.test.ts",
+      ]),
       nodeProject("integration", ["tests/integration/**/*.test.ts"]),
       nodeProject("persistence-integration", [
         "packages/persistence/tests/**/*.test.ts",

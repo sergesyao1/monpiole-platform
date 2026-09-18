@@ -1,0 +1,152 @@
+import {
+  Body,
+  ConflictException,
+  Controller,
+  GoneException,
+  HttpCode,
+  HttpStatus,
+  Inject,
+  NotFoundException,
+  Post,
+  Req,
+  UnauthorizedException,
+} from "@nestjs/common";
+import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiConflictResponse,
+  ApiGoneResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from "@nestjs/swagger";
+import {
+  createZodDto,
+  ZodSerializerDto,
+} from "nestjs-zod";
+import {
+  FirstAdministratorBootstrapNotCompletableError,
+  FirstAdministratorBootstrapTokenExpiredError,
+  FirstAdministratorBootstrapTokenNotFoundError,
+  FirstAdministratorIdentityLinkConflictError,
+  type CompleteFirstAdministratorIdentity,
+} from "@monpiole/agency-onboarding";
+
+import {
+  CompleteFirstAdministratorIdentityRequestSchema,
+  CompleteFirstAdministratorIdentityResponseSchema,
+  type CompleteFirstAdministratorIdentityResponse,
+} from "../../contracts/v1/agency-onboarding/first-administrator.schema.js";
+import type {
+  VerifiedAuthenticationContextProvider,
+} from "../../authentication/verified-authentication-context-provider.js";
+import type {
+  RequestWithContext,
+} from "../request-context/request-context.js";
+import {
+  TenantContext,
+} from "../request-context/request-context.decorator.js";
+
+export const COMPLETE_FIRST_ADMINISTRATOR_IDENTITY =
+  Symbol("complete-first-administrator-identity");
+
+export const VERIFIED_AUTHENTICATION_CONTEXT_PROVIDER =
+  Symbol("verified-authentication-context-provider");
+
+class CompleteFirstAdministratorIdentityRequestDto extends createZodDto(
+  CompleteFirstAdministratorIdentityRequestSchema,
+) {}
+
+class CompleteFirstAdministratorIdentityResponseDto extends createZodDto(
+  CompleteFirstAdministratorIdentityResponseSchema,
+) {}
+
+@ApiTags("Agency administrator bootstrap")
+@Controller("v1/agency-administrator-bootstrap")
+@TenantContext("not-applicable")
+export class FirstAdministratorBootstrapCompletionController {
+  public constructor(
+    @Inject(COMPLETE_FIRST_ADMINISTRATOR_IDENTITY)
+    private readonly completeIdentity: Pick<
+      CompleteFirstAdministratorIdentity,
+      "execute"
+    >,
+
+    @Inject(VERIFIED_AUTHENTICATION_CONTEXT_PROVIDER)
+    private readonly authentication: VerifiedAuthenticationContextProvider,
+  ) {}
+
+  @Post("completions")
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({
+    operationId: "completeFirstAdministratorIdentity",
+  })
+  @ApiOkResponse({
+    type: CompleteFirstAdministratorIdentityResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: "Invalid bootstrap completion request",
+  })
+  @ApiUnauthorizedResponse({
+    description: "Missing or invalid bearer authentication",
+  })
+  @ApiNotFoundResponse({
+    description: "Bootstrap token not found",
+  })
+  @ApiGoneResponse({
+    description: "Bootstrap token expired",
+  })
+  @ApiConflictResponse({
+    description:
+      "Bootstrap is not completable or external identity provenance conflicts",
+  })
+  @ZodSerializerDto(CompleteFirstAdministratorIdentityResponseDto)
+  public async complete(
+    @Body() body: CompleteFirstAdministratorIdentityRequestDto,
+    @Req() request: RequestWithContext,
+  ): Promise<CompleteFirstAdministratorIdentityResponse> {
+    const authentication =
+      await this.authentication.resolve(request);
+
+    if (authentication === undefined) {
+      throw new UnauthorizedException("Authentication required");
+    }
+
+    try {
+      return await this.completeIdentity.execute({
+        bootstrapToken: body.bootstrapToken,
+        issuer: authentication.issuer,
+        subject: authentication.subject,
+      });
+    } catch (error) {
+      if (error instanceof FirstAdministratorBootstrapTokenNotFoundError) {
+        throw new NotFoundException({
+          code: error.code,
+          message: error.message,
+        });
+      }
+
+      if (error instanceof FirstAdministratorBootstrapTokenExpiredError) {
+        throw new GoneException({
+          code: error.code,
+          message: error.message,
+        });
+      }
+
+      if (
+        error instanceof FirstAdministratorBootstrapNotCompletableError ||
+        error instanceof FirstAdministratorIdentityLinkConflictError
+      ) {
+        throw new ConflictException({
+          code: error.code,
+          message: error.message,
+        });
+      }
+
+      throw error;
+    }
+  }
+}

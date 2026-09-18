@@ -33,3 +33,26 @@ export const CreateFirstAgencyAdministratorResponseSchema = z
 
 export type CreateFirstAgencyAdministratorResponse =
   z.infer<typeof CreateFirstAgencyAdministratorResponseSchema>;
+
+export const CompleteFirstAdministratorIdentityRequestSchema = z
+  .object({
+    bootstrapToken: z.string().min(1),
+  })
+  .strict();
+
+export type CompleteFirstAdministratorIdentityRequest =
+  z.infer<typeof CompleteFirstAdministratorIdentityRequestSchema>;
+
+export const CompleteFirstAdministratorIdentityResponseSchema = z
+  .object({
+    registrationId: z.string().uuid(),
+    tenantId: z.string().uuid(),
+    administratorId: z.string().uuid(),
+    role: z.literal("TENANT_ADMINISTRATOR"),
+    status: z.literal("IDENTITY_LINKED"),
+    identityLinkedAt: z.string().datetime(),
+  })
+  .strict();
+
+export type CompleteFirstAdministratorIdentityResponse =
+  z.infer<typeof CompleteFirstAdministratorIdentityResponseSchema>;

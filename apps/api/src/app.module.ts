@@ -37,6 +37,14 @@ import {
   CREATE_FIRST_AGENCY_ADMINISTRATOR,
   PlatformFirstAdministratorController,
 } from "./http/agency-onboarding/platform-first-administrator.controller.js";
+import {
+  COMPLETE_FIRST_ADMINISTRATOR_IDENTITY,
+  FirstAdministratorBootstrapCompletionController,
+  VERIFIED_AUTHENTICATION_CONTEXT_PROVIDER,
+} from "./http/agency-onboarding/first-administrator-bootstrap-completion.controller.js";
+import type {
+  VerifiedAuthenticationContextProvider,
+} from "./authentication/verified-authentication-context-provider.js";
 import type { ActivateTenant, CreateTenant, PlatformAuthorityAuthorizer } from "@monpiole/tenant-management";
 import type { ActivateTenantAdministrator, BootstrapTenantAdministrator } from "@monpiole/identity";
 import type {
@@ -227,6 +235,7 @@ export interface ApiComposition {
   >;
   readonly createTenant?: Pick<CreateTenant, "execute">;
   readonly authenticatedAuthorityProvider?: AuthenticatedAuthorityProvider;
+  readonly verifiedAuthenticationContextProvider?: VerifiedAuthenticationContextProvider;
   readonly platformAuthorityAuthorizer?: PlatformAuthorityAuthorizer;
   readonly bootstrapTenantAdministrator?: Pick<BootstrapTenantAdministrator, "execute">;
   readonly activateTenantAdministrator?: Pick<ActivateTenantAdministrator, "execute">;
@@ -323,6 +332,11 @@ const unavailableCreateTenant: Pick<CreateTenant, "execute"> = {
 const unavailableAuthority: AuthenticatedAuthorityProvider = {
   async resolve() { return undefined; },
 };
+
+const unavailableVerifiedAuthenticationContext:
+  VerifiedAuthenticationContextProvider = {
+    async resolve() { return undefined; },
+  };
 const denyPlatformAuthority: PlatformAuthorityAuthorizer = {
   async authorizeCreateTenant() { return false; },
 };
@@ -386,6 +400,7 @@ export class AppModule {
       AgencyRegistrationsController,
       PlatformAgencyRegistrationsController,
       PlatformFirstAdministratorController,
+      FirstAdministratorBootstrapCompletionController,
       AgencyRegistrationDocumentsController,
         HealthController, ContractBaselineController, AuthenticationSessionController,
         PlatformTenantCreationAuthorizationProbeController, PlatformAgencyRegistrationReadAuthorizationProbeController, CreateTenantController,
@@ -456,6 +471,18 @@ export class AppModule {
         useValue:
           composition.createFirstAgencyAdministrator ??
           unavailableAgencyOperation,
+      },
+      {
+        provide: COMPLETE_FIRST_ADMINISTRATOR_IDENTITY,
+        useValue:
+          composition.completeFirstAdministratorIdentity ??
+          unavailableAgencyOperation,
+      },
+      {
+        provide: VERIFIED_AUTHENTICATION_CONTEXT_PROVIDER,
+        useValue:
+          composition.verifiedAuthenticationContextProvider ??
+          unavailableVerifiedAuthenticationContext,
       },
         { provide: APP_PIPE, useClass: StrictZodValidationPipe },
         { provide: APP_INTERCEPTOR, useClass: RequestContextInterceptor },
