@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
@@ -27,6 +27,7 @@ const CORRELATION_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const tenantMigrations = fileURLToPath(new URL("../../services/tenant-management/migrations", import.meta.url));
 const identityMigrations = fileURLToPath(new URL("../../services/identity/migrations", import.meta.url));
 const propertyMigrations = fileURLToPath(new URL("../../services/property-management/migrations", import.meta.url));
+const agencyOnboardingMigrations = fileURLToPath(new URL("../../services/agency-onboarding/migrations", import.meta.url));
 
 let container: StartedTestContainer;
 let ownerPool: Pool;
@@ -72,6 +73,10 @@ beforeAll(async () => {
   await migrate(drizzle(ownerPool), { migrationsFolder: tenantMigrations, migrationsTable: "tenant_management_migrations" });
   await migrate(drizzle(ownerPool), { migrationsFolder: identityMigrations, migrationsTable: "identity_migrations" });
   await migrate(drizzle(ownerPool), { migrationsFolder: propertyMigrations, migrationsTable: "property_management_migrations" });
+  await migrate(drizzle(ownerPool), {
+    migrationsFolder: agencyOnboardingMigrations,
+    migrationsTable: "agency_onboarding_migrations",
+  });
   await ownerPool.query("GRANT USAGE ON SCHEMA tenant_management, identity TO monpiole_runtime");
   await ownerPool.query("GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA tenant_management TO monpiole_runtime");
   await ownerPool.query("GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA identity TO monpiole_runtime");
@@ -286,6 +291,97 @@ describe("API PostgreSQL Identity runtime composition", () => {
     expect(response.status).toBe(409);
     expect((await ownerPool.query("SELECT lifecycle_state FROM tenant_management.tenants WHERE id = $1", [tenantB]))
       .rows[0]?.lifecycle_state).toBe("PENDING");
+  });
+
+  it("finalizes the first agency administrator through real PostgreSQL HTTP and converges on replay", async () => {
+    const registrationId = "11111111-1111-4111-8111-111111111111";
+    const tenantId = "22222222-2222-4222-8222-222222222222";
+    const administratorId = "33333333-3333-4333-8333-333333333333";
+    const reviewerId = "44444444-4444-4444-8444-444444444444";
+    const bootstrapToken = "synthetic-valid-first-administrator-bootstrap-token";
+    const bootstrapTokenHash = createHash("sha256").update(bootstrapToken, "utf8").digest("hex");
+    const issuer = "https://login.runtime.test/";
+    const subject = "auth0|first-administrator";
+    const createdAt = "2026-09-18T20:00:00.000Z";
+
+    await ownerPool.query(`INSERT INTO tenant_management.tenants
+      (id, organization_name, responsible_person_name, responsible_email, responsible_telephone, country,
+       lifecycle_state, created_at, correlation_id, actor_id, authority_id, activated_at)
+      VALUES ($1,'Agence Runtime','Awa Runtime','agency-runtime@example.invalid','+2250102030405','CI',
+        'PENDING',$2,$3,'platform-reviewer','platform-reviewer',NULL)`, [tenantId, createdAt, CORRELATION_ID]);
+    await ownerPool.query(`INSERT INTO identity.identities
+      (id, tenant_id, email, first_name, last_name, status, correlation_id)
+      VALUES ($1,$2,'admin-runtime@example.invalid','Awa','Admin','PENDING_ACTIVATION',$3)`,
+    [administratorId, tenantId, CORRELATION_ID]);
+    await ownerPool.query(`INSERT INTO identity.tenant_memberships
+      (tenant_id, identity_id, role, correlation_id) VALUES ($1,$2,'TENANT_ADMINISTRATOR',$3)`,
+    [tenantId, administratorId, CORRELATION_ID]);
+    await ownerPool.query(`INSERT INTO agency_onboarding.agency_registrations
+      (registration_id,status,agency_legal_name,agency_trade_name,registration_number,tax_identifier,
+       phone,email,website,address,city,country_code,contact_first_name,contact_last_name,contact_email,
+       contact_phone,submitted_at,review_started_at,reviewed_by_identity_id,approved_at,rejected_at,
+       rejection_reason,approval_provisioning_started_at,provisioned_tenant_id,created_at,updated_at,correlation_id)
+      VALUES ($1,'APPROVED','Agence Runtime',NULL,'CI-RUNTIME-001',NULL,'+2250102030405',
+        'agency-runtime@example.invalid',NULL,'Cocody','Abidjan','CI','Awa','Runtime',
+        'awa.runtime@example.invalid','+2250506070809',$2,$2,$3,$2,NULL,NULL,$2,$4,$2,$2,$5)`,
+    [registrationId, createdAt, reviewerId, tenantId, CORRELATION_ID]);
+    await ownerPool.query(`INSERT INTO agency_onboarding.agency_registration_administrators
+      (registration_id,tenant_id,internal_identity_id,administrator_kind,status,bootstrap_token_hash,
+       bootstrap_token_expires_at,bootstrap_token_consumed_at,created_by_platform_identity_id,created_at,
+       external_issuer,external_subject,identity_linked_at,activated_at,cancelled_at)
+      VALUES ($1,$2,$3,'FIRST_ADMINISTRATOR','PENDING_IDENTITY',$4,now()+interval '1 hour',NULL,$5,$6,
+        NULL,NULL,NULL,NULL,NULL)`,
+    [registrationId, tenantId, administratorId, bootstrapTokenHash, reviewerId, createdAt]);
+
+    const accessTokenVerifier = { verify: async (token: string) => {
+      if (token !== "verified-access-token") throw new Error("invalid token");
+      return { issuer, subject, authenticationMethods: [] };
+    } };
+    runtime = createPostgresApiRuntime(runtimeEnvironment(), { accessTokenVerifier });
+    application = await createApiApplication({ logger: false }, runtime.composition);
+    await listen();
+
+    const complete = () => fetch(`${baseUrl}/v1/agency-administrator-bootstrap/completions`, {
+      method: "POST",
+      headers: { authorization: "Bearer verified-access-token", "content-type": "application/json" },
+      body: JSON.stringify({ bootstrapToken }),
+    });
+    const firstResponse = await complete();
+    expect(firstResponse.status).toBe(200);
+    const firstBody = await firstResponse.json() as Record<string, unknown>;
+    expect(firstBody).toMatchObject({ registrationId, tenantId, administratorId, role: "TENANT_ADMINISTRATOR", status: "ACTIVE" });
+    expect(firstBody.identityLinkedAt).toEqual(expect.any(String));
+    expect(firstBody.activatedAt).toEqual(expect.any(String));
+
+    const firstIdentity = (await ownerPool.query("SELECT status FROM identity.identities WHERE id=$1", [administratorId])).rows[0];
+    const firstTenant = (await ownerPool.query("SELECT lifecycle_state, activated_at FROM tenant_management.tenants WHERE id=$1", [tenantId])).rows[0];
+    const firstBootstrap = (await ownerPool.query(`SELECT status, tenant_id, internal_identity_id, external_issuer,
+      external_subject, bootstrap_token_consumed_at, identity_linked_at, activated_at
+      FROM agency_onboarding.agency_registration_administrators WHERE registration_id=$1`, [registrationId])).rows[0];
+    expect(firstIdentity).toEqual({ status: "ACTIVE" });
+    expect(firstTenant).toMatchObject({ lifecycle_state: "ACTIVE", activated_at: expect.any(Date) });
+    expect(firstBootstrap).toMatchObject({
+      status: "ACTIVE", tenant_id: tenantId, internal_identity_id: administratorId,
+      external_issuer: issuer, external_subject: subject,
+      bootstrap_token_consumed_at: expect.any(Date), identity_linked_at: expect.any(Date), activated_at: expect.any(Date),
+    });
+    expect((await ownerPool.query(`SELECT tenant_id, identity_id, role FROM identity.tenant_memberships
+      WHERE tenant_id=$1 AND identity_id=$2`, [tenantId, administratorId])).rows[0])
+      .toEqual({ tenant_id: tenantId, identity_id: administratorId, role: "TENANT_ADMINISTRATOR" });
+    expect((await ownerPool.query(`SELECT issuer, subject, internal_identity_id, tenant_id FROM identity.external_identities
+      WHERE issuer=$1 AND subject=$2`, [issuer, subject])).rows[0])
+      .toEqual({ issuer, subject, internal_identity_id: administratorId, tenant_id: tenantId });
+
+    const replayResponse = await complete();
+    expect(replayResponse.status).toBe(200);
+    expect(await replayResponse.json()).toEqual(firstBody);
+    expect((await ownerPool.query("SELECT count(*)::int AS count FROM identity.external_identities WHERE internal_identity_id=$1", [administratorId])).rows[0]).toEqual({ count: 1 });
+    expect((await ownerPool.query("SELECT count(*)::int AS count FROM identity.tenant_memberships WHERE identity_id=$1", [administratorId])).rows[0]).toEqual({ count: 1 });
+    expect((await ownerPool.query("SELECT count(*)::int AS count FROM agency_onboarding.agency_registration_administrators WHERE registration_id=$1", [registrationId])).rows[0]).toEqual({ count: 1 });
+    expect((await ownerPool.query("SELECT status FROM identity.identities WHERE id=$1", [administratorId])).rows[0]).toEqual(firstIdentity);
+    expect((await ownerPool.query("SELECT lifecycle_state, activated_at FROM tenant_management.tenants WHERE id=$1", [tenantId])).rows[0]).toEqual(firstTenant);
+    expect((await ownerPool.query("SELECT status, identity_linked_at, activated_at FROM agency_onboarding.agency_registration_administrators WHERE registration_id=$1", [registrationId])).rows[0])
+      .toEqual({ status: firstBootstrap.status, identity_linked_at: firstBootstrap.identity_linked_at, activated_at: firstBootstrap.activated_at });
   });
 
   it("composes OIDC with durable external identity resolution across a runtime restart", async () => {
