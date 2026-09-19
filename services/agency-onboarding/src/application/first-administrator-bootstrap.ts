@@ -89,7 +89,10 @@ export class InvalidFirstAdministratorBootstrapConfigurationError extends Error 
   readonly code = "INVALID_FIRST_ADMINISTRATOR_BOOTSTRAP_CONFIGURATION";
 }
 
-function addSeconds(isoTimestamp: string, seconds: number): string {
+export function calculateFirstAdministratorBootstrapExpiration(
+  isoTimestamp: string,
+  seconds: number,
+): string {
   const timestamp = new Date(isoTimestamp);
 
   if (
@@ -193,7 +196,7 @@ export class CreateFirstAgencyAdministrator {
     const token = this.tokens.generate();
     const tokenHash = this.tokenHasher.hash(token);
     const createdAt = this.clock.now();
-    const expiresAt = addSeconds(
+    const expiresAt = calculateFirstAdministratorBootstrapExpiration(
       createdAt,
       this.configuration.tokenTtlSeconds,
     );

@@ -86,6 +86,10 @@ function harness(input?: {
     findAdministratorByRegistration: vi.fn(
       async () => currentExisting,
     ),
+    findAdministratorByBootstrapTokenHashForUpdate: vi.fn(),
+    markAdministratorIdentityLinked: vi.fn(),
+    markAdministratorActive: vi.fn(),
+    rotateAdministratorBootstrapToken: vi.fn(),
     insertAdministrator: vi.fn(async (administrator) => {
       currentExisting = administrator;
     }),

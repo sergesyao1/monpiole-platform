@@ -126,6 +126,7 @@ function createHarness(initial: FirstAdministratorBootstrap | undefined) {
     insertAdministrator: vi.fn(),
     findAdministratorByBootstrapTokenHashForUpdate,
     markAdministratorIdentityLinked,
+    rotateAdministratorBootstrapToken: vi.fn(),
   };
 
   const unitOfWork: FirstAdministratorBootstrapUnitOfWork = {

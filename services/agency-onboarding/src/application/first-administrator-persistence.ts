@@ -57,6 +57,14 @@ export interface FirstAdministratorBootstrapTransaction {
     activatedAt: string,
   ): Promise<FirstAdministratorBootstrap | undefined>;
 
+  rotateAdministratorBootstrapToken(
+    registrationId: string,
+    tenantId: string,
+    internalIdentityId: string,
+    bootstrapTokenHash: string,
+    bootstrapTokenExpiresAt: string,
+  ): Promise<FirstAdministratorBootstrap | undefined>;
+
   insertAdministrator(
     administrator: FirstAdministratorBootstrap,
   ): Promise<void>;

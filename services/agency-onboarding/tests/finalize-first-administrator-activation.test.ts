@@ -104,6 +104,10 @@ function createTransaction(
       return current;
     },
 
+    async rotateAdministratorBootstrapToken() {
+      return undefined;
+    },
+
     async insertAdministrator() {},
   };
 

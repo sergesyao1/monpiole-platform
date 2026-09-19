@@ -156,3 +156,12 @@ export {
   type FinalizeFirstAdministratorActivationCommand,
   type FinalizeFirstAdministratorActivationResult,
 } from "./application/finalize-first-administrator-activation.js";
+export {
+  FirstAdministratorReissueAdministratorNotFoundError,
+  FirstAdministratorReissueNotEligibleError,
+  FirstAdministratorReissueRegistrationNotFoundError,
+  FirstAdministratorReissueRegistrationNotReadyError,
+  ReissueFirstAdministratorBootstrap,
+  type ReissueFirstAdministratorBootstrapCommand,
+  type ReissueFirstAdministratorBootstrapResult,
+} from "./application/reissue-first-administrator-bootstrap.js";

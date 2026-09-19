@@ -1036,5 +1036,176 @@ const administrator: FirstAdministratorBootstrap =
         expect(persisted.rows[0]?.activated_at).toBeNull();
       },
     );
+    it(
+      "rotates only the credential of one pending administrator and invalidates the old hash",
+      async () => {
+        const value = registration();
+        await new PostgresSubmitAgencyRegistrationStore(runtimePool).submit({
+          registration: value,
+          documents: [],
+        });
+        const tenantId = randomUUID();
+        const internalIdentityId = randomUUID();
+        const oldHash = "f".repeat(64);
+        const newHash = "1".repeat(64);
+        const newExpiration = "2026-09-20T12:00:00.000Z";
+        const administrator: FirstAdministratorBootstrap = Object.freeze({
+          registrationId: value.id,
+          tenantId,
+          internalIdentityId,
+          administratorKind: "FIRST_ADMINISTRATOR",
+          status: "PENDING_IDENTITY",
+          bootstrapTokenHash: oldHash,
+          bootstrapTokenExpiresAt: "2026-09-19T12:00:00.000Z",
+          createdByPlatformIdentityId: randomUUID(),
+          createdAt: "2026-09-18T12:10:00.000Z",
+        });
+        const unitOfWork =
+          new PostgresFirstAdministratorBootstrapUnitOfWork(runtimePool);
+
+        await unitOfWork.execute((transaction) =>
+          transaction.insertAdministrator(administrator));
+
+        const rotated = await unitOfWork.execute((transaction) =>
+          transaction.rotateAdministratorBootstrapToken(
+            value.id,
+            tenantId,
+            internalIdentityId,
+            newHash,
+            newExpiration,
+          ));
+
+        expect(rotated).toMatchObject({
+          registrationId: value.id,
+          tenantId,
+          internalIdentityId,
+          status: "PENDING_IDENTITY",
+          bootstrapTokenHash: newHash,
+          bootstrapTokenExpiresAt: newExpiration,
+        });
+        expect(rotated?.bootstrapTokenConsumedAt).toBeUndefined();
+        expect(rotated?.identityLinkedAt).toBeUndefined();
+
+        const oldLookup = await unitOfWork.execute((transaction) =>
+          transaction.findAdministratorByBootstrapTokenHashForUpdate(oldHash));
+        const newLookup = await unitOfWork.execute((transaction) =>
+          transaction.findAdministratorByBootstrapTokenHashForUpdate(newHash));
+
+        expect(oldLookup).toBeUndefined();
+        expect(newLookup).toMatchObject({
+          registrationId: value.id,
+          tenantId,
+          internalIdentityId,
+        });
+
+        const persisted = await ownerPool.query<{
+          count: string;
+          tenant_id: string;
+          internal_identity_id: string;
+          status: string;
+          bootstrap_token_hash: string;
+          bootstrap_token_expires_at: Date;
+          bootstrap_token_consumed_at: Date | null;
+          identity_linked_at: Date | null;
+        }>(
+          `SELECT count(*) OVER ()::text AS count,
+                  tenant_id, internal_identity_id, status,
+                  bootstrap_token_hash, bootstrap_token_expires_at,
+                  bootstrap_token_consumed_at, identity_linked_at
+             FROM agency_onboarding.agency_registration_administrators
+            WHERE registration_id = $1::uuid`,
+          [value.id],
+        );
+        expect(persisted.rows).toHaveLength(1);
+        expect(persisted.rows[0]).toMatchObject({
+          count: "1",
+          tenant_id: tenantId,
+          internal_identity_id: internalIdentityId,
+          status: "PENDING_IDENTITY",
+          bootstrap_token_hash: newHash,
+          bootstrap_token_consumed_at: null,
+          identity_linked_at: null,
+        });
+        expect(persisted.rows[0]?.bootstrap_token_expires_at.toISOString())
+          .toBe(newExpiration);
+      },
+    );
+
+    it(
+      "refuses a stale rotation after concurrent identity linkage",
+      async () => {
+        const value = registration();
+        await new PostgresSubmitAgencyRegistrationStore(runtimePool).submit({
+          registration: value,
+          documents: [],
+        });
+        const tenantId = randomUUID();
+        const internalIdentityId = randomUUID();
+        const oldHash = "2".repeat(64);
+        const administrator: FirstAdministratorBootstrap = Object.freeze({
+          registrationId: value.id,
+          tenantId,
+          internalIdentityId,
+          administratorKind: "FIRST_ADMINISTRATOR",
+          status: "PENDING_IDENTITY",
+          bootstrapTokenHash: oldHash,
+          bootstrapTokenExpiresAt: "2026-09-19T12:00:00.000Z",
+          createdByPlatformIdentityId: randomUUID(),
+          createdAt: "2026-09-18T12:10:00.000Z",
+        });
+        const unitOfWork =
+          new PostgresFirstAdministratorBootstrapUnitOfWork(runtimePool);
+        await unitOfWork.execute((transaction) =>
+          transaction.insertAdministrator(administrator));
+
+        let releaseRotation: (() => void) | undefined;
+        const linkageMayProceed = new Promise<void>((resolve) => {
+          releaseRotation = resolve;
+        });
+        let staleReadReached: (() => void) | undefined;
+        const staleRead = new Promise<void>((resolve) => {
+          staleReadReached = resolve;
+        });
+
+        const rotation = unitOfWork.execute(async (transaction) => {
+          const observed =
+            await transaction.findAdministratorByRegistration(value.id);
+          expect(observed?.status).toBe("PENDING_IDENTITY");
+          staleReadReached?.();
+          await linkageMayProceed;
+          return transaction.rotateAdministratorBootstrapToken(
+            value.id,
+            tenantId,
+            internalIdentityId,
+            "3".repeat(64),
+            "2026-09-20T12:00:00.000Z",
+          );
+        });
+
+        await staleRead;
+        const linkedAt = "2026-09-18T12:30:00.000Z";
+        const linked = await unitOfWork.execute((transaction) =>
+          transaction.markAdministratorIdentityLinked(
+            oldHash,
+            internalIdentityId,
+            "https://issuer.example/",
+            "auth0|concurrent-link",
+            linkedAt,
+            linkedAt,
+          ));
+        expect(linked?.status).toBe("IDENTITY_LINKED");
+        releaseRotation?.();
+
+        await expect(rotation).resolves.toBeUndefined();
+        const persisted = await unitOfWork.execute((transaction) =>
+          transaction.findAdministratorByRegistration(value.id));
+        expect(persisted).toMatchObject({
+          status: "IDENTITY_LINKED",
+          bootstrapTokenHash: oldHash,
+          bootstrapTokenConsumedAt: linkedAt,
+          identityLinkedAt: linkedAt,
+        });
+      },
+    );
   },
 );
