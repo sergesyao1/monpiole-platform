@@ -19,6 +19,7 @@ import {
 
 import {
   PostgresFirstAdministratorBootstrapUnitOfWork,
+  PostgresAgencyRegistrationQueryStore,
   PostgresSubmitAgencyRegistrationStore,
   type AgencyRegistration,
   type FirstAdministratorBootstrap,
@@ -1065,6 +1066,15 @@ const administrator: FirstAdministratorBootstrap =
 
         await unitOfWork.execute((transaction) =>
           transaction.insertAdministrator(administrator));
+
+        await expect(
+          new PostgresAgencyRegistrationQueryStore(runtimePool)
+            .findFirstAdministrator(value.id),
+        ).resolves.toEqual({
+          administratorId: internalIdentityId,
+          status: "PENDING_IDENTITY",
+          bootstrapTokenExpiresAt: "2026-09-19T12:00:00.000Z",
+        });
 
         const rotated = await unitOfWork.execute((transaction) =>
           transaction.rotateAdministratorBootstrapToken(

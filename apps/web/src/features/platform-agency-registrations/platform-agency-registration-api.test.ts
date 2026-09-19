@@ -222,4 +222,21 @@ describe("PlatformAgencyRegistrationApi", () => {
     expect(init?.method).toBe("POST");
     expect(JSON.parse(String(init?.body))).toEqual({ firstName: "Awa", lastName: "Koné", email: "awa@example.test" });
   });
+
+  it("réinvite le premier administrateur sans payload métier", async () => {
+    const registrationId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ status: "PENDING_IDENTITY" }, 201),
+    );
+    const api = createPlatformAgencyRegistrationApi(createTokens());
+
+    await api.reissueFirstAdministrator(registrationId);
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `http://localhost:3000/v1/platform/agency-registrations/${registrationId}/first-administrator/reinvitation`,
+    );
+    expect(init?.method).toBe("POST");
+    expect(init?.body).toBeUndefined();
+  });
 });

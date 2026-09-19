@@ -168,6 +168,35 @@ export class PostgresAgencyRegistrationQueryStore
     );
   }
 
+  findFirstAdministrator(registrationId: string) {
+    return withAgencyOnboardingPostgresTransaction(
+      this.pool,
+      "administrator",
+      async (scope) => {
+        const rows = await scope.query<{
+          internal_identity_id: string;
+          status: "PENDING_IDENTITY" | "IDENTITY_LINKED" | "ACTIVE" | "CANCELLED";
+          bootstrap_token_expires_at: Date;
+        }>(
+          `SELECT internal_identity_id, status, bootstrap_token_expires_at
+             FROM agency_onboarding.agency_registration_administrators
+            WHERE registration_id = $1::uuid
+            LIMIT 1`,
+          [registrationId],
+        );
+        const row = rows[0];
+        return row === undefined
+          ? undefined
+          : Object.freeze({
+              administratorId: row.internal_identity_id,
+              status: row.status,
+              bootstrapTokenExpiresAt:
+                row.bootstrap_token_expires_at.toISOString(),
+            });
+      },
+    );
+  }
+
   findDocument(
     registrationId: string,
     documentId: string,

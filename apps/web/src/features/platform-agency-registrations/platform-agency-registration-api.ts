@@ -11,6 +11,7 @@ import type {
   CreateFirstAgencyAdministratorInput,
   FirstAgencyAdministrator,
   RejectPlatformAgencyRegistrationInput,
+  ReissuedFirstAgencyAdministrator,
 } from "./platform-agency-registration-model.js";
 
 export interface PlatformAgencyRegistrationApi {
@@ -43,6 +44,10 @@ export interface PlatformAgencyRegistrationApi {
     registrationId: string,
     input: CreateFirstAgencyAdministratorInput,
   ) => Promise<FirstAgencyAdministrator>;
+
+  readonly reissueFirstAdministrator: (
+    registrationId: string,
+  ) => Promise<ReissuedFirstAgencyAdministrator>;
 }
 
 export function createPlatformAgencyRegistrationApi(
@@ -96,6 +101,12 @@ export function createPlatformAgencyRegistrationApi(
       requestJson<FirstAgencyAdministrator>(
         `/v1/platform/agency-registrations/${registrationId}/first-administrator`,
         { method: "POST", body: input },
+      ),
+
+    reissueFirstAdministrator: (registrationId) =>
+      requestJson<ReissuedFirstAgencyAdministrator>(
+        `/v1/platform/agency-registrations/${registrationId}/first-administrator/reinvitation`,
+        { method: "POST" },
       ),
   };
 }

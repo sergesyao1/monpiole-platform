@@ -593,4 +593,148 @@ describe("Revue d'une inscription agence", () => {
     expect(await screen.findByText(/son secret ne peut pas être affiché à nouveau/)).toBeVisible();
     expect(screen.queryByRole("button", { name: "Copier le lien d’activation" })).not.toBeInTheDocument();
   });
+
+  it("propose la réinvitation d’un administrateur en attente sans proposer sa recréation", async () => {
+    const approved = approvedWithPendingAdministrator();
+    const fetcher = createReviewFetcher({ initialRegistration: approved });
+    show(fetcher as typeof fetch);
+
+    expect(await screen.findByText("Activation en attente")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Générer une nouvelle invitation" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Créer le premier administrateur" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Le lien d’activation précédent deviendra invalide\./)).toBeVisible();
+  });
+
+  it("annule la réinvitation après avoir averti de l’invalidation du lien précédent", async () => {
+    const approved = approvedWithPendingAdministrator();
+    const actionPath = `/v1/platform/agency-registrations/${registrationId}/first-administrator/reinvitation`;
+    const fetcher = createReviewFetcher({ initialRegistration: approved, actionPath });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    show(fetcher as typeof fetch);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Générer une nouvelle invitation" }));
+
+    expect(confirm).toHaveBeenCalledWith(
+      "Générer un nouveau lien d’activation ? Le lien d’activation précédent deviendra invalide.",
+    );
+    expect(findRequest(fetcher, actionPath)).toBeUndefined();
+  });
+
+  it("affiche et copie uniquement la nouvelle invitation après confirmation", async () => {
+    const approved = approvedWithPendingAdministrator();
+    const actionPath = `/v1/platform/agency-registrations/${registrationId}/first-administrator/reinvitation`;
+    const fetcher = createReviewFetcher({
+      initialRegistration: approved,
+      actionPath,
+      actionStatus: 201,
+      actionResponse: {
+        registrationId,
+        tenantId: approved.provisionedTenantId,
+        administratorId: approved.firstAdministrator.administratorId,
+        status: "PENDING_IDENTITY",
+        bootstrapToken: "fresh-one-time-secret",
+        bootstrapTokenExpiresAt: "2026-09-21T09:30:00.000Z",
+      },
+    });
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    show(fetcher as typeof fetch);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Générer une nouvelle invitation" }));
+
+    const request = await waitFor(() => findRequest(fetcher, actionPath));
+    expect(fetcher.mock.calls.filter(([input]) => String(input).endsWith(actionPath))).toHaveLength(1);
+    expect((request?.[1] as RequestInit | undefined)?.body).toBeUndefined();
+    const invitationUrl = `${window.location.origin}/activation-agence?token=fresh-one-time-secret`;
+    expect(await screen.findByDisplayValue(invitationUrl)).toBeVisible();
+    expect(screen.getByText("Seul ce nouveau lien doit désormais être utilisé.")).toBeVisible();
+    expect(screen.getByText(/21\/09\/2026/)).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Copier le lien d’activation" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(invitationUrl));
+  });
+
+  it("ne reconstruit aucun secret depuis le détail chargé après remontage", async () => {
+    const fetcher = createReviewFetcher({
+      initialRegistration: approvedWithPendingAdministrator(),
+    });
+    show(fetcher as typeof fetch);
+
+    expect(await screen.findByRole("button", { name: "Générer une nouvelle invitation" })).toBeVisible();
+    expect(screen.queryByLabelText("Lien d’activation")).not.toBeInTheDocument();
+    expect(document.body.textContent).not.toContain("fresh-one-time-secret");
+  });
+
+  it.each([
+    [404, "FIRST_ADMINISTRATOR_REISSUE_ADMINISTRATOR_NOT_FOUND", "Le dossier ou le premier administrateur est introuvable. Rechargez le dossier."],
+    [409, "FIRST_ADMINISTRATOR_REISSUE_NOT_ELIGIBLE", "La situation du premier administrateur a changé. Le dossier a été actualisé."],
+    [403, "FORBIDDEN", "Vous n’êtes pas autorisé à générer une nouvelle invitation."],
+  ] as const)("traite l’erreur de réinvitation %s", async (status, code, message) => {
+    const approved = approvedWithPendingAdministrator();
+    const actionPath = `/v1/platform/agency-registrations/${registrationId}/first-administrator/reinvitation`;
+    const fetcher = createReviewFetcher({
+      initialRegistration: approved,
+      actionPath,
+      actionStatus: status,
+      actionResponse: {
+        type: "https://api.monpiole.example/problems/reinvitation",
+        title: "Reinvitation error",
+        status,
+        code,
+        correlationId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      },
+    });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    show(fetcher as typeof fetch);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Générer une nouvelle invitation" }));
+    expect(await screen.findByText(message)).toBeVisible();
+    expect(screen.queryByLabelText("Lien d’activation")).not.toBeInTheDocument();
+  });
+
+  it("désactive la réinvitation et ignore un double clic pendant la requête", async () => {
+    const approved = approvedWithPendingAdministrator();
+    const actionPath = `/v1/platform/agency-registrations/${registrationId}/first-administrator/reinvitation`;
+    let resolveAction: ((response: Response) => void) | undefined;
+    const pending = new Promise<Response>((resolve) => { resolveAction = resolve; });
+    const baseFetcher = createReviewFetcher({ initialRegistration: approved });
+    const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith(actionPath) && init?.method === "POST") return pending;
+      return baseFetcher(input, init);
+    });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    show(fetcher as typeof fetch);
+
+    const action = await screen.findByRole("button", { name: "Générer une nouvelle invitation" });
+    fireEvent.click(action);
+    fireEvent.click(action);
+    expect(await screen.findByRole("button", { name: "Génération…" })).toBeDisabled();
+    expect(fetcher.mock.calls.filter(([input]) => String(input).endsWith(actionPath))).toHaveLength(1);
+    resolveAction?.(jsonResponse({
+      registrationId,
+      tenantId: approved.provisionedTenantId,
+      administratorId: approved.firstAdministrator.administratorId,
+      status: "PENDING_IDENTITY",
+      bootstrapToken: "fresh-one-time-secret",
+      bootstrapTokenExpiresAt: "2026-09-21T09:30:00.000Z",
+    }, 201));
+    expect(await screen.findByLabelText("Lien d’activation")).toBeVisible();
+  });
 });
+
+function approvedWithPendingAdministrator() {
+  return {
+    ...baseRegistration,
+    status: "APPROVED",
+    approvedAt: "2026-09-18T09:30:00.000Z",
+    provisionedTenantId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+    firstAdministrator: {
+      administratorId: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+      status: "PENDING_IDENTITY",
+      bootstrapTokenExpiresAt: "2026-09-20T09:30:00.000Z",
+    },
+  } as const;
+}

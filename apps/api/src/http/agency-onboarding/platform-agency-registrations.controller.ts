@@ -207,6 +207,9 @@ export class PlatformAgencyRegistrationsController {
         checksumSha256: document.checksumSha256,
         createdAt: document.createdAt,
       })),
+      ...(details.firstAdministrator === undefined
+        ? {}
+        : { firstAdministrator: details.firstAdministrator }),
     };
   }
 

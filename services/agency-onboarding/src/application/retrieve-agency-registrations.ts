@@ -16,6 +16,11 @@ import {
 export interface AgencyRegistrationDetails {
   readonly registration: AgencyRegistration;
   readonly documents: readonly AgencyRegistrationDocument[];
+  readonly firstAdministrator?: Readonly<{
+    administratorId: string;
+    status: "PENDING_IDENTITY" | "IDENTITY_LINKED" | "ACTIVE" | "CANCELLED";
+    bootstrapTokenExpiresAt: string;
+  }>;
 }
 
 export class ListAgencyRegistrations {
@@ -66,10 +71,13 @@ export class RetrieveAgencyRegistration {
     const documents = await this.registrations.listDocuments(
       input.registrationId,
     );
+    const firstAdministrator =
+      await this.registrations.findFirstAdministrator(input.registrationId);
 
     return Object.freeze({
       registration,
       documents,
+      ...(firstAdministrator === undefined ? {} : { firstAdministrator }),
     });
   }
 }

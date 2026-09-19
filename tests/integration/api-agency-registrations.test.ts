@@ -732,6 +732,38 @@ describe("Agency registrations HTTP", () => {
     expect(typeof details.documents[0]?.sizeBytes).toBe("number");
   });
 
+  it("retrieves a safe first administrator summary without bootstrap credentials", async () => {
+    const current = registration({
+      status: "APPROVED",
+      provisionedTenantId: TENANT_ID,
+    });
+    await start("platform", {
+      retrieveAgencyRegistration: {
+        execute: vi.fn(async () => ({
+          registration: current,
+          documents: [],
+          firstAdministrator: {
+            administratorId: "99999999-9999-4999-8999-999999999999",
+            status: "PENDING_IDENTITY" as const,
+            bootstrapTokenExpiresAt: "2026-09-20T09:30:00.000Z",
+          },
+        })),
+      },
+    });
+
+    const response = await fetch(
+      `${baseUrl}/v1/platform/agency-registrations/${REGISTRATION_ID}`,
+    );
+    expect(response.status).toBe(200);
+    const details = AgencyRegistrationDetailsSchema.parse(await response.json());
+    expect(details.firstAdministrator).toMatchObject({
+      administratorId: "99999999-9999-4999-8999-999999999999",
+      status: "PENDING_IDENTITY",
+    });
+    expect(details.firstAdministrator).not.toHaveProperty("bootstrapToken");
+    expect(details.firstAdministrator).not.toHaveProperty("bootstrapTokenHash");
+  });
+
   it("lists registration documents with numeric sizes", async () => {
     await start("platform");
 

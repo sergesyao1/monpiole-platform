@@ -101,6 +101,16 @@ export const AgencyRegistrationDocumentSchema = z.object({
 export const AgencyRegistrationDetailsSchema =
   AgencyRegistrationSchema.extend({
     documents: z.array(AgencyRegistrationDocumentSchema),
+    firstAdministrator: z.object({
+      administratorId: z.string().uuid(),
+      status: z.enum([
+        "PENDING_IDENTITY",
+        "IDENTITY_LINKED",
+        "ACTIVE",
+        "CANCELLED",
+      ]),
+      bootstrapTokenExpiresAt: z.string().datetime(),
+    }).strict().optional(),
   }).strict();
 
 export const AgencyRegistrationListSchema = z.object({

@@ -7,7 +7,10 @@ import {
 import { Link, useParams } from "react-router";
 
 import { useSession } from "../../auth/session.js";
-import { ApiForbiddenError } from "../../infrastructure/http/api-client.js";
+import {
+  ApiForbiddenError,
+  ApiSessionExpiredError,
+} from "../../infrastructure/http/api-client.js";
 import { ApiProblem } from "../../infrastructure/http/problem-details.js";
 import {
   Alert,
@@ -24,6 +27,7 @@ import type {
   PlatformAgencyRegistrationDocument,
   PlatformAgencyRegistrationStatus,
   FirstAgencyAdministrator,
+  ReissuedFirstAgencyAdministrator,
 } from "./platform-agency-registration-model.js";
 
 const statusLabels: Record<PlatformAgencyRegistrationStatus, string> = {
@@ -53,7 +57,7 @@ export function PlatformAgencyRegistrationReviewPage() {
     useState<PlatformAgencyRegistrationDetails>();
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<
-    "review" | "approve" | "reject" | "administrator" | undefined
+    "review" | "approve" | "reject" | "administrator" | "reinvitation" | undefined
   >();
   const [downloadingDocumentId, setDownloadingDocumentId] =
     useState<string>();
@@ -61,7 +65,9 @@ export function PlatformAgencyRegistrationReviewPage() {
   const [success, setSuccess] = useState<string>();
   const [showRejectionForm, setShowRejectionForm] = useState(false);
   const [showAdministratorForm, setShowAdministratorForm] = useState(false);
-  const [administrator, setAdministrator] = useState<FirstAgencyAdministrator>();
+  const [administrator, setAdministrator] = useState<
+    FirstAgencyAdministrator | ReissuedFirstAgencyAdministrator
+  >();
   const [invitationCopied, setInvitationCopied] = useState(false);
 
   async function load() {
@@ -73,6 +79,8 @@ export function PlatformAgencyRegistrationReviewPage() {
 
     setLoading(true);
     setError(undefined);
+    setAdministrator(undefined);
+    setInvitationCopied(false);
 
     try {
       setRegistration(
@@ -268,10 +276,61 @@ export function PlatformAgencyRegistrationReviewPage() {
     try {
       const created = await api.createFirstAdministrator(registrationId, input);
       setAdministrator(created);
+      setRegistration((current) => current
+        ? {
+            ...current,
+            firstAdministrator: {
+              administratorId: created.administratorId,
+              status: created.status,
+              bootstrapTokenExpiresAt: created.bootstrapTokenExpiresAt,
+            },
+          }
+        : undefined);
       setShowAdministratorForm(false);
       setSuccess(created.bootstrapToken ? "Le premier administrateur a été créé." : "Le premier administrateur existe déjà.");
     } catch (error) {
       setError(firstAdministratorError(error));
+    } finally {
+      setBusyAction(undefined);
+    }
+  }
+
+  async function reissueFirstAdministrator() {
+    if (!registrationId || busyAction) return;
+    if (!window.confirm(
+      "Générer un nouveau lien d’activation ? Le lien d’activation précédent deviendra invalide.",
+    )) return;
+
+    setBusyAction("reinvitation");
+    setError(undefined);
+    setSuccess(undefined);
+
+    try {
+      const reissued = await api.reissueFirstAdministrator(registrationId);
+      setAdministrator(reissued);
+      setInvitationCopied(false);
+      setRegistration((current) => current
+        ? {
+            ...current,
+            firstAdministrator: {
+              administratorId: reissued.administratorId,
+              status: reissued.status,
+              bootstrapTokenExpiresAt: reissued.bootstrapTokenExpiresAt,
+            },
+          }
+        : undefined);
+      setSuccess("Une nouvelle invitation a été générée.");
+    } catch (caught) {
+      if (caught instanceof ApiProblem && caught.problem.status === 409) {
+        try {
+          setRegistration(await api.retrieveRegistration(registrationId));
+          setAdministrator(undefined);
+          setInvitationCopied(false);
+        } catch {
+          // Preserve the lifecycle error when reconciliation cannot complete.
+        }
+      }
+      setError(firstAdministratorReissueError(caught));
     } finally {
       setBusyAction(undefined);
     }
@@ -492,10 +551,35 @@ export function PlatformAgencyRegistrationReviewPage() {
           <div className="section-heading"><div><p className="eyebrow">Mise en service</p><h2 id="first-administrator-title">Premier administrateur</h2></div></div>
           {!registration.provisionedTenantId ? (
             <Alert tone="warning" title="Espace agence en cours de préparation"><p>La création de l’administrateur sera disponible dès que l’espace agence aura été provisionné.</p></Alert>
-          ) : administrator?.bootstrapToken ? (
-            <InvitationResult administrator={administrator} copied={invitationCopied} onCopy={copyInvitation} />
-          ) : administrator ? (
-            <Alert tone="info" title="Administrateur déjà créé"><p>L’invitation initiale a déjà été produite. Pour des raisons de sécurité, son secret ne peut pas être affiché à nouveau.</p></Alert>
+          ) : registration.firstAdministrator ? (
+            <div className="page-stack">
+              <dl>
+                <dt>Identifiant administrateur</dt>
+                <dd>{registration.firstAdministrator.administratorId}</dd>
+                <dt>État</dt>
+                <dd>{registration.firstAdministrator.status === "PENDING_IDENTITY" ? "Activation en attente" : registration.firstAdministrator.status}</dd>
+              </dl>
+              {administrator?.bootstrapToken ? (
+                <InvitationResult administrator={administrator} copied={invitationCopied} onCopy={copyInvitation} />
+              ) : (
+                <Alert tone="info" title="Administrateur déjà créé"><p>L’invitation initiale a déjà été produite et son secret ne peut pas être affiché à nouveau. Générez une nouvelle invitation si nécessaire.</p></Alert>
+              )}
+              {registration.firstAdministrator.status === "PENDING_IDENTITY" ? (
+                <div>
+                  <p>Générez un nouveau lien si l’invitation précédente a expiré ou doit être remplacée. Le lien d’activation précédent deviendra invalide.</p>
+                  <div className="form-actions">
+                    <Button
+                      disabled={busyAction !== undefined}
+                      loading={busyAction === "reinvitation"}
+                      loadingLabel="Génération…"
+                      onClick={() => void reissueFirstAdministrator()}
+                    >
+                      Générer une nouvelle invitation
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           ) : showAdministratorForm ? (
             <form className="compact-form" onSubmit={createFirstAdministrator}>
               <Field label="Prénom(s)"><input name="firstName" required maxLength={120} autoComplete="given-name" /></Field>
@@ -652,9 +736,9 @@ export function PlatformAgencyRegistrationReviewPage() {
   );
 }
 
-function InvitationResult({ administrator, copied, onCopy }: { readonly administrator: FirstAgencyAdministrator; readonly copied: boolean; readonly onCopy: (url: string) => Promise<void> }) {
+function InvitationResult({ administrator, copied, onCopy }: { readonly administrator: FirstAgencyAdministrator | ReissuedFirstAgencyAdministrator; readonly copied: boolean; readonly onCopy: (url: string) => Promise<void> }) {
   const invitationUrl = `${window.location.origin}/activation-agence?token=${encodeURIComponent(administrator.bootstrapToken ?? "")}`;
-  return <Alert tone="success" title="Invitation créée"><p>Ce lien d’activation contient un secret affiché une seule fois. Transmettez-le de manière sécurisée.</p><Field label="Lien d’activation"><input value={invitationUrl} readOnly onFocus={(event) => event.currentTarget.select()} /></Field><Button variant="secondary" onClick={() => void onCopy(invitationUrl)}>Copier le lien d’activation</Button>{copied ? <p role="status">Lien copié.</p> : null}<p>Valable jusqu’au {new Date(administrator.bootstrapTokenExpiresAt).toLocaleString("fr-FR")}.</p></Alert>;
+  return <Alert tone="success" title="Invitation créée"><p>Ce lien d’activation contient un secret affiché une seule fois. Transmettez-le de manière sécurisée.</p><p>Seul ce nouveau lien doit désormais être utilisé.</p><Field label="Lien d’activation"><input value={invitationUrl} readOnly onFocus={(event) => event.currentTarget.select()} /></Field><Button variant="secondary" onClick={() => void onCopy(invitationUrl)}>Copier le lien d’activation</Button>{copied ? <p role="status">Lien copié.</p> : null}<p>Valable jusqu’au {new Date(administrator.bootstrapTokenExpiresAt).toLocaleString("fr-FR")}.</p></Alert>;
 }
 
 function firstAdministratorError(error: unknown): string {
@@ -662,6 +746,14 @@ function firstAdministratorError(error: unknown): string {
   if (error instanceof ApiProblem && error.problem.status === 409) return "Le premier administrateur ne peut pas être créé dans l’état actuel du dossier.";
   if (error instanceof ApiProblem && error.problem.status === 404) return "Cette inscription agence est introuvable.";
   return "Impossible de créer le premier administrateur. Réessayez.";
+}
+
+function firstAdministratorReissueError(error: unknown): string {
+  if (error instanceof ApiSessionExpiredError) return "Votre session a expiré. Reconnectez-vous avant de générer une nouvelle invitation.";
+  if (error instanceof ApiForbiddenError) return "Vous n’êtes pas autorisé à générer une nouvelle invitation.";
+  if (error instanceof ApiProblem && error.problem.status === 404) return "Le dossier ou le premier administrateur est introuvable. Rechargez le dossier.";
+  if (error instanceof ApiProblem && error.problem.status === 409) return "La situation du premier administrateur a changé. Le dossier a été actualisé.";
+  return "Impossible de générer une nouvelle invitation. Réessayez.";
 }
 
 function formatFileSize(sizeBytes: number) {

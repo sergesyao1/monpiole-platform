@@ -50,6 +50,7 @@ function store(
     findById: vi.fn().mockResolvedValue(registration),
     list: vi.fn().mockResolvedValue([registration]),
     listDocuments: vi.fn().mockResolvedValue([]),
+    findFirstAdministrator: vi.fn().mockResolvedValue(undefined),
     findDocument: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
@@ -109,6 +110,27 @@ describe("RetrieveAgencyRegistration", () => {
     ).toHaveBeenCalledWith(
       registration.id,
     );
+  });
+
+  it("includes a safe first administrator summary without credentials", async () => {
+    const firstAdministrator = {
+      administratorId: "33333333-3333-4333-8333-333333333333",
+      status: "PENDING_IDENTITY" as const,
+      bootstrapTokenExpiresAt: "2026-09-20T09:30:00.000Z",
+    };
+    const registrations = store({
+      findFirstAdministrator: vi.fn().mockResolvedValue(firstAdministrator),
+    });
+    const useCase = new RetrieveAgencyRegistration(registrations);
+
+    const details = await useCase.execute({
+      authority: reviewer,
+      registrationId: registration.id,
+    });
+
+    expect(details.firstAdministrator).toEqual(firstAdministrator);
+    expect(details.firstAdministrator).not.toHaveProperty("bootstrapToken");
+    expect(details.firstAdministrator).not.toHaveProperty("bootstrapTokenHash");
   });
 
   it("throws the domain not-found error when registration does not exist", async () => {

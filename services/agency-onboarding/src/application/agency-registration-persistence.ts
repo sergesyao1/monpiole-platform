@@ -57,6 +57,14 @@ export interface AgencyRegistrationQueryStore {
     registrationId: string,
   ): Promise<readonly AgencyRegistrationDocument[]>;
 
+  findFirstAdministrator(
+    registrationId: string,
+  ): Promise<Readonly<{
+    administratorId: string;
+    status: "PENDING_IDENTITY" | "IDENTITY_LINKED" | "ACTIVE" | "CANCELLED";
+    bootstrapTokenExpiresAt: string;
+  }> | undefined>;
+
   findDocument(
     registrationId: string,
     documentId: string,

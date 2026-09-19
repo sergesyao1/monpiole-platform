@@ -66,6 +66,7 @@ function queryStore(
     findById: vi.fn(),
     list: vi.fn(),
     listDocuments: vi.fn(),
+    findFirstAdministrator: vi.fn(),
     findDocument,
   };
 }

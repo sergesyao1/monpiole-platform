@@ -55,6 +55,7 @@ export interface PlatformAgencyRegistrationDocument {
 export interface PlatformAgencyRegistrationDetails
   extends PlatformAgencyRegistration {
   readonly documents: readonly PlatformAgencyRegistrationDocument[];
+  readonly firstAdministrator?: FirstAgencyAdministratorSummary;
 }
 
 export interface PlatformAgencyRegistrationList {
@@ -78,5 +79,24 @@ export interface FirstAgencyAdministrator {
   readonly role: "TENANT_ADMINISTRATOR";
   readonly status: "PENDING_IDENTITY";
   readonly bootstrapToken?: string;
+  readonly bootstrapTokenExpiresAt: string;
+}
+
+export interface FirstAgencyAdministratorSummary {
+  readonly administratorId: string;
+  readonly status:
+    | "PENDING_IDENTITY"
+    | "IDENTITY_LINKED"
+    | "ACTIVE"
+    | "CANCELLED";
+  readonly bootstrapTokenExpiresAt: string;
+}
+
+export interface ReissuedFirstAgencyAdministrator {
+  readonly registrationId: string;
+  readonly tenantId: string;
+  readonly administratorId: string;
+  readonly status: "PENDING_IDENTITY";
+  readonly bootstrapToken: string;
   readonly bootstrapTokenExpiresAt: string;
 }
