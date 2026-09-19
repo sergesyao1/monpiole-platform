@@ -12,6 +12,7 @@ import {
   ApproveAgencyRegistration,
   CompleteFirstAdministratorIdentity,
   CreateFirstAgencyAdministrator,
+  ReissueFirstAdministratorBootstrap,
   FinalizeFirstAdministratorActivation,
   PostgresFirstAdministratorBootstrapUnitOfWork,
   SecureFirstAdministratorBootstrapTokenGenerator,
@@ -179,6 +180,15 @@ export function createPostgresApiRuntime(
       firstAdministratorBootstrapConfigurationFromEnvironment(environment),
     );
 
+  const reissueFirstAdministratorBootstrap =
+    new ReissueFirstAdministratorBootstrap(
+      firstAdministratorBootstrapUnitOfWork,
+      new SecureFirstAdministratorBootstrapTokenGenerator(),
+      firstAdministratorBootstrapTokenHasher,
+      firstAdministratorBootstrapClock,
+      firstAdministratorBootstrapConfigurationFromEnvironment(environment),
+    );
+
   const completeFirstAdministratorIdentity =
     new CompleteFirstAdministratorIdentity(
       firstAdministratorBootstrapUnitOfWork,
@@ -271,6 +281,7 @@ export function createPostgresApiRuntime(
       compositionClock,
     ),
     createFirstAgencyAdministrator,
+    reissueFirstAdministratorBootstrap,
     completeFirstAdministratorIdentity,
     platformAuthorityAuthorizer: authorityPolicy,
     createTenant,

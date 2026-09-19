@@ -13,6 +13,10 @@ import {
   AgencyRegistrationNumberConflictError,
   AgencyRegistrationDocumentUploadValidationError,
   InvalidAgencyRegistrationTransitionError,
+  FirstAdministratorReissueAdministratorNotFoundError,
+  FirstAdministratorReissueNotEligibleError,
+  FirstAdministratorReissueRegistrationNotFoundError,
+  FirstAdministratorReissueRegistrationNotReadyError,
   UploadAgencyRegistrationDocument,
   type AgencyDocumentStorage,
   type AgencyRegistration,
@@ -30,6 +34,7 @@ import {
 } from "../../apps/api/src/contracts/v1/agency-onboarding/agency-registration.schema.js";
 import {
   CreateFirstAgencyAdministratorResponseSchema,
+  ReissueFirstAdministratorBootstrapResponseSchema,
 } from "../../apps/api/src/contracts/v1/agency-onboarding/first-administrator.schema.js";
 
 const REGISTRATION_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -301,6 +306,18 @@ describe("Agency registrations HTTP", () => {
             bootstrapToken: "first-admin-bootstrap-token",
             bootstrapTokenExpiresAt:
               "2026-09-18T13:00:00.000Z",
+          })),
+        },
+        reissueFirstAdministratorBootstrap: {
+          execute: vi.fn(async () => ({
+            registrationId: REGISTRATION_ID,
+            tenantId: TENANT_ID,
+            administratorId:
+              "99999999-9999-4999-8999-999999999999",
+            status: "PENDING_IDENTITY" as const,
+            bootstrapToken: "reissued-first-admin-token",
+            bootstrapTokenExpiresAt:
+              "2026-09-19T13:00:00.000Z",
           })),
         },
         ...overrides,
@@ -1302,4 +1319,130 @@ describe("Agency registrations HTTP", () => {
       ProblemDetailsSchema.parse(await response.json()).code,
     ).toBe("FORBIDDEN");
   });
+
+  it("reissues the first administrator invitation without a request body", async () => {
+    await start("platform");
+
+    const response = await fetch(
+      `${baseUrl}/v1/platform/agency-registrations/${REGISTRATION_ID}/first-administrator/reinvitation`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(201);
+    const body = ReissueFirstAdministratorBootstrapResponseSchema.parse(
+      await response.json(),
+    );
+    expect(body).toEqual({
+      registrationId: REGISTRATION_ID,
+      tenantId: TENANT_ID,
+      administratorId:
+        "99999999-9999-4999-8999-999999999999",
+      status: "PENDING_IDENTITY",
+      bootstrapToken: "reissued-first-admin-token",
+      bootstrapTokenExpiresAt: "2026-09-19T13:00:00.000Z",
+    });
+    expect(body).not.toHaveProperty("bootstrapTokenHash");
+  });
+
+  it("derives reinvitation identity and authority exclusively server-side", async () => {
+    const execute = vi.fn(async () => ({
+      registrationId: REGISTRATION_ID,
+      tenantId: TENANT_ID,
+      administratorId:
+        "99999999-9999-4999-8999-999999999999",
+      status: "PENDING_IDENTITY" as const,
+      bootstrapToken: "reissued-first-admin-token",
+      bootstrapTokenExpiresAt: "2026-09-19T13:00:00.000Z",
+    }));
+    await start("platform", {
+      reissueFirstAdministratorBootstrap: { execute },
+    });
+
+    const response = await fetch(
+      `${baseUrl}/v1/platform/agency-registrations/${REGISTRATION_ID}/first-administrator/reinvitation?actorId=attacker&tenantId=attacker`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          actorId: "attacker",
+          authorityId: "attacker",
+          tenantId: "attacker",
+          internalIdentityId: "attacker",
+          bootstrapToken: "attacker",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(execute.mock.calls[0]?.[0]).toMatchObject({
+      registrationId: REGISTRATION_ID,
+      authority: {
+        actorId: "platform:reviewer",
+        authorityId: "platform:reviewer",
+        grants: expect.arrayContaining([
+          "MANAGE_AGENCY_ADMIN_BOOTSTRAP",
+        ]),
+      },
+    });
+    expect(execute.mock.calls[0]?.[0]).not.toHaveProperty("tenantId");
+    expect(execute.mock.calls[0]?.[0]).not.toHaveProperty("internalIdentityId");
+  });
+
+  it("returns 401 for unauthenticated reinvitation", async () => {
+    await start("none");
+    const response = await fetch(
+      `${baseUrl}/v1/platform/agency-registrations/${REGISTRATION_ID}/first-administrator/reinvitation`,
+      { method: "POST" },
+    );
+    expect(response.status).toBe(401);
+    expect(ProblemDetailsSchema.parse(await response.json()).code)
+      .toBe("UNAUTHORIZED");
+  });
+
+  it("returns 403 when a tenant authority attempts reinvitation", async () => {
+    await start("tenant", {
+      reissueFirstAdministratorBootstrap: {
+        execute: vi.fn(async () => {
+          throw new AgencyOnboardingForbiddenError();
+        }),
+      },
+    });
+    const response = await fetch(
+      `${baseUrl}/v1/platform/agency-registrations/${REGISTRATION_ID}/first-administrator/reinvitation`,
+      { method: "POST" },
+    );
+    expect(response.status).toBe(403);
+    expect(ProblemDetailsSchema.parse(await response.json()).code)
+      .toBe("FORBIDDEN");
+  });
+
+  it.each([
+    [FirstAdministratorReissueRegistrationNotFoundError, 404,
+      "FIRST_ADMINISTRATOR_REISSUE_REGISTRATION_NOT_FOUND"],
+    [FirstAdministratorReissueAdministratorNotFoundError, 404,
+      "FIRST_ADMINISTRATOR_REISSUE_ADMINISTRATOR_NOT_FOUND"],
+    [FirstAdministratorReissueRegistrationNotReadyError, 409,
+      "FIRST_ADMINISTRATOR_REISSUE_REGISTRATION_NOT_READY"],
+    [FirstAdministratorReissueNotEligibleError, 409,
+      "FIRST_ADMINISTRATOR_REISSUE_NOT_ELIGIBLE"],
+  ] as const)(
+    "maps reinvitation error %s to %s",
+    async (ErrorType, status, code) => {
+      await start("platform", {
+        reissueFirstAdministratorBootstrap: {
+          execute: vi.fn(async () => { throw new ErrorType(); }),
+        },
+      });
+      const response = await fetch(
+        `${baseUrl}/v1/platform/agency-registrations/${REGISTRATION_ID}/first-administrator/reinvitation`,
+        { method: "POST" },
+      );
+      expect(response.status).toBe(status);
+      const problem = ProblemDetailsSchema.parse(await response.json());
+      expect(problem.code).toBe(code);
+      expect(problem).not.toHaveProperty("bootstrapToken");
+      expect(problem).not.toHaveProperty("bootstrapTokenHash");
+    },
+  );
 });

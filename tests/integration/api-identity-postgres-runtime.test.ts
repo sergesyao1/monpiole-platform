@@ -145,6 +145,7 @@ async function start() {
         "CREATE_PROPERTY_CLIENT", "RETRIEVE_PROPERTY_CLIENTS",
         "CREATE_PROPERTY_CONTRACT", "RETRIEVE_PROPERTY_CONTRACTS",
         "UPDATE_PROPERTY_CONTRACT", "MANAGE_PROPERTY_CONTRACT_LIFECYCLE",
+        "MANAGE_AGENCY_ADMIN_BOOTSTRAP",
       ],
       tenantIds: [...authorizedTenantIds],
     }) },
@@ -359,6 +360,109 @@ describe("API PostgreSQL Identity runtime composition", () => {
     expect(response.status).toBe(409);
     expect((await ownerPool.query("SELECT lifecycle_state FROM tenant_management.tenants WHERE id = $1", [tenantB]))
       .rows[0]?.lifecycle_state).toBe("PENDING");
+  });
+
+  it("reissues a pending first administrator through HTTP without duplicating durable records", async () => {
+    const registrationId = "55555555-5555-4555-8555-555555555555";
+    const tenantId = "66666666-6666-4666-8666-666666666666";
+    const administratorId = "77777777-7777-4777-8777-777777777777";
+    const reviewerId = "88888888-8888-4888-8888-888888888888";
+    const oldToken = "synthetic-expired-bootstrap-token";
+    const oldHash = createHash("sha256")
+      .update(oldToken, "utf8")
+      .digest("hex");
+    const createdAt = "2026-09-18T20:00:00.000Z";
+
+    await ownerPool.query(`INSERT INTO tenant_management.tenants
+      (id, organization_name, responsible_person_name, responsible_email, responsible_telephone, country,
+       lifecycle_state, created_at, correlation_id, actor_id, authority_id, activated_at)
+      VALUES ($1,'Agence Reinvitation','Awa Runtime','reinvite@example.invalid','+2250102030405','CI',
+        'PENDING',$2,$3,'platform-reviewer','platform-reviewer',NULL)`,
+    [tenantId, createdAt, CORRELATION_ID]);
+    await ownerPool.query(`INSERT INTO identity.identities
+      (id, tenant_id, email, first_name, last_name, status, correlation_id)
+      VALUES ($1,$2,'reinvite-admin@example.invalid','Awa','Admin','PENDING_ACTIVATION',$3)`,
+    [administratorId, tenantId, CORRELATION_ID]);
+    await ownerPool.query(`INSERT INTO identity.tenant_memberships
+      (tenant_id, identity_id, role, correlation_id)
+      VALUES ($1,$2,'TENANT_ADMINISTRATOR',$3)`,
+    [tenantId, administratorId, CORRELATION_ID]);
+    await ownerPool.query(`INSERT INTO agency_onboarding.agency_registrations
+      (registration_id,status,agency_legal_name,agency_trade_name,registration_number,tax_identifier,
+       phone,email,website,address,city,country_code,contact_first_name,contact_last_name,contact_email,
+       contact_phone,submitted_at,review_started_at,reviewed_by_identity_id,approved_at,rejected_at,
+       rejection_reason,approval_provisioning_started_at,provisioned_tenant_id,created_at,updated_at,correlation_id)
+      VALUES ($1,'APPROVED','Agence Reinvitation',NULL,'CI-REINVITE-001',NULL,'+2250102030405',
+        'reinvite@example.invalid',NULL,'Cocody','Abidjan','CI','Awa','Runtime',
+        'awa.reinvite@example.invalid','+2250506070809',$2,$2,$3,$2,NULL,NULL,$2,$4,$2,$2,$5)`,
+    [registrationId, createdAt, reviewerId, tenantId, CORRELATION_ID]);
+    await ownerPool.query(`INSERT INTO agency_onboarding.agency_registration_administrators
+      (registration_id,tenant_id,internal_identity_id,administrator_kind,status,bootstrap_token_hash,
+       bootstrap_token_expires_at,bootstrap_token_consumed_at,created_by_platform_identity_id,created_at,
+       external_issuer,external_subject,identity_linked_at,activated_at,cancelled_at)
+      VALUES ($1,$2,$3,'FIRST_ADMINISTRATOR','PENDING_IDENTITY',$4,$5::timestamptz + interval '1 hour',NULL,$6,$5,
+        NULL,NULL,NULL,NULL,NULL)`,
+    [registrationId, tenantId, administratorId, oldHash, createdAt, reviewerId]);
+
+    await start();
+    const response = await fetch(
+      `${baseUrl}/v1/platform/agency-registrations/${registrationId}/first-administrator/reinvitation`,
+      { method: "POST" },
+    );
+    expect(response.status).toBe(201);
+    const body = await response.json() as {
+      bootstrapToken: string;
+      bootstrapTokenExpiresAt: string;
+    };
+    const newHash = createHash("sha256")
+      .update(body.bootstrapToken, "utf8")
+      .digest("hex");
+
+    const persisted = await ownerPool.query<{
+      tenant_id: string;
+      internal_identity_id: string;
+      status: string;
+      bootstrap_token_hash: string;
+      bootstrap_token_expires_at: Date;
+      bootstrap_token_consumed_at: Date | null;
+      identity_linked_at: Date | null;
+    }>(`SELECT tenant_id, internal_identity_id, status, bootstrap_token_hash,
+               bootstrap_token_expires_at, bootstrap_token_consumed_at, identity_linked_at
+          FROM agency_onboarding.agency_registration_administrators
+         WHERE registration_id=$1`, [registrationId]);
+
+    expect(persisted.rows).toHaveLength(1);
+    expect(persisted.rows[0]).toMatchObject({
+      tenant_id: tenantId,
+      internal_identity_id: administratorId,
+      status: "PENDING_IDENTITY",
+      bootstrap_token_hash: newHash,
+      bootstrap_token_consumed_at: null,
+      identity_linked_at: null,
+    });
+    expect(newHash).not.toBe(oldHash);
+    expect(persisted.rows[0]?.bootstrap_token_expires_at.toISOString())
+      .toBe(body.bootstrapTokenExpiresAt);
+    expect((await ownerPool.query(
+      "SELECT count(*)::int AS count FROM agency_onboarding.agency_registration_administrators WHERE bootstrap_token_hash=$1",
+      [oldHash],
+    )).rows[0]).toEqual({ count: 0 });
+    expect((await ownerPool.query(
+      "SELECT count(*)::int AS count FROM agency_onboarding.agency_registration_administrators WHERE bootstrap_token_hash=$1",
+      [newHash],
+    )).rows[0]).toEqual({ count: 1 });
+    expect((await ownerPool.query(
+      "SELECT count(*)::int AS count FROM tenant_management.tenants WHERE id=$1",
+      [tenantId],
+    )).rows[0]).toEqual({ count: 1 });
+    expect((await ownerPool.query(
+      "SELECT count(*)::int AS count FROM identity.identities WHERE id=$1",
+      [administratorId],
+    )).rows[0]).toEqual({ count: 1 });
+    expect((await ownerPool.query(
+      "SELECT count(*)::int AS count FROM identity.tenant_memberships WHERE tenant_id=$1 AND identity_id=$2",
+      [tenantId, administratorId],
+    )).rows[0]).toEqual({ count: 1 });
   });
 
   it("finalizes the first agency administrator through real PostgreSQL HTTP and converges on replay", async () => {

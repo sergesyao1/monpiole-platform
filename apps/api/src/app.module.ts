@@ -2,6 +2,7 @@ import type {
   ApproveAgencyRegistration,
   CompleteFirstAdministratorIdentity,
   CreateFirstAgencyAdministrator,
+  ReissueFirstAdministratorBootstrap,
   ListAgencyRegistrations,
   RejectAgencyRegistration,
   RetrieveAgencyRegistration,
@@ -36,6 +37,7 @@ import {
 import {
   CREATE_FIRST_AGENCY_ADMINISTRATOR,
   PlatformFirstAdministratorController,
+  REISSUE_FIRST_ADMINISTRATOR_BOOTSTRAP,
 } from "./http/agency-onboarding/platform-first-administrator.controller.js";
 import {
   FINALIZE_FIRST_ADMINISTRATOR_BOOTSTRAP,
@@ -231,6 +233,10 @@ export interface ApiComposition {
   >;
   readonly createFirstAgencyAdministrator?: Pick<
     CreateFirstAgencyAdministrator,
+    "execute"
+  >;
+  readonly reissueFirstAdministratorBootstrap?: Pick<
+    ReissueFirstAdministratorBootstrap,
     "execute"
   >;
   readonly completeFirstAdministratorIdentity?: Pick<
@@ -478,6 +484,12 @@ export class AppModule {
         provide: CREATE_FIRST_AGENCY_ADMINISTRATOR,
         useValue:
           composition.createFirstAgencyAdministrator ??
+          unavailableAgencyOperation,
+      },
+      {
+        provide: REISSUE_FIRST_ADMINISTRATOR_BOOTSTRAP,
+        useValue:
+          composition.reissueFirstAdministratorBootstrap ??
           unavailableAgencyOperation,
       },
       {

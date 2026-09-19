@@ -90,6 +90,24 @@ function businessProblem(exception: unknown) {
     title: "Forbidden",
     code: "FORBIDDEN",
   };
+  if (
+    code === "FIRST_ADMINISTRATOR_REISSUE_REGISTRATION_NOT_FOUND"
+    || code === "FIRST_ADMINISTRATOR_REISSUE_ADMINISTRATOR_NOT_FOUND"
+  ) return {
+    status: 404,
+    type: "https://api.monpiole.example/problems/first-administrator-reinvitation-not-found",
+    title: "First administrator reinvitation not found",
+    code,
+  };
+  if (
+    code === "FIRST_ADMINISTRATOR_REISSUE_REGISTRATION_NOT_READY"
+    || code === "FIRST_ADMINISTRATOR_REISSUE_NOT_ELIGIBLE"
+  ) return {
+    status: 409,
+    type: "https://api.monpiole.example/problems/first-administrator-reinvitation-conflict",
+    title: "First administrator reinvitation conflict",
+    code,
+  };
   if (code === "AGENCY_REGISTRATION_NOT_FOUND") return {
     status: 404,
     type: "https://api.monpiole.example/problems/agency-registration-not-found",

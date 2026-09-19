@@ -70,6 +70,39 @@ describe("Agency registrations OpenAPI", () => {
     expect(document.paths).toHaveProperty(
       "/v1/platform/agency-registrations/{registrationId}/approve",
     );
+    expect(document.paths).toHaveProperty(
+      "/v1/platform/agency-registrations/{registrationId}/first-administrator/reinvitation",
+    );
+  });
+
+  it("publishes the authenticated bodyless first administrator reinvitation contract", () => {
+    const operation = document.paths[
+      "/v1/platform/agency-registrations/{registrationId}/first-administrator/reinvitation"
+    ]?.post;
+
+    expect(operation?.operationId).toBe(
+      "reissueFirstAdministratorBootstrap",
+    );
+    expect(operation?.security).toEqual([{ bearer: [] }]);
+    expect(operation?.requestBody).toBeUndefined();
+    expect(operation?.responses?.["201"]?.content?.[
+      "application/json"
+    ]?.schema?.$ref).toBe(
+      "#/components/schemas/ReissueFirstAdministratorBootstrapResponseDto",
+    );
+
+    const response = document.components.schemas[
+      "ReissueFirstAdministratorBootstrapResponseDto"
+    ] as OpenApiSchema | undefined;
+    expect(response?.required).toEqual(expect.arrayContaining([
+      "registrationId",
+      "tenantId",
+      "administratorId",
+      "status",
+      "bootstrapToken",
+      "bootstrapTokenExpiresAt",
+    ]));
+    expect(response?.properties).not.toHaveProperty("bootstrapTokenHash");
   });
 
   it("publishes the public agency document upload contract", () => {

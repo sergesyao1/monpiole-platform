@@ -34,6 +34,20 @@ export const CreateFirstAgencyAdministratorResponseSchema = z
 export type CreateFirstAgencyAdministratorResponse =
   z.infer<typeof CreateFirstAgencyAdministratorResponseSchema>;
 
+export const ReissueFirstAdministratorBootstrapResponseSchema = z
+  .object({
+    registrationId: z.string().uuid(),
+    tenantId: z.string().uuid(),
+    administratorId: z.string().uuid(),
+    status: z.literal("PENDING_IDENTITY"),
+    bootstrapToken: z.string().min(1),
+    bootstrapTokenExpiresAt: z.string().datetime(),
+  })
+  .strict();
+
+export type ReissueFirstAdministratorBootstrapResponse =
+  z.infer<typeof ReissueFirstAdministratorBootstrapResponseSchema>;
+
 export const CompleteFirstAdministratorIdentityRequestSchema = z
   .object({
     bootstrapToken: z.string().min(1),
