@@ -673,7 +673,7 @@ describe("Agency registrations HTTP", () => {
     await start("platform");
 
     const response = await fetch(
-      `${baseUrl}/v1/agency-registrations`,
+      `${baseUrl}/v1/platform/agency-registrations`,
     );
 
     expect(response.status).toBe(200);
@@ -692,7 +692,7 @@ describe("Agency registrations HTTP", () => {
     await start("platform");
 
     const response = await fetch(
-      `${baseUrl}/v1/agency-registrations/${REGISTRATION_ID}`,
+      `${baseUrl}/v1/platform/agency-registrations/${REGISTRATION_ID}`,
     );
 
     expect(response.status).toBe(200);
@@ -707,7 +707,7 @@ describe("Agency registrations HTTP", () => {
     await start("platform");
 
     const response = await fetch(
-      `${baseUrl}/v1/agency-registrations/${REGISTRATION_ID}/documents/${DOCUMENT_ID}/content`,
+      `${baseUrl}/v1/platform/agency-registrations/${REGISTRATION_ID}/documents/${DOCUMENT_ID}/content`,
     );
 
     expect(response.status).toBe(200);
@@ -739,7 +739,7 @@ describe("Agency registrations HTTP", () => {
     await start("none");
 
     const response = await fetch(
-      `${baseUrl}/v1/agency-registrations/${REGISTRATION_ID}/documents/${DOCUMENT_ID}/content`,
+      `${baseUrl}/v1/platform/agency-registrations/${REGISTRATION_ID}/documents/${DOCUMENT_ID}/content`,
     );
 
     expect(response.status).toBe(401);
@@ -761,7 +761,7 @@ describe("Agency registrations HTTP", () => {
     });
 
     const response = await fetch(
-      `${baseUrl}/v1/agency-registrations/${REGISTRATION_ID}/documents/${DOCUMENT_ID}/content`,
+      `${baseUrl}/v1/platform/agency-registrations/${REGISTRATION_ID}/documents/${DOCUMENT_ID}/content`,
     );
 
     expect(response.status).toBe(403);
@@ -783,7 +783,7 @@ describe("Agency registrations HTTP", () => {
     });
 
     const response = await fetch(
-      `${baseUrl}/v1/agency-registrations/${REGISTRATION_ID}/documents/${DOCUMENT_ID}/content`,
+      `${baseUrl}/v1/platform/agency-registrations/${REGISTRATION_ID}/documents/${DOCUMENT_ID}/content`,
     );
 
     expect(response.status).toBe(404);
@@ -809,7 +809,7 @@ describe("Agency registrations HTTP", () => {
     });
 
     const response = await fetch(
-      `${baseUrl}/v1/agency-registrations/${REGISTRATION_ID}/documents/${DOCUMENT_ID}/content`,
+      `${baseUrl}/v1/platform/agency-registrations/${REGISTRATION_ID}/documents/${DOCUMENT_ID}/content`,
     );
 
     expect(response.status).toBe(500);
@@ -825,7 +825,7 @@ describe("Agency registrations HTTP", () => {
     await start("platform");
 
     const response = await post(
-      `/v1/agency-registrations/${REGISTRATION_ID}/review`,
+      `/v1/platform/agency-registrations/${REGISTRATION_ID}/review`,
     );
 
     expect(response.status).toBe(200);
@@ -840,7 +840,7 @@ describe("Agency registrations HTTP", () => {
     await start("platform");
 
     const response = await post(
-      `/v1/agency-registrations/${REGISTRATION_ID}/reject`,
+      `/v1/platform/agency-registrations/${REGISTRATION_ID}/reject`,
       { rejectionReason: "Justificatif invalide" },
     );
 
@@ -856,7 +856,7 @@ describe("Agency registrations HTTP", () => {
     await start("platform");
 
     const response = await post(
-      `/v1/agency-registrations/${REGISTRATION_ID}/approve`,
+      `/v1/platform/agency-registrations/${REGISTRATION_ID}/approve`,
     );
 
     expect(response.status).toBe(200);
@@ -873,7 +873,7 @@ describe("Agency registrations HTTP", () => {
     await start("none");
 
     const response = await fetch(
-      `${baseUrl}/v1/agency-registrations`,
+      `${baseUrl}/v1/platform/agency-registrations`,
     );
 
     expect(response.status).toBe(401);
@@ -892,7 +892,7 @@ describe("Agency registrations HTTP", () => {
     });
 
     const response = await fetch(
-      `${baseUrl}/v1/agency-registrations`,
+      `${baseUrl}/v1/platform/agency-registrations`,
     );
 
     expect(response.status).toBe(403);
@@ -911,7 +911,7 @@ describe("Agency registrations HTTP", () => {
     });
 
     const response = await fetch(
-      `${baseUrl}/v1/agency-registrations/${REGISTRATION_ID}`,
+      `${baseUrl}/v1/platform/agency-registrations/${REGISTRATION_ID}`,
     );
 
     expect(response.status).toBe(404);
@@ -930,7 +930,7 @@ describe("Agency registrations HTTP", () => {
     });
 
     const response = await post(
-      `/v1/agency-registrations/${REGISTRATION_ID}/review`,
+      `/v1/platform/agency-registrations/${REGISTRATION_ID}/review`,
     );
 
     expect(response.status).toBe(409);
