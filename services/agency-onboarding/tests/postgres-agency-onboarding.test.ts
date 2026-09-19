@@ -324,6 +324,17 @@ describe("Agency onboarding PostgreSQL RLS", () => {
       persistedDocument.rows[0]?.created_at.toISOString(),
     ).toBe("2026-09-15T14:00:00.000Z");
 
+    const [retrievedDocument] =
+      await new PostgresAgencyRegistrationQueryStore(
+        runtimePool,
+      ).listDocuments(value.id);
+
+    expect(retrievedDocument).toMatchObject({
+      documentId,
+      sizeBytes: 4096,
+    });
+    expect(typeof retrievedDocument?.sizeBytes).toBe("number");
+
     const staged = await ownerPool.query<{
       consumed_at: Date | null;
     }>(

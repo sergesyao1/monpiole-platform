@@ -22,6 +22,7 @@ import { createApiApplication } from "../../apps/api/src/bootstrap.js";
 import { ProblemDetailsSchema } from "../../apps/api/src/contracts/v1/common/problem-details.schema.js";
 import {
   AgencyRegistrationListSchema,
+  AgencyRegistrationDocumentListSchema,
   AgencyRegistrationDetailsSchema,
   AgencyRegistrationSchema,
   SubmitAgencyRegistrationResponseSchema,
@@ -103,6 +104,18 @@ function registration(
 const document = {
   documentType: "REGISTRATION_CERTIFICATE",
   uploadId: UPLOAD_ID,
+};
+
+const retrievedDocument = {
+  documentId: DOCUMENT_ID,
+  registrationId: REGISTRATION_ID,
+  documentType: "REGISTRATION_CERTIFICATE",
+  storageKey: "agency-registration/test/rccm.pdf",
+  originalFilename: "rccm.pdf",
+  mimeType: "application/pdf",
+  sizeBytes: DOCUMENT_CONTENT.byteLength,
+  checksumSha256: DOCUMENT_CHECKSUM,
+  createdAt: NOW,
 };
 
 const submitBody = {
@@ -229,23 +242,14 @@ describe("Agency registrations HTTP", () => {
         retrieveAgencyRegistration: {
           execute: vi.fn(async () => ({
             registration: current,
-            documents: [],
+            documents: [retrievedDocument],
           })),
         },
 
         retrieveAgencyRegistrationDocumentContent: {
           execute: vi.fn(async () => ({
             document: {
-              documentId: DOCUMENT_ID,
-              registrationId: REGISTRATION_ID,
-              documentType: "REGISTRATION_CERTIFICATE",
-              storageKey:
-                "agency-registration/test/rccm.pdf",
-              originalFilename: "rccm.pdf",
-              mimeType: "application/pdf",
-              sizeBytes: DOCUMENT_CONTENT.byteLength,
-              checksumSha256: DOCUMENT_CHECKSUM,
-              createdAt: NOW,
+              ...retrievedDocument,
             },
             content: DOCUMENT_CONTENT,
           })),
@@ -697,10 +701,39 @@ describe("Agency registrations HTTP", () => {
 
     expect(response.status).toBe(200);
 
-    expect(
-      AgencyRegistrationDetailsSchema.parse(await response.json())
-        .registrationId,
-    ).toBe(REGISTRATION_ID);
+    const details = AgencyRegistrationDetailsSchema.parse(
+      await response.json(),
+    );
+
+    expect(details.registrationId).toBe(REGISTRATION_ID);
+    expect(details.documents).toEqual([
+      expect.objectContaining({
+        documentId: DOCUMENT_ID,
+        sizeBytes: DOCUMENT_CONTENT.byteLength,
+      }),
+    ]);
+    expect(typeof details.documents[0]?.sizeBytes).toBe("number");
+  });
+
+  it("lists registration documents with numeric sizes", async () => {
+    await start("platform");
+
+    const response = await fetch(
+      `${baseUrl}/v1/platform/agency-registrations/${REGISTRATION_ID}/documents`,
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = AgencyRegistrationDocumentListSchema.parse(
+      await response.json(),
+    );
+
+    expect(body.items).toEqual([
+      expect.objectContaining({
+        documentId: DOCUMENT_ID,
+        sizeBytes: DOCUMENT_CONTENT.byteLength,
+      }),
+    ]);
   });
 
   it("downloads an agency registration document with private binary headers", async () => {

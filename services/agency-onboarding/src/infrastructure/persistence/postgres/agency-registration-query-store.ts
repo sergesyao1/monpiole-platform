@@ -10,6 +10,9 @@ import {
 } from "./agency-registration-mapper.js";
 import { withAgencyOnboardingPostgresTransaction } from "./transaction.js";
 
+const MAX_AGENCY_REGISTRATION_DOCUMENT_SIZE_BYTES =
+  50 * 1024 * 1024;
+
 const SELECT_COLUMNS = `
   registration_id,
   status,
@@ -48,7 +51,7 @@ interface AgencyRegistrationDocumentRow
   readonly storage_key: string;
   readonly original_filename: string;
   readonly mime_type: string;
-  readonly size_bytes: number;
+  readonly size_bytes: string;
   readonly checksum_sha256: string;
   readonly created_at: Date;
 }
@@ -63,10 +66,31 @@ function toAgencyRegistrationDocument(
     storageKey: row.storage_key,
     originalFilename: row.original_filename,
     mimeType: row.mime_type,
-    sizeBytes: row.size_bytes,
+    sizeBytes: parseDocumentSizeBytes(row.size_bytes),
     checksumSha256: row.checksum_sha256,
     createdAt: row.created_at.toISOString(),
   });
+}
+
+function parseDocumentSizeBytes(value: string): number {
+  if (!/^[1-9]\d*$/u.test(value)) {
+    throw new Error(
+      "Agency registration document size_bytes must be a positive integer",
+    );
+  }
+
+  const sizeBytes = Number(value);
+
+  if (
+    !Number.isSafeInteger(sizeBytes) ||
+    sizeBytes > MAX_AGENCY_REGISTRATION_DOCUMENT_SIZE_BYTES
+  ) {
+    throw new Error(
+      "Agency registration document size_bytes is outside the supported range",
+    );
+  }
+
+  return sizeBytes;
 }
 
 export class PostgresAgencyRegistrationQueryStore
