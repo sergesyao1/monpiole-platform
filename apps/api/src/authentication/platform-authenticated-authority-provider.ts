@@ -37,8 +37,14 @@ export class PlatformExternalAuthorityResolver
       context.issuer === this.platform.issuer &&
       this.platform.subjects.includes(context.subject)
     ) {
+      const canonicalIdentity = await this.fallback.resolve(context);
+
+      if (canonicalIdentity === undefined) {
+        return undefined;
+      }
+
       return {
-        actorId: `platform:${context.subject}`,
+        actorId: canonicalIdentity.actorId,
         authorityId: `platform:${context.subject}`,
         grants: PLATFORM_AGENCY_ONBOARDING_GRANTS,
         tenantIds: Object.freeze([]),

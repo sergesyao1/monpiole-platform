@@ -205,6 +205,74 @@ async function activateTenant(tenantId: string) {
 }
 
 describe("API PostgreSQL Identity runtime composition", () => {
+  it("resolves a platform reviewer to its canonical identity before persisting review provenance", async () => {
+    const tenantId = "11111111-1111-4111-8111-111111111111";
+    const reviewerId = "22222222-2222-4222-8222-222222222222";
+    const registrationId = "33333333-3333-4333-8333-333333333333";
+    const issuer = "https://login.runtime.test/";
+    const subject = "auth0|platform-reviewer";
+    const submittedAt = "2026-09-19T12:00:00.000Z";
+
+    await ownerPool.query(`INSERT INTO tenant_management.tenants
+      (id, organization_name, responsible_person_name, responsible_email, responsible_telephone, country,
+       lifecycle_state, created_at, correlation_id, actor_id, authority_id, activated_at)
+      VALUES ($1,'Plateforme Runtime','Reviewer Runtime','reviewer@example.invalid','+2250102030405','CI',
+        'ACTIVE',$2,$3,'bootstrap','bootstrap',$2)`, [tenantId, submittedAt, CORRELATION_ID]);
+    await ownerPool.query(`INSERT INTO identity.identities
+      (id, tenant_id, email, first_name, last_name, status, correlation_id)
+      VALUES ($1,$2,'reviewer@example.invalid','Platform','Reviewer','ACTIVE',$3)`,
+    [reviewerId, tenantId, CORRELATION_ID]);
+    await ownerPool.query(`INSERT INTO identity.tenant_memberships
+      (tenant_id, identity_id, role, correlation_id) VALUES ($1,$2,'TENANT_ADMINISTRATOR',$3)`,
+    [tenantId, reviewerId, CORRELATION_ID]);
+    await ownerPool.query(`INSERT INTO agency_onboarding.agency_registrations
+      (registration_id,status,agency_legal_name,agency_trade_name,registration_number,tax_identifier,
+       phone,email,website,address,city,country_code,contact_first_name,contact_last_name,contact_email,
+       contact_phone,submitted_at,review_started_at,reviewed_by_identity_id,approved_at,rejected_at,
+       rejection_reason,approval_provisioning_started_at,provisioned_tenant_id,created_at,updated_at,correlation_id)
+      VALUES ($1,'SUBMITTED','Agence à revoir',NULL,'CI-REVIEW-001',NULL,'+2250102030405',
+        'agency@example.invalid',NULL,'Cocody','Abidjan','CI','Awa','Runtime',
+        'awa@example.invalid','+2250506070809',$2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,$2,$2,$3)`,
+    [registrationId, submittedAt, CORRELATION_ID]);
+
+    const accessTokenVerifier = { verify: async (token: string) => {
+      if (token !== "platform-token") throw new Error("invalid token");
+      return { issuer, subject, authenticationMethods: [] };
+    } };
+    runtime = createPostgresApiRuntime({
+      ...runtimeEnvironment(),
+      PLATFORM_AUTHORITY_SUBJECTS: subject,
+    }, { accessTokenVerifier });
+    await runtime.externalIdentityStore.link(ExternalIdentity.create({
+      issuer,
+      subject,
+      internalIdentityId: reviewerId,
+      tenantId,
+      createdAt: submittedAt,
+    }));
+    application = await createApiApplication({ logger: false }, runtime.composition);
+    await listen();
+
+    const review = () => fetch(`${baseUrl}/v1/platform/agency-registrations/${registrationId}/review`, {
+      method: "POST",
+      headers: { authorization: "Bearer platform-token" },
+    });
+    expect((await review()).status).toBe(200);
+    expect((await review()).status).toBe(200);
+
+    const persisted = (await ownerPool.query<{
+      status: string;
+      reviewed_by_identity_id: string;
+      review_started_at: Date | null;
+    }>(`SELECT status, reviewed_by_identity_id, review_started_at
+          FROM agency_onboarding.agency_registrations
+         WHERE registration_id = $1`, [registrationId])).rows[0];
+    expect(persisted).toMatchObject({
+      status: "UNDER_REVIEW",
+      reviewed_by_identity_id: reviewerId,
+      review_started_at: expect.any(Date),
+    });
+  });
   it("bootstraps the first active tenant authority once through approved use cases", async () => {
     const tenantId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
     const identityId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";

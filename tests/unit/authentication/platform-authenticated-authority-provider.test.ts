@@ -10,8 +10,15 @@ import {
 
 describe("PlatformExternalAuthorityResolver", () => {
   it("resolves a configured OIDC subject as a platform authority", async () => {
+    const canonicalIdentityId =
+      "b06652ce-98a9-4bb1-afe6-eaeda8eb8b83";
     const fallback: ExternalIdentityAuthorityResolver = {
-      resolve: vi.fn(),
+      resolve: vi.fn().mockResolvedValue({
+        actorId: canonicalIdentityId,
+        authorityId: canonicalIdentityId,
+        grants: [] as const,
+        tenantIds: ["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"],
+      }),
     };
 
     const resolver = new PlatformExternalAuthorityResolver(
@@ -29,17 +36,41 @@ describe("PlatformExternalAuthorityResolver", () => {
     });
 
     expect(authority).toEqual({
-      actorId: "platform:auth0|platform-reviewer",
+      actorId: canonicalIdentityId,
       authorityId: "platform:auth0|platform-reviewer",
       grants: [
         "RETRIEVE_AGENCY_REGISTRATIONS",
         "REVIEW_AGENCY_REGISTRATIONS",
         "DECIDE_AGENCY_REGISTRATIONS",
+        "MANAGE_AGENCY_ADMIN_BOOTSTRAP",
       ],
       tenantIds: [],
     });
 
-    expect(fallback.resolve).not.toHaveBeenCalled();
+    expect(fallback.resolve).toHaveBeenCalledWith({
+      issuer: "https://issuer.example/",
+      subject: "auth0|platform-reviewer",
+      authenticationMethods: [],
+    });
+  });
+
+  it("fails closed when a configured platform subject has no canonical identity", async () => {
+    const fallback: ExternalIdentityAuthorityResolver = {
+      resolve: vi.fn().mockResolvedValue(undefined),
+    };
+    const resolver = new PlatformExternalAuthorityResolver(
+      {
+        issuer: "https://issuer.example/",
+        subjects: ["auth0|unlinked-reviewer"],
+      },
+      fallback,
+    );
+
+    await expect(resolver.resolve({
+      issuer: "https://issuer.example/",
+      subject: "auth0|unlinked-reviewer",
+      authenticationMethods: [],
+    })).resolves.toBeUndefined();
   });
 
   it("falls back for an OIDC subject that is not configured as platform", async () => {
