@@ -35,6 +35,11 @@ function SessionProbe() {
   return <><span>{session.status}</span><button onClick={() => void session.login()}>login</button><button onClick={() => void session.logout()}>logout</button><button onClick={() => void session.getAccessToken(true)}>token</button></>;
 }
 
+function ContinuationProbe() {
+  const session = useSession();
+  return <><span>{session.loginContinuation?.activationBootstrapToken ?? "none"}</span><button onClick={() => void session.login("/activation-agence", { activationBootstrapToken: "secret-once" })}>activate</button></>;
+}
+
 describe("frontière de session Auth0", () => {
   beforeEach(() => {
     auth0.state = {};
@@ -83,5 +88,16 @@ describe("frontière de session Auth0", () => {
     expect(auth0.loginWithRedirect).toHaveBeenCalledWith({ appState: { returnTo: "/biens?vue=liste" } });
     expect(auth0.logout).toHaveBeenCalledWith({ logoutParams: { returnTo: config.logoutReturnUri } });
     expect(auth0.getAccessTokenSilently).toHaveBeenCalledWith({ cacheMode: "off" });
+  });
+
+  it("transporte la continuation d’activation dans appState sans l’ajouter à l’URL", async () => {
+    render(<Auth0SessionProvider config={config}><ContinuationProbe /></Auth0SessionProvider>);
+    fireEvent.click(screen.getByRole("button", { name: "activate" }));
+    expect(auth0.loginWithRedirect).toHaveBeenCalledWith({ appState: { returnTo: "/activation-agence", activationBootstrapToken: "secret-once" } });
+
+    const onRedirectCallback = auth0.providerProps.onRedirectCallback as (state?: { returnTo?: string; activationBootstrapToken?: string }) => void;
+    onRedirectCallback({ returnTo: "/activation-agence", activationBootstrapToken: "secret-once" });
+    expect(await screen.findByText("secret-once")).toBeInTheDocument();
+    expect(window.location.search).toBe("");
   });
 });

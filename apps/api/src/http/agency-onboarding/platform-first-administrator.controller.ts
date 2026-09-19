@@ -12,10 +12,15 @@ import {
   Req,
 } from "@nestjs/common";
 import {
+  ApiBadRequestResponse,
+  ApiConflictResponse,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
   ApiOperation,
   ApiSecurity,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 import {
   createZodDto,
@@ -87,6 +92,11 @@ export class PlatformFirstAdministratorController {
   @ApiCreatedResponse({
     type: CreateFirstAdministratorResponseDto,
   })
+  @ApiBadRequestResponse({ description: "Invalid registration identifier or request" })
+  @ApiUnauthorizedResponse({ description: "Missing or invalid bearer authentication" })
+  @ApiForbiddenResponse({ description: "Platform authorization required" })
+  @ApiNotFoundResponse({ description: "Agency registration not found" })
+  @ApiConflictResponse({ description: "Registration is not ready or first administrator already exists" })
   @ZodSerializerDto(CreateFirstAdministratorResponseDto)
   public async create(
     @Param() path: CreateFirstAdministratorPathDto,

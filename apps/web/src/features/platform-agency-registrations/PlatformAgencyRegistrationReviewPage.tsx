@@ -8,6 +8,7 @@ import { Link, useParams } from "react-router";
 
 import { useSession } from "../../auth/session.js";
 import { ApiForbiddenError } from "../../infrastructure/http/api-client.js";
+import { ApiProblem } from "../../infrastructure/http/problem-details.js";
 import {
   Alert,
   Button,
@@ -22,6 +23,7 @@ import type {
   PlatformAgencyRegistrationDetails,
   PlatformAgencyRegistrationDocument,
   PlatformAgencyRegistrationStatus,
+  FirstAgencyAdministrator,
 } from "./platform-agency-registration-model.js";
 
 const statusLabels: Record<PlatformAgencyRegistrationStatus, string> = {
@@ -51,13 +53,16 @@ export function PlatformAgencyRegistrationReviewPage() {
     useState<PlatformAgencyRegistrationDetails>();
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<
-    "review" | "approve" | "reject" | undefined
+    "review" | "approve" | "reject" | "administrator" | undefined
   >();
   const [downloadingDocumentId, setDownloadingDocumentId] =
     useState<string>();
   const [error, setError] = useState<string>();
   const [success, setSuccess] = useState<string>();
   const [showRejectionForm, setShowRejectionForm] = useState(false);
+  const [showAdministratorForm, setShowAdministratorForm] = useState(false);
+  const [administrator, setAdministrator] = useState<FirstAgencyAdministrator>();
+  const [invitationCopied, setInvitationCopied] = useState(false);
 
   async function load() {
     if (!registrationId) {
@@ -241,6 +246,43 @@ export function PlatformAgencyRegistrationReviewPage() {
       );
     } finally {
       setDownloadingDocumentId(undefined);
+    }
+  }
+
+  async function createFirstAdministrator(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!registrationId || busyAction) return;
+    const form = new FormData(event.currentTarget);
+    const input = {
+      firstName: String(form.get("firstName") ?? "").trim(),
+      lastName: String(form.get("lastName") ?? "").trim(),
+      email: String(form.get("email") ?? "").trim(),
+    };
+    if (!input.firstName || !input.lastName || !input.email) {
+      setError("Le prénom, le nom et l’email sont obligatoires.");
+      return;
+    }
+    setBusyAction("administrator");
+    setError(undefined);
+    setSuccess(undefined);
+    try {
+      const created = await api.createFirstAdministrator(registrationId, input);
+      setAdministrator(created);
+      setShowAdministratorForm(false);
+      setSuccess(created.bootstrapToken ? "Le premier administrateur a été créé." : "Le premier administrateur existe déjà.");
+    } catch (error) {
+      setError(firstAdministratorError(error));
+    } finally {
+      setBusyAction(undefined);
+    }
+  }
+
+  async function copyInvitation(invitationUrl: string) {
+    try {
+      await navigator.clipboard.writeText(invitationUrl);
+      setInvitationCopied(true);
+    } catch {
+      setError("Impossible de copier le lien automatiquement. Sélectionnez-le et copiez-le manuellement.");
     }
   }
 
@@ -445,6 +487,31 @@ export function PlatformAgencyRegistrationReviewPage() {
           )}
       </section>
 
+      {registration.status === "APPROVED" && (
+        <section className="content-panel" aria-labelledby="first-administrator-title">
+          <div className="section-heading"><div><p className="eyebrow">Mise en service</p><h2 id="first-administrator-title">Premier administrateur</h2></div></div>
+          {!registration.provisionedTenantId ? (
+            <Alert tone="warning" title="Espace agence en cours de préparation"><p>La création de l’administrateur sera disponible dès que l’espace agence aura été provisionné.</p></Alert>
+          ) : administrator?.bootstrapToken ? (
+            <InvitationResult administrator={administrator} copied={invitationCopied} onCopy={copyInvitation} />
+          ) : administrator ? (
+            <Alert tone="info" title="Administrateur déjà créé"><p>L’invitation initiale a déjà été produite. Pour des raisons de sécurité, son secret ne peut pas être affiché à nouveau.</p></Alert>
+          ) : showAdministratorForm ? (
+            <form className="compact-form" onSubmit={createFirstAdministrator}>
+              <Field label="Prénom(s)"><input name="firstName" required maxLength={120} autoComplete="given-name" /></Field>
+              <Field label="Nom"><input name="lastName" required maxLength={120} autoComplete="family-name" /></Field>
+              <Field label="Email"><input name="email" type="email" required maxLength={320} autoComplete="email" /></Field>
+              <div className="form-actions">
+                <Button type="submit" loading={busyAction === "administrator"} loadingLabel="Création…">Créer le premier administrateur</Button>
+                <Button variant="secondary" disabled={busyAction !== undefined} onClick={() => setShowAdministratorForm(false)}>Annuler</Button>
+              </div>
+            </form>
+          ) : (
+            <div className="form-actions"><Button onClick={() => { setError(undefined); setShowAdministratorForm(true); }}>Créer le premier administrateur</Button></div>
+          )}
+        </section>
+      )}
+
       <section className="content-panel">
         <div className="section-heading">
           <div>
@@ -583,6 +650,18 @@ export function PlatformAgencyRegistrationReviewPage() {
       </section>
     </div>
   );
+}
+
+function InvitationResult({ administrator, copied, onCopy }: { readonly administrator: FirstAgencyAdministrator; readonly copied: boolean; readonly onCopy: (url: string) => Promise<void> }) {
+  const invitationUrl = `${window.location.origin}/activation-agence?token=${encodeURIComponent(administrator.bootstrapToken ?? "")}`;
+  return <Alert tone="success" title="Invitation créée"><p>Ce lien d’activation contient un secret affiché une seule fois. Transmettez-le de manière sécurisée.</p><Field label="Lien d’activation"><input value={invitationUrl} readOnly onFocus={(event) => event.currentTarget.select()} /></Field><Button variant="secondary" onClick={() => void onCopy(invitationUrl)}>Copier le lien d’activation</Button>{copied ? <p role="status">Lien copié.</p> : null}<p>Valable jusqu’au {new Date(administrator.bootstrapTokenExpiresAt).toLocaleString("fr-FR")}.</p></Alert>;
+}
+
+function firstAdministratorError(error: unknown): string {
+  if (error instanceof ApiForbiddenError) return "Vous n’êtes pas autorisé à créer le premier administrateur.";
+  if (error instanceof ApiProblem && error.problem.status === 409) return "Le premier administrateur ne peut pas être créé dans l’état actuel du dossier.";
+  if (error instanceof ApiProblem && error.problem.status === 404) return "Cette inscription agence est introuvable.";
+  return "Impossible de créer le premier administrateur. Réessayez.";
 }
 
 function formatFileSize(sizeBytes: number) {

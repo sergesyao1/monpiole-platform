@@ -64,3 +64,19 @@ export interface PlatformAgencyRegistrationList {
 export interface RejectPlatformAgencyRegistrationInput {
   readonly rejectionReason: string;
 }
+
+export interface CreateFirstAgencyAdministratorInput {
+  readonly firstName: string;
+  readonly lastName: string;
+  readonly email: string;
+}
+
+export interface FirstAgencyAdministrator {
+  readonly registrationId: string;
+  readonly tenantId: string;
+  readonly administratorId: string;
+  readonly role: "TENANT_ADMINISTRATOR";
+  readonly status: "PENDING_IDENTITY";
+  readonly bootstrapToken?: string;
+  readonly bootstrapTokenExpiresAt: string;
+}

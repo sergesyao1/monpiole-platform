@@ -211,4 +211,15 @@ describe("PlatformAgencyRegistrationApi", () => {
       "Bearer platform-access-token",
     );
   });
+
+  it("crée le premier administrateur avec les seuls champs publics du formulaire", async () => {
+    const registrationId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({ status: "PENDING_IDENTITY" }, 201));
+    const api = createPlatformAgencyRegistrationApi(createTokens());
+    await api.createFirstAdministrator(registrationId, { firstName: "Awa", lastName: "Koné", email: "awa@example.test" });
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toBe(`http://localhost:3000/v1/platform/agency-registrations/${registrationId}/first-administrator`);
+    expect(init?.method).toBe("POST");
+    expect(JSON.parse(String(init?.body))).toEqual({ firstName: "Awa", lastName: "Koné", email: "awa@example.test" });
+  });
 });

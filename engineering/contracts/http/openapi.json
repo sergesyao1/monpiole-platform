@@ -8382,6 +8382,21 @@
               }
             },
             "description": ""
+          },
+          "400": {
+            "description": "Invalid registration identifier or request"
+          },
+          "401": {
+            "description": "Missing or invalid bearer authentication"
+          },
+          "403": {
+            "description": "Platform authorization required"
+          },
+          "404": {
+            "description": "Agency registration not found"
+          },
+          "409": {
+            "description": "Registration is not ready or first administrator already exists"
           }
         },
         "security": [

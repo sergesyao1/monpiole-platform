@@ -558,4 +558,39 @@ describe("Revue d'une inscription agence", () => {
     expect(findRequest(fetcher, actionPath)).toBeUndefined();
     expect(screen.getByText("En cours de revue")).toBeVisible();
   });
+
+  it("crée le premier administrateur et présente l’invitation une seule fois", async () => {
+    const approved = { ...baseRegistration, status: "APPROVED", approvedAt: "2026-09-18T09:30:00.000Z", provisionedTenantId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" };
+    const actionPath = `/v1/platform/agency-registrations/${registrationId}/first-administrator`;
+    const fetcher = createReviewFetcher({ initialRegistration: approved, actionPath, actionStatus: 201, actionResponse: { registrationId, tenantId: approved.provisionedTenantId, administratorId: "ffffffff-ffff-4fff-8fff-ffffffffffff", role: "TENANT_ADMINISTRATOR", status: "PENDING_IDENTITY", bootstrapToken: "one-time-secret", bootstrapTokenExpiresAt: "2026-09-20T09:30:00.000Z" } });
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    show(fetcher as typeof fetch);
+    fireEvent.click(await screen.findByRole("button", { name: "Créer le premier administrateur" }));
+    fireEvent.change(screen.getByLabelText("Prénom(s)"), { target: { value: "  Awa  " } });
+    fireEvent.change(screen.getByLabelText("Nom"), { target: { value: "  Koné  " } });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "  awa@example.test  " } });
+    fireEvent.click(screen.getByRole("button", { name: "Créer le premier administrateur" }));
+    expect(await screen.findByText("Ce lien d’activation contient un secret affiché une seule fois. Transmettez-le de manière sécurisée.")).toBeVisible();
+    const request = await waitFor(() => findRequest(fetcher, actionPath));
+    expect(JSON.parse(String((request?.[1] as RequestInit | undefined)?.body))).toEqual({ firstName: "Awa", lastName: "Koné", email: "awa@example.test" });
+    expect(String((request?.[1] as RequestInit | undefined)?.body)).not.toContain("tenantId");
+    fireEvent.click(screen.getByRole("button", { name: "Copier le lien d’activation" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/activation-agence?token=one-time-secret`));
+    expect(await screen.findByText("Lien copié.")).toBeVisible();
+  });
+
+  it("explique qu’un replay ne permet pas de récupérer le secret initial", async () => {
+    const approved = { ...baseRegistration, status: "APPROVED", approvedAt: "2026-09-18T09:30:00.000Z", provisionedTenantId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" };
+    const actionPath = `/v1/platform/agency-registrations/${registrationId}/first-administrator`;
+    const fetcher = createReviewFetcher({ initialRegistration: approved, actionPath, actionStatus: 201, actionResponse: { registrationId, tenantId: approved.provisionedTenantId, administratorId: "ffffffff-ffff-4fff-8fff-ffffffffffff", role: "TENANT_ADMINISTRATOR", status: "PENDING_IDENTITY", bootstrapTokenExpiresAt: "2026-09-20T09:30:00.000Z" } });
+    show(fetcher as typeof fetch);
+    fireEvent.click(await screen.findByRole("button", { name: "Créer le premier administrateur" }));
+    fireEvent.change(screen.getByLabelText("Prénom(s)"), { target: { value: "Awa" } });
+    fireEvent.change(screen.getByLabelText("Nom"), { target: { value: "Koné" } });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "awa@example.test" } });
+    fireEvent.click(screen.getByRole("button", { name: "Créer le premier administrateur" }));
+    expect(await screen.findByText(/son secret ne peut pas être affiché à nouveau/)).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Copier le lien d’activation" })).not.toBeInTheDocument();
+  });
 });

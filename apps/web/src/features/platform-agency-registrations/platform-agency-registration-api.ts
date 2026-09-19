@@ -8,6 +8,8 @@ import type {
   PlatformAgencyRegistration,
   PlatformAgencyRegistrationDetails,
   PlatformAgencyRegistrationList,
+  CreateFirstAgencyAdministratorInput,
+  FirstAgencyAdministrator,
   RejectPlatformAgencyRegistrationInput,
 } from "./platform-agency-registration-model.js";
 
@@ -36,6 +38,11 @@ export interface PlatformAgencyRegistrationApi {
   readonly approveRegistration: (
     registrationId: string,
   ) => Promise<PlatformAgencyRegistration>;
+
+  readonly createFirstAdministrator: (
+    registrationId: string,
+    input: CreateFirstAgencyAdministratorInput,
+  ) => Promise<FirstAgencyAdministrator>;
 }
 
 export function createPlatformAgencyRegistrationApi(
@@ -83,6 +90,12 @@ export function createPlatformAgencyRegistrationApi(
         {
           method: "POST",
         },
+      ),
+
+    createFirstAdministrator: (registrationId, input) =>
+      requestJson<FirstAgencyAdministrator>(
+        `/v1/platform/agency-registrations/${registrationId}/first-administrator`,
+        { method: "POST", body: input },
       ),
   };
 }
