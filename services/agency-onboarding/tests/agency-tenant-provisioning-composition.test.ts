@@ -95,7 +95,7 @@ function registration(): AgencyRegistration {
     contactLastName: "Koné",
     contactEmail:
       `contact-${randomUUID()}@example.invalid`,
-    contactPhone: "+2250506070809",
+    contactPhone: "0506070809",
     submittedAt: now,
     createdAt: now,
     updatedAt: now,
@@ -395,6 +395,7 @@ describe(
             lifecycle_state: string;
             organization_name: string;
             responsible_email: string;
+            responsible_telephone: string;
             actor_id: string;
             authority_id: string;
           }>(`
@@ -403,6 +404,7 @@ describe(
               lifecycle_state,
               organization_name,
               responsible_email,
+              responsible_telephone,
               actor_id,
               authority_id
             FROM tenant_management.tenants
@@ -417,6 +419,8 @@ describe(
             value.agencyLegalName,
           responsible_email:
             value.contactEmail.toLowerCase(),
+            responsible_telephone:
+              "+2250506070809",
           actor_id:
             "system:agency-tenant-provisioning",
           authority_id:

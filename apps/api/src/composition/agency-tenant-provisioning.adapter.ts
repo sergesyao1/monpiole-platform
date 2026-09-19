@@ -7,6 +7,35 @@ import type {
   PlatformAuthority,
 } from "@monpiole/tenant-management";
 
+const E164_PHONE = /^\+[1-9][0-9]{1,14}$/;
+const COTE_DIVOIRE_COUNTRY_CODE = "CI";
+const COTE_DIVOIRE_CALLING_CODE = "+225";
+const COTE_DIVOIRE_NATIONAL_PHONE = /^0[0-9]{9}$/;
+
+export function canonicalizeAgencyContactPhone(
+  phone: string,
+  countryCode: string,
+): string {
+  const normalizedPhone = phone.trim();
+
+  if (E164_PHONE.test(normalizedPhone)) {
+    return normalizedPhone;
+  }
+
+  const normalizedCountryCode =
+    countryCode.trim().toUpperCase();
+
+  if (
+    normalizedCountryCode === COTE_DIVOIRE_COUNTRY_CODE &&
+    COTE_DIVOIRE_NATIONAL_PHONE.test(normalizedPhone)
+  ) {
+    return `${COTE_DIVOIRE_CALLING_CODE}${normalizedPhone}`;
+  }
+
+  throw new Error(
+    "Agency contact phone cannot be canonicalized to E.164",
+  );
+}
 const AGENCY_TENANT_PROVISIONING_AUTHORITY: PlatformAuthority =
   Object.freeze({
     actorId: "system:agency-tenant-provisioning",
@@ -40,7 +69,10 @@ export class AgencyTenantProvisioningAdapter
       organizationName: registration.agencyLegalName,
       responsiblePersonName,
       responsibleEmail: registration.contactEmail,
-      responsibleTelephone: registration.contactPhone,
+      responsibleTelephone: canonicalizeAgencyContactPhone(
+        registration.contactPhone,
+        registration.countryCode,
+      ),
       country: registration.countryCode,
       correlationId: registration.correlationId,
       idempotencyKey: input.idempotencyKey,
