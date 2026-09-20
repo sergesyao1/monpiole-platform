@@ -46,8 +46,13 @@ export class PlatformExternalAuthorityResolver
       return {
         actorId: canonicalIdentity.actorId,
         authorityId: `platform:${context.subject}`,
-        grants: PLATFORM_AGENCY_ONBOARDING_GRANTS,
-        tenantIds: Object.freeze([]),
+        grants: Object.freeze([
+          ...new Set([
+            ...canonicalIdentity.grants,
+            ...PLATFORM_AGENCY_ONBOARDING_GRANTS,
+          ]),
+        ]),
+        tenantIds: canonicalIdentity.tenantIds,
       };
     }
 

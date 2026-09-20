@@ -7,17 +7,26 @@ import {
   PlatformExternalAuthorityResolver,
   platformSubjectAuthorityConfigurationFromEnvironment,
 } from "../../../apps/api/src/authentication/platform-authenticated-authority-provider.js";
+import {
+  toPropertyAuthority,
+} from "../../../apps/api/src/http/authenticated-authority/authenticated-authority.js";
 
 describe("PlatformExternalAuthorityResolver", () => {
-  it("resolves a configured OIDC subject as a platform authority", async () => {
+  it("composes canonical tenant authority with explicit platform grants", async () => {
     const canonicalIdentityId =
       "b06652ce-98a9-4bb1-afe6-eaeda8eb8b83";
     const fallback: ExternalIdentityAuthorityResolver = {
       resolve: vi.fn().mockResolvedValue({
         actorId: canonicalIdentityId,
         authorityId: canonicalIdentityId,
-        grants: [] as const,
-        tenantIds: ["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"],
+        grants: [
+          "LIST_PROPERTY_OWNERS",
+          "RETRIEVE_AGENCY_REGISTRATIONS",
+        ] as const,
+        tenantIds: [
+          "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        ],
       }),
     };
 
@@ -39,12 +48,31 @@ describe("PlatformExternalAuthorityResolver", () => {
       actorId: canonicalIdentityId,
       authorityId: "platform:auth0|platform-reviewer",
       grants: [
+        "LIST_PROPERTY_OWNERS",
         "RETRIEVE_AGENCY_REGISTRATIONS",
         "REVIEW_AGENCY_REGISTRATIONS",
         "DECIDE_AGENCY_REGISTRATIONS",
         "MANAGE_AGENCY_ADMIN_BOOTSTRAP",
       ],
-      tenantIds: [],
+      tenantIds: [
+        "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      ],
+    });
+
+    expect(authority).not.toBeUndefined();
+    if (authority === undefined) {
+      throw new Error("Expected composed platform authority");
+    }
+    expect(new Set(authority.grants).size).toBe(authority.grants.length);
+    expect(toPropertyAuthority(authority)).toEqual({
+      actorId: canonicalIdentityId,
+      authorityId: "platform:auth0|platform-reviewer",
+      grants: ["LIST_PROPERTY_OWNERS"],
+      tenantIds: [
+        "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      ],
     });
 
     expect(fallback.resolve).toHaveBeenCalledWith({
@@ -52,6 +80,42 @@ describe("PlatformExternalAuthorityResolver", () => {
       subject: "auth0|platform-reviewer",
       authenticationMethods: [],
     });
+  });
+
+  it("does not invent tenant grants for a platform subject", async () => {
+    const fallback: ExternalIdentityAuthorityResolver = {
+      resolve: vi.fn().mockResolvedValue({
+        actorId: "identity-1",
+        authorityId: "identity-1",
+        grants: ["RETRIEVE_PROPERTY"] as const,
+        tenantIds: ["tenant-1"],
+      }),
+    };
+    const resolver = new PlatformExternalAuthorityResolver(
+      {
+        issuer: "https://issuer.example/",
+        subjects: ["auth0|platform-reviewer"],
+      },
+      fallback,
+    );
+
+    const authority = await resolver.resolve({
+      issuer: "https://issuer.example/",
+      subject: "auth0|platform-reviewer",
+      authenticationMethods: [],
+    });
+
+    expect(authority).not.toBeUndefined();
+    if (authority === undefined) {
+      throw new Error("Expected composed platform authority");
+    }
+    expect(authority.grants).toContain("RETRIEVE_PROPERTY");
+    expect(authority.grants).not.toContain("LIST_PROPERTY_OWNERS");
+    expect(authority.grants).not.toContain("CREATE_TENANT");
+    expect(authority.tenantIds).toEqual(["tenant-1"]);
+    expect(toPropertyAuthority(authority).grants).toEqual([
+      "RETRIEVE_PROPERTY",
+    ]);
   });
 
   it("fails closed when a configured platform subject has no canonical identity", async () => {
