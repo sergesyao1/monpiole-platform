@@ -18,12 +18,13 @@ function show(fetcher: typeof fetch, entry = "/demandes") {
   return router;
 }
 function response(value: unknown, status = 200) { return new Response(JSON.stringify(value), { status, headers: { "content-type": status >= 400 ? "application/problem+json" : "application/json" } }); }
+function isPlatformProbe(input: RequestInfo | URL) { return String(input).includes("/v1/authentication/authorization/platform-agency-registration-read"); }
 
 describe("Demandes workspace", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("affiche les contrôles, le compteur et les destinations des parcours", async () => {
-    const fetcher = vi.fn(async (_input: RequestInfo | URL) => response(page([inquiryItem, item])));
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => isPlatformProbe(input) ? new Response(null, { status: 403 }) : response(page([inquiryItem, item])));
     show(fetcher as typeof fetch);
     expect(await screen.findByText("2 résultats")).toBeVisible();
     expect(screen.getByPlaceholderText("Rechercher un nom, téléphone, email, bien...")).toBeVisible();
@@ -34,11 +35,18 @@ describe("Demandes workspace", () => {
     const links = screen.getAllByRole("link", { name: "Ouvrir" });
     expect(links[0]).toHaveAttribute("href", `/properties/${inquiryItem.propertyId}#property-inquiries`);
     expect(links[1]).toHaveAttribute("href", `/properties/${item.propertyId}#property-applications`);
-    expect(String(fetcher.mock.calls[0]?.[0])).toMatch(/sort=RECENT/u);
+    expect(fetcher.mock.calls.some(([input]) => /sort=RECENT/u.test(String(input)))).toBe(true);
   });
 
   it("applique les filtres dans l’URL, distingue l’état sans résultat et réinitialise", async () => {
-    const fetcher = vi.fn().mockResolvedValueOnce(response(page([item]))).mockResolvedValueOnce(response({ ...page([]), totalCount: 0 })).mockResolvedValueOnce(response(page([item])));
+    let journeyRequestCount = 0;
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      if (isPlatformProbe(input)) return new Response(null, { status: 403 });
+      journeyRequestCount += 1;
+      if (journeyRequestCount === 1) return response(page([item]));
+      if (journeyRequestCount === 2) return response({ ...page([]), totalCount: 0 });
+      return response(page([item]));
+    });
     const router = show(fetcher as typeof fetch);
     fireEvent.change(await screen.findByPlaceholderText("Rechercher un nom, téléphone, email, bien..."), { target: { value: "  Traoré  " } });
     fireEvent.change(screen.getByLabelText("Bien"), { target: { value: item.propertyId } });
@@ -48,7 +56,7 @@ describe("Demandes workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Filtrer" }));
     expect(await screen.findByText("Aucun résultat ne correspond à vos critères.")).toBeVisible();
     expect(router.state.location.search).toContain("q=Traor%C3%A9");
-    await waitFor(() => expect(String(fetcher.mock.calls[1]?.[0])).toContain("stage=SUBMITTED_APPLICATION"));
+    await waitFor(() => expect(fetcher.mock.calls.some(([input]) => String(input).includes("stage=SUBMITTED_APPLICATION"))).toBe(true));
     fireEvent.click(screen.getAllByRole("button", { name: "Réinitialiser les filtres" })[0]!);
     await waitFor(() => expect(router.state.location.search).toBe(""));
     expect(await screen.findByText("Koffi Jean")).toBeVisible();
@@ -69,11 +77,17 @@ describe("Demandes workspace", () => {
   });
 
   it("pagine avec le curseur opaque et conserve les résultats en cas d’échec", async () => {
-    const fetcher = vi.fn().mockResolvedValueOnce(response({ ...page([item], "opaque.cursor"), totalCount: 2 })).mockRejectedValueOnce(new Error("network"));
+    let journeyRequestCount = 0;
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      if (isPlatformProbe(input)) return new Response(null, { status: 403 });
+      journeyRequestCount += 1;
+      if (journeyRequestCount === 1) return response({ ...page([item], "opaque.cursor"), totalCount: 2 });
+      throw new Error("network");
+    });
     show(fetcher as typeof fetch);
     fireEvent.click(await screen.findByRole("button", { name: "Afficher plus de demandes" }));
     expect(await screen.findByText("Les demandes déjà affichées restent disponibles.")).toBeVisible();
     expect(screen.getByText("Koffi Jean")).toBeVisible();
-    await waitFor(() => expect(String(fetcher.mock.calls[1]?.[0])).toContain("cursor=opaque.cursor"));
+    await waitFor(() => expect(fetcher.mock.calls.some(([input]) => String(input).includes("cursor=opaque.cursor"))).toBe(true));
   });
 });

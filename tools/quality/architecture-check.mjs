@@ -146,7 +146,7 @@ function cruise(paths, { allowViolations = false, minimumModules = 0 } = {}) {
       "--config", "tools/quality/dependency-cruiser.config.mjs",
       "--output-type", "json",
       ...paths,
-    ], { cwd: repositoryRoot, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    ], { cwd: repositoryRoot, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 16 * 1024 * 1024 });
     result = JSON.parse(output);
   } catch (error) {
     if (!error.stdout?.trim()) throw error;

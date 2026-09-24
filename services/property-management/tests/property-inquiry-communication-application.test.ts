@@ -44,7 +44,7 @@ function repository(
   overrides: Partial<PropertyInquiryCommunicationRepository> = {},
 ): PropertyInquiryCommunicationRepository {
   return {
-    record: vi.fn(async () => "CREATED"),
+    record: vi.fn(async () => "CREATED" as const),
     list: vi.fn(async () => ({
       items: [],
     })),
@@ -206,7 +206,7 @@ describe("Property inquiry communication application", () => {
   it("maps a missing inquiry while recording to application not found", async () => {
     const repo = repository({
       record: vi.fn(
-        async () => "INQUIRY_NOT_FOUND",
+        async () => "INQUIRY_NOT_FOUND" as const,
       ),
     });
 

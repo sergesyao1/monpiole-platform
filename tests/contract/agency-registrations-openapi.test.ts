@@ -8,6 +8,8 @@ interface OpenApiSchema {
   readonly required?: readonly string[];
   readonly properties?: Record<string, OpenApiSchema>;
   readonly items?: OpenApiSchema;
+  readonly minItems?: number;
+  readonly maxItems?: number;
   readonly $ref?: string;
 }
 
@@ -36,7 +38,7 @@ interface OpenApiPath {
 interface OpenApiDocument {
   readonly paths: Record<string, OpenApiPath>;
   readonly components: {
-    readonly schemas: Record<string, unknown>;
+    readonly schemas: Record<string, OpenApiSchema>;
   };
 }
 

@@ -15,6 +15,7 @@ const session: Session = { status: "authenticated", user: { name: "Jeanne Test" 
 function json(value: unknown, status = 200) { return new Response(JSON.stringify(value), { status, headers: { "content-type": status >= 400 ? "application/problem+json" : "application/json" } }); }
 function problem(status: number) { return json({ type: "https://api.monpiole.example/problems/test", title: "Erreur", status, code: "REQUEST_FAILED", correlationId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc" }, status); }
 function page(items: readonly PropertyOwner[], nextCursor: string | null = null) { return { items, pageInfo: { nextCursor, hasNextPage: nextCursor !== null } }; }
+function isPlatformProbe(input: RequestInfo | URL) { return String(input).includes("/v1/authentication/authorization/platform-agency-registration-read"); }
 function renderPath(path: string) { return render(<SessionContext value={session}><RouterProvider router={createMemoryRouter(applicationRoutes, { initialEntries: [path] })} /></SessionContext>); }
 
 afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
@@ -32,6 +33,7 @@ describe("annuaire Web des propriétaires", () => {
   it("affiche, recherche et pagine sans duplication avec les libellés français", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
+      if (isPlatformProbe(input)) return new Response(null, { status: 403 });
       if (url.includes("cursor=")) return json(page([individual, company]));
       if (url.includes("search=Introuvable")) return json(page([]));
       return json(page([individual], "opaque+/owner=="));
@@ -43,14 +45,21 @@ describe("annuaire Web des propriétaires", () => {
     fireEvent.click(screen.getByRole("button", { name: "Afficher plus de propriétaires" }));
     expect(await screen.findByRole("heading", { name: "Lagune Gestion" })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { name: "Awa Koné" })).toHaveLength(1);
-    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("cursor=opaque%2B%2Fowner%3D%3D");
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes("cursor=opaque%2B%2Fowner%3D%3D"))).toBe(true);
     fireEvent.change(screen.getByLabelText("Rechercher"), { target: { value: "Introuvable" } });
     fireEvent.click(screen.getByRole("button", { name: "Rechercher" }));
     expect(await screen.findByRole("heading", { name: "Aucun résultat" })).toBeInTheDocument();
   });
 
   it("conserve les résultats si la page suivante échoue", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(json(page([individual], "next"))).mockResolvedValueOnce(problem(500)));
+    let ownerRequestCount = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      if (isPlatformProbe(input)) return new Response(null, { status: 403 });
+      ownerRequestCount += 1;
+      return ownerRequestCount === 1
+        ? json(page([individual], "next"))
+        : problem(500);
+    }));
     renderPath("/proprietaires");
     fireEvent.click(await screen.findByRole("button", { name: "Afficher plus de propriétaires" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("déjà affichés restent disponibles");

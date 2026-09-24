@@ -8020,6 +8020,9 @@
           "401": {
             "description": "Missing or invalid bearer authentication"
           },
+          "403": {
+            "description": "Authenticated email does not match the invited administrator"
+          },
           "404": {
             "description": "Bootstrap token not found"
           },

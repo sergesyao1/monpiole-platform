@@ -2,12 +2,18 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   SubmitAgencyRegistration,
+  type SubmitAgencyRegistrationInput,
   type SubmitAgencyRegistrationStore,
 } from "../../../services/agency-onboarding/src/index.js";
 
 describe("SubmitAgencyRegistration", () => {
   it("creates a submitted registration and document metadata atomically", async () => {
-    const submit = vi.fn();
+    const submitted: SubmitAgencyRegistrationInput[] = [];
+    const submit: SubmitAgencyRegistrationStore["submit"] = vi.fn(
+      async (input) => {
+        submitted.push(input);
+      },
+    );
 
     const store: SubmitAgencyRegistrationStore = {
       submit,
@@ -58,12 +64,7 @@ describe("SubmitAgencyRegistration", () => {
       documents: [
         {
           documentType: "REGISTRATION_CERTIFICATE",
-          storageKey: "agency-registration/pending/rccm.pdf",
-          originalFilename: "rccm.pdf",
-          mimeType: "application/pdf",
-          sizeBytes: 125000,
-          checksumSha256:
-            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          uploadId: "44444444-4444-4444-8444-444444444444",
         },
       ],
 
@@ -83,22 +84,18 @@ describe("SubmitAgencyRegistration", () => {
         "33333333-3333-4333-8333-333333333333",
     });
 
-    expect(result.documents).toEqual([
-      expect.objectContaining({
+    expect(submitted).toEqual([{
+      registration: result.registration,
+      documents: [
+        {
         documentId:
           "22222222-2222-4222-8222-222222222222",
-        registrationId:
-          "11111111-1111-4111-8111-111111111111",
-        storageKey:
-          "agency-registration/pending/rccm.pdf",
-        createdAt: "2026-09-16T17:00:00.000Z",
-      }),
-    ]);
+          documentType: "REGISTRATION_CERTIFICATE",
+          uploadId: "44444444-4444-4444-8444-444444444444",
+        },
+      ],
+    }]);
 
     expect(submit).toHaveBeenCalledOnce();
-    expect(submit).toHaveBeenCalledWith({
-      registration: result.registration,
-      documents: result.documents,
-    });
   });
 });

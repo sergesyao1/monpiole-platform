@@ -45,6 +45,14 @@ function problem(status: number) {
   return json({ type: "https://api.monpiole.example/problems/test", title: "Erreur", status, code: "REQUEST_FAILED", correlationId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc" }, status);
 }
 
+function isPlatformProbe(input: RequestInfo | URL) {
+  return String(input).includes("/v1/authentication/authorization/platform-agency-registration-read");
+}
+
+function isPropertyPortfolioRequest(input: RequestInfo | URL) {
+  return String(input).includes("/v1/properties?");
+}
+
 function page(items: readonly PropertyPortfolioItem[], nextCursor: string | null = null) {
   return { items, pageInfo: { nextCursor, hasNextPage: nextCursor !== null } };
 }
@@ -268,9 +276,12 @@ describe("portefeuille immobilier Web", () => {
 
   it("charge explicitement la page suivante, conserve le curseur opaque, déduplique et détecte la fin", async () => {
     const nextPage = deferred<Response>();
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => String(input).includes("cursor=")
-      ? nextPage.promise
-      : json(page([firstProperty], "opaque+/cursor==")));
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (isPlatformProbe(input)) return new Response(null, { status: 403 });
+      return String(input).includes("cursor=")
+        ? nextPage.promise
+        : json(page([firstProperty], "opaque+/cursor=="));
+    });
     vi.stubGlobal("fetch", fetchMock);
     renderPortfolio();
     fireEvent.click(await screen.findByRole("button", { name: "Afficher plus de biens" }));
@@ -280,14 +291,18 @@ describe("portefeuille immobilier Web", () => {
     expect(screen.getAllByRole("heading", { name: firstProperty.title })).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Afficher plus de biens" })).not.toBeInTheDocument();
     expect(screen.getByText("Tous les biens sont affichés.")).toBeInTheDocument();
-    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("cursor=opaque%2B%2Fcursor%3D%3D");
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes("cursor=opaque%2B%2Fcursor%3D%3D"))).toBe(true);
   });
 
   it("conserve les premiers résultats et permet de retenter après une erreur de page suivante", async () => {
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(json(page([firstProperty], "next-cursor")))
-      .mockResolvedValueOnce(problem(500))
-      .mockResolvedValueOnce(json(page([secondProperty])));
+    let propertyRequestCount = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (isPlatformProbe(input)) return new Response(null, { status: 403 });
+      propertyRequestCount += 1;
+      if (propertyRequestCount === 1) return json(page([firstProperty], "next-cursor"));
+      if (propertyRequestCount === 2) return problem(500);
+      return json(page([secondProperty]));
+    });
     vi.stubGlobal("fetch", fetchMock);
     renderPortfolio();
     fireEvent.click(await screen.findByRole("button", { name: "Afficher plus de biens" }));
@@ -304,7 +319,7 @@ describe("portefeuille immobilier Web", () => {
     renderPortfolio();
     expect(await screen.findByText(/Votre session n’est plus utilisable/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Se reconnecter" })).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls.filter(([input]) => isPropertyPortfolioRequest(input))).toHaveLength(2);
     expect(screen.queryByText("portfolio-test-token")).not.toBeInTheDocument();
   });
 
@@ -357,8 +372,7 @@ describe("portefeuille immobilier Web", () => {
     expect(screen.queryByText("PUBLISHED")).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Statut"), { target: { value: "PUBLISHED" } });
     fireEvent.click(screen.getByRole("button", { name: "Appliquer les filtres" }));
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("status=PUBLISHED");
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input]) => String(input).includes("status=PUBLISHED"))).toBe(true));
   });
 
   it("conserve un bien retiré dans le portefeuille et applique son filtre français", async () => {
@@ -370,8 +384,7 @@ describe("portefeuille immobilier Web", () => {
     expect(screen.queryByText("WITHDRAWN")).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Statut"), { target: { value: "WITHDRAWN" } });
     fireEvent.click(screen.getByRole("button", { name: "Appliquer les filtres" }));
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("status=WITHDRAWN");
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input]) => String(input).includes("status=WITHDRAWN"))).toBe(true));
   });
 
   it("restaure le filtre propriétaire depuis l’URL et le transmet à l’API", async () => {

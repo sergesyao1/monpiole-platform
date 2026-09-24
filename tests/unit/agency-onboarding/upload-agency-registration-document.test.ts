@@ -172,7 +172,7 @@ describe("UploadAgencyRegistrationDocument", () => {
     "image/jpeg",
     "image/png",
     "image/webp",
-  ]) {
+  ] as const) {
     it(`accepts ${mimeType}`, async () => {
       const storage = new MemoryStorage();
       const uploads = new MemoryUploadStore();

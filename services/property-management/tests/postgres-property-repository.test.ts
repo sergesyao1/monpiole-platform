@@ -1118,13 +1118,11 @@ describe("Property portfolio hierarchy and inherited ownership", () => {
 
     await new RemovePropertyOwner(
       ownershipRepository,
-      { now: () => "2026-09-12T14:00:00.000Z" },
     ).execute({
       authority: {
         ...authority(TENANT_A),
         grants: ["REMOVE_PROPERTY_OWNER"] as const,
       },
-      correlationId: CORRELATION,
       propertyId: buildingPropertyId,
       ownerId: buildingOwnerId,
     });

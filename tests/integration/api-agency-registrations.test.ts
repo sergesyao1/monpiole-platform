@@ -21,6 +21,8 @@ import {
   type AgencyDocumentStorage,
   type AgencyRegistration,
   type AgencyRegistrationDocumentUploadStore,
+  type CreateFirstAgencyAdministratorCommand,
+  type ReissueFirstAdministratorBootstrapCommand,
 } from "../../services/agency-onboarding/src/index.js";
 import { createApiApplication } from "../../apps/api/src/bootstrap.js";
 import { ProblemDetailsSchema } from "../../apps/api/src/contracts/v1/common/problem-details.schema.js";
@@ -859,7 +861,10 @@ describe("Agency registrations HTTP", () => {
     await start("platform", {
       retrieveAgencyRegistrationDocumentContent: {
         execute: vi.fn(async () => {
-          throw new AgencyRegistrationDocumentContentNotFoundError();
+          throw new AgencyRegistrationDocumentContentNotFoundError(
+            REGISTRATION_ID,
+            DOCUMENT_ID,
+          );
         }),
       },
     });
@@ -885,7 +890,10 @@ describe("Agency registrations HTTP", () => {
     await start("platform", {
       retrieveAgencyRegistrationDocumentContent: {
         execute: vi.fn(async () => {
-          throw new AgencyRegistrationDocumentIntegrityError();
+          throw new AgencyRegistrationDocumentIntegrityError(
+            REGISTRATION_ID,
+            DOCUMENT_ID,
+          );
         }),
       },
     });
@@ -1192,7 +1200,7 @@ describe("Agency registrations HTTP", () => {
   });
 
   it("derives first administrator authority and correlation server-side", async () => {
-    const execute = vi.fn(async () => ({
+    const execute = vi.fn(async (_command: CreateFirstAgencyAdministratorCommand) => ({
       registrationId: REGISTRATION_ID,
       tenantId: TENANT_ID,
       administratorId:
@@ -1377,7 +1385,7 @@ describe("Agency registrations HTTP", () => {
   });
 
   it("derives reinvitation identity and authority exclusively server-side", async () => {
-    const execute = vi.fn(async () => ({
+    const execute = vi.fn(async (_command: ReissueFirstAdministratorBootstrapCommand) => ({
       registrationId: REGISTRATION_ID,
       tenantId: TENANT_ID,
       administratorId:
