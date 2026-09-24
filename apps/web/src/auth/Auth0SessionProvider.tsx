@@ -1,5 +1,6 @@
 import { Auth0Provider, useAuth0, type AppState } from "@auth0/auth0-react";
 import { useState, type PropsWithChildren } from "react";
+import { useNavigate } from "react-router";
 
 import type { PublicWebConfig } from "../config/public-config.js";
 import { SessionContext, type Session, type SessionLoginContinuation } from "./session.js";
@@ -11,9 +12,10 @@ const auth0Cache = new Auth0SessionStorageCache();
 
 export function Auth0SessionProvider({ children, config }: Auth0SessionProviderProps) {
   const [loginContinuation, setLoginContinuation] = useState<SessionLoginContinuation>();
+  const navigate = useNavigate();
   const handleRedirect = (appState?: AppState & SessionLoginContinuation) => {
     setLoginContinuation(readLoginContinuation(appState));
-    window.history.replaceState({}, document.title, safeReturnPath(appState?.returnTo));
+    void navigate(safeReturnPath(appState?.returnTo), { replace: true });
   };
   return (
     <Auth0Provider
@@ -25,12 +27,18 @@ export function Auth0SessionProvider({ children, config }: Auth0SessionProviderP
       authorizationParams={{ audience: config.audience, redirect_uri: config.redirectUri, scope: "openid profile email offline_access" }}
       onRedirectCallback={handleRedirect}
     >
-      <Auth0SessionAdapter logoutReturnUri={config.logoutReturnUri} loginContinuation={loginContinuation}>{children}</Auth0SessionAdapter>
+      <Auth0SessionAdapter
+        logoutReturnUri={config.logoutReturnUri}
+        loginContinuation={loginContinuation}
+        clearLoginContinuation={() => setLoginContinuation(undefined)}
+      >
+        {children}
+      </Auth0SessionAdapter>
     </Auth0Provider>
   );
 }
 
-function Auth0SessionAdapter({ children, logoutReturnUri, loginContinuation }: PropsWithChildren<{ readonly logoutReturnUri: string; readonly loginContinuation?: SessionLoginContinuation }>) {
+function Auth0SessionAdapter({ children, logoutReturnUri, loginContinuation, clearLoginContinuation }: PropsWithChildren<{ readonly logoutReturnUri: string; readonly loginContinuation?: SessionLoginContinuation; readonly clearLoginContinuation: () => void }>) {
   const auth0 = useAuth0();
   const session: Session = {
     status: auth0.isLoading ? "loading" : auth0.error !== undefined ? "error" : auth0.isAuthenticated ? "authenticated" : "unauthenticated",
@@ -38,6 +46,7 @@ function Auth0SessionAdapter({ children, logoutReturnUri, loginContinuation }: P
     ...(auth0.error === undefined ? {} : { error: auth0.error }),
     login: async (returnTo, continuation) => auth0.loginWithRedirect({ appState: { returnTo: safeReturnPath(returnTo ?? currentReturnPath()), ...continuation } }),
     ...(loginContinuation === undefined ? {} : { loginContinuation }),
+    clearLoginContinuation,
     logout: async () => auth0.logout({ logoutParams: { returnTo: logoutReturnUri } }),
     getAccessToken: async (fresh = false) => auth0.getAccessTokenSilently(fresh ? { cacheMode: "off" } : undefined),
   };

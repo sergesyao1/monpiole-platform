@@ -84,6 +84,27 @@ AUTHENTICATION_MAX_TOKEN_AGE_SECONDS=900
 API_ALLOWED_BROWSER_ORIGINS=http://localhost:5173
 ```
 
+The first-administrator activation additionally requires verified e-mail claims
+in the API access token. Auth0 does not add the standard OIDC `email` claims to
+a custom API access token merely because the SPA requests the `email` scope.
+Deploy
+`engineering/auth0/actions/add-monpiole-verified-email-claims.js` as a Post
+Login Action and bind it to the tenant's Post Login flow. The Action derives
+claim names from the Auth0 resource server identifier, which must exactly equal
+`AUTHENTICATION_AUDIENCE`. Configure the Action secret
+`MONPIOLE_API_AUDIENCE` with that exact value; when the secret is absent or the
+current resource server differs, the Action emits no MonPiole claims:
+
+```text
+<AUTHENTICATION_AUDIENCE>/claims/email
+<AUTHENTICATION_AUDIENCE>/claims/email_verified
+```
+
+The API accepts the second claim only as the JSON boolean `true`. It never uses
+these claims as business grants or as the canonical external identity key;
+`issuer + subject` remains canonical. Standard, non-namespaced access-token
+e-mail claims are intentionally not trusted by this integration.
+
 `API_ALLOWED_BROWSER_ORIGINS` is a comma-separated allowlist of exact HTTP(S)
 origins. Missing, path-bearing or wildcard values fail startup. The browser
 policy permits the required authorization, JSON, correlation, tenant and

@@ -1,5 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { BrowserRouter, createBrowserRouter, RouterProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const auth0 = vi.hoisted(() => ({
@@ -23,6 +24,7 @@ vi.mock("@auth0/auth0-react", () => ({
 }));
 
 import { Auth0SessionProvider } from "./Auth0SessionProvider.js";
+import { managedApplicationRoutes } from "../app/managed-routes.js";
 import { useSession } from "./session.js";
 
 const config = {
@@ -40,6 +42,14 @@ function ContinuationProbe() {
   return <><span>{session.loginContinuation?.activationBootstrapToken ?? "none"}</span><button onClick={() => void session.login("/activation-agence", { activationBootstrapToken: "secret-once" })}>activate</button></>;
 }
 
+function renderProvider(children: ReactNode) {
+  return render(
+    <BrowserRouter>
+      <Auth0SessionProvider config={config}>{children}</Auth0SessionProvider>
+    </BrowserRouter>,
+  );
+}
+
 describe("frontière de session Auth0", () => {
   beforeEach(() => {
     auth0.state = {};
@@ -54,12 +64,12 @@ describe("frontière de session Auth0", () => {
     [{ error: new Error("initialisation") }, "error"],
   ])("expose explicitement l’état SDK %o comme %s", (state, expected) => {
     auth0.state = state;
-    render(<Auth0SessionProvider config={config}><SessionProbe /></Auth0SessionProvider>);
+    renderProvider(<SessionProbe />);
     expect(screen.getByText(expected)).toBeInTheDocument();
   });
 
   it("configure Authorization Code + PKCE et un cache SDK restaurable dans l’onglet", () => {
-    render(<Auth0SessionProvider config={config}><SessionProbe /></Auth0SessionProvider>);
+    renderProvider(<SessionProbe />);
     expect(auth0.providerProps).toMatchObject({
       domain: config.domain, clientId: config.clientId, useRefreshTokens: true,
       useRefreshTokensFallback: true,
@@ -72,7 +82,7 @@ describe("frontière de session Auth0", () => {
   });
 
   it("traite le callback et restaure uniquement un chemin local sûr", () => {
-    render(<Auth0SessionProvider config={config}><SessionProbe /></Auth0SessionProvider>);
+    renderProvider(<SessionProbe />);
     const onRedirectCallback = auth0.providerProps.onRedirectCallback as (state?: { returnTo?: string }) => void;
     onRedirectCallback({ returnTo: "/proprietaires?onglet=actifs" });
     expect(window.location.pathname + window.location.search).toBe("/proprietaires?onglet=actifs");
@@ -81,7 +91,7 @@ describe("frontière de session Auth0", () => {
   });
 
   it("transmet les destinations de login/logout et force le renouvellement demandé", () => {
-    render(<Auth0SessionProvider config={config}><SessionProbe /></Auth0SessionProvider>);
+    renderProvider(<SessionProbe />);
     fireEvent.click(screen.getByRole("button", { name: "login" }));
     fireEvent.click(screen.getByRole("button", { name: "logout" }));
     fireEvent.click(screen.getByRole("button", { name: "token" }));
@@ -91,7 +101,7 @@ describe("frontière de session Auth0", () => {
   });
 
   it("transporte la continuation d’activation dans appState sans l’ajouter à l’URL", async () => {
-    render(<Auth0SessionProvider config={config}><ContinuationProbe /></Auth0SessionProvider>);
+    renderProvider(<ContinuationProbe />);
     fireEvent.click(screen.getByRole("button", { name: "activate" }));
     expect(auth0.loginWithRedirect).toHaveBeenCalledWith({ appState: { returnTo: "/activation-agence", activationBootstrapToken: "secret-once" } });
 
@@ -99,5 +109,52 @@ describe("frontière de session Auth0", () => {
     onRedirectCallback({ returnTo: "/activation-agence", activationBootstrapToken: "secret-once" });
     expect(await screen.findByText("secret-once")).toBeInTheDocument();
     expect(window.location.search).toBe("");
+  });
+
+  it("synchronise le callback avec les routes gérées et rend l’activation au lieu de l’accueil", async () => {
+    auth0.state = { isAuthenticated: true, user: { name: "Administratrice" } };
+    window.history.replaceState({}, "", "/");
+    const fetcher = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({
+      registrationId: "registration-id",
+      tenantId: "tenant-id",
+      administratorId: "administrator-id",
+      role: "TENANT_ADMINISTRATOR",
+      status: "ACTIVE",
+      identityLinkedAt: "2026-09-24T10:00:00.000Z",
+      activatedAt: "2026-09-24T10:00:00.000Z",
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+    vi.stubGlobal("fetch", fetcher);
+    const router = createBrowserRouter(managedApplicationRoutes);
+
+    render(<RouterProvider router={router} />);
+    expect(await screen.findByRole("heading", { name: "Bienvenue dans votre espace immobilier" })).toBeVisible();
+
+    const onRedirectCallback = auth0.providerProps.onRedirectCallback as (state?: {
+      returnTo?: string;
+      activationBootstrapToken?: string;
+    }) => void;
+    act(() => onRedirectCallback({
+      returnTo: "/activation-agence",
+      activationBootstrapToken: "bootstrap-secret",
+    }));
+
+    expect(await screen.findByRole("heading", { name: "Votre agence est activée" })).toBeVisible();
+    expect(window.location.pathname).toBe("/activation-agence");
+    expect(window.location.search).toBe("");
+    const completionCalls = fetcher.mock.calls.filter(([input]) =>
+      String(input).includes("/v1/agency-administrator-bootstrap/completions"),
+    );
+    expect(completionCalls).toHaveLength(1);
+    expect(fetcher).toHaveBeenCalledWith(
+      expect.stringContaining("/v1/agency-administrator-bootstrap/completions"),
+      expect.objectContaining({ method: "POST" }),
+    );
+
+    await act(async () => router.navigate("/"));
+    await act(async () => router.navigate("/activation-agence"));
+    expect(await screen.findByRole("heading", { name: "Lien d’activation invalide", level: 1 })).toBeVisible();
+    expect(fetcher.mock.calls.filter(([input]) =>
+      String(input).includes("/v1/agency-administrator-bootstrap/completions"),
+    )).toHaveLength(1);
   });
 });

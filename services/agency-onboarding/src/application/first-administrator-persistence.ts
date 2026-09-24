@@ -14,6 +14,7 @@ export interface FirstAdministratorBootstrap {
   readonly registrationId: string;
   readonly tenantId: string;
   readonly internalIdentityId: string;
+  readonly invitedEmail: string;
   readonly administratorKind: "FIRST_ADMINISTRATOR";
   readonly status: FirstAdministratorStatus;
   readonly bootstrapTokenHash: string;

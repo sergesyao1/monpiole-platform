@@ -43,6 +43,13 @@
                         "when":  1789664313889,
                         "tag":  "0005_first_administrator_external_identity_provenance",
                         "breakpoints":  true
+                    },
+                    {
+                        "idx":  6,
+                        "version":  "7",
+                        "when":  1789664313890,
+                        "tag":  "0006_first_administrator_invited_email",
+                        "breakpoints":  true
                     }
                 ]
 }

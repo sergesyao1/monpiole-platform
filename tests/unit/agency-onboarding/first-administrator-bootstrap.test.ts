@@ -61,6 +61,7 @@ function existingAdministrator(
     registrationId,
     tenantId,
     internalIdentityId: administratorId,
+    invitedEmail: "admin@example.test",
     administratorKind: "FIRST_ADMINISTRATOR",
     status: "PENDING_IDENTITY",
     bootstrapTokenHash: "a".repeat(64),

@@ -11,6 +11,7 @@ export interface Session {
   readonly error?: Error;
   readonly login: (returnTo?: string, continuation?: SessionLoginContinuation) => Promise<void>;
   readonly loginContinuation?: SessionLoginContinuation;
+  readonly clearLoginContinuation?: () => void;
   readonly logout: () => Promise<void>;
   readonly getAccessToken: (fresh?: boolean) => Promise<string>;
 }

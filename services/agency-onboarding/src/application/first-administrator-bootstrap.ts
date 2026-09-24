@@ -205,6 +205,7 @@ export class CreateFirstAgencyAdministrator {
       registrationId: prepared.registrationId,
       tenantId: prepared.tenantId,
       internalIdentityId: identity.administratorId,
+      invitedEmail: identity.email.trim().toLowerCase(),
       administratorKind: "FIRST_ADMINISTRATOR",
       status: "PENDING_IDENTITY",
       bootstrapTokenHash: tokenHash,

@@ -295,6 +295,8 @@ export const agencyRegistrationAdministrators = agencyOnboarding.table(
 
     internalIdentityId: uuid("internal_identity_id").notNull(),
 
+    invitedEmail: text("invited_email").notNull(),
+
     administratorKind: text("administrator_kind").notNull(),
 
     status: text("status").notNull(),

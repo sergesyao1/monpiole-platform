@@ -142,6 +142,7 @@ export {
   FirstAdministratorBootstrapTokenExpiredError,
   FirstAdministratorBootstrapTokenNotFoundError,
   FirstAdministratorIdentityLinkConflictError,
+  FirstAdministratorInvitedEmailVerificationError,
   type CompleteFirstAdministratorIdentityCommand,
   type CompleteFirstAdministratorIdentityResult,
   type FirstAdministratorExternalIdentityLinkPort,

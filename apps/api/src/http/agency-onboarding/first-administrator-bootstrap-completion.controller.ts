@@ -2,6 +2,7 @@ import {
   Body,
   ConflictException,
   Controller,
+  ForbiddenException,
   GoneException,
   HttpCode,
   HttpStatus,
@@ -15,6 +16,7 @@ import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiConflictResponse,
+  ApiForbiddenResponse,
   ApiGoneResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -31,6 +33,7 @@ import {
   FirstAdministratorBootstrapTokenExpiredError,
   FirstAdministratorBootstrapTokenNotFoundError,
   FirstAdministratorIdentityLinkConflictError,
+  FirstAdministratorInvitedEmailVerificationError,
 } from "@monpiole/agency-onboarding";
 
 import type {
@@ -96,6 +99,10 @@ export class FirstAdministratorBootstrapCompletionController {
   @ApiUnauthorizedResponse({
     description: "Missing or invalid bearer authentication",
   })
+  @ApiForbiddenResponse({
+    description:
+      "Authenticated email does not match the invited administrator",
+  })
   @ApiNotFoundResponse({
     description: "Bootstrap token not found",
   })
@@ -123,6 +130,10 @@ export class FirstAdministratorBootstrapCompletionController {
         bootstrapToken: body.bootstrapToken,
         issuer: authentication.issuer,
         subject: authentication.subject,
+        ...(authentication.email === undefined
+          ? {}
+          : { email: authentication.email }),
+        emailVerified: authentication.emailVerified === true,
       });
     } catch (error) {
       if (error instanceof FirstAdministratorBootstrapTokenNotFoundError) {
@@ -134,6 +145,13 @@ export class FirstAdministratorBootstrapCompletionController {
 
       if (error instanceof FirstAdministratorBootstrapTokenExpiredError) {
         throw new GoneException({
+          code: error.code,
+          message: error.message,
+        });
+      }
+
+      if (error instanceof FirstAdministratorInvitedEmailVerificationError) {
+        throw new ForbiddenException({
           code: error.code,
           message: error.message,
         });

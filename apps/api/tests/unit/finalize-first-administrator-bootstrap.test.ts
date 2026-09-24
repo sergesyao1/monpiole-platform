@@ -11,6 +11,7 @@ const ADMINISTRATOR_ID = "33333333-3333-4333-8333-333333333333";
 const BOOTSTRAP_TOKEN = "bootstrap-token";
 const ISSUER = "https://monpiole-dev-ci.eu.auth0.com/";
 const SUBJECT = "auth0|first-administrator";
+const INVITED_EMAIL = "administrator@example.com";
 const CORRELATION_ID = "44444444-4444-4444-8444-444444444444";
 const IDENTITY_LINKED_AT = "2026-09-18T10:00:00.000Z";
 const ACTIVATED_AT = "2026-09-18T10:10:00.000Z";
@@ -100,6 +101,8 @@ describe("FinalizeFirstAdministratorBootstrap", () => {
         bootstrapToken: BOOTSTRAP_TOKEN,
         issuer: ISSUER,
         subject: SUBJECT,
+        email: INVITED_EMAIL,
+        emailVerified: true,
       }),
     ).resolves.toEqual({
       registrationId: REGISTRATION_ID,
@@ -122,6 +125,8 @@ describe("FinalizeFirstAdministratorBootstrap", () => {
       bootstrapToken: BOOTSTRAP_TOKEN,
       issuer: ISSUER,
       subject: SUBJECT,
+        email: INVITED_EMAIL,
+        emailVerified: true,
     });
 
     expect(harness.activateAdministrator.execute).toHaveBeenCalledWith({
@@ -166,6 +171,8 @@ describe("FinalizeFirstAdministratorBootstrap", () => {
         bootstrapToken: BOOTSTRAP_TOKEN,
         issuer: ISSUER,
         subject: SUBJECT,
+        email: INVITED_EMAIL,
+        emailVerified: true,
       }),
     ).rejects.toThrow("identity activation failed");
 
@@ -185,6 +192,8 @@ describe("FinalizeFirstAdministratorBootstrap", () => {
         bootstrapToken: BOOTSTRAP_TOKEN,
         issuer: ISSUER,
         subject: SUBJECT,
+        email: INVITED_EMAIL,
+        emailVerified: true,
       }),
     ).rejects.toThrow("tenant activation failed");
 
@@ -198,6 +207,8 @@ describe("FinalizeFirstAdministratorBootstrap", () => {
       bootstrapToken: BOOTSTRAP_TOKEN,
       issuer: ISSUER,
       subject: SUBJECT,
+        email: INVITED_EMAIL,
+        emailVerified: true,
     };
 
     const first = await harness.useCase.execute(command);

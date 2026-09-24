@@ -53,6 +53,7 @@ function administrator(
     registrationId: REGISTRATION_ID,
     tenantId: TENANT_ID,
     internalIdentityId: ADMINISTRATOR_ID,
+    invitedEmail: "administrator@example.test",
     administratorKind: "FIRST_ADMINISTRATOR",
     status: "PENDING_IDENTITY",
     bootstrapTokenHash: "old-token-hash",

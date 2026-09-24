@@ -19,6 +19,7 @@ interface FirstAdministratorBootstrapRow
   readonly registration_id: string;
   readonly tenant_id: string;
   readonly internal_identity_id: string;
+  readonly invited_email: string;
   readonly administrator_kind: "FIRST_ADMINISTRATOR";
   readonly status: FirstAdministratorBootstrap["status"];
   readonly bootstrap_token_hash: string;
@@ -40,6 +41,7 @@ function toFirstAdministratorBootstrap(
     registrationId: row.registration_id,
     tenantId: row.tenant_id,
     internalIdentityId: row.internal_identity_id,
+    invitedEmail: row.invited_email,
     administratorKind: row.administrator_kind,
     status: row.status,
     bootstrapTokenHash: row.bootstrap_token_hash,
@@ -271,6 +273,7 @@ class PostgresFirstAdministratorBootstrapTransaction
          registration_id,
          tenant_id,
          internal_identity_id,
+         invited_email,
          administrator_kind,
          status,
          bootstrap_token_hash,
@@ -295,13 +298,15 @@ class PostgresFirstAdministratorBootstrapTransaction
          $10,
          $11,
          $12,
-         $13
+         $13,
+         $14
        )
        RETURNING registration_id`,
       [
         administrator.registrationId,
         administrator.tenantId,
         administrator.internalIdentityId,
+        administrator.invitedEmail,
         administrator.administratorKind,
         administrator.status,
         administrator.bootstrapTokenHash,

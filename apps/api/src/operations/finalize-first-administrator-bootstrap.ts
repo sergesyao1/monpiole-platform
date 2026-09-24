@@ -39,6 +39,8 @@ export interface FinalizeFirstAdministratorBootstrapCommand {
   readonly bootstrapToken: string;
   readonly issuer: string;
   readonly subject: string;
+  readonly email?: string;
+  readonly emailVerified: boolean;
 }
 
 export interface FinalizeFirstAdministratorBootstrapResult {
@@ -73,6 +75,8 @@ export class FinalizeFirstAdministratorBootstrap {
       bootstrapToken: command.bootstrapToken,
       issuer: command.issuer,
       subject: command.subject,
+      ...(command.email === undefined ? {} : { email: command.email }),
+      emailVerified: command.emailVerified,
     });
 
     const correlationId = this.dependencies.correlationIds.generate();

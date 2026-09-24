@@ -15,6 +15,11 @@ export interface OidcAccessTokenConfiguration {
   readonly maximumTokenAgeSeconds: number;
 }
 
+export interface VerifiedEmailClaimNames {
+  readonly email: string;
+  readonly emailVerified: string;
+}
+
 export class InvalidAuthenticationConfigurationError extends Error {}
 
 export function oidcAccessTokenConfigurationFromEnvironment(
@@ -61,18 +66,78 @@ export class OidcAccessTokenVerifier {
       requiredClaims: ["sub", "iat", "exp"],
     });
     if (typeof payload.sub !== "string" || payload.sub.length === 0) throw new Error("Missing subject");
-    const authenticationMethods = Array.isArray(payload.amr)
-      ? payload.amr.filter((method): method is string => typeof method === "string")
-      : [];
-    return Object.freeze({
-      issuer: payload.iss!,
-      subject: payload.sub,
-      ...(typeof payload.auth_time === "number"
-        ? { authenticatedAt: new Date(payload.auth_time * 1000).toISOString() }
-        : {}),
-      authenticationMethods: Object.freeze(authenticationMethods),
-    });
+    return verifiedAuthenticationContextFromClaims(
+      payload,
+      verifiedEmailClaimNames(this.configuration.audience),
+    );
   }
+}
+
+export function verifiedAuthenticationContextFromClaims(
+  payload: Record<string, unknown>,
+  emailClaims: VerifiedEmailClaimNames,
+): VerifiedAuthenticationContext {
+  if (typeof payload.iss !== "string" || payload.iss.length === 0) {
+    throw new Error("Missing issuer");
+  }
+
+  if (typeof payload.sub !== "string" || payload.sub.length === 0) {
+    throw new Error("Missing subject");
+  }
+
+  const authenticationMethods = Array.isArray(payload.amr)
+    ? payload.amr.filter(
+        (method): method is string => typeof method === "string",
+      )
+    : [];
+  const email = payload[emailClaims.email];
+  const emailVerified = payload[emailClaims.emailVerified];
+
+  return Object.freeze({
+    issuer: payload.iss,
+    subject: payload.sub,
+    ...(typeof email === "string" && email.trim().length > 0
+      ? { email: email.trim() }
+      : {}),
+    ...(typeof emailVerified === "boolean"
+      ? { emailVerified }
+      : {}),
+    ...(typeof payload.auth_time === "number"
+      ? {
+          authenticatedAt: new Date(
+            payload.auth_time * 1000,
+          ).toISOString(),
+        }
+      : {}),
+    authenticationMethods: Object.freeze(authenticationMethods),
+  });
+}
+
+export function verifiedEmailClaimNames(
+  audience: string,
+): VerifiedEmailClaimNames {
+  let namespace: URL;
+
+  try {
+    namespace = new URL(audience);
+  } catch {
+    throw new InvalidAuthenticationConfigurationError(
+      "AUTHENTICATION_AUDIENCE must be an absolute URL for verified email claims",
+    );
+  }
+
+  if (namespace.protocol !== "https:") {
+    throw new InvalidAuthenticationConfigurationError(
+      "AUTHENTICATION_AUDIENCE must be an HTTPS URL for verified email claims",
+    );
+  }
+
+  const base = namespace.toString().replace(/\/$/u, "");
+
+  return Object.freeze({
+    email: `${base}/claims/email`,
+    emailVerified: `${base}/claims/email_verified`,
+  });
 }
 
 function required(value: string | undefined, name: string): string {

@@ -21,6 +21,8 @@ describe("CompleteFirstAdministratorIdentityRequestSchema", () => {
     ["administratorId", "cccccccc-cccc-4ccc-8ccc-cccccccccccc"],
     ["issuer", "https://attacker.example.test/"],
     ["subject", "auth0|attacker"],
+    ["email", "invited@example.test"],
+    ["emailVerified", true],
     ["role", "TENANT_ADMINISTRATOR"],
   ])(
     "rejects client-controlled %s",

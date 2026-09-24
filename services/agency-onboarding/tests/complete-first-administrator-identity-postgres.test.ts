@@ -153,6 +153,8 @@ afterAll(async () => {
   await container?.stop();
 });
 
+const INVITED_EMAIL = "administrator@example.com";
+
 describe(
   "CompleteFirstAdministratorIdentity PostgreSQL concurrency",
   () => {
@@ -196,6 +198,7 @@ describe(
             registrationId: value.id,
             tenantId,
             internalIdentityId,
+            invitedEmail: INVITED_EMAIL,
             administratorKind: "FIRST_ADMINISTRATOR",
             status: "PENDING_IDENTITY",
             bootstrapTokenHash:
@@ -321,6 +324,8 @@ describe(
           issuer:
             "https://monpiole-dev-ci.eu.auth0.com/",
           subject: "auth0|first-concurrent-subject",
+          email: INVITED_EMAIL,
+          emailVerified: true,
         });
 
         await firstIdentityStarted;
@@ -330,6 +335,8 @@ describe(
           issuer:
             "https://monpiole-dev-ci.eu.auth0.com/",
           subject: "auth0|different-concurrent-subject",
+          email: INVITED_EMAIL,
+          emailVerified: true,
         });
 
         /*

@@ -1727,6 +1727,7 @@ describe("First administrator bootstrap persistence", () => {
     registrationId: string;
     tenantId: string;
     internalIdentityId?: string;
+    invitedEmail?: string;
     tokenHash?: string;
     status?: string;
     createdAt?: string;
@@ -1745,6 +1746,7 @@ describe("First administrator bootstrap persistence", () => {
              registration_id,
              tenant_id,
              internal_identity_id,
+             invited_email,
              administrator_kind,
              status,
              bootstrap_token_hash,
@@ -1756,12 +1758,13 @@ describe("First administrator bootstrap persistence", () => {
              activated_at,
              cancelled_at
            ) VALUES (
-             $1,$2,$3,'FIRST_ADMINISTRATOR',$4,$5,$6,$7,$8,$9,$10,$11,$12
+             $1,$2,$3,$4,'FIRST_ADMINISTRATOR',$5,$6,$7,$8,$9,$10,$11,$12,$13
            )`,
           [
             input.registrationId,
             input.tenantId,
             input.internalIdentityId ?? randomUUID(),
+            input.invitedEmail ?? "administrator@example.test",
             input.status ?? "PENDING_IDENTITY",
             input.tokenHash ??
               `${randomUUID().replaceAll("-", "")}${randomUUID().replaceAll("-", "")}`,

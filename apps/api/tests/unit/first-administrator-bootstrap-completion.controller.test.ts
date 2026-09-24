@@ -4,6 +4,7 @@ import {
   FirstAdministratorBootstrapTokenExpiredError,
   FirstAdministratorBootstrapTokenNotFoundError,
   FirstAdministratorIdentityLinkConflictError,
+  FirstAdministratorInvitedEmailVerificationError,
 } from "@monpiole/agency-onboarding";
 
 import {
@@ -15,6 +16,7 @@ import type {
 
 const ISSUER = "https://monpiole-dev-ci.eu.auth0.com/";
 const SUBJECT = "auth0|first-agency-administrator";
+const INVITED_EMAIL = "administrator@example.com";
 
 const RESULT = Object.freeze({
   registrationId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -60,6 +62,8 @@ describe("FirstAdministratorBootstrapCompletionController", () => {
           resolve: vi.fn(async () => ({
             issuer: ISSUER,
             subject: SUBJECT,
+            email: INVITED_EMAIL,
+            emailVerified: true,
             authenticationMethods: [],
           })),
         },
@@ -77,6 +81,8 @@ describe("FirstAdministratorBootstrapCompletionController", () => {
       bootstrapToken: "opaque-bootstrap-token",
       issuer: ISSUER,
       subject: SUBJECT,
+      email: INVITED_EMAIL,
+      emailVerified: true,
     });
   });
 
@@ -117,6 +123,10 @@ describe("FirstAdministratorBootstrapCompletionController", () => {
       new FirstAdministratorIdentityLinkConflictError(),
       409,
     ],
+    [
+      new FirstAdministratorInvitedEmailVerificationError(),
+      403,
+    ],
   ])(
     "maps completion domain errors to HTTP status %i",
     async (domainError, expectedStatus) => {
@@ -131,6 +141,8 @@ describe("FirstAdministratorBootstrapCompletionController", () => {
             resolve: vi.fn(async () => ({
               issuer: ISSUER,
               subject: SUBJECT,
+              email: INVITED_EMAIL,
+              emailVerified: true,
               authenticationMethods: [],
             })),
           },

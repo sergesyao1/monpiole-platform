@@ -397,10 +397,10 @@ describe("API PostgreSQL Identity runtime composition", () => {
         'awa.reinvite@example.invalid','+2250506070809',$2,$2,$3,$2,NULL,NULL,$2,$4,$2,$2,$5)`,
     [registrationId, createdAt, reviewerId, tenantId, CORRELATION_ID]);
     await ownerPool.query(`INSERT INTO agency_onboarding.agency_registration_administrators
-      (registration_id,tenant_id,internal_identity_id,administrator_kind,status,bootstrap_token_hash,
+      (registration_id,tenant_id,internal_identity_id,invited_email,administrator_kind,status,bootstrap_token_hash,
        bootstrap_token_expires_at,bootstrap_token_consumed_at,created_by_platform_identity_id,created_at,
        external_issuer,external_subject,identity_linked_at,activated_at,cancelled_at)
-      VALUES ($1,$2,$3,'FIRST_ADMINISTRATOR','PENDING_IDENTITY',$4,$5::timestamptz + interval '1 hour',NULL,$6,$5,
+      VALUES ($1,$2,$3,'reinvite-admin@example.invalid','FIRST_ADMINISTRATOR','PENDING_IDENTITY',$4,$5::timestamptz + interval '1 hour',NULL,$6,$5,
         NULL,NULL,NULL,NULL,NULL)`,
     [registrationId, tenantId, administratorId, oldHash, createdAt, reviewerId]);
 
@@ -498,26 +498,74 @@ describe("API PostgreSQL Identity runtime composition", () => {
         'awa.runtime@example.invalid','+2250506070809',$2,$2,$3,$2,NULL,NULL,$2,$4,$2,$2,$5)`,
     [registrationId, createdAt, reviewerId, tenantId, CORRELATION_ID]);
     await ownerPool.query(`INSERT INTO agency_onboarding.agency_registration_administrators
-      (registration_id,tenant_id,internal_identity_id,administrator_kind,status,bootstrap_token_hash,
+      (registration_id,tenant_id,internal_identity_id,invited_email,administrator_kind,status,bootstrap_token_hash,
        bootstrap_token_expires_at,bootstrap_token_consumed_at,created_by_platform_identity_id,created_at,
        external_issuer,external_subject,identity_linked_at,activated_at,cancelled_at)
-      VALUES ($1,$2,$3,'FIRST_ADMINISTRATOR','PENDING_IDENTITY',$4,now()+interval '1 hour',NULL,$5,$6,
+      VALUES ($1,$2,$3,'admin-runtime@example.invalid','FIRST_ADMINISTRATOR','PENDING_IDENTITY',$4,now()+interval '1 hour',NULL,$5,$6,
         NULL,NULL,NULL,NULL,NULL)`,
     [registrationId, tenantId, administratorId, bootstrapTokenHash, reviewerId, createdAt]);
 
     const accessTokenVerifier = { verify: async (token: string) => {
+      if (token === "platform-access-token") {
+        return {
+          issuer,
+          subject: "auth0|platform-reviewer",
+          email: "platform@example.invalid",
+          emailVerified: true,
+          authenticationMethods: [],
+        };
+      }
       if (token !== "verified-access-token") throw new Error("invalid token");
-      return { issuer, subject, authenticationMethods: [] };
+      return {
+        issuer,
+        subject,
+        email: "admin-runtime@example.invalid",
+        emailVerified: true,
+        authenticationMethods: [],
+      };
     } };
     runtime = createPostgresApiRuntime(runtimeEnvironment(), { accessTokenVerifier });
     application = await createApiApplication({ logger: false }, runtime.composition);
     await listen();
 
-    const complete = () => fetch(`${baseUrl}/v1/agency-administrator-bootstrap/completions`, {
+    const complete = (accessToken = "verified-access-token") => fetch(`${baseUrl}/v1/agency-administrator-bootstrap/completions`, {
       method: "POST",
-      headers: { authorization: "Bearer verified-access-token", "content-type": "application/json" },
+      headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
       body: JSON.stringify({ bootstrapToken }),
     });
+
+    const mismatchResponse = await complete("platform-access-token");
+    expect(mismatchResponse.status).toBe(403);
+    expect(await mismatchResponse.json()).toMatchObject({
+      code: "FORBIDDEN",
+    });
+    expect((await ownerPool.query(
+      `SELECT status, bootstrap_token_consumed_at, external_issuer,
+              external_subject, identity_linked_at, activated_at
+         FROM agency_onboarding.agency_registration_administrators
+        WHERE registration_id=$1`,
+      [registrationId],
+    )).rows[0]).toEqual({
+      status: "PENDING_IDENTITY",
+      bootstrap_token_consumed_at: null,
+      external_issuer: null,
+      external_subject: null,
+      identity_linked_at: null,
+      activated_at: null,
+    });
+    expect((await ownerPool.query(
+      "SELECT status FROM identity.identities WHERE id=$1",
+      [administratorId],
+    )).rows[0]).toEqual({ status: "PENDING_ACTIVATION" });
+    expect((await ownerPool.query(
+      "SELECT lifecycle_state FROM tenant_management.tenants WHERE id=$1",
+      [tenantId],
+    )).rows[0]).toEqual({ lifecycle_state: "PENDING" });
+    expect((await ownerPool.query(
+      "SELECT count(*)::int AS count FROM identity.external_identities WHERE internal_identity_id=$1",
+      [administratorId],
+    )).rows[0]).toEqual({ count: 0 });
+
     const firstResponse = await complete();
     expect(firstResponse.status).toBe(200);
     const firstBody = await firstResponse.json() as Record<string, unknown>;

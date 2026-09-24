@@ -45,6 +45,8 @@ export interface CompleteFirstAdministratorIdentityCommand {
   readonly bootstrapToken: string;
   readonly issuer: string;
   readonly subject: string;
+  readonly email?: string;
+  readonly emailVerified: boolean;
 }
 
 export interface CompleteFirstAdministratorIdentityResult {
@@ -84,6 +86,16 @@ export class FirstAdministratorBootstrapNotCompletableError extends Error {
       `First administrator bootstrap cannot be completed from status ${status}`,
     );
     this.name = "FirstAdministratorBootstrapNotCompletableError";
+  }
+}
+
+export class FirstAdministratorInvitedEmailVerificationError extends Error {
+  public readonly code =
+    "FIRST_ADMINISTRATOR_INVITED_EMAIL_VERIFICATION_FAILED";
+
+  public constructor() {
+    super("Authenticated email does not match the invited administrator email");
+    this.name = "FirstAdministratorInvitedEmailVerificationError";
   }
 }
 
@@ -175,6 +187,15 @@ export class CompleteFirstAdministratorIdentity {
         throw new FirstAdministratorBootstrapTokenExpiredError();
       }
 
+      if (
+        command.emailVerified !== true ||
+        command.email === undefined ||
+        normalizeActivationEmail(command.email) !==
+          normalizeActivationEmail(administrator.invitedEmail)
+      ) {
+        throw new FirstAdministratorInvitedEmailVerificationError();
+      }
+
       const canonicalIdentity = await this.identities.link({
         issuer: command.issuer,
         subject: command.subject,
@@ -223,4 +244,8 @@ function toResult(
     status: "IDENTITY_LINKED",
     identityLinkedAt: administrator.identityLinkedAt,
   };
+}
+
+function normalizeActivationEmail(email: string): string {
+  return email.trim().toLowerCase();
 }

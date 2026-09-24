@@ -6,6 +6,7 @@ import {
   FirstAdministratorBootstrapTokenExpiredError,
   FirstAdministratorBootstrapTokenNotFoundError,
   FirstAdministratorIdentityLinkConflictError,
+  FirstAdministratorInvitedEmailVerificationError,
   type FirstAdministratorExternalIdentityLinkPort,
 } from "../src/application/complete-first-administrator-identity.js";
 import type {
@@ -28,14 +29,16 @@ const EXPIRES_AT = "2026-09-18T10:30:00.000Z";
 
 const ISSUER = "https://monpiole-dev-ci.eu.auth0.com/";
 const SUBJECT = "auth0|first-agency-administrator";
+const INVITED_EMAIL = "administrator@example.com";
 
 function pendingAdministrator(
   overrides: Partial<FirstAdministratorBootstrap> = {},
 ): FirstAdministratorBootstrap {
   return {
     registrationId: REGISTRATION_ID,
-    tenantId: TENANT_ID,
+      tenantId: TENANT_ID,
     internalIdentityId: ADMINISTRATOR_ID,
+    invitedEmail: INVITED_EMAIL,
     administratorKind: "FIRST_ADMINISTRATOR",
     status: "PENDING_IDENTITY",
     bootstrapTokenHash: TOKEN_HASH,
@@ -178,6 +181,8 @@ describe("CompleteFirstAdministratorIdentity", () => {
         bootstrapToken: RAW_TOKEN,
         issuer: ISSUER,
         subject: SUBJECT,
+        email: INVITED_EMAIL,
+        emailVerified: true,
       }),
     ).resolves.toEqual({
       registrationId: REGISTRATION_ID,
@@ -214,6 +219,8 @@ describe("CompleteFirstAdministratorIdentity", () => {
         bootstrapToken: RAW_TOKEN,
         issuer: ISSUER,
         subject: SUBJECT,
+        email: INVITED_EMAIL,
+        emailVerified: true,
       }),
     ).rejects.toBeInstanceOf(
       FirstAdministratorBootstrapTokenNotFoundError,
@@ -237,6 +244,8 @@ describe("CompleteFirstAdministratorIdentity", () => {
         bootstrapToken: RAW_TOKEN,
         issuer: ISSUER,
         subject: SUBJECT,
+        email: INVITED_EMAIL,
+        emailVerified: true,
       }),
     ).rejects.toBeInstanceOf(
       FirstAdministratorBootstrapTokenExpiredError,
@@ -261,6 +270,8 @@ describe("CompleteFirstAdministratorIdentity", () => {
         bootstrapToken: RAW_TOKEN,
         issuer: ISSUER,
         subject: SUBJECT,
+        email: INVITED_EMAIL,
+        emailVerified: true,
       }),
     ).rejects.toBeInstanceOf(
       FirstAdministratorBootstrapNotCompletableError,
@@ -277,6 +288,8 @@ describe("CompleteFirstAdministratorIdentity", () => {
         bootstrapToken: RAW_TOKEN,
         issuer: ISSUER,
         subject: SUBJECT,
+        email: INVITED_EMAIL,
+        emailVerified: true,
       }),
     ).resolves.toEqual({
       registrationId: REGISTRATION_ID,
@@ -302,6 +315,8 @@ describe("CompleteFirstAdministratorIdentity", () => {
         bootstrapToken: RAW_TOKEN,
         issuer: ISSUER,
         subject: "auth0|another-administrator",
+        email: INVITED_EMAIL,
+        emailVerified: true,
       }),
     ).rejects.toBeInstanceOf(
       FirstAdministratorIdentityLinkConflictError,
@@ -345,6 +360,8 @@ describe("CompleteFirstAdministratorIdentity", () => {
         bootstrapToken: RAW_TOKEN,
         issuer: ISSUER,
         subject: SUBJECT,
+        email: INVITED_EMAIL,
+        emailVerified: true,
       }),
     ).rejects.toThrow("synthetic onboarding persistence failure");
 
@@ -355,6 +372,8 @@ describe("CompleteFirstAdministratorIdentity", () => {
         bootstrapToken: RAW_TOKEN,
         issuer: ISSUER,
         subject: SUBJECT,
+        email: INVITED_EMAIL,
+        emailVerified: true,
       }),
     ).resolves.toMatchObject({
       administratorId: ADMINISTRATOR_ID,
@@ -388,6 +407,8 @@ describe("CompleteFirstAdministratorIdentity", () => {
         bootstrapToken: RAW_TOKEN,
         issuer: ISSUER,
         subject: SUBJECT,
+        email: INVITED_EMAIL,
+        emailVerified: true,
       }),
     ).rejects.toBeInstanceOf(
       FirstAdministratorIdentityLinkConflictError,
@@ -422,6 +443,8 @@ describe("CompleteFirstAdministratorIdentity", () => {
         bootstrapToken: RAW_TOKEN,
         issuer: ISSUER,
         subject: SUBJECT,
+        email: INVITED_EMAIL,
+        emailVerified: true,
       }),
     ).rejects.toBeInstanceOf(
       FirstAdministratorIdentityLinkConflictError,
@@ -440,6 +463,8 @@ describe("CompleteFirstAdministratorIdentity", () => {
         bootstrapToken: RAW_TOKEN,
         issuer: ISSUER,
         subject: SUBJECT,
+        email: INVITED_EMAIL,
+        emailVerified: true,
       }),
     ).resolves.toEqual({
       registrationId: REGISTRATION_ID,
@@ -465,6 +490,8 @@ describe("CompleteFirstAdministratorIdentity", () => {
         bootstrapToken: RAW_TOKEN,
         issuer: ISSUER,
         subject: "auth0|another-administrator",
+        email: INVITED_EMAIL,
+        emailVerified: true,
       }),
     ).rejects.toBeInstanceOf(
       FirstAdministratorIdentityLinkConflictError,
@@ -475,5 +502,116 @@ describe("CompleteFirstAdministratorIdentity", () => {
     expect(
       harness.markAdministratorIdentityLinked,
     ).not.toHaveBeenCalled();
+  });
+
+  it("accepts a verified invited email after normalization", async () => {
+    const harness = createHarness(pendingAdministrator());
+
+    await expect(
+      harness.useCase.execute({
+        bootstrapToken: RAW_TOKEN,
+        issuer: ISSUER,
+        subject: SUBJECT,
+        email: "  ADMINISTRATOR@EXAMPLE.COM  ",
+        emailVerified: true,
+      }),
+    ).resolves.toMatchObject({
+      administratorId: ADMINISTRATOR_ID,
+      status: "IDENTITY_LINKED",
+    });
+
+    expect(harness.identities.link).toHaveBeenCalledTimes(1);
+    expect(harness.markAdministratorIdentityLinked).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects activation when authenticated email is missing", async () => {
+    const harness = createHarness(pendingAdministrator());
+
+    await expect(
+      harness.useCase.execute({
+        bootstrapToken: RAW_TOKEN,
+        issuer: ISSUER,
+        subject: SUBJECT,
+        emailVerified: true,
+      }),
+    ).rejects.toBeInstanceOf(
+      FirstAdministratorInvitedEmailVerificationError,
+    );
+
+    expect(harness.identities.link).not.toHaveBeenCalled();
+    expect(harness.markAdministratorIdentityLinked).not.toHaveBeenCalled();
+  });
+
+  it("rejects activation when authenticated email is not verified", async () => {
+    const harness = createHarness(pendingAdministrator());
+
+    await expect(
+      harness.useCase.execute({
+        bootstrapToken: RAW_TOKEN,
+        issuer: ISSUER,
+        subject: SUBJECT,
+        email: INVITED_EMAIL,
+        emailVerified: false,
+      }),
+    ).rejects.toBeInstanceOf(
+      FirstAdministratorInvitedEmailVerificationError,
+    );
+
+    expect(harness.identities.link).not.toHaveBeenCalled();
+    expect(harness.markAdministratorIdentityLinked).not.toHaveBeenCalled();
+  });
+
+  it("rejects activation when authenticated email differs from invited email", async () => {
+    const harness = createHarness(pendingAdministrator());
+
+    await expect(
+      harness.useCase.execute({
+        bootstrapToken: RAW_TOKEN,
+        issuer: ISSUER,
+        subject: SUBJECT,
+        email: "another-administrator@example.com",
+        emailVerified: true,
+      }),
+    ).rejects.toBeInstanceOf(
+      FirstAdministratorInvitedEmailVerificationError,
+    );
+
+    expect(harness.identities.link).not.toHaveBeenCalled();
+    expect(harness.markAdministratorIdentityLinked).not.toHaveBeenCalled();
+  });
+
+  it("keeps the invitation usable by the correct identity after a mismatch", async () => {
+    const harness = createHarness(pendingAdministrator());
+
+    await expect(
+      harness.useCase.execute({
+        bootstrapToken: RAW_TOKEN,
+        issuer: ISSUER,
+        subject: "auth0|platform-reviewer",
+        email: "platform@example.com",
+        emailVerified: true,
+      }),
+    ).rejects.toBeInstanceOf(
+      FirstAdministratorInvitedEmailVerificationError,
+    );
+
+    expect(harness.administrator()).toEqual(pendingAdministrator());
+    expect(harness.identities.link).not.toHaveBeenCalled();
+
+    await expect(
+      harness.useCase.execute({
+        bootstrapToken: RAW_TOKEN,
+        issuer: ISSUER,
+        subject: SUBJECT,
+        email: INVITED_EMAIL,
+        emailVerified: true,
+      }),
+    ).resolves.toMatchObject({
+      administratorId: ADMINISTRATOR_ID,
+      status: "IDENTITY_LINKED",
+    });
+
+    expect(harness.identities.link).toHaveBeenCalledTimes(1);
+    expect(harness.markAdministratorIdentityLinked).toHaveBeenCalledTimes(1);
   });
 });

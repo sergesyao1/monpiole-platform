@@ -6,6 +6,7 @@ import { LoadingPage } from "./pages/LoadingPage.js";
 import { NotFoundPage } from "./pages/NotFoundPage.js";
 import { RouteErrorPage } from "./pages/RouteErrorPage.js";
 import { ApplicationShell } from "./shell/ApplicationShell.js";
+import { ManagedAuth0SessionBoundary } from "../auth/ManagedAuth0SessionBoundary.js";
 
 const lazyComponent = <TModule extends Record<TExport, ComponentType>, TExport extends string>(
   loader: () => Promise<TModule>,
@@ -64,7 +65,6 @@ const applicationChildren: RouteObject[] = [{
 }];
 
 export const managedApplicationRoutes: RouteObject[] = [
-  { path: "/connexion", lazy: lazyComponent(() => import("../auth/ManagedLoginPage.js"), "ManagedLoginPage"), hydrateFallbackElement: <LoadingPage /> },
   {
     path: "/catalogue",
     lazy: lazyComponent(() => import("../features/public-catalog/PublicPropertyCatalogPage.js"), "PublicPropertyCatalogPage"),
@@ -78,20 +78,26 @@ export const managedApplicationRoutes: RouteObject[] = [
     hydrateFallbackElement: <LoadingPage />,
   },
   {
-    path: "/activation-agence",
-    lazy: lazyComponent(() => import("../features/agency-administrator-activation/ManagedAgencyAdministratorActivationPage.js"), "ManagedAgencyAdministratorActivationPage"),
-    errorElement: <RouteErrorPage />,
-    hydrateFallbackElement: <LoadingPage />,
-  },
-  {
     path: "/catalogue/:publicPropertyId",
     lazy: lazyComponent(() => import("../features/public-catalog/PublicPropertyDetailPage.js"), "PublicPropertyDetailPage"),
     errorElement: <RouteErrorPage />,
     hydrateFallbackElement: <LoadingPage />,
   },
   {
-    lazy: lazyComponent(() => import("../auth/ManagedAuthenticationBoundary.js"), "ManagedAuthenticationBoundary"),
-    hydrateFallbackElement: <LoadingPage />,
-    children: applicationChildren,
+    element: <ManagedAuth0SessionBoundary />,
+    children: [
+      { path: "/connexion", lazy: lazyComponent(() => import("../auth/ManagedLoginPage.js"), "ManagedLoginPage"), hydrateFallbackElement: <LoadingPage /> },
+      {
+        path: "/activation-agence",
+        lazy: lazyComponent(() => import("../features/agency-administrator-activation/ManagedAgencyAdministratorActivationPage.js"), "ManagedAgencyAdministratorActivationPage"),
+        errorElement: <RouteErrorPage />,
+        hydrateFallbackElement: <LoadingPage />,
+      },
+      {
+        lazy: lazyComponent(() => import("../auth/ManagedAuthenticationBoundary.js"), "ManagedAuthenticationBoundary"),
+        hydrateFallbackElement: <LoadingPage />,
+        children: applicationChildren,
+      },
+    ],
   },
 ];

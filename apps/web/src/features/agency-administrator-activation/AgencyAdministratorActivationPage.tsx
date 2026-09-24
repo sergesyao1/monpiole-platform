@@ -11,12 +11,19 @@ type ActivationState = "ready" | "authenticating" | "completing" | "success" | "
 
 export function AgencyAdministratorActivationPage() {
   const session = useSession();
-  const [bootstrapToken] = useState(readAndRemoveBootstrapToken);
-  const token = bootstrapToken ?? session.loginContinuation?.activationBootstrapToken;
+  const [token] = useState(
+    () => readAndRemoveBootstrapToken() ?? session.loginContinuation?.activationBootstrapToken,
+  );
   const [state, setState] = useState<ActivationState>(() => token ? "ready" : "invalid");
   const [attempt, setAttempt] = useState(0);
   const completionStarted = useRef(false);
   const api = useMemo(() => createAgencyAdministratorActivationApi(session), [session]);
+
+  useEffect(() => {
+    if (session.loginContinuation?.activationBootstrapToken === token) {
+      session.clearLoginContinuation?.();
+    }
+  }, [session, token]);
 
   useEffect(() => {
     if (!token || completionStarted.current) return;
