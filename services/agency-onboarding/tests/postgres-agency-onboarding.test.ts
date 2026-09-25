@@ -1736,6 +1736,8 @@ describe("First administrator bootstrap persistence", () => {
     identityLinkedAt?: string | null;
     activatedAt?: string | null;
     cancelledAt?: string | null;
+    externalIssuer?: string | null;
+    externalSubject?: string | null;
   }): Promise<void> {
     await withAgencyOnboardingPostgresTransaction(
       runtimePool,
@@ -1756,9 +1758,11 @@ describe("First administrator bootstrap persistence", () => {
              created_at,
              identity_linked_at,
              activated_at,
-             cancelled_at
+             cancelled_at,
+             external_issuer,
+             external_subject
            ) VALUES (
-             $1,$2,$3,$4,'FIRST_ADMINISTRATOR',$5,$6,$7,$8,$9,$10,$11,$12,$13
+             $1,$2,$3,$4,'FIRST_ADMINISTRATOR',$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15
            )`,
           [
             input.registrationId,
@@ -1775,6 +1779,8 @@ describe("First administrator bootstrap persistence", () => {
             input.identityLinkedAt ?? null,
             input.activatedAt ?? null,
             input.cancelledAt ?? null,
+            input.externalIssuer ?? null,
+            input.externalSubject ?? null,
           ],
         );
       },
@@ -1917,6 +1923,8 @@ describe("First administrator bootstrap persistence", () => {
       status: "IDENTITY_LINKED",
       consumedAt: "2026-09-18T11:10:00.000Z",
       identityLinkedAt: "2026-09-18T11:10:00.000Z",
+      externalIssuer: "https://issuer.example/",
+      externalSubject: "auth0|linked-administrator",
     });
   });
 
@@ -1931,6 +1939,8 @@ describe("First administrator bootstrap persistence", () => {
       consumedAt: "2026-09-18T11:10:00.000Z",
       identityLinkedAt: "2026-09-18T11:10:00.000Z",
       activatedAt: "2026-09-18T11:20:00.000Z",
+      externalIssuer: "https://issuer.example/",
+      externalSubject: "auth0|active-administrator",
     });
   });
 

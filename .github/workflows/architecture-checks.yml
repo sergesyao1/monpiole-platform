@@ -202,6 +202,8 @@ jobs:
         run: corepack pnpm service:tenant-management:typecheck
       - name: Typecheck Identity
         run: corepack pnpm service:identity:typecheck
+      - name: Build event contracts
+        run: corepack pnpm package:events:build
       - name: Build persistence
         run: corepack pnpm package:persistence:build
       - name: Build Tenant Management
