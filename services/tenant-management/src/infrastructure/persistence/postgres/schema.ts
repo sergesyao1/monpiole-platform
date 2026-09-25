@@ -40,3 +40,33 @@ export const tenantOutbox = tenantManagement.table("outbox", {
   correlationId: uuid("correlation_id").notNull(),
   envelope: jsonb("envelope").notNull(),
 }, (table) => [index("outbox_tenant_occurred_idx").on(table.tenantId, table.occurredAt)]);
+
+export const organizations = tenantManagement.table("organizations", {
+  id: uuid("id").primaryKey(),
+  tenantId: uuid("tenant_id").notNull(),
+  organizationType: text("organization_type").notNull(),
+
+  legalName: text("legal_name").notNull(),
+  tradeName: text("trade_name"),
+  registrationNumber: text("registration_number").notNull(),
+  taxIdentifier: text("tax_identifier"),
+
+  phone: text("phone").notNull(),
+  email: text("email").notNull(),
+  website: text("website"),
+
+  address: text("address").notNull(),
+  city: text("city").notNull(),
+  countryCode: text("country_code").notNull(),
+
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+}, (table) => [
+  uniqueIndex("organizations_tenant_unique").on(table.tenantId),
+]);
