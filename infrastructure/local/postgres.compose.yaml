@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687
+    environment:
+      POSTGRES_DB: monpiole
+      POSTGRES_USER: monpiole
+      POSTGRES_PASSWORD: monpiole
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U monpiole -d monpiole"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - monpiole-postgres-data:/var/lib/postgresql
+
+volumes:
+  monpiole-postgres-data:

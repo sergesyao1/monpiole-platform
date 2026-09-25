@@ -1,0 +1,15 @@
+import { useEffect, useState, type FormEvent } from "react";
+import type { PropertyAmenityApi } from "./property-api.js";
+import type { Amenity, AmenityCategory } from "./property-model.js";
+import { toPropertyUiError, type PropertyUiError } from "./property-errors.js";
+import { PropertyFeedback } from "./PropertyFeedback.js";
+import { Alert, Button, LoadingState } from "../../ui/index.js";
+const labels: Record<AmenityCategory,string>={COMFORT:"Confort",KITCHEN:"Cuisine",CONNECTIVITY:"Connectivité",ENERGY_WATER:"Énergie et eau",SECURITY:"Sécurité",BUILDING:"Immeuble",OUTDOOR:"Extérieur",SERVICES:"Services"};
+export function PropertyAmenitiesSection({propertyId,api,onReconnect}:{propertyId:string;api:PropertyAmenityApi;onReconnect:()=>void}) {
+ const [catalog,setCatalog]=useState<readonly Amenity[]>([]); const [selected,setSelected]=useState<readonly string[]>([]); const [loading,setLoading]=useState(true); const [saving,setSaving]=useState(false); const [saved,setSaved]=useState(false); const [error,setError]=useState<PropertyUiError>();
+ useEffect(()=>{let active=true;setLoading(true);Promise.all([api.retrieveAmenityCatalog(),api.retrievePropertyAmenities(propertyId)]).then(([c,s])=>{if(active){setCatalog(Array.isArray(c?.items)?c.items:[]);setSelected(Array.isArray(s?.amenityCodes)?s.amenityCodes:[]);}}).catch((e:unknown)=>{if(active)setError(toPropertyUiError(e));}).finally(()=>{if(active)setLoading(false);});return()=>{active=false};},[api,propertyId]);
+ async function save(event:FormEvent){event.preventDefault();setSaving(true);setSaved(false);setError(undefined);try{const result=await api.replacePropertyAmenities(propertyId,selected);setSelected(result.amenityCodes);setSaved(true);}catch(e){setError(toPropertyUiError(e));}finally{setSaving(false)}}
+ function toggle(code:string,checked:boolean){setSelected((current)=>checked?[...current,code]:current.filter((item)=>item!==code));}
+ if(loading)return <section className="content-panel" id="property-amenities"><LoadingState label="Chargement des commodités et équipements…"/></section>;
+ return <section className="content-panel" id="property-amenities" aria-labelledby="property-amenities-title"><div className="section-heading"><div><p className="eyebrow">Confort et services</p><h2 id="property-amenities-title">Commodités et équipements</h2></div></div>{error&&<PropertyFeedback error={error} onReconnect={onReconnect}/>} {saved&&<Alert tone="success" title="Équipements enregistrés"><p>La sélection du bien est à jour.</p></Alert>}<form onSubmit={(e)=>void save(e)} className="form-stack"><div className="amenity-groups">{Object.entries(labels).map(([category,label])=>{const items=catalog.filter((item)=>item.category===category);return <fieldset key={category}><legend>{label}</legend>{items.map((item)=><label className="checkbox-field" key={item.code}><input type="checkbox" checked={selected.includes(item.code)} onChange={(e)=>toggle(item.code,e.currentTarget.checked)}/>{item.labelFr}</label>)}</fieldset>})}</div><Button type="submit" loading={saving} loadingLabel="Enregistrement…">Enregistrer les équipements</Button></form></section>;
+}

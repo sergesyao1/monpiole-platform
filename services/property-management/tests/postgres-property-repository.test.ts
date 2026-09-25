@@ -1,0 +1,3299 @@
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
+import { Pool } from "pg";
+import { withTenantPostgresTransaction } from "@monpiole/persistence";
+import { GenericContainer, Wait, type StartedTestContainer } from "testcontainers";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import {
+  CreateProperty, CreatePropertyOwner, ListProperties, ListPropertyOwners, PostgresPropertyOwnerDirectoryQuery,
+  PostgresPropertyOwnerRepository, PostgresPropertyPortfolioQuery, PostgresPropertyRepository,
+  PropertyNotFoundError, PropertyOwnerNotFoundError, PropertyOwnerTypeChangeNotAllowedError,
+  RetrieveProperty, RetrievePropertyOwner, UpdatePropertyCoreInformation, UpdatePropertyDetails, UpdatePropertyOwner, type TransactionType,
+  AssignPropertyOwner, PostgresPropertyOwnershipRepository, PropertyOwnershipConflictError,
+  PropertyOwnershipShareExceededError, PropertyOwnershipNotFoundError, RemovePropertyOwner, RetrievePropertyOwnerships,
+  CreatePropertyBuilding, CreatePropertyUnit, ListPropertyBuildings, ListPropertyUnits, UpdatePropertyBuilding,
+  CreatePropertyComplexChild, ListPropertyComplexChildren, PropertyComplexChildCodeConflictError,
+  UpdatePropertyUnitStructure, PostgresPropertyCompositionRepository, PropertyBuildingCodeConflictError,
+  PropertyUnitCodeConflictError, PropertyStructuralRoleConflictError, Property,
+  PersistedPropertyCorruptionError,
+  PropertyBuildingNotFoundError, PropertyUnitNotFoundError,
+  PublishProperty, PropertyPublicationRequirementsNotMetError, PropertyRepublicationNotSupportedError,
+  WithdrawPropertyFromCatalog, PostgresPublicPropertyCatalogQuery,
+  PostgresPropertyAvailabilityQuery, RetrievePropertyAvailability, UpdatePropertyAvailability,
+  PropertyAvailabilityDerivedFromUnitsError,
+  PropertyCommercialTargetNotEligibleError,
+  SetPropertyPricing,
+  PostgresPropertyInquiryRepository, PropertyInquiry,
+  PostgresPropertyInquiryCommunicationRepository, PropertyInquiryCommunication,
+  PostgresPropertyViewingRepository, PropertyViewing, PropertyViewingConflictError,
+  PostgresPropertyViewingOutcomeRepository, PropertyViewingOutcome, PropertyViewingOutcomeConflictError,
+  PostgresPropertyApplicationRepository, PropertyApplication,
+  PostgresPropertyApplicationClientConversionRepository,
+  PostgresPropertyApplicationContractRepository,
+  PostgresPropertyCommercialJourneyQuery,
+} from "../src/index.js";
+
+const IMAGE = "postgres@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687";
+const TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"; const TENANT_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const PROPERTY_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"; const CORRELATION = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+const PUBLICATION_CORRELATION = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+const REPLAY_CORRELATION = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+const WITHDRAWAL_CORRELATION = "11111111-1111-4111-8111-111111111111";
+let container: StartedTestContainer; let owner: Pool; let runtime: Pool;
+const migrationsFolder = fileURLToPath(new URL("../migrations", import.meta.url));
+
+function connection(user: string, password: string, database = "property_test") {
+  return `postgresql://${user}:${password}@${container.getHost()}:${container.getMappedPort(5432)}/${database}`;
+}
+
+beforeAll(async () => {
+  container = await new GenericContainer(IMAGE).withEnvironment({ POSTGRES_DB: "property_test", POSTGRES_USER: "owner", POSTGRES_PASSWORD: "synthetic-owner" })
+    .withExposedPorts(5432).withWaitStrategy(Wait.forLogMessage(/database system is ready to accept connections/, 2)).start();
+  owner = new Pool({ connectionString: connection("owner", "synthetic-owner") });
+  await owner.query("CREATE ROLE monpiole_runtime LOGIN PASSWORD 'synthetic-runtime' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS");
+  await owner.query("CREATE ROLE monpiole_public_catalog_reader LOGIN PASSWORD 'synthetic-public-reader' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS");
+  await migrate(drizzle(owner), { migrationsFolder });
+  await owner.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
+    property_management.properties,
+    property_management.property_owners,
+    property_management.property_ownerships,
+    property_management.property_buildings,
+    property_management.property_building_units
+    TO monpiole_runtime`);
+  runtime = new Pool({ connectionString: connection("monpiole_runtime", "synthetic-runtime") });
+});
+afterEach(async () => owner.query("TRUNCATE property_management.property_complex_children, property_management.property_application_contract_origins, property_management.property_application_client_conversions, property_management.property_applications, property_management.property_viewing_outcomes, property_management.property_viewings, property_management.property_inquiry_communications, property_management.property_inquiries, property_management.property_amenities, property_management.property_contracts, property_management.property_clients, property_management.property_primary_photo_audits, property_management.property_photo_standards, property_management.property_photos, property_management.property_geolocations, property_management.property_building_units, property_management.property_buildings, property_management.property_ownerships, property_management.properties, property_management.property_owners"));
+afterAll(async () => { await runtime?.end(); await owner?.end(); await container?.stop(); });
+
+function authority(tenantId: string) { return { actorId: "actor", authorityId: "authority", grants: ["CREATE_PROPERTY", "RETRIEVE_PROPERTY"] as const, tenantIds: [tenantId] }; }
+function pricingAuthority(tenantId: string) { return { actorId: "pricing-actor", authorityId: "pricing-authority", grants: ["UPDATE_PROPERTY_PRICING"] as const, tenantIds: [tenantId] }; }
+async function insertLegacyPrimaryPhoto(tenantId: string, propertyId: string) {
+  await withTenantPostgresTransaction(runtime, tenantId, (scope) => scope.query(
+    `INSERT INTO property_management.property_photos
+      (photo_id, tenant_id, property_id, category, status, is_primary, content_base64, content_type,
+       content_byte_size, content_sha256, registered_at, available_at, media_kind, gallery_position)
+     VALUES ($1,$2,$3,'BUILDING_EXTERIOR_OR_ENTRANCE','AVAILABLE',true,'iVBORw0KGgo=','image/png',8,
+       '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',$4,$4,'IMAGE',0)`,
+    [randomUUID(), tenantId, propertyId, "2026-08-25T12:01:00.000Z"],
+  ));
+}
+async function insertStudioPhotoSet(tenantId: string, propertyId: string) {
+  await insertLegacyPrimaryPhoto(tenantId, propertyId);
+  const categories = [
+    "MAIN_LIVING_SLEEPING_AREA", "KITCHEN_OR_KITCHENETTE", "BATHROOM_OR_SHOWER_ROOM", "OTHER", "OTHER",
+  ];
+  await withTenantPostgresTransaction(runtime, tenantId, async (scope) => {
+    for (const [index, category] of categories.entries()) {
+      await scope.query(
+        `INSERT INTO property_management.property_photos
+          (photo_id, tenant_id, property_id, category, status, is_primary, content_base64, content_type,
+          content_byte_size, content_sha256, registered_at, available_at, media_kind, gallery_position)
+         VALUES ($1,$2,$3,$4,'AVAILABLE',false,'iVBORw0KGgo=','image/png',8,
+           '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',$5,$5,'IMAGE',$6)`,
+        [randomUUID(), tenantId, propertyId, category, "2026-08-25T12:01:00.000Z", index + 1],
+      );
+    }
+  });
+}
+async function create(repository = new PostgresPropertyRepository(runtime), tenantId = TENANT_A, transactionType: TransactionType = "SALE", propertyId = PROPERTY_ID) {
+  const created = await new CreateProperty(repository, { generate: () => propertyId }, { now: () => "2026-08-25T12:00:00.000Z" }).execute({
+    authority: authority(tenantId), correlationId: CORRELATION, title: "House", propertyType: "HOUSE", transactionType,
+    location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Riviera" },
+  });
+  await insertLegacyPrimaryPhoto(tenantId, propertyId);
+  return created;
+}
+
+describe("Property PostgreSQL persistence", () => {
+  it("persists tenant-isolated viewings and serializes duplicate scheduling", async () => {
+    await create(new PostgresPropertyRepository(runtime),TENANT_A,"LONG_TERM_RENTAL");
+    const inquiryId = "22222222-2222-4222-8222-222222222222";
+    const now = "2026-09-09T12:00:00.000Z";
+    await owner.query(`INSERT INTO property_management.property_inquiries
+      (inquiry_id, tenant_id, property_id, contact_name, email, consent_version, consent_given_at,
+       idempotency_key, status, created_at, updated_at, acknowledged_at, correlation_id, actor_id)
+      VALUES ($1,$2,$3,'Awa','awa@example.com','v1',$4,'viewing-test','ACKNOWLEDGED',$4,$4,$4,$5,'actor')`,
+    [inquiryId, TENANT_A, PROPERTY_ID, now, CORRELATION]);
+    const repository = new PostgresPropertyViewingRepository(runtime);
+    const make = (viewingId: string) => PropertyViewing.schedule({ viewingId, tenantId: TENANT_A,
+      propertyId: PROPERTY_ID, inquiryId, startsAt: "2026-09-10T12:00:00.000Z",
+      endsAt: "2026-09-10T13:00:00.000Z", timeZone: "Africa/Abidjan", createdAt: now, updatedAt: now }, now);
+    const attempts = await Promise.allSettled([
+      repository.saveForAcknowledgedInquiry(make("33333333-3333-4333-8333-333333333333"), { actorId: "actor", correlationId: CORRELATION }),
+      repository.saveForAcknowledgedInquiry(make("44444444-4444-4444-8444-444444444444"), { actorId: "actor", correlationId: CORRELATION }),
+    ]);
+    expect(attempts.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    const rejected = attempts.find((result) => result.status === "rejected");
+    expect(rejected?.status === "rejected" ? rejected.reason : undefined).toBeInstanceOf(PropertyViewingConflictError);
+    const stored = await repository.findByInquiry(TENANT_A, PROPERTY_ID, inquiryId);
+    if (!stored) throw new Error("Concurrent scheduling did not persist a viewing");
+    expect(stored?.values.status).toBe("SCHEDULED");
+    expect(await repository.find(TENANT_B, PROPERTY_ID, stored.values.viewingId)).toBeUndefined();
+    await expect(repository.update(TENANT_A, PROPERTY_ID, stored.values.viewingId,
+      (value) => value.reschedule("2026-09-10T13:00:00.000Z", "2026-09-10T18:00:00.000Z", "UTC", now),
+      { actorId: "actor", correlationId: CORRELATION })).rejects.toThrow();
+    expect((await repository.find(TENANT_A, PROPERTY_ID, stored.values.viewingId))?.values.startsAt).toBe("2026-09-10T12:00:00.000Z");
+    await repository.update(TENANT_A, PROPERTY_ID, stored.values.viewingId, (value) => value.complete(now),
+      { actorId: "actor", correlationId: CORRELATION });
+    const outcomes = new PostgresPropertyViewingOutcomeRepository(runtime);
+    const makeOutcome = (outcomeId: string) => PropertyViewingOutcome.create({ outcomeId, tenantId: TENANT_A,
+      propertyId: PROPERTY_ID, viewingId: stored.values.viewingId, createdAt: now, updatedAt: now });
+    const outcomeAttempts = await Promise.allSettled([
+      outcomes.createForCompletedViewing(makeOutcome("55555555-5555-4555-8555-555555555555"), { actorId: "actor", correlationId: CORRELATION }),
+      outcomes.createForCompletedViewing(makeOutcome("66666666-6666-4666-8666-666666666666"), { actorId: "actor", correlationId: CORRELATION }),
+    ]);
+    expect(outcomeAttempts.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    const rejectedOutcome = outcomeAttempts.find((result) => result.status === "rejected");
+    expect(rejectedOutcome?.status === "rejected" ? rejectedOutcome.reason : undefined).toBeInstanceOf(PropertyViewingOutcomeConflictError);
+    expect(await outcomes.findByViewing(TENANT_B, PROPERTY_ID, stored.values.viewingId)).toBeUndefined();
+    const proceeded = await outcomes.update(TENANT_A, PROPERTY_ID, stored.values.viewingId,
+      (value) => value.proceed("2026-09-10T14:00:00.000Z"), { actorId: "actor", correlationId: CORRELATION });
+    expect(proceeded?.values.status).toBe("PROCEED");
+    await expect(outcomes.update(TENANT_A, PROPERTY_ID, stored.values.viewingId,
+      (value) => value.decline("2026-09-10T15:00:00.000Z"), { actorId: "actor", correlationId: CORRELATION })).rejects.toThrow();
+    expect((await outcomes.findByViewing(TENANT_A, PROPERTY_ID, stored.values.viewingId))?.values.status).toBe("PROCEED");
+    const applications = new PostgresPropertyApplicationRepository(runtime);
+    const seed = (applicationId: string) => PropertyApplication.create({ applicationId, tenantId: TENANT_A,
+      propertyId: PROPERTY_ID, inquiryId, viewingId: stored.values.viewingId,
+      outcomeId: proceeded?.values.outcomeId ?? "55555555-5555-4555-8555-555555555555", createdAt: now, updatedAt: now });
+    const applicationAttempts = await Promise.all([
+      applications.createForProceedOutcome(seed("77777777-7777-4777-8777-777777777777"), { actorId: "actor", correlationId: CORRELATION }),
+      applications.createForProceedOutcome(seed("88888888-8888-4888-8888-888888888888"), { actorId: "actor", correlationId: CORRELATION }),
+    ]);
+    expect(new Set(applicationAttempts.map((result) => "application" in result ? result.application?.values.applicationId : "missing")).size).toBe(1);
+    const application = "application" in applicationAttempts[0]! ? applicationAttempts[0].application : undefined;
+    if (!application) throw new Error("Application was not persisted");
+    expect(await applications.find(TENANT_B, PROPERTY_ID, application.values.applicationId)).toBeUndefined();
+    const applicationPage = await applications.list(TENANT_A, PROPERTY_ID, 20);
+    expect(applicationPage?.items).toHaveLength(1);
+    expect(applicationPage?.items[0]).toMatchObject({
+      candidate: { contactName: "Awa", email: "awa@example.com" },
+      viewing: { startsAt: "2026-09-10T12:00:00.000Z", timeZone: "Africa/Abidjan" },
+      outcome: { status: "PROCEED", decidedAt: "2026-09-10T14:00:00.000Z" },
+    });
+    expect(await applications.list(TENANT_B, PROPERTY_ID, 20)).toBeUndefined();
+    await applications.update(TENANT_A, PROPERTY_ID, application.values.applicationId,
+      (value) => value.approve("2026-09-10T16:00:00.000Z"), { actorId: "actor", correlationId: CORRELATION });
+    await expect(applications.update(TENANT_A, PROPERTY_ID, application.values.applicationId,
+      (value) => value.reject("2026-09-10T17:00:00.000Z"), { actorId: "actor", correlationId: CORRELATION })).rejects.toThrow();
+    expect((await applications.find(TENANT_A, PROPERTY_ID, application.values.applicationId))?.values.status).toBe("APPROVED");
+    const conversions = new PostgresPropertyApplicationClientConversionRepository(runtime);
+    const conversionAttempts = await Promise.all([
+      conversions.convert({tenantId:TENANT_A,propertyId:PROPERTY_ID,applicationId:application.values.applicationId,clientId:"99999999-9999-4999-8999-999999999999",convertedAt:"2026-09-10T18:00:00.000Z",actorId:"actor",correlationId:CORRELATION}),
+      conversions.convert({tenantId:TENANT_A,propertyId:PROPERTY_ID,applicationId:application.values.applicationId,clientId:"aaaaaaaa-1111-4111-8111-111111111111",convertedAt:"2026-09-10T18:00:01.000Z",actorId:"actor",correlationId:CORRELATION}),
+    ]);
+    const convertedClientIds=conversionAttempts.map(result=>result.conversion?.client.values.clientId);
+    expect(new Set(convertedClientIds).size).toBe(1);
+    expect(["99999999-9999-4999-8999-999999999999","aaaaaaaa-1111-4111-8111-111111111111"]).toContain(convertedClientIds[0]);
+    expect((await conversions.find(TENANT_A,PROPERTY_ID,application.values.applicationId))?.client.values.displayName).toBe("Awa");
+    expect(await conversions.find(TENANT_B,PROPERTY_ID,application.values.applicationId)).toBeUndefined();
+    const applicationContracts=new PostgresPropertyApplicationContractRepository(runtime);
+    const contractAttempts=await Promise.all([
+      applicationContracts.create({tenantId:TENANT_A,propertyId:PROPERTY_ID,applicationId:application.values.applicationId,contractId:"bbbbbbbb-1111-4111-8111-111111111111",reference:"BAIL-APP-1",startDate:"2026-10-01",createdAt:"2026-09-10T19:00:00.000Z",actorId:"actor",correlationId:CORRELATION}),
+      applicationContracts.create({tenantId:TENANT_A,propertyId:PROPERTY_ID,applicationId:application.values.applicationId,contractId:"bbbbbbbb-2222-4222-8222-222222222222",reference:"BAIL-APP-1",startDate:"2026-10-01",createdAt:"2026-09-10T19:00:01.000Z",actorId:"actor",correlationId:CORRELATION}),
+    ]);
+    const contractIds=contractAttempts.map(result=>result.record?.contract.values.contractId);
+    expect(new Set(contractIds).size).toBe(1);
+    expect(["bbbbbbbb-1111-4111-8111-111111111111","bbbbbbbb-2222-4222-8222-222222222222"]).toContain(contractIds[0]);
+    const origins=await owner.query("SELECT count(*)::int AS count FROM property_management.property_application_contract_origins WHERE tenant_id=$1 AND application_id=$2",[TENANT_A,application.values.applicationId]);
+    expect(origins.rows[0]?.count).toBe(1);
+    const commercialJourneys = new PostgresPropertyCommercialJourneyQuery(runtime);
+    await expect(commercialJourneys.list(TENANT_A, { q: "awa@example.com", stage: "DRAFT_CONTRACT", nextAction: "ACTIVATE_CONTRACT", sort: "RECENT" }, 20)).resolves.toMatchObject({
+      totalCount: 1,
+      items: [{ inquiryId, stage: "DRAFT_CONTRACT", nextAction: "ACTIVATE_CONTRACT", workspaceAnchor: "property-contracts" }],
+    });
+  });
+  it("migre 0014 vers 0015, préserve les prix legacy et refuse leur publication sans mise en conformité", async () => {
+    const previousMigrations = await migrationsThrough(14);
+    await owner.query("CREATE DATABASE property_pricing_upgrade_test");
+    const upgrade = new Pool({ connectionString: connection("owner", "synthetic-owner", "property_pricing_upgrade_test") });
+    const publishedId = "22222222-2222-4222-8222-222222222222";
+    try {
+      await migrate(drizzle(upgrade), { migrationsFolder: previousMigrations });
+      await upgrade.query("BEGIN");
+      await upgrade.query(`INSERT INTO property_management.properties
+        (property_id,tenant_id,title,property_type,transaction_type,status,structural_role,country,city,district,address_line,
+         created_at,updated_at,correlation_id,actor_id,rooms,commercial_kind,currency,sale_price_amount_minor)
+        VALUES ($1,$2,'Legacy draft','HOUSE','SALE','DRAFT','STANDALONE','CI','Abidjan','Cocody','Riviera',
+          now(),now(),$3,'legacy',4,'SALE','EUR',0)`, [PROPERTY_ID, TENANT_A, CORRELATION]);
+      await upgrade.query(`INSERT INTO property_management.properties
+        (property_id,tenant_id,title,property_type,transaction_type,status,structural_role,country,city,district,address_line,
+         created_at,updated_at,correlation_id,actor_id,published_at,published_by_actor_id,publication_correlation_id,
+         rooms,commercial_kind,currency,sale_price_amount_minor)
+        VALUES ($1,$2,'Legacy published','HOUSE','SALE','PUBLISHED','STANDALONE','CI','Abidjan','Cocody','Riviera',
+          now(),now(),$3,'legacy',now(),'legacy',$3,4,'SALE','USD',0)`, [publishedId, TENANT_A, PUBLICATION_CORRELATION]);
+      await upgrade.query(`INSERT INTO property_management.property_photos
+        (photo_id,tenant_id,property_id,category,status,is_primary,content_base64,content_type,
+         content_byte_size,content_sha256,registered_at,available_at)
+        VALUES ($1,$2,$3,'OTHER','AVAILABLE',true,'iVBORw0KGgo=','image/png',8,
+          '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',now(),now())`,
+      [randomUUID(), TENANT_A, publishedId]);
+      await upgrade.query("COMMIT");
+
+      await migrate(drizzle(upgrade), { migrationsFolder });
+
+      expect((await upgrade.query(`SELECT property_id,currency,sale_price_amount_minor,pricing_version,
+        agency_fee_amount_minor,cleaning_fee_amount_minor,minimum_stay_nights
+        FROM property_management.properties ORDER BY property_id`)).rows).toEqual([
+        {
+          property_id: publishedId, currency: "USD", sale_price_amount_minor: "0", pricing_version: 1,
+          agency_fee_amount_minor: null, cleaning_fee_amount_minor: null, minimum_stay_nights: null,
+        },
+        {
+          property_id: PROPERTY_ID, currency: "EUR", sale_price_amount_minor: "0", pricing_version: 1,
+          agency_fee_amount_minor: null, cleaning_fee_amount_minor: null, minimum_stay_nights: null,
+        },
+      ]);
+      await upgrade.query("UPDATE property_management.properties SET title='Legacy draft renamed' WHERE property_id=$1", [PROPERTY_ID]);
+      expect((await upgrade.query("SELECT pricing_version FROM property_management.properties WHERE property_id=$1", [PROPERTY_ID])).rows[0])
+        .toEqual({ pricing_version: 1 });
+      await expect(upgrade.query(`UPDATE property_management.properties SET status='PUBLISHED', published_at=now(),
+        published_by_actor_id='publisher', publication_correlation_id=$2 WHERE property_id=$1`,
+      [PROPERTY_ID, randomUUID()])).rejects.toMatchObject({ code: "23514", constraint: "properties_commercial_terms_check" });
+      expect((await upgrade.query("SELECT status,pricing_version FROM property_management.properties WHERE property_id=$1", [PROPERTY_ID])).rows[0])
+        .toEqual({ status: "DRAFT", pricing_version: 1 });
+
+      const upgradeReader = new Pool({ connectionString: connection("monpiole_public_catalog_reader", "synthetic-public-reader", "property_pricing_upgrade_test") });
+      try {
+        const catalog = new PostgresPublicPropertyCatalogQuery(upgradeReader);
+        await expect(catalog.retrieve(TENANT_A, publishedId)).resolves.toMatchObject({
+          publicPropertyId: publishedId,
+          commercialTerms: { kind: "SALE", currency: "USD", salePriceAmountMinor: 0 },
+        });
+      } finally {
+        await upgradeReader.end();
+      }
+    } catch (error) {
+      await upgrade.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      await upgrade.end();
+      await rm(previousMigrations, { recursive: true, force: true });
+    }
+  });
+
+  it("persiste la tarification avancée v2, la relit et rejoue sans nouvelle écriture", async () => {
+    const repository = new PostgresPropertyRepository(runtime);
+    await create(repository, TENANT_A, "LONG_TERM_RENTAL");
+    await new UpdatePropertyDetails(repository, { now: () => "2026-09-01T11:00:00.000Z" }).execute({
+      authority: { actorId: "details", authorityId: "details", grants: ["UPDATE_PROPERTY_DETAILS"], tenantIds: [TENANT_A] },
+      correlationId: CORRELATION, propertyId: PROPERTY_ID, details: { rooms: 3, bedrooms: 2 },
+    });
+    let clockCalls = 0;
+    const pricing = new SetPropertyPricing(repository, { now: () => {
+      clockCalls += 1;
+      return "2026-09-01T12:00:00.000Z";
+    } });
+    const command = {
+      authority: pricingAuthority(TENANT_A), correlationId: CORRELATION, propertyId: PROPERTY_ID,
+      pricing: {
+        kind: "LONG_TERM_RENTAL" as const, currency: "XOF", rentAmountMinor: 300_000, rentPeriod: "MONTH" as const,
+        securityDepositAmountMinor: 600_000, chargesAmountMinor: 25_000, agencyFeeAmountMinor: 300_000,
+      },
+    };
+    await pricing.execute(command);
+    await pricing.execute(command);
+    expect(clockCalls).toBe(1);
+    expect((await owner.query(`SELECT commercial_kind,currency,rent_amount_minor,security_deposit_amount_minor,
+      charges_amount_minor,agency_fee_amount_minor,
+      cleaning_fee_amount_minor,minimum_stay_nights,pricing_version,updated_at,actor_id,correlation_id
+      FROM property_management.properties WHERE property_id=$1`, [PROPERTY_ID])).rows[0]).toMatchObject({
+      commercial_kind: "LONG_TERM_RENTAL", currency: "XOF", rent_amount_minor: "300000",
+      security_deposit_amount_minor: "600000", charges_amount_minor: "25000",
+      agency_fee_amount_minor: "300000", cleaning_fee_amount_minor: null, minimum_stay_nights: null,
+      pricing_version: 2, actor_id: "pricing-actor", correlation_id: CORRELATION,
+    });
+    await expect(new RetrieveProperty(repository).execute({ authority: authority(TENANT_A), propertyId: PROPERTY_ID }))
+      .resolves.toMatchObject({ details: { rooms: 3, bedrooms: 2 }, commercialTerms: {
+        kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 300_000, agencyFeeAmountMinor: 300_000,
+      } });
+    await expect(new UpdatePropertyAvailability(repository, { now: () => "2026-09-01T13:00:00.000Z" }).execute({
+      authority: availabilityAuthority(TENANT_A), correlationId: CORRELATION, propertyId: PROPERTY_ID,
+      availabilityStatus: "AVAILABLE", occupancyStatus: "VACANT",
+    })).resolves.toMatchObject({ configured: true, availabilityStatus: "AVAILABLE", occupancyStatus: "VACANT" });
+    await expect(new RetrieveProperty(repository).execute({ authority: authority(TENANT_A), propertyId: PROPERTY_ID }))
+      .resolves.toMatchObject({ details: { rooms: 3, bedrooms: 2 }, commercialTerms: {
+        kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 300_000, agencyFeeAmountMinor: 300_000,
+      } });
+  });
+
+  it("applique les contraintes v2 et conserve RLS et privilèges runtime/public minimaux", async () => {
+    await create();
+    await expect(owner.query(`UPDATE property_management.properties
+      SET commercial_kind='SALE',currency='EUR',sale_price_amount_minor=1 WHERE property_id=$1`, [PROPERTY_ID]))
+      .rejects.toMatchObject({ code: "23514", constraint: "properties_commercial_terms_check" });
+    await expect(owner.query(`UPDATE property_management.properties
+      SET commercial_kind='SALE',currency='XOF',sale_price_amount_minor=0 WHERE property_id=$1`, [PROPERTY_ID]))
+      .rejects.toMatchObject({ code: "23514", constraint: "properties_commercial_terms_check" });
+    await owner.query(`UPDATE property_management.properties
+      SET commercial_kind='SALE',currency='XOF',sale_price_amount_minor=1,agency_fee_amount_minor=0
+      WHERE property_id=$1`, [PROPERTY_ID]);
+    expect((await owner.query("SELECT pricing_version FROM property_management.properties WHERE property_id=$1", [PROPERTY_ID])).rows[0])
+      .toEqual({ pricing_version: 2 });
+    expect((await owner.query(`SELECT relrowsecurity,relforcerowsecurity FROM pg_class
+      WHERE oid='property_management.properties'::regclass`)).rows[0]).toEqual({ relrowsecurity: true, relforcerowsecurity: true });
+    expect((await owner.query(`SELECT
+      has_column_privilege('monpiole_runtime','property_management.properties','agency_fee_amount_minor','SELECT') AS runtime_select,
+      has_column_privilege('monpiole_runtime','property_management.properties','pricing_version','UPDATE') AS runtime_update,
+      has_column_privilege('monpiole_public_catalog_reader','property_management.properties','agency_fee_amount_minor','SELECT') AS public_fee,
+      has_column_privilege('monpiole_public_catalog_reader','property_management.properties','pricing_version','SELECT') AS public_version`)).rows[0])
+      .toEqual({ runtime_select: true, runtime_update: true, public_fee: true, public_version: false });
+  });
+
+  it("migre 0012 vers 0013 sans altérer les DRAFT/PUBLISHED historiques", async () => {
+    const previousMigrations = await migrationsThrough(12);
+    await owner.query("CREATE DATABASE property_withdrawal_upgrade_test");
+    const upgrade = new Pool({ connectionString: connection("owner", "synthetic-owner", "property_withdrawal_upgrade_test") });
+    const publishedId = "22222222-2222-4222-8222-222222222222";
+    try {
+      await migrate(drizzle(upgrade), { migrationsFolder: previousMigrations });
+      for (const [propertyId, title] of [[PROPERTY_ID, "Historical draft"], [publishedId, "Historical published"]]) {
+        await upgrade.query(`INSERT INTO property_management.properties
+          (property_id, tenant_id, title, property_type, transaction_type, status, country, city, district, address_line,
+           rooms, commercial_kind, currency, sale_price_amount_minor, photo_standard_version,
+           created_at, updated_at, correlation_id, actor_id)
+          VALUES ($1,$2,$3,'HOUSE','SALE','DRAFT','CI','Abidjan','Cocody','Riviera',1,'SALE','XOF',1,1,now(),now(),$4,'historical')`,
+        [propertyId, TENANT_A, title, CORRELATION]);
+      }
+      await upgrade.query(`INSERT INTO property_management.property_photos
+        (photo_id,tenant_id,property_id,category,status,is_primary,content_base64,content_type,content_byte_size,content_sha256,registered_at,available_at)
+        VALUES ($1,$2,$3,'BUILDING_EXTERIOR_OR_ENTRANCE','AVAILABLE',true,'iVBORw0KGgo=','image/png',8,
+          '4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6',now(),now())`,
+      [randomUUID(), TENANT_A, publishedId]);
+      await upgrade.query(`UPDATE property_management.properties SET status='PUBLISHED', published_at=now(),
+        published_by_actor_id='historical-publisher', publication_correlation_id=$2 WHERE property_id=$1`,
+      [publishedId, PUBLICATION_CORRELATION]);
+
+      await migrate(drizzle(upgrade), { migrationsFolder });
+
+      expect((await upgrade.query(`SELECT property_id, status, withdrawn_at, withdrawn_by_actor_id, withdrawal_correlation_id
+        FROM property_management.properties ORDER BY property_id`)).rows).toEqual([
+        { property_id: publishedId, status: "PUBLISHED", withdrawn_at: null, withdrawn_by_actor_id: null, withdrawal_correlation_id: null },
+        { property_id: PROPERTY_ID, status: "DRAFT", withdrawn_at: null, withdrawn_by_actor_id: null, withdrawal_correlation_id: null },
+      ]);
+      expect((await upgrade.query(`SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint
+        WHERE connamespace='property_management'::regnamespace AND conname='properties_status_check'`)).rows[0]?.definition)
+        .toContain("'WITHDRAWN'::text");
+      expect((await upgrade.query(`SELECT has_column_privilege('monpiole_public_catalog_reader',
+        'property_management.properties', 'withdrawn_at', 'SELECT') AS public_can_read_withdrawal_trace`)).rows[0])
+        .toEqual({ public_can_read_withdrawal_trace: false });
+    } finally {
+      await upgrade.end();
+      await rm(previousMigrations, { recursive: true, force: true });
+    }
+  });
+  it("migre 0006 vers 0007, ferme CG-01 et préserve les Properties DRAFT historiques", async () => {
+    const previousMigrations = await previousPropertyMigrations();
+    await owner.query("CREATE DATABASE property_upgrade_test");
+    const upgrade = new Pool({ connectionString: connection("owner", "synthetic-owner", "property_upgrade_test") });
+    try {
+      await migrate(drizzle(upgrade), { migrationsFolder: previousMigrations });
+      await upgrade.query(`INSERT INTO property_management.properties
+        (property_id, tenant_id, title, property_type, transaction_type, status, country, city, district, address_line, created_at, updated_at, correlation_id, actor_id)
+        VALUES ($1,$2,'Historical house','HOUSE','SALE','DRAFT','CI','Abidjan','Cocody','Riviera',now(),now(),$3,'migration-test')`, [PROPERTY_ID, TENANT_A, CORRELATION]);
+
+      await migrate(drizzle(upgrade), { migrationsFolder });
+
+      expect((await upgrade.query(`SELECT title, structural_role, published_at, published_by_actor_id, publication_correlation_id
+        FROM property_management.properties WHERE property_id = $1`, [PROPERTY_ID])).rows[0])
+        .toEqual({ title: "Historical house", structural_role: "STANDALONE", published_at: null,
+          published_by_actor_id: null, publication_correlation_id: null });
+      const constraints = (await upgrade.query(`SELECT conname FROM pg_constraint
+        WHERE connamespace = 'property_management'::regnamespace ORDER BY conname`)).rows.map((row) => row.conname);
+      expect(constraints).toEqual(expect.arrayContaining([
+        "properties_title_length_check", "properties_description_length_check", "properties_type_check",
+        "properties_transaction_type_check", "properties_status_check", "properties_country_check",
+        "properties_details_values_check", "properties_commercial_terms_check", "properties_structural_role_check",
+        "properties_publication_state_check", "property_owners_identity_check", "property_owners_contact_check",
+        "property_ownerships_share_check", "property_buildings_code_check", "property_buildings_name_check",
+        "property_building_units_code_check", "property_buildings_property_tenant_fk",
+        "property_buildings_tenant_property_code_unique", "property_building_units_building_tenant_fk",
+        "property_building_units_property_tenant_fk", "property_building_units_tenant_unit_unique",
+        "property_building_units_tenant_building_code_unique",
+      ]));
+      const indexes = (await upgrade.query(`SELECT indexname FROM pg_indexes
+        WHERE schemaname = 'property_management' ORDER BY indexname`)).rows.map((row) => row.indexname);
+      expect(indexes).toEqual(expect.arrayContaining([
+        "property_buildings_tenant_property_code_idx", "property_building_units_tenant_building_code_idx",
+        "properties_tenant_status_created_property_idx",
+      ]));
+      expect((await upgrade.query(`SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class
+        WHERE relnamespace = 'property_management'::regnamespace
+          AND relname IN ('properties','property_buildings','property_building_units','property_owners','property_ownerships')
+        ORDER BY relname`)).rows)
+        .toEqual([
+          { relname: "properties", relrowsecurity: true, relforcerowsecurity: true },
+          { relname: "property_building_units", relrowsecurity: true, relforcerowsecurity: true },
+          { relname: "property_buildings", relrowsecurity: true, relforcerowsecurity: true },
+          { relname: "property_owners", relrowsecurity: true, relforcerowsecurity: true },
+          { relname: "property_ownerships", relrowsecurity: true, relforcerowsecurity: true },
+        ]);
+      expect((await upgrade.query(`SELECT tablename, policyname FROM pg_policies
+        WHERE schemaname = 'property_management'
+          AND tablename IN ('properties','property_buildings','property_building_units','property_owners','property_ownerships')
+        ORDER BY tablename`)).rows)
+        .toEqual([
+          { tablename: "properties", policyname: "properties_public_catalog_published_select" },
+          { tablename: "properties", policyname: "properties_tenant_isolation" },
+          { tablename: "property_building_units", policyname: "property_building_units_tenant_isolation" },
+          { tablename: "property_buildings", policyname: "property_buildings_tenant_isolation" },
+          { tablename: "property_owners", policyname: "property_owners_tenant_isolation" },
+          { tablename: "property_ownerships", policyname: "property_ownerships_tenant_isolation" },
+        ]);
+    } finally {
+      await upgrade.end();
+      await rm(previousMigrations, { recursive: true, force: true });
+    }
+  });
+
+  it("persists and rehydrates through a fresh repository", async () => {
+    await create();
+    const found = await new RetrieveProperty(new PostgresPropertyRepository(runtime)).execute({ authority: authority(TENANT_A), propertyId: PROPERTY_ID });
+    expect(found).toMatchObject({ propertyId: PROPERTY_ID, tenantId: TENANT_A, status: "DRAFT", title: "House" });
+    expect((await owner.query("SELECT tenant_id, status FROM property_management.properties")).rows[0]).toEqual({ tenant_id: TENANT_A, status: "DRAFT" });
+  });
+  it("returns not found for unknown and cross-tenant lookups", async () => {
+    await create(); const retrieve = new RetrieveProperty(new PostgresPropertyRepository(runtime));
+    await expect(retrieve.execute({ authority: authority(TENANT_B), propertyId: PROPERTY_ID })).rejects.toBeInstanceOf(PropertyNotFoundError);
+    await expect(retrieve.execute({ authority: authority(TENANT_A), propertyId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" })).rejects.toBeInstanceOf(PropertyNotFoundError);
+  });
+  it("atomically persists core information and trace without changing immutable fields", async () => {
+    const repository = new PostgresPropertyRepository(runtime); await create(repository);
+    await new UpdatePropertyDetails(repository, { now: () => "2026-08-25T14:00:00.000Z" }).execute({
+      authority: { ...authority(TENANT_A), grants: ["UPDATE_PROPERTY_DETAILS"] }, correlationId: CORRELATION,
+      propertyId: PROPERTY_ID, details: { rooms: 4 }, commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 50_000_000 },
+    });
+    const update = new UpdatePropertyCoreInformation(repository, { now: () => "2026-08-25T15:00:00.000Z" });
+    await update.execute({ authority: { ...authority(TENANT_A), grants: ["UPDATE_PROPERTY_CORE_INFORMATION"] }, correlationId: CORRELATION,
+      propertyId: PROPERTY_ID, title: "Villa Lagune", description: "Rénovée",
+      location: { country: "CI", city: "Abidjan", district: "Marcory", addressLine: "Zone 4" } });
+    await expect(new RetrieveProperty(new PostgresPropertyRepository(runtime)).execute({ authority: authority(TENANT_A), propertyId: PROPERTY_ID }))
+      .resolves.toMatchObject({ title: "Villa Lagune", description: "Rénovée", propertyType: "HOUSE", transactionType: "SALE",
+        status: "DRAFT", location: { district: "Marcory", addressLine: "Zone 4" }, details: { rooms: 4 },
+        commercialTerms: { kind: "SALE", salePriceAmountMinor: 50_000_000 }, updatedAt: "2026-08-25T15:00:00.000Z" });
+    expect((await owner.query("SELECT correlation_id, actor_id FROM property_management.properties")).rows[0])
+      .toEqual({ correlation_id: CORRELATION, actor_id: "actor" });
+  });
+  it("does not update core information across tenants", async () => {
+    const repository = new PostgresPropertyRepository(runtime); await create(repository);
+    const update = new UpdatePropertyCoreInformation(repository, { now: () => "2026-08-25T15:00:00.000Z" });
+    await expect(update.execute({ authority: { ...authority(TENANT_B), grants: ["UPDATE_PROPERTY_CORE_INFORMATION"] }, correlationId: CORRELATION,
+      propertyId: PROPERTY_ID, title: "Invisible", location: { country: "CI", city: "Abidjan", district: "Marcory", addressLine: "Zone 4" } }))
+      .rejects.toBeInstanceOf(PropertyNotFoundError);
+    expect((await owner.query("SELECT title FROM property_management.properties")).rows[0]?.title).toBe("House");
+  });
+  it("forces RLS outside a tenant transaction", async () => {
+    expect((await runtime.query("SELECT * FROM property_management.properties")).rows).toHaveLength(0);
+    await expect(runtime.query(`INSERT INTO property_management.properties
+      (property_id, tenant_id, title, property_type, transaction_type, status, country, city, district, address_line, created_at, updated_at, correlation_id, actor_id)
+      VALUES ($1,$2,'House','HOUSE','SALE','DRAFT','CI','Abidjan','Cocody','Riviera',now(),now(),$3,'actor')`, [PROPERTY_ID, TENANT_A, CORRELATION]))
+      .rejects.toMatchObject({ code: "42501" });
+  });
+  it.each([
+    ["LONG_TERM_RENTAL", { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 250_000, rentPeriod: "MONTH", securityDepositAmountMinor: 500_000 }],
+    ["SHORT_TERM_RENTAL", { kind: "SHORT_TERM_RENTAL", currency: "XOF", rateAmountMinor: 45_000, pricingUnit: "NIGHT" }],
+    ["SALE", { kind: "SALE", currency: "XOF", salePriceAmountMinor: 80_000_000 }],
+  ] as const)("atomically persists and reconstructs %s terms", async (transactionType, commercialTerms) => {
+    const repository = new PostgresPropertyRepository(runtime); await create(repository, TENANT_A, transactionType);
+    const update = new UpdatePropertyDetails(repository, { now: () => "2026-08-25T14:00:00.000Z" });
+    await update.execute({ authority: { ...authority(TENANT_A), grants: ["UPDATE_PROPERTY_DETAILS"] }, correlationId: CORRELATION,
+      propertyId: PROPERTY_ID, details: { usableSurfaceSquareMeters: 90, rooms: 4, bedrooms: 2, bathrooms: 1 }, commercialTerms });
+    await expect(new RetrieveProperty(new PostgresPropertyRepository(runtime)).execute({ authority: authority(TENANT_A), propertyId: PROPERTY_ID }))
+      .resolves.toMatchObject({ details: { rooms: 4 }, commercialTerms, updatedAt: "2026-08-25T14:00:00.000Z" });
+  });
+  it("publishes once, persists dedicated first-publication traces and preserves them on replay and later mutation", async () => {
+    const repository = new PostgresPropertyRepository(runtime); await create(repository);
+    await new UpdatePropertyDetails(repository, { now: () => "2026-08-25T13:00:00.000Z" }).execute({
+      authority: { ...authority(TENANT_A), grants: ["UPDATE_PROPERTY_DETAILS"] }, correlationId: CORRELATION,
+      propertyId: PROPERTY_ID, details: { rooms: 0 },
+      commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 1 },
+    });
+    const publish = new PublishProperty(repository, { now: () => "2026-08-25T14:00:00.000Z" });
+    const command = { authority: { ...authority(TENANT_A), actorId: "publisher", grants: ["PUBLISH_PROPERTY"] as const },
+      correlationId: PUBLICATION_CORRELATION, propertyId: PROPERTY_ID };
+    await expect(publish.execute(command)).resolves.toMatchObject({
+      outcome: "PUBLISHED", property: { status: "PUBLISHED", publishedAt: "2026-08-25T14:00:00.000Z", updatedAt: "2026-08-25T14:00:00.000Z" },
+    });
+    await expect(new PublishProperty(repository, { now: () => { throw new Error("clock must not be read on replay"); } }).execute({
+      ...command, authority: { ...command.authority, actorId: "replayer" }, correlationId: REPLAY_CORRELATION,
+    })).resolves.toMatchObject({ outcome: "ALREADY_PUBLISHED", property: { publishedAt: "2026-08-25T14:00:00.000Z" } });
+
+    const rowAfterReplay = (await owner.query(`SELECT status, published_at, published_by_actor_id, publication_correlation_id,
+      updated_at, actor_id, correlation_id FROM property_management.properties`)).rows[0];
+    expect({ ...rowAfterReplay, published_at: rowAfterReplay.published_at.toISOString(), updated_at: rowAfterReplay.updated_at.toISOString() }).toEqual({
+      status: "PUBLISHED", published_at: "2026-08-25T14:00:00.000Z", published_by_actor_id: "publisher",
+      publication_correlation_id: PUBLICATION_CORRELATION, updated_at: "2026-08-25T14:00:00.000Z",
+      actor_id: "publisher", correlation_id: PUBLICATION_CORRELATION,
+    });
+    const page = await new ListProperties(new PostgresPropertyPortfolioQuery(runtime)).execute({
+      authority: { ...authority(TENANT_A), grants: ["LIST_PROPERTIES"] }, status: "PUBLISHED",
+    });
+    expect(page.items).toEqual([expect.objectContaining({ propertyId: PROPERTY_ID, status: "PUBLISHED", publishedAt: "2026-08-25T14:00:00.000Z" })]);
+
+    await new UpdatePropertyCoreInformation(repository, { now: () => "2026-08-25T15:00:00.000Z" }).execute({
+      authority: { ...authority(TENANT_A), actorId: "editor", grants: ["UPDATE_PROPERTY_CORE_INFORMATION"] },
+      correlationId: REPLAY_CORRELATION, propertyId: PROPERTY_ID, title: "Maison publiée",
+      location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Riviera" },
+    });
+    expect((await owner.query(`SELECT status, published_by_actor_id, publication_correlation_id, actor_id, correlation_id
+      FROM property_management.properties`)).rows[0]).toEqual({
+      status: "PUBLISHED", published_by_actor_id: "publisher", publication_correlation_id: PUBLICATION_CORRELATION,
+      actor_id: "editor", correlation_id: REPLAY_CORRELATION,
+    });
+  });
+  it("withdraws exactly once, serializes concurrent calls and removes every public read while preserving private data", async () => {
+    const repository = new PostgresPropertyRepository(runtime); await create(repository);
+    await new UpdatePropertyDetails(repository, { now: () => "2026-08-25T13:00:00.000Z" }).execute({
+      authority: { ...authority(TENANT_A), grants: ["UPDATE_PROPERTY_DETAILS"] }, correlationId: CORRELATION,
+      propertyId: PROPERTY_ID, details: { rooms: 3 }, commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 42 },
+    });
+    await new PublishProperty(repository, { now: () => "2026-08-25T14:00:00.000Z" }).execute({
+      authority: { ...authority(TENANT_A), actorId: "publisher", grants: ["PUBLISH_PROPERTY"] },
+      correlationId: PUBLICATION_CORRELATION, propertyId: PROPERTY_ID,
+    });
+    await new UpdatePropertyAvailability(repository, { now: () => "2026-08-25T14:15:00.000Z" }).execute({
+      authority: availabilityAuthority(TENANT_A), correlationId: CORRELATION, propertyId: PROPERTY_ID,
+      availabilityStatus: "UNAVAILABLE", occupancyStatus: "OCCUPIED",
+    });
+    await withTenantPostgresTransaction(runtime, TENANT_A, (scope) => scope.query(
+      `INSERT INTO property_management.property_geolocations
+        (tenant_id, property_id, latitude, longitude, public_visibility, updated_at, correlation_id, actor_id)
+       VALUES ($1,$2,5.359952,-4.008256,'HIDDEN',$3,$4,'geolocation-editor')`,
+      [TENANT_A, PROPERTY_ID, "2026-08-25T14:30:00.000Z", CORRELATION],
+    ));
+    const publicPool = new Pool({ connectionString: connection("monpiole_public_catalog_reader", "synthetic-public-reader") });
+    try {
+      const catalog = new PostgresPublicPropertyCatalogQuery(publicPool);
+      expect((await catalog.list({ tenantId: TENANT_A, limit: 20 })).items).toEqual([
+        expect.objectContaining({ publicPropertyId: PROPERTY_ID }),
+      ]);
+      await expect(catalog.retrieve(TENANT_A, PROPERTY_ID)).resolves.toMatchObject({ publicPropertyId: PROPERTY_ID });
+      await expect(catalog.retrievePrimaryPhoto(TENANT_A, PROPERTY_ID)).resolves.toMatchObject({ contentType: "image/png" });
+
+      const attempts = [
+        { instant: "2026-08-25T15:00:00.000Z", actorId: "withdrawer-a", correlationId: WITHDRAWAL_CORRELATION },
+        { instant: "2026-08-25T15:00:01.000Z", actorId: "withdrawer-b", correlationId: REPLAY_CORRELATION },
+      ];
+      const results = await Promise.all(attempts.map((attempt) => new WithdrawPropertyFromCatalog(repository, { now: () => attempt.instant }).execute({
+        authority: { ...authority(TENANT_A), actorId: attempt.actorId, grants: ["WITHDRAW_PROPERTY_FROM_CATALOG"] },
+        correlationId: attempt.correlationId, propertyId: PROPERTY_ID,
+      })));
+      expect(results.map((result) => result.outcome).sort()).toEqual(["ALREADY_WITHDRAWN", "WITHDRAWN"]);
+      const row = (await owner.query(`SELECT status, published_at, published_by_actor_id, publication_correlation_id,
+        withdrawn_at, withdrawn_by_actor_id, withdrawal_correlation_id, updated_at, actor_id, correlation_id
+        FROM property_management.properties WHERE property_id=$1`, [PROPERTY_ID])).rows[0];
+      const winner = attempts.find((attempt) => attempt.instant === row.withdrawn_at.toISOString());
+      expect(winner).toBeDefined();
+      expect({ ...row, published_at: row.published_at.toISOString(), withdrawn_at: row.withdrawn_at.toISOString(), updated_at: row.updated_at.toISOString() })
+        .toMatchObject({
+          status: "WITHDRAWN", published_at: "2026-08-25T14:00:00.000Z", published_by_actor_id: "publisher",
+          publication_correlation_id: PUBLICATION_CORRELATION, withdrawn_by_actor_id: winner?.actorId,
+          withdrawal_correlation_id: winner?.correlationId, actor_id: winner?.actorId, correlation_id: winner?.correlationId,
+        });
+      await expect(new WithdrawPropertyFromCatalog(repository, { now: () => { throw new Error("clock must not be read on replay"); } }).execute({
+        authority: { ...authority(TENANT_A), actorId: "replayer", grants: ["WITHDRAW_PROPERTY_FROM_CATALOG"] },
+        correlationId: CORRELATION, propertyId: PROPERTY_ID,
+      })).resolves.toMatchObject({ outcome: "ALREADY_WITHDRAWN" });
+      await expect(new WithdrawPropertyFromCatalog(repository, { now: () => "2026-08-25T16:00:00.000Z" }).execute({
+        authority: { ...authority(TENANT_B), grants: ["WITHDRAW_PROPERTY_FROM_CATALOG"] },
+        correlationId: CORRELATION, propertyId: PROPERTY_ID,
+      })).rejects.toBeInstanceOf(PropertyNotFoundError);
+      const crossTenantRead = await withTenantPostgresTransaction(runtime, TENANT_B, (scope) => scope.query(
+        "SELECT property_id FROM property_management.properties WHERE property_id=$1",
+        [PROPERTY_ID],
+      ));
+      expect(crossTenantRead).toEqual([]);
+      const crossTenantWrite = await withTenantPostgresTransaction(runtime, TENANT_B, (scope) => scope.query(
+        "UPDATE property_management.properties SET title='forbidden' WHERE property_id=$1 RETURNING property_id",
+        [PROPERTY_ID],
+      ));
+      expect(crossTenantWrite).toEqual([]);
+
+      await expect(new RetrieveProperty(repository).execute({ authority: authority(TENANT_A), propertyId: PROPERTY_ID }))
+        .resolves.toMatchObject({ status: "WITHDRAWN", title: "House", details: { rooms: 3 }, commercialTerms: { salePriceAmountMinor: 42 },
+          availability: { availabilityStatus: "UNAVAILABLE", occupancyStatus: "OCCUPIED" } });
+      const privatePage = await new ListProperties(new PostgresPropertyPortfolioQuery(runtime)).execute({
+        authority: { ...authority(TENANT_A), grants: ["LIST_PROPERTIES"] }, status: "WITHDRAWN",
+      });
+      expect(privatePage.items).toEqual([expect.objectContaining({
+        propertyId: PROPERTY_ID, status: "WITHDRAWN", publishedAt: "2026-08-25T14:00:00.000Z", withdrawnAt: winner?.instant,
+      })]);
+      expect((await catalog.list({ tenantId: TENANT_A, limit: 20 })).items).toEqual([]);
+      await expect(catalog.retrieve(TENANT_A, PROPERTY_ID)).resolves.toBeUndefined();
+      await expect(catalog.retrievePrimaryPhoto(TENANT_A, PROPERTY_ID)).resolves.toBeUndefined();
+
+      await new UpdatePropertyCoreInformation(repository, { now: () => "2026-08-25T16:00:00.000Z" }).execute({
+        authority: { ...authority(TENANT_A), actorId: "editor", grants: ["UPDATE_PROPERTY_CORE_INFORMATION"] },
+        correlationId: CORRELATION, propertyId: PROPERTY_ID, title: "Maison privée conservée",
+        location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Riviera" },
+      });
+      expect((await owner.query(`SELECT status, withdrawn_by_actor_id, withdrawal_correlation_id, actor_id
+        FROM property_management.properties WHERE property_id=$1`, [PROPERTY_ID])).rows[0]).toEqual({
+        status: "WITHDRAWN", withdrawn_by_actor_id: winner?.actorId,
+        withdrawal_correlation_id: winner?.correlationId, actor_id: "editor",
+      });
+      expect(await withTenantPostgresTransaction(runtime, TENANT_A, (scope) => scope.query(
+        `SELECT latitude::text, longitude::text, public_visibility, actor_id
+         FROM property_management.property_geolocations WHERE property_id=$1`,
+        [PROPERTY_ID],
+      ))).toEqual([{
+        latitude: "5.359952", longitude: "-4.008256", public_visibility: "HIDDEN", actor_id: "geolocation-editor",
+      }]);
+    } finally {
+      await publicPool.end();
+    }
+  });
+  it("rejects publication without prerequisites and hides another tenant", async () => {
+    const repository = new PostgresPropertyRepository(runtime); await create(repository);
+    const publish = new PublishProperty(repository, { now: () => "2026-08-25T14:00:00.000Z" });
+    const command = { authority: { ...authority(TENANT_A), grants: ["PUBLISH_PROPERTY"] as const },
+      correlationId: PUBLICATION_CORRELATION, propertyId: PROPERTY_ID };
+    await expect(publish.execute(command)).rejects.toBeInstanceOf(PropertyPublicationRequirementsNotMetError);
+    await expect(publish.execute({ ...command, authority: { ...command.authority, tenantIds: [TENANT_B] } })).rejects.toBeInstanceOf(PropertyNotFoundError);
+    expect((await owner.query("SELECT status, published_at FROM property_management.properties")).rows[0])
+      .toEqual({ status: "DRAFT", published_at: null });
+  });
+  it("serializes concurrent publication calls into one durable transition and two successful results", async () => {
+    const repository = new PostgresPropertyRepository(runtime); await create(repository);
+    await new UpdatePropertyDetails(repository, { now: () => "2026-08-25T13:00:00.000Z" }).execute({
+      authority: { ...authority(TENANT_A), grants: ["UPDATE_PROPERTY_DETAILS"] }, correlationId: CORRELATION,
+      propertyId: PROPERTY_ID, details: { rooms: 1 }, commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 1 },
+    });
+    const attempts = [
+      { instant: "2026-08-25T14:00:00.000Z", actorId: "publisher-a", correlationId: PUBLICATION_CORRELATION },
+      { instant: "2026-08-25T14:00:01.000Z", actorId: "publisher-b", correlationId: REPLAY_CORRELATION },
+    ];
+    const results = await Promise.all(attempts.map((attempt) => new PublishProperty(repository, { now: () => attempt.instant }).execute({
+      authority: { ...authority(TENANT_A), actorId: attempt.actorId, grants: ["PUBLISH_PROPERTY"] },
+      correlationId: attempt.correlationId, propertyId: PROPERTY_ID,
+    })));
+    expect(results.map((result) => result.outcome).sort()).toEqual(["ALREADY_PUBLISHED", "PUBLISHED"]);
+    const row = (await owner.query(`SELECT status, published_at, published_by_actor_id, publication_correlation_id
+      FROM property_management.properties`)).rows[0];
+    const winningAttempt = attempts.find((attempt) => attempt.instant === row.published_at.toISOString());
+    expect(winningAttempt).toBeDefined();
+    expect(row).toMatchObject({ status: "PUBLISHED", published_by_actor_id: winningAttempt?.actorId,
+      publication_correlation_id: winningAttempt?.correlationId });
+  });
+  it("serializes a publication replay racing with withdrawal into a valid terminal state", async () => {
+    const repository = new PostgresPropertyRepository(runtime); await create(repository);
+    await new UpdatePropertyDetails(repository, { now: () => "2026-08-25T13:00:00.000Z" }).execute({
+      authority: { ...authority(TENANT_A), grants: ["UPDATE_PROPERTY_DETAILS"] }, correlationId: CORRELATION,
+      propertyId: PROPERTY_ID, details: { rooms: 1 }, commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 1 },
+    });
+    await new PublishProperty(repository, { now: () => "2026-08-25T14:00:00.000Z" }).execute({
+      authority: { ...authority(TENANT_A), grants: ["PUBLISH_PROPERTY"] },
+      correlationId: PUBLICATION_CORRELATION, propertyId: PROPERTY_ID,
+    });
+    const [publication, withdrawal] = await Promise.allSettled([
+      new PublishProperty(repository, { now: () => "2026-08-25T15:00:00.000Z" }).execute({
+        authority: { ...authority(TENANT_A), actorId: "publisher-replay", grants: ["PUBLISH_PROPERTY"] },
+        correlationId: REPLAY_CORRELATION, propertyId: PROPERTY_ID,
+      }),
+      new WithdrawPropertyFromCatalog(repository, { now: () => "2026-08-25T15:00:00.000Z" }).execute({
+        authority: { ...authority(TENANT_A), actorId: "withdrawer", grants: ["WITHDRAW_PROPERTY_FROM_CATALOG"] },
+        correlationId: WITHDRAWAL_CORRELATION, propertyId: PROPERTY_ID,
+      }),
+    ]);
+    expect(withdrawal).toMatchObject({ status: "fulfilled", value: { outcome: "WITHDRAWN" } });
+    if (publication.status === "fulfilled") expect(publication.value.outcome).toBe("ALREADY_PUBLISHED");
+    else expect(publication.reason).toBeInstanceOf(PropertyRepublicationNotSupportedError);
+    await expect(new RetrieveProperty(repository).execute({ authority: authority(TENANT_A), propertyId: PROPERTY_ID }))
+      .resolves.toMatchObject({ status: "WITHDRAWN", publishedAt: "2026-08-25T14:00:00.000Z", withdrawnAt: "2026-08-25T15:00:00.000Z" });
+  });
+  it("serializes publication with a concurrent details update while preserving both outcomes", async () => {
+    const repository = new PostgresPropertyRepository(runtime); await create(repository);
+    const detailsAuthority = { ...authority(TENANT_A), actorId: "editor", grants: ["UPDATE_PROPERTY_DETAILS"] as const };
+    await new UpdatePropertyDetails(repository, { now: () => "2026-08-25T13:00:00.000Z" }).execute({
+      authority: detailsAuthority, correlationId: CORRELATION, propertyId: PROPERTY_ID,
+      details: { rooms: 1 }, commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 1 },
+    });
+    const results = await Promise.all([
+      new PublishProperty(repository, { now: () => "2026-08-25T14:00:00.000Z" }).execute({
+        authority: { ...authority(TENANT_A), actorId: "publisher", grants: ["PUBLISH_PROPERTY"] },
+        correlationId: PUBLICATION_CORRELATION, propertyId: PROPERTY_ID,
+      }),
+      new UpdatePropertyDetails(repository, { now: () => "2026-08-25T14:00:00.000Z" }).execute({
+        authority: detailsAuthority, correlationId: REPLAY_CORRELATION, propertyId: PROPERTY_ID,
+        details: { rooms: 2 }, commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 2 },
+      }),
+    ]);
+    expect(results[0]).toMatchObject({ outcome: "PUBLISHED", property: { status: "PUBLISHED" } });
+    const persisted = await new RetrieveProperty(repository).execute({ authority: authority(TENANT_A), propertyId: PROPERTY_ID });
+    expect(persisted).toMatchObject({ status: "PUBLISHED", publishedAt: "2026-08-25T14:00:00.000Z",
+      details: { rooms: 2 }, commercialTerms: { kind: "SALE", salePriceAmountMinor: 2 } });
+    expect((await owner.query(`SELECT published_by_actor_id, publication_correlation_id
+      FROM property_management.properties`)).rows[0]).toEqual({
+      published_by_actor_id: "publisher", publication_correlation_id: PUBLICATION_CORRELATION,
+    });
+  });
+  it("enforces the publication-state and status checks at the database boundary", async () => {
+    const repository = new PostgresPropertyRepository(runtime); await create(repository);
+    await new UpdatePropertyDetails(repository, { now: () => "2026-08-25T13:00:00.000Z" }).execute({
+      authority: { ...authority(TENANT_A), grants: ["UPDATE_PROPERTY_DETAILS"] }, correlationId: CORRELATION,
+      propertyId: PROPERTY_ID, details: { rooms: 1 }, commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 1 },
+    });
+    await expect(owner.query("UPDATE property_management.properties SET status='PUBLISHED' WHERE property_id=$1", [PROPERTY_ID]))
+      .rejects.toMatchObject({ code: "23514", constraint: "properties_publication_state_check" });
+    await expect(owner.query("UPDATE property_management.properties SET status='ARCHIVED' WHERE property_id=$1", [PROPERTY_ID]))
+      .rejects.toMatchObject({ code: "23514" });
+    await expect(owner.query(`UPDATE property_management.properties
+      SET withdrawn_at=now(), withdrawn_by_actor_id='invalid', withdrawal_correlation_id=$2
+      WHERE property_id=$1`, [PROPERTY_ID, WITHDRAWAL_CORRELATION]))
+      .rejects.toMatchObject({ code: "23514", constraint: "properties_publication_state_check" });
+    await new PublishProperty(repository, { now: () => "2026-08-25T14:00:00.000Z" }).execute({
+      authority: { ...authority(TENANT_A), grants: ["PUBLISH_PROPERTY"] },
+      correlationId: PUBLICATION_CORRELATION, propertyId: PROPERTY_ID,
+    });
+    await expect(owner.query("UPDATE property_management.properties SET status='WITHDRAWN' WHERE property_id=$1", [PROPERTY_ID]))
+      .rejects.toMatchObject({ code: "23514", constraint: "properties_publication_state_check" });
+    await expect(owner.query(`UPDATE property_management.properties SET status='WITHDRAWN',
+      withdrawn_at=published_at - interval '1 second', withdrawn_by_actor_id='invalid', withdrawal_correlation_id=$2
+      WHERE property_id=$1`, [PROPERTY_ID, WITHDRAWAL_CORRELATION]))
+      .rejects.toMatchObject({ code: "23514", constraint: "properties_publication_state_check" });
+    expect((await owner.query(`SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint
+      WHERE connamespace='property_management'::regnamespace AND conname='properties_status_check'`)).rows[0]?.definition)
+      .toContain("status = ANY (ARRAY['DRAFT'::text, 'PUBLISHED'::text, 'WITHDRAWN'::text])");
+  });
+  it("does not update another tenant's Property", async () => {
+    const repository = new PostgresPropertyRepository(runtime); await create(repository);
+    const update = new UpdatePropertyDetails(repository, { now: () => "2026-08-25T14:00:00.000Z" });
+    await expect(update.execute({ authority: { ...authority(TENANT_B), grants: ["UPDATE_PROPERTY_DETAILS"] }, correlationId: CORRELATION,
+      propertyId: PROPERTY_ID, details: { rooms: 2 }, commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 1 } }))
+      .rejects.toBeInstanceOf(PropertyNotFoundError);
+    expect((await owner.query("SELECT commercial_kind FROM property_management.properties")).rows[0]?.commercial_kind).toBeNull();
+  });
+  it("replaces existing terms atomically and rolls back an incompatible update", async () => {
+    const repository = new PostgresPropertyRepository(runtime); await create(repository, TENANT_A, "LONG_TERM_RENTAL");
+    const update = new UpdatePropertyDetails(repository, { now: () => "2026-08-25T14:00:00.000Z" });
+    const command = { authority: { ...authority(TENANT_A), grants: ["UPDATE_PROPERTY_DETAILS"] as const }, correlationId: CORRELATION,
+      propertyId: PROPERTY_ID, details: { rooms: 3 }, commercialTerms: { kind: "LONG_TERM_RENTAL" as const, currency: "XOF", rentAmountMinor: 100, rentPeriod: "MONTH" as const } };
+    await update.execute(command);
+    await update.execute({ ...command, commercialTerms: { ...command.commercialTerms, rentAmountMinor: 200 } });
+    await expect(update.execute({ ...command, commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 1 } }))
+      .rejects.toBeDefined();
+    expect((await owner.query("SELECT rent_amount_minor, commercial_kind FROM property_management.properties")).rows[0])
+      .toEqual({ rent_amount_minor: "200", commercial_kind: "LONG_TERM_RENTAL" });
+  });
+
+  it("lists a stable tenant-scoped portfolio with filter, search and cursor pagination", async () => {
+    const repository = new PostgresPropertyRepository(runtime);
+    const fixtures = [
+      { tenantId: TENANT_A, propertyId: "11111111-1111-4111-8111-111111111111", title: "Maison Lagune Ouest", propertyType: "HOUSE" as const, createdAt: "2026-08-25T13:00:00.000Z" },
+      { tenantId: TENANT_A, propertyId: "22222222-2222-4222-8222-222222222222", title: "Maison Lagune Est", propertyType: "HOUSE" as const, createdAt: "2026-08-25T13:00:00.000Z" },
+      { tenantId: TENANT_A, propertyId: "33333333-3333-4333-8333-333333333333", title: "Terrain Lagune", propertyType: "LAND" as const, createdAt: "2026-08-25T14:00:00.000Z" },
+      { tenantId: TENANT_B, propertyId: "44444444-4444-4444-8444-444444444444", title: "Maison Lagune autre tenant", propertyType: "HOUSE" as const, createdAt: "2026-08-25T15:00:00.000Z" },
+    ];
+    for (const fixture of fixtures) await new CreateProperty(
+      repository, { generate: () => fixture.propertyId }, { now: () => fixture.createdAt },
+    ).execute({
+      authority: authority(fixture.tenantId), correlationId: CORRELATION, title: fixture.title,
+      propertyType: fixture.propertyType, transactionType: "SALE",
+      location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Bord de lagune" },
+    });
+
+    const primaryPropertyId = "22222222-2222-4222-8222-222222222222";
+    const firstOwnerId = "55555555-5555-4555-8555-555555555555";
+    const secondOwnerId = "66666666-6666-4666-8666-666666666666";
+    await createOwner(undefined, TENANT_A, "INDIVIDUAL", firstOwnerId);
+    await createOwner(undefined, TENANT_A, "LEGAL_ENTITY", secondOwnerId);
+    const ownershipRepository = new PostgresPropertyOwnershipRepository(runtime);
+    const assignAuthority = { ...authority(TENANT_A), grants: ["ASSIGN_PROPERTY_OWNER"] as const };
+    await new AssignPropertyOwner(ownershipRepository, { now: () => "2026-08-26T11:00:00.000Z" }).execute({
+      authority: assignAuthority, correlationId: CORRELATION, propertyId: primaryPropertyId,
+      ownerId: firstOwnerId, ownershipShare: 60,
+    });
+    await new AssignPropertyOwner(ownershipRepository, { now: () => "2026-08-26T12:00:00.000Z" }).execute({
+      authority: assignAuthority, correlationId: CORRELATION, propertyId: primaryPropertyId,
+      ownerId: secondOwnerId, ownershipShare: 40,
+    });
+    await insertLegacyPrimaryPhoto(TENANT_A, primaryPropertyId);
+
+    const list = new ListProperties(new PostgresPropertyPortfolioQuery(runtime));
+    const listAuthority = { ...authority(TENANT_A), grants: ["LIST_PROPERTIES"] as const };
+    const first = await list.execute({
+      authority: listAuthority, status: "DRAFT", propertyType: "HOUSE", search: "lagune", limit: 1,
+    });
+    expect(first.items.map((value) => value.propertyId)).toEqual(["22222222-2222-4222-8222-222222222222"]);
+    expect(first.items[0]).toMatchObject({
+      photoCount: 1,
+      featuredPhoto: { contentType: "image/png", contentBase64: "iVBORw0KGgo=" },
+      owner: {
+        ownerId: firstOwnerId, displayName: "Jean Kouassi", phoneNumber: "+2250700000000",
+        email: "contact@example.com", additionalOwnerCount: 1,
+      },
+    });
+    expect(first.nextCursor).toEqual({ createdAt: "2026-08-25T13:00:00.000Z", propertyId: "22222222-2222-4222-8222-222222222222" });
+    const second = await list.execute({
+      authority: listAuthority, status: "DRAFT", propertyType: "HOUSE", search: "lagune", limit: 1,
+      cursor: first.nextCursor,
+    });
+    expect(second.items.map((value) => value.propertyId)).toEqual(["11111111-1111-4111-8111-111111111111"]);
+    expect(second.nextCursor).toBeUndefined();
+    expect([...first.items, ...second.items]).toHaveLength(2);
+    await expect(list.execute({ authority: listAuthority, ownerId: firstOwnerId })).resolves.toMatchObject({
+      items: [{ propertyId: primaryPropertyId }],
+    });
+    await expect(list.execute({ authority: listAuthority, search: "kouassi" })).resolves.toMatchObject({
+      items: [{ propertyId: primaryPropertyId }],
+    });
+    await expect(list.execute({
+      authority: listAuthority, ownerId: "77777777-7777-4777-8777-777777777777",
+    })).resolves.toEqual({ items: [] });
+    expect((await owner.query("SELECT indexdef FROM pg_indexes WHERE schemaname = 'property_management' AND indexname = 'properties_tenant_created_property_idx'")).rows[0]?.indexdef)
+      .toContain("tenant_id, created_at DESC NULLS LAST, property_id DESC NULLS LAST");
+  });
+});
+
+async function previousPropertyMigrations() {
+  const folder = await mkdtemp(join(tmpdir(), "monpiole-property-0006-"));
+  const meta = join(folder, "meta");
+  await mkdir(meta);
+  for (let index = 0; index <= 6; index += 1) {
+    const prefix = String(index).padStart(4, "0");
+    const migrationName = index === 6 ? `${prefix}_property_composition.sql` : `${prefix}_property_management_baseline.sql`;
+    await copyFile(join(migrationsFolder, migrationName), join(folder, migrationName));
+    await copyFile(join(migrationsFolder, "meta", `${prefix}_snapshot.json`), join(meta, `${prefix}_snapshot.json`));
+  }
+  const journal = JSON.parse(await readFile(join(migrationsFolder, "meta", "_journal.json"), "utf8")) as {
+    readonly version: string;
+    readonly dialect: string;
+    readonly entries: readonly { readonly idx: number }[];
+  };
+  await writeFile(join(meta, "_journal.json"), `${JSON.stringify({ ...journal, entries: journal.entries.filter((entry) => entry.idx <= 6) }, null, 2)}\n`, "utf8");
+  return folder;
+}
+
+async function migrationsThrough(lastIndex: number) {
+  const folder = await mkdtemp(join(tmpdir(), `monpiole-property-${lastIndex}-`));
+  const meta = join(folder, "meta");
+  await mkdir(meta);
+  const journal = JSON.parse(await readFile(join(migrationsFolder, "meta", "_journal.json"), "utf8")) as {
+    readonly version: string; readonly dialect: string;
+    readonly entries: readonly { readonly idx: number; readonly tag: string }[];
+  };
+  const entries = journal.entries.filter((entry) => entry.idx <= lastIndex);
+  for (const entry of entries) {
+    await copyFile(join(migrationsFolder, `${entry.tag}.sql`), join(folder, `${entry.tag}.sql`));
+    const prefix = String(entry.idx).padStart(4, "0");
+    await copyFile(join(migrationsFolder, "meta", `${prefix}_snapshot.json`), join(meta, `${prefix}_snapshot.json`));
+  }
+  await writeFile(join(meta, "_journal.json"), `${JSON.stringify({ ...journal, entries }, null, 2)}\n`, "utf8");
+  return folder;
+}
+
+describe("Property portfolio hierarchy and inherited ownership", () => {
+  it("preserves Residence → Building → Unit hierarchy and applies nearest-owner inheritance", async () => {
+    const propertyRepository = new PostgresPropertyRepository(runtime);
+    const compositionRepository = new PostgresPropertyCompositionRepository(runtime);
+    const now = { now: () => "2026-09-12T12:00:00.000Z" };
+
+    const residenceId = "10101010-1010-4010-8010-101010101010";
+    const buildingId = "20202020-2020-4020-8020-202020202020";
+    const buildingPropertyId = "30303030-3030-4030-8030-303030303030";
+    const unitId = "40404040-4040-4040-8040-404040404040";
+
+    const residenceOwnerId = "50505050-5050-4050-8050-505050505050";
+    const buildingOwnerId = "60606060-6060-4060-8060-606060606060";
+    const unitOwnerId = "70707070-7070-4070-8070-707070707070";
+
+    const compositionActor = {
+      ...compositionAuthority(TENANT_A),
+      grants: ["CREATE_PROPERTY", ...compositionAuthority(TENANT_A).grants] as const,
+    };
+
+    const location = {
+      country: "CI",
+      city: "Abidjan",
+      district: "Cocody",
+      addressLine: "Rue des Jardins",
+    };
+
+    await new CreateProperty(
+      propertyRepository,
+      { generate: () => residenceId },
+      now,
+      compositionRepository,
+    ).execute({
+      authority: compositionActor,
+      correlationId: CORRELATION,
+      title: "Résidence YAO",
+      propertyType: "COMPLEX",
+      transactionType: "LONG_TERM_RENTAL",
+      location,
+    });
+
+    const buildingIds = [buildingId, buildingPropertyId];
+    const building = await new CreatePropertyBuilding(
+      propertyRepository,
+      compositionRepository,
+      { generate: () => buildingIds.shift()! },
+      now,
+    ).execute({
+      authority: compositionActor,
+      correlationId: CORRELATION,
+      propertyId: residenceId,
+      buildingCode: "BAT-A",
+      name: "Immeuble Horizon",
+      commercializationMode: "INDIVIDUAL_UNITS",
+    });
+
+    expect(building.buildingPropertyId).toBe(buildingPropertyId);
+
+    const unit = await new CreatePropertyUnit(
+      compositionRepository,
+      { generate: () => unitId },
+      now,
+    ).execute({
+      authority: compositionActor,
+      correlationId: CORRELATION,
+      propertyId: buildingPropertyId,
+      buildingId,
+      unitCode: "A-01",
+      title: "Appartement A01",
+      propertyType: "APARTMENT",
+      apartmentSubtype: "STUDIO",
+      transactionType: "LONG_TERM_RENTAL",
+      location,
+    });
+
+    expect(unit.property.propertyId).toBe(unitId);
+
+    await createOwner(undefined, TENANT_A, "INDIVIDUAL", residenceOwnerId);
+    await createOwner(undefined, TENANT_A, "LEGAL_ENTITY", buildingOwnerId);
+    await createOwner(undefined, TENANT_A, "INDIVIDUAL", unitOwnerId);
+
+    const ownershipRepository = new PostgresPropertyOwnershipRepository(runtime);
+    const assign = new AssignPropertyOwner(
+      ownershipRepository,
+      { now: () => "2026-09-12T13:00:00.000Z" },
+    );
+    const assignAuthority = {
+      ...authority(TENANT_A),
+      grants: ["ASSIGN_PROPERTY_OWNER"] as const,
+    };
+
+    const list = new ListProperties(new PostgresPropertyPortfolioQuery(runtime));
+    const listAuthority = {
+      ...authority(TENANT_A),
+      grants: ["LIST_PROPERTIES"] as const,
+    };
+
+    const findUnit = async () => {
+      const page = await list.execute({
+        authority: listAuthority,
+        limit: 20,
+      });
+
+      const item = page.items.find((candidate) => candidate.propertyId === unitId);
+      expect(item).toBeDefined();
+      return item!;
+    };
+
+    await assign.execute({
+      authority: assignAuthority,
+      correlationId: CORRELATION,
+      propertyId: residenceId,
+      ownerId: residenceOwnerId,
+      ownershipShare: 100,
+    });
+
+    const inheritedFromResidence = await findUnit();
+
+    expect(inheritedFromResidence.parent).toEqual({
+      propertyId: buildingPropertyId,
+      title: "Immeuble Horizon",
+    });
+    expect(inheritedFromResidence.owner).toMatchObject({
+      ownerId: residenceOwnerId,
+      inheritedFrom: {
+        propertyId: residenceId,
+        title: "Résidence YAO",
+      },
+    });
+
+    await assign.execute({
+      authority: assignAuthority,
+      correlationId: CORRELATION,
+      propertyId: buildingPropertyId,
+      ownerId: buildingOwnerId,
+      ownershipShare: 100,
+    });
+
+    const inheritedFromBuilding = await findUnit();
+
+    expect(inheritedFromBuilding.owner).toMatchObject({
+      ownerId: buildingOwnerId,
+      inheritedFrom: {
+        propertyId: buildingPropertyId,
+        title: "Immeuble Horizon",
+      },
+    });
+
+    await assign.execute({
+      authority: assignAuthority,
+      correlationId: CORRELATION,
+      propertyId: unitId,
+      ownerId: unitOwnerId,
+      ownershipShare: 100,
+    });
+
+    const explicitlyOwned = await findUnit();
+
+    expect(explicitlyOwned.owner).toMatchObject({
+      ownerId: unitOwnerId,
+    });
+    expect(explicitlyOwned.owner?.inheritedFrom).toBeUndefined();
+
+    const byResidenceOwner = await list.execute({
+      authority: listAuthority,
+      ownerId: residenceOwnerId,
+      limit: 20,
+    });
+
+    expect(byResidenceOwner.items.map((item) => item.propertyId)).toEqual([
+      residenceId,
+      buildingPropertyId,
+      unitId,
+    ]);
+
+    const byBuildingOwner = await list.execute({
+      authority: listAuthority,
+      ownerId: buildingOwnerId,
+      limit: 20,
+    });
+
+    expect(byBuildingOwner.items.map((item) => item.propertyId)).toEqual([
+      residenceId,
+      buildingPropertyId,
+      unitId,
+    ]);
+
+    const byUnitOwner = await list.execute({
+      authority: listAuthority,
+      ownerId: unitOwnerId,
+      limit: 20,
+    });
+
+    expect(byUnitOwner.items.map((item) => item.propertyId)).toEqual([
+      residenceId,
+      buildingPropertyId,
+      unitId,
+    ]);
+
+    const missingOwner = await list.execute({
+      authority: listAuthority,
+      ownerId: "80808080-8080-4080-8080-808080808080",
+      limit: 20,
+    });
+
+    expect(missingOwner.items).toEqual([]);
+    expect(missingOwner.nextCursor).toBeUndefined();
+
+    const crossTenant = await list.execute({
+      authority: {
+        ...authority(TENANT_B),
+        grants: ["LIST_PROPERTIES"] as const,
+      },
+      ownerId: residenceOwnerId,
+      limit: 20,
+    });
+
+    expect(crossTenant.items).toEqual([]);
+    expect(crossTenant.nextCursor).toBeUndefined();
+
+    const coOwnerId = "90909090-9090-4090-8090-909090909090";
+
+    await createOwner(
+      undefined,
+      TENANT_A,
+      "INDIVIDUAL",
+      coOwnerId,
+    );
+
+    await new RemovePropertyOwner(
+      ownershipRepository,
+    ).execute({
+      authority: {
+        ...authority(TENANT_A),
+        grants: ["REMOVE_PROPERTY_OWNER"] as const,
+      },
+      propertyId: buildingPropertyId,
+      ownerId: buildingOwnerId,
+    });
+
+    await assign.execute({
+      authority: assignAuthority,
+      correlationId: CORRELATION,
+      propertyId: buildingPropertyId,
+      ownerId: buildingOwnerId,
+      ownershipShare: 60,
+    });
+
+    await assign.execute({
+      authority: assignAuthority,
+      correlationId: CORRELATION,
+      propertyId: buildingPropertyId,
+      ownerId: coOwnerId,
+      ownershipShare: 40,
+    });
+
+    const byFirstCoOwner = await list.execute({
+      authority: listAuthority,
+      ownerId: buildingOwnerId,
+      limit: 20,
+    });
+
+    const bySecondCoOwner = await list.execute({
+      authority: listAuthority,
+      ownerId: coOwnerId,
+      limit: 20,
+    });
+
+    expect(byFirstCoOwner.items.map((item) => item.propertyId)).toEqual([
+      residenceId,
+      buildingPropertyId,
+      unitId,
+    ]);
+
+    expect(bySecondCoOwner.items.map((item) => item.propertyId)).toEqual([
+      residenceId,
+      buildingPropertyId,
+      unitId,
+    ]);
+  });
+});
+describe("Property portfolio root-aware pagination PostgreSQL", () => {
+  it("pagine les racines, conserve leur branche et fait remonter une recherche enfant", async () => {
+    const propertyRepository = new PostgresPropertyRepository(runtime);
+    const compositionRepository = new PostgresPropertyCompositionRepository(runtime);
+
+    const residenceId = "91000000-0000-4000-8000-000000000001";
+    const buildingId = "91000000-0000-4000-8000-000000000002";
+    const buildingPropertyId = "91000000-0000-4000-8000-000000000003";
+    const apartmentA01Id = "91000000-0000-4000-8000-000000000004";
+    const apartmentA02Id = "91000000-0000-4000-8000-000000000005";
+    const villaId = "91000000-0000-4000-8000-000000000006";
+
+    const location = {
+      country: "CI",
+      city: "Abidjan",
+      district: "Cocody",
+      addressLine: "Riviera",
+    };
+
+    const compositionActor = {
+      ...compositionAuthority(TENANT_A),
+      grants: ["CREATE_PROPERTY", ...compositionAuthority(TENANT_A).grants] as const,
+    };
+
+    await new CreateProperty(
+      propertyRepository,
+      { generate: () => residenceId },
+      { now: () => "2026-09-12T15:00:00.000Z" },
+      compositionRepository,
+    ).execute({
+      authority: compositionActor,
+      correlationId: CORRELATION,
+      title: "Résidence Pagination",
+      propertyType: "COMPLEX",
+      transactionType: "LONG_TERM_RENTAL",
+      location,
+    });
+
+    const buildingIds = [buildingId, buildingPropertyId];
+
+    await new CreatePropertyBuilding(
+      propertyRepository,
+      compositionRepository,
+      { generate: () => buildingIds.shift()! },
+      { now: () => "2026-09-12T15:01:00.000Z" },
+    ).execute({
+      authority: compositionActor,
+      correlationId: CORRELATION,
+      propertyId: residenceId,
+      buildingCode: "BAT-P",
+      name: "Immeuble Pagination",
+      commercializationMode: "INDIVIDUAL_UNITS",
+    });
+
+    await new CreatePropertyUnit(
+      compositionRepository,
+      { generate: () => apartmentA01Id },
+      { now: () => "2026-09-12T15:02:00.000Z" },
+    ).execute({
+      authority: compositionActor,
+      correlationId: CORRELATION,
+      propertyId: buildingPropertyId,
+      buildingId,
+      unitCode: "A-01",
+      title: "Appartement A01",
+      propertyType: "APARTMENT",
+      apartmentSubtype: "STUDIO",
+      transactionType: "LONG_TERM_RENTAL",
+      location,
+    });
+
+    await new CreatePropertyUnit(
+      compositionRepository,
+      { generate: () => apartmentA02Id },
+      { now: () => "2026-09-12T15:03:00.000Z" },
+    ).execute({
+      authority: compositionActor,
+      correlationId: CORRELATION,
+      propertyId: buildingPropertyId,
+      buildingId,
+      unitCode: "A-02",
+      title: "Appartement A02",
+      propertyType: "APARTMENT",
+      apartmentSubtype: "STUDIO",
+      transactionType: "LONG_TERM_RENTAL",
+      location,
+    });
+
+    await new CreateProperty(
+      propertyRepository,
+      { generate: () => villaId },
+      { now: () => "2026-09-12T14:00:00.000Z" },
+      compositionRepository,
+    ).execute({
+      authority: compositionActor,
+      correlationId: CORRELATION,
+      title: "Villa indépendante",
+      propertyType: "HOUSE",
+      transactionType: "LONG_TERM_RENTAL",
+      location,
+    });
+
+    const list = new ListProperties(new PostgresPropertyPortfolioQuery(runtime));
+    const listAuthority = {
+      ...authority(TENANT_A),
+      grants: ["LIST_PROPERTIES"] as const,
+    };
+
+    const first = await list.execute({
+      authority: listAuthority,
+      limit: 1,
+    });
+
+    expect(first.items.map((item) => item.propertyId)).toEqual([
+      residenceId,
+      buildingPropertyId,
+      apartmentA02Id,
+      apartmentA01Id,
+    ]);
+
+    expect(first.nextCursor).toEqual({
+      createdAt: "2026-09-12T15:00:00.000Z",
+      propertyId: residenceId,
+    });
+
+    expect(first.items.find((item) => item.propertyId === buildingPropertyId)?.parent)
+      .toEqual({
+        propertyId: residenceId,
+        title: "Résidence Pagination",
+      });
+
+    expect(first.items.find((item) => item.propertyId === apartmentA02Id)?.parent)
+      .toEqual({
+        propertyId: buildingPropertyId,
+        title: "Immeuble Pagination",
+      });
+
+    const second = await list.execute({
+      authority: listAuthority,
+      limit: 1,
+      cursor: first.nextCursor,
+    });
+
+    expect(second.items.map((item) => item.propertyId)).toEqual([
+      villaId,
+    ]);
+    expect(second.nextCursor).toBeUndefined();
+
+    const childSearch = await list.execute({
+      authority: listAuthority,
+      search: "Appartement A02",
+      limit: 1,
+    });
+
+    expect(childSearch.items.map((item) => item.propertyId)).toEqual([
+      residenceId,
+      buildingPropertyId,
+      apartmentA02Id,
+      apartmentA01Id,
+    ]);
+    expect(childSearch.nextCursor).toBeUndefined();
+  });
+});
+describe("Property portfolio content summary PostgreSQL", () => {
+  it("agrège les cibles commerciales selon la hiérarchie et le mode de commercialisation", async () => {
+    const now = "2026-09-12T12:00:00.000Z";
+
+    const complexId = "10000000-0000-4000-8000-000000000001";
+    const individualBuildingId = "10000000-0000-4000-8000-000000000002";
+    const individualStructureId = "10000000-0000-4000-8000-000000000003";
+    const wholeBuildingId = "10000000-0000-4000-8000-000000000004";
+    const wholeStructureId = "10000000-0000-4000-8000-000000000005";
+    const directVillaId = "10000000-0000-4000-8000-000000000006";
+    const apartmentAvailableId = "10000000-0000-4000-8000-000000000007";
+    const apartmentUnavailableId = "10000000-0000-4000-8000-000000000008";
+    const shopId = "10000000-0000-4000-8000-000000000009";
+    const hiddenWholeUnitId = "10000000-0000-4000-8000-000000000010";
+
+    const clientId = "10000000-0000-4000-8000-000000000011";
+
+    const insertProperty = async (
+      propertyId: string,
+      title: string,
+      propertyType: string,
+      structuralRole: string,
+      commercializationMode: string | null,
+      availabilityStatus: string | null,
+      occupancyStatus: string | null,
+    ) => {
+      await owner.query(`
+        INSERT INTO property_management.properties (
+          property_id,
+          tenant_id,
+          title,
+          property_type,
+          transaction_type,
+          structural_role,
+          commercialization_mode,
+          status,
+          country,
+          city,
+          district,
+          address_line,
+          availability_status,
+          occupancy_status,
+          availability_updated_at,
+          availability_updated_by_actor_id,
+          availability_correlation_id,
+          created_at,
+          updated_at,
+          correlation_id,
+          actor_id
+        )
+        VALUES (
+          $1,$2,$3,$4,'LONG_TERM_RENTAL',$5,$6,'DRAFT',
+          'CI','Abidjan','Cocody','Riviera',
+          $7,$8,
+          CASE WHEN $7::text IS NULL THEN NULL ELSE $9::timestamptz END,
+          CASE WHEN $7::text IS NULL THEN NULL ELSE 'actor' END,
+          CASE WHEN $7::text IS NULL THEN NULL ELSE $10::uuid END,
+          $9,$9,$10,'actor'
+        )
+      `, [
+        propertyId,
+        TENANT_A,
+        title,
+        propertyType,
+        structuralRole,
+        commercializationMode,
+        availabilityStatus,
+        occupancyStatus,
+        now,
+        CORRELATION,
+      ]);
+    };
+
+    await insertProperty(
+      complexId,
+      "Résidence YAO",
+      "COMPLEX",
+      "COMPOSITE",
+      null,
+      null,
+      null,
+    );
+
+    await insertProperty(
+      individualBuildingId,
+      "Immeuble Horizon",
+      "BUILDING",
+      "COMPOSITE",
+      "INDIVIDUAL_UNITS",
+      null,
+      null,
+    );
+
+    await insertProperty(
+      wholeBuildingId,
+      "Immeuble Lagune",
+      "BUILDING",
+      "COMPOSITE",
+      "WHOLE_BUILDING",
+      "AVAILABLE",
+      "VACANT",
+    );
+
+    await insertProperty(
+      directVillaId,
+      "Villa 01",
+      "HOUSE",
+      "STANDALONE",
+      null,
+      "AVAILABLE",
+      "VACANT",
+    );
+
+    await insertProperty(
+      apartmentAvailableId,
+      "Appartement A01",
+      "APARTMENT",
+      "UNIT",
+      null,
+      "AVAILABLE",
+      "VACANT",
+    );
+
+    await insertProperty(
+      apartmentUnavailableId,
+      "Appartement A02",
+      "APARTMENT",
+      "UNIT",
+      null,
+      "UNAVAILABLE",
+      "OCCUPIED",
+    );
+
+    await insertProperty(
+      shopId,
+      "Boutique RDC",
+      "SHOP",
+      "UNIT",
+      null,
+      "AVAILABLE",
+      "VACANT",
+    );
+
+    await insertProperty(
+      hiddenWholeUnitId,
+      "Appartement non commercialisé séparément",
+      "APARTMENT",
+      "UNIT",
+      null,
+      null,
+      null,
+    );
+
+    await owner.query(`
+      INSERT INTO property_management.property_buildings (
+        building_id,
+        tenant_id,
+        property_id,
+        building_property_id,
+        building_code,
+        name,
+        created_at,
+        updated_at,
+        correlation_id,
+        actor_id
+      )
+      VALUES
+        ($1,$2,$3,$4,'BAT-A','Immeuble Horizon',$5,$5,$6,'actor'),
+        ($7,$2,$3,$8,'BAT-B','Immeuble Lagune',$5,$5,$6,'actor')
+    `, [
+      individualStructureId,
+      TENANT_A,
+      complexId,
+      individualBuildingId,
+      now,
+      CORRELATION,
+      wholeStructureId,
+      wholeBuildingId,
+    ]);
+
+    await owner.query(`
+      INSERT INTO property_management.property_building_units (
+        tenant_id,
+        building_id,
+        unit_property_id,
+        unit_code,
+        created_at,
+        updated_at,
+        correlation_id,
+        actor_id
+      )
+      VALUES
+        ($1,$2,$3,'A01',$4,$4,$5,'actor'),
+        ($1,$2,$6,'A02',$4,$4,$5,'actor'),
+        ($1,$2,$7,'RDC',$4,$4,$5,'actor'),
+        ($1,$8,$9,'B01',$4,$4,$5,'actor')
+    `, [
+      TENANT_A,
+      individualStructureId,
+      apartmentAvailableId,
+      now,
+      CORRELATION,
+      apartmentUnavailableId,
+      shopId,
+      wholeStructureId,
+      hiddenWholeUnitId,
+    ]);
+
+    await owner.query(`
+      INSERT INTO property_management.property_complex_children (
+        tenant_id,
+        complex_property_id,
+        child_property_id,
+        child_code,
+        created_at,
+        correlation_id,
+        actor_id
+      )
+      VALUES ($1,$2,$3,'VILLA-01',$4,$5,'actor')
+    `, [
+      TENANT_A,
+      complexId,
+      directVillaId,
+      now,
+      CORRELATION,
+    ]);
+
+    await owner.query(`
+      INSERT INTO property_management.property_clients (
+        client_id,
+        tenant_id,
+        display_name,
+        created_at,
+        updated_at,
+        correlation_id,
+        actor_id
+      )
+      VALUES ($1,$2,'Client test',$3,$3,$4,'actor')
+    `, [clientId, TENANT_A, now, CORRELATION]);
+
+    const contracts = [
+      {
+        contractId: "20000000-0000-4000-8000-000000000001",
+        propertyId: apartmentAvailableId,
+        status: "ACTIVE",
+        reference: "TASK095-A01",
+      },
+      {
+        contractId: "20000000-0000-4000-8000-000000000002",
+        propertyId: apartmentUnavailableId,
+        status: "ENDED",
+        reference: "TASK095-A02",
+      },
+      {
+        contractId: "20000000-0000-4000-8000-000000000003",
+        propertyId: shopId,
+        status: "ACTIVE",
+        reference: "TASK095-SHOP",
+      },
+      {
+        contractId: "20000000-0000-4000-8000-000000000004",
+        propertyId: wholeBuildingId,
+        status: "ACTIVE",
+        reference: "TASK095-WHOLE",
+      },
+      {
+        contractId: "20000000-0000-4000-8000-000000000005",
+        propertyId: hiddenWholeUnitId,
+        status: "ACTIVE",
+        reference: "TASK095-HIDDEN",
+      },
+      {
+        contractId: "20000000-0000-4000-8000-000000000006",
+        propertyId: directVillaId,
+        status: "DRAFT",
+        reference: "TASK095-VILLA",
+      },
+    ];
+
+    for (const contract of contracts) {
+      await owner.query(`
+        INSERT INTO property_management.property_contracts (
+          contract_id,
+          tenant_id,
+          property_id,
+          client_id,
+          contract_type,
+          status,
+          reference,
+          start_date,
+          end_date,
+          created_at,
+          updated_at,
+          correlation_id,
+          actor_id,
+          activated_at,
+          activated_by_actor_id,
+          activation_correlation_id,
+          ended_at,
+          ended_by_actor_id,
+          ending_correlation_id
+        )
+        VALUES (
+          $1,
+          $2,
+          $3,
+          $4,
+          'LEASE',
+          $5,
+          $6,
+          '2026-10-01',
+          CASE WHEN $5 = 'ENDED' THEN '2026-12-31'::date ELSE NULL END,
+          $7,
+          $7,
+          $8,
+          'actor',
+          CASE
+            WHEN $5 IN ('ACTIVE', 'ENDED')
+            THEN $7::timestamptz + interval '1 hour'
+            ELSE NULL
+          END,
+          CASE
+            WHEN $5 IN ('ACTIVE', 'ENDED')
+            THEN 'actor'
+            ELSE NULL
+          END,
+          CASE
+            WHEN $5 IN ('ACTIVE', 'ENDED')
+            THEN $8::uuid
+            ELSE NULL
+          END,
+          CASE
+            WHEN $5 = 'ENDED'
+            THEN $7::timestamptz + interval '2 hours'
+            ELSE NULL
+          END,
+          CASE
+            WHEN $5 = 'ENDED'
+            THEN 'actor'
+            ELSE NULL
+          END,
+          CASE
+            WHEN $5 = 'ENDED'
+            THEN $8::uuid
+            ELSE NULL
+          END
+        )
+      `, [
+        contract.contractId,
+        TENANT_A,
+        contract.propertyId,
+        clientId,
+        contract.status,
+        contract.reference,
+        now,
+        CORRELATION,
+      ]);
+    }
+
+    const page = await new PostgresPropertyPortfolioQuery(runtime).list({
+      tenantId: TENANT_A,
+      limit: 50,
+    });
+
+    const complex = page.items.find((property) => property.propertyId === complexId);
+    const individualBuilding = page.items.find((property) => property.propertyId === individualBuildingId);
+    const wholeBuilding = page.items.find((property) => property.propertyId === wholeBuildingId);
+
+    expect(complex?.contentSummary).toEqual({
+      buildingCount: 2,
+      composition: {
+        totalUnitCount: 5,
+        unitsByType: [
+          {
+            propertyType: "APARTMENT",
+            totalCount: 3,
+          },
+          {
+            propertyType: "HOUSE",
+            totalCount: 1,
+          },
+          {
+            propertyType: "SHOP",
+            totalCount: 1,
+          },
+        ],
+      },
+      availability: {
+        totalCount: 5,
+        configuredCount: 5,
+        availableCount: 4,
+        unavailableCount: 1,
+        vacantCount: 4,
+        occupiedCount: 1,
+        byType: [
+          {
+            propertyType: "APARTMENT",
+            totalCount: 2,
+            configuredCount: 2,
+            availableCount: 1,
+            unavailableCount: 1,
+            vacantCount: 1,
+            occupiedCount: 1,
+          },
+          {
+            propertyType: "BUILDING",
+            totalCount: 1,
+            configuredCount: 1,
+            availableCount: 1,
+            unavailableCount: 0,
+            vacantCount: 1,
+            occupiedCount: 0,
+          },
+          {
+            propertyType: "HOUSE",
+            totalCount: 1,
+            configuredCount: 1,
+            availableCount: 1,
+            unavailableCount: 0,
+            vacantCount: 1,
+            occupiedCount: 0,
+          },
+          {
+            propertyType: "SHOP",
+            totalCount: 1,
+            configuredCount: 1,
+            availableCount: 1,
+            unavailableCount: 0,
+            vacantCount: 1,
+            occupiedCount: 0,
+          },
+        ],
+      },
+      contracts: {
+        totalCount: 5,
+        activeCount: 3,
+      },
+    });
+
+    expect(individualBuilding?.contentSummary).toEqual({
+      buildingCount: 0,
+      composition: {
+        totalUnitCount: 3,
+        unitsByType: [
+          {
+            propertyType: "APARTMENT",
+            totalCount: 2,
+          },
+          {
+            propertyType: "SHOP",
+            totalCount: 1,
+          },
+        ],
+      },
+      availability: {
+        totalCount: 3,
+        configuredCount: 3,
+        availableCount: 2,
+        unavailableCount: 1,
+        vacantCount: 2,
+        occupiedCount: 1,
+        byType: [
+          {
+            propertyType: "APARTMENT",
+            totalCount: 2,
+            configuredCount: 2,
+            availableCount: 1,
+            unavailableCount: 1,
+            vacantCount: 1,
+            occupiedCount: 1,
+          },
+          {
+            propertyType: "SHOP",
+            totalCount: 1,
+            configuredCount: 1,
+            availableCount: 1,
+            unavailableCount: 0,
+            vacantCount: 1,
+            occupiedCount: 0,
+          },
+        ],
+      },
+      contracts: {
+        totalCount: 3,
+        activeCount: 2,
+      },
+    });
+
+    expect(wholeBuilding?.contentSummary).toEqual({
+      buildingCount: 0,
+      composition: {
+        totalUnitCount: 1,
+        unitsByType: [
+          {
+            propertyType: "APARTMENT",
+            totalCount: 1,
+          },
+        ],
+      },
+      availability: {
+        totalCount: 1,
+        configuredCount: 1,
+        availableCount: 1,
+        unavailableCount: 0,
+        vacantCount: 1,
+        occupiedCount: 0,
+        byType: [
+          {
+            propertyType: "BUILDING",
+            totalCount: 1,
+            configuredCount: 1,
+            availableCount: 1,
+            unavailableCount: 0,
+            vacantCount: 1,
+            occupiedCount: 0,
+          },
+        ],
+      },
+      contracts: {
+        totalCount: 1,
+        activeCount: 1,
+      },
+    });
+
+    expect(complex?.contentSummary?.contracts.totalCount).not.toBe(6);
+    expect(wholeBuilding?.contentSummary?.contracts.totalCount).not.toBe(2);
+  });
+});
+function ownerAuthority(tenantId: string) {
+  return { actorId: "actor", authorityId: "authority", grants: ["CREATE_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNER", "UPDATE_PROPERTY_OWNER"] as const, tenantIds: [tenantId] };
+}
+function createOwner(repository = new PostgresPropertyOwnerRepository(runtime), tenantId = TENANT_A, ownerType: "INDIVIDUAL" | "LEGAL_ENTITY" = "INDIVIDUAL", ownerId = PROPERTY_ID) {
+  return new CreatePropertyOwner(repository, { generate: () => ownerId }, { now: () => "2026-08-26T10:00:00.000Z" }).execute({
+    authority: ownerAuthority(tenantId), correlationId: CORRELATION,
+    identity: ownerType === "INDIVIDUAL"
+      ? { ownerType: "INDIVIDUAL", firstName: "Jean", lastName: "Kouassi" }
+      : { ownerType: "LEGAL_ENTITY", legalName: "Immobilière Plateau SA", registrationNumber: "CI-ABJ-2026-B-00000" },
+    contactInformation: { phoneNumber: "+2250700000000", email: "contact@example.com" },
+  });
+}
+
+describe("PropertyOwner PostgreSQL persistence", () => {
+  it.each(["INDIVIDUAL", "LEGAL_ENTITY"] as const)("persists and reconstructs %s", async (ownerType) => {
+    await createOwner(undefined, TENANT_A, ownerType);
+    const found = await new RetrievePropertyOwner(new PostgresPropertyOwnerRepository(runtime)).execute({
+      authority: ownerAuthority(TENANT_A), ownerId: PROPERTY_ID,
+    });
+    expect(found).toMatchObject({ ownerId: PROPERTY_ID, tenantId: TENANT_A, identity: { ownerType }, contactInformation: { email: "contact@example.com" } });
+  });
+
+  it("lists, searches and paginates owners without leaking another tenant", async () => {
+    const repository = new PostgresPropertyOwnerRepository(runtime);
+    const fixtures = [
+      { tenantId: TENANT_A, ownerId: "11111111-1111-4111-8111-111111111111", createdAt: "2026-08-26T13:00:00.000Z", identity: { ownerType: "INDIVIDUAL" as const, firstName: "Awa", lastName: "Kouassi" } },
+      { tenantId: TENANT_A, ownerId: "22222222-2222-4222-8222-222222222222", createdAt: "2026-08-26T13:00:00.000Z", identity: { ownerType: "LEGAL_ENTITY" as const, legalName: "Kouassi Immobilier", registrationNumber: "CI-ABJ-42" } },
+      { tenantId: TENANT_A, ownerId: "33333333-3333-4333-8333-333333333333", createdAt: "2026-08-26T14:00:00.000Z", identity: { ownerType: "INDIVIDUAL" as const, firstName: "Fatou", lastName: "Diop" } },
+      { tenantId: TENANT_B, ownerId: "44444444-4444-4444-8444-444444444444", createdAt: "2026-08-26T15:00:00.000Z", identity: { ownerType: "INDIVIDUAL" as const, firstName: "Awa", lastName: "Kouassi" } },
+    ];
+    for (const fixture of fixtures) await new CreatePropertyOwner(
+      repository, { generate: () => fixture.ownerId }, { now: () => fixture.createdAt },
+    ).execute({ authority: ownerAuthority(fixture.tenantId), correlationId: CORRELATION, identity: fixture.identity, contactInformation: {} });
+
+    const list = new ListPropertyOwners(new PostgresPropertyOwnerDirectoryQuery(runtime));
+    const listAuthority = { ...ownerAuthority(TENANT_A), grants: ["LIST_PROPERTY_OWNERS"] as const };
+    const first = await list.execute({ authority: listAuthority, search: "Kouassi", limit: 1 });
+    expect(first.items.map((value) => value.ownerId)).toEqual(["22222222-2222-4222-8222-222222222222"]);
+    expect(first.nextCursor).toEqual({ createdAt: "2026-08-26T13:00:00.000Z", ownerId: "22222222-2222-4222-8222-222222222222" });
+    const second = await list.execute({ authority: listAuthority, search: "Kouassi", limit: 1, cursor: first.nextCursor });
+    expect(second.items.map((value) => value.ownerId)).toEqual(["11111111-1111-4111-8111-111111111111"]);
+    expect(second.nextCursor).toBeUndefined();
+    expect((await owner.query("SELECT indexdef FROM pg_indexes WHERE schemaname = 'property_management' AND indexname = 'property_owners_tenant_created_owner_idx'")).rows[0]?.indexdef)
+      .toContain("tenant_id, created_at DESC NULLS LAST, owner_id DESC NULLS LAST");
+  });
+
+  it("updates an owner atomically while preserving its identifiers and type", async () => {
+    const repository = new PostgresPropertyOwnerRepository(runtime); await createOwner(repository);
+    const update = new UpdatePropertyOwner(repository, { now: () => "2026-08-26T11:00:00.000Z" });
+    const updated = await update.execute({ authority: ownerAuthority(TENANT_A), correlationId: CORRELATION, ownerId: PROPERTY_ID,
+      identity: { ownerType: "INDIVIDUAL", firstName: "Jeannot", lastName: "Kouassi" }, contactInformation: { email: "new@example.com" } });
+    expect(updated).toMatchObject({ ownerId: PROPERTY_ID, tenantId: TENANT_A, identity: { ownerType: "INDIVIDUAL", firstName: "Jeannot" }, updatedAt: "2026-08-26T11:00:00.000Z" });
+    expect((await owner.query("SELECT owner_type, first_name, email FROM property_management.property_owners")).rows[0])
+      .toEqual({ owner_type: "INDIVIDUAL", first_name: "Jeannot", email: "new@example.com" });
+  });
+
+  it("rolls back a forbidden type change", async () => {
+    const repository = new PostgresPropertyOwnerRepository(runtime); await createOwner(repository);
+    await expect(new UpdatePropertyOwner(repository, { now: () => "2026-08-26T11:00:00.000Z" }).execute({
+      authority: ownerAuthority(TENANT_A), correlationId: CORRELATION, ownerId: PROPERTY_ID,
+      identity: { ownerType: "LEGAL_ENTITY", legalName: "Changed" }, contactInformation: {},
+    })).rejects.toBeInstanceOf(PropertyOwnerTypeChangeNotAllowedError);
+    expect((await owner.query("SELECT owner_type, first_name FROM property_management.property_owners")).rows[0])
+      .toEqual({ owner_type: "INDIVIDUAL", first_name: "Jean" });
+  });
+
+  it("returns not found for missing and cross-tenant access without mutation", async () => {
+    const repository = new PostgresPropertyOwnerRepository(runtime); await createOwner(repository);
+    const retrieve = new RetrievePropertyOwner(repository);
+    await expect(retrieve.execute({ authority: ownerAuthority(TENANT_B), ownerId: PROPERTY_ID })).rejects.toBeInstanceOf(PropertyOwnerNotFoundError);
+    await expect(new UpdatePropertyOwner(repository, { now: () => "2026-08-26T11:00:00.000Z" }).execute({
+      authority: ownerAuthority(TENANT_B), correlationId: CORRELATION, ownerId: PROPERTY_ID,
+      identity: { ownerType: "INDIVIDUAL", firstName: "Other", lastName: "Tenant" }, contactInformation: {},
+    })).rejects.toBeInstanceOf(PropertyOwnerNotFoundError);
+    expect((await owner.query("SELECT first_name FROM property_management.property_owners")).rows[0]?.first_name).toBe("Jean");
+  });
+
+  it("forces owner RLS outside a tenant transaction", async () => {
+    await createOwner();
+    expect((await runtime.query("SELECT * FROM property_management.property_owners")).rows).toHaveLength(0);
+    await expect(runtime.query(`INSERT INTO property_management.property_owners
+      (owner_id, tenant_id, owner_type, first_name, last_name, created_at, updated_at, correlation_id, actor_id)
+      VALUES ($1,$2,'INDIVIDUAL','Other','Owner',now(),now(),$3,'actor')`, ["eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", TENANT_B, CORRELATION]))
+      .rejects.toMatchObject({ code: "42501" });
+  });
+
+  it("enforces discriminated identity and contact constraints", async () => {
+    await owner.query("SET CONSTRAINTS ALL IMMEDIATE");
+    await expect(owner.query(`INSERT INTO property_management.property_owners
+      (owner_id, tenant_id, owner_type, first_name, last_name, legal_name, created_at, updated_at, correlation_id, actor_id)
+      VALUES ($1,$2,'INDIVIDUAL','Jean','Kouassi','Forbidden',now(),now(),$3,'actor')`, [PROPERTY_ID, TENANT_A, CORRELATION]))
+      .rejects.toMatchObject({ code: "23514" });
+    await expect(owner.query(`INSERT INTO property_management.property_owners
+      (owner_id, tenant_id, owner_type, legal_name, email, created_at, updated_at, correlation_id, actor_id)
+      VALUES ($1,$2,'LEGAL_ENTITY','Company','invalid',now(),now(),$3,'actor')`, [PROPERTY_ID, TENANT_A, CORRELATION]))
+      .rejects.toMatchObject({ code: "23514" });
+  });
+});
+
+const OWNERSHIP_PROPERTY = "22222222-2222-4222-8222-222222222222";
+const OWNERSHIP_OWNER_A = "33333333-3333-4333-8333-333333333333";
+const OWNERSHIP_OWNER_B = "44444444-4444-4444-8444-444444444444";
+function ownershipAuthority(tenantId: string) {
+  return { actorId: "actor", authorityId: "authority", grants: ["ASSIGN_PROPERTY_OWNER", "RETRIEVE_PROPERTY_OWNERSHIP", "REMOVE_PROPERTY_OWNER"] as const, tenantIds: [tenantId] };
+}
+async function ownershipFixture() {
+  await create(undefined, TENANT_A, "SALE", OWNERSHIP_PROPERTY);
+  await createOwner(undefined, TENANT_A, "INDIVIDUAL", OWNERSHIP_OWNER_A);
+  await createOwner(undefined, TENANT_A, "LEGAL_ENTITY", OWNERSHIP_OWNER_B);
+}
+
+describe("PropertyOwnership PostgreSQL persistence", () => {
+  it("persists, lists and removes multiple owners without deleting references", async () => {
+    await ownershipFixture(); const repository = new PostgresPropertyOwnershipRepository(runtime);
+    const assign = new AssignPropertyOwner(repository, { now: () => "2026-08-26T12:00:00.000Z" });
+    await assign.execute({ authority: ownershipAuthority(TENANT_A), correlationId: CORRELATION, propertyId: OWNERSHIP_PROPERTY, ownerId: OWNERSHIP_OWNER_A, ownershipShare: 60 });
+    await assign.execute({ authority: ownershipAuthority(TENANT_A), correlationId: CORRELATION, propertyId: OWNERSHIP_PROPERTY, ownerId: OWNERSHIP_OWNER_B, ownershipShare: 40 });
+    await expect(new RetrievePropertyOwnerships(repository).execute({ authority: ownershipAuthority(TENANT_A), propertyId: OWNERSHIP_PROPERTY }))
+      .resolves.toEqual([expect.objectContaining({ ownerId: OWNERSHIP_OWNER_A, ownershipShare: 60 }), expect.objectContaining({ ownerId: OWNERSHIP_OWNER_B, ownershipShare: 40 })]);
+    await new RemovePropertyOwner(repository).execute({ authority: ownershipAuthority(TENANT_A), propertyId: OWNERSHIP_PROPERTY, ownerId: OWNERSHIP_OWNER_A });
+    expect((await owner.query("SELECT count(*)::int AS count FROM property_management.property_ownerships")).rows[0]?.count).toBe(1);
+    expect((await owner.query("SELECT count(*)::int AS count FROM property_management.properties WHERE property_id = $1", [OWNERSHIP_PROPERTY])).rows[0]?.count).toBe(1);
+    expect((await owner.query("SELECT count(*)::int AS count FROM property_management.property_owners WHERE owner_id = $1", [OWNERSHIP_OWNER_A])).rows[0]?.count).toBe(1);
+  });
+
+  it("supports one owner assigned to multiple properties", async () => {
+    await ownershipFixture(); const secondProperty = "55555555-5555-4555-8555-555555555555"; await create(undefined, TENANT_A, "SALE", secondProperty);
+    const assign = new AssignPropertyOwner(new PostgresPropertyOwnershipRepository(runtime), { now: () => "2026-08-26T12:00:00.000Z" });
+    for (const propertyId of [OWNERSHIP_PROPERTY, secondProperty]) await assign.execute({
+      authority: ownershipAuthority(TENANT_A), correlationId: CORRELATION, propertyId, ownerId: OWNERSHIP_OWNER_A, ownershipShare: 50,
+    });
+    expect((await owner.query("SELECT count(*)::int AS count FROM property_management.property_ownerships WHERE owner_id = $1", [OWNERSHIP_OWNER_A])).rows[0]?.count).toBe(2);
+  });
+
+  it("rejects duplicate, exceeded total and missing relation removal", async () => {
+    await ownershipFixture(); const repository = new PostgresPropertyOwnershipRepository(runtime);
+    const assign = new AssignPropertyOwner(repository, { now: () => "2026-08-26T12:00:00.000Z" });
+    const command = { authority: ownershipAuthority(TENANT_A), correlationId: CORRELATION, propertyId: OWNERSHIP_PROPERTY, ownerId: OWNERSHIP_OWNER_A, ownershipShare: 60 };
+    await assign.execute(command);
+    await expect(assign.execute(command)).rejects.toBeInstanceOf(PropertyOwnershipConflictError);
+    await expect(assign.execute({ ...command, ownerId: OWNERSHIP_OWNER_B, ownershipShare: 40.01 })).rejects.toBeInstanceOf(PropertyOwnershipShareExceededError);
+    await expect(new RemovePropertyOwner(repository).execute({ authority: ownershipAuthority(TENANT_A), propertyId: OWNERSHIP_PROPERTY, ownerId: OWNERSHIP_OWNER_B }))
+      .rejects.toBeInstanceOf(PropertyOwnershipNotFoundError);
+  });
+
+  it("prevents missing and cross-tenant references", async () => {
+    await ownershipFixture(); const assign = new AssignPropertyOwner(new PostgresPropertyOwnershipRepository(runtime), { now: () => "2026-08-26T12:00:00.000Z" });
+    await expect(assign.execute({ authority: ownershipAuthority(TENANT_B), correlationId: CORRELATION, propertyId: OWNERSHIP_PROPERTY, ownerId: OWNERSHIP_OWNER_A, ownershipShare: 10 }))
+      .rejects.toBeInstanceOf(PropertyNotFoundError);
+    await expect(assign.execute({ authority: ownershipAuthority(TENANT_A), correlationId: CORRELATION, propertyId: OWNERSHIP_PROPERTY, ownerId: "66666666-6666-4666-8666-666666666666", ownershipShare: 10 }))
+      .rejects.toBeInstanceOf(PropertyOwnerNotFoundError);
+    await expect(owner.query(`INSERT INTO property_management.property_ownerships
+      (tenant_id, property_id, owner_id, ownership_share, created_at, correlation_id, actor_id)
+      VALUES ($1,$2,$3,10,now(),$4,'actor')`, [TENANT_B, OWNERSHIP_PROPERTY, OWNERSHIP_OWNER_A, CORRELATION]))
+      .rejects.toMatchObject({ code: "23503" });
+  });
+
+  it("enforces share constraints and forced RLS", async () => {
+    await ownershipFixture();
+    await expect(owner.query(`INSERT INTO property_management.property_ownerships
+      (tenant_id, property_id, owner_id, ownership_share, created_at, correlation_id, actor_id)
+      VALUES ($1,$2,$3,0,now(),$4,'actor')`, [TENANT_A, OWNERSHIP_PROPERTY, OWNERSHIP_OWNER_A, CORRELATION]))
+      .rejects.toMatchObject({ code: "23514" });
+    expect((await runtime.query("SELECT * FROM property_management.property_ownerships")).rows).toHaveLength(0);
+    await expect(runtime.query(`INSERT INTO property_management.property_ownerships
+      (tenant_id, property_id, owner_id, ownership_share, created_at, correlation_id, actor_id)
+      VALUES ($1,$2,$3,10,now(),$4,'actor')`, [TENANT_A, OWNERSHIP_PROPERTY, OWNERSHIP_OWNER_A, CORRELATION]))
+      .rejects.toMatchObject({ code: "42501" });
+  });
+
+  it("serializes concurrent assignments so the total cannot exceed 100", async () => {
+    await ownershipFixture(); const repository = new PostgresPropertyOwnershipRepository(runtime);
+    const assign = new AssignPropertyOwner(repository, { now: () => "2026-08-26T12:00:00.000Z" });
+    const results = await Promise.allSettled([OWNERSHIP_OWNER_A, OWNERSHIP_OWNER_B].map((ownerId) => assign.execute({
+      authority: ownershipAuthority(TENANT_A), correlationId: CORRELATION,
+      propertyId: OWNERSHIP_PROPERTY, ownerId, ownershipShare: 60,
+    })));
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+    expect((await owner.query("SELECT COALESCE(sum(ownership_share), 0)::numeric AS total FROM property_management.property_ownerships WHERE property_id = $1", [OWNERSHIP_PROPERTY])).rows[0]?.total).toBe("60.00");
+  });
+});
+
+const BUILDING_ID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"; const UNIT_ID = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+function compositionAuthority(tenantId: string) { return { actorId: "actor", authorityId: "authority", grants: ["CREATE_PROPERTY_BUILDING", "RETRIEVE_PROPERTY_COMPOSITION", "UPDATE_PROPERTY_BUILDING", "CREATE_PROPERTY_UNIT", "UPDATE_PROPERTY_UNIT_STRUCTURE"] as const, tenantIds: [tenantId] }; }
+function compositionUseCases(repository = new PostgresPropertyCompositionRepository(runtime), buildingIds: readonly string[] = [BUILDING_ID], unitIds: readonly string[] = [UNIT_ID]) {
+  let buildingIndex = 0; let unitIndex = 0; const clock = { now: () => "2026-08-28T12:00:00.000Z" };
+  let buildingPropertyIndex = 0;
+  let nextIsBuildingProperty = false;
+  const nextBuildingId = () => {
+    if (nextIsBuildingProperty) {
+      nextIsBuildingProperty = false;
+      buildingPropertyIndex += 1;
+      return `99999999-9999-4999-8999-${String(buildingPropertyIndex).padStart(12, "0")}`;
+    }
+    nextIsBuildingProperty = true;
+    return buildingIds[buildingIndex++] ?? "77777777-7777-4777-8777-777777777777";
+  };
+  const nextUnitId = () => unitIds[unitIndex++] ?? "88888888-8888-4888-8888-888888888888";
+  return { repository, createBuilding: new CreatePropertyBuilding(new PostgresPropertyRepository(runtime), repository, { generate: nextBuildingId }, clock), listBuildings: new ListPropertyBuildings(repository), updateBuilding: new UpdatePropertyBuilding(repository, clock), createUnit: new CreatePropertyUnit(repository, { generate: nextUnitId }, clock), listUnits: new ListPropertyUnits(repository), updateUnit: new UpdatePropertyUnitStructure(repository, clock) };
+}
+async function createCompositionParent(tenantId = TENANT_A, propertyId = PROPERTY_ID) { await create(undefined, tenantId, "SALE", propertyId); }
+const unitFields = { unitCode: "A-101", title: "Appartement A-101", propertyType: "APARTMENT" as const, transactionType: "LONG_TERM_RENTAL" as const,
+  apartmentSubtype: "STUDIO" as const, location: { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue 1" } };
+
+describe("Property composition PostgreSQL persistence", () => {
+  it("rattache directement villas et appartements à une résidence, avec pagination et isolation tenant", async () => {
+    const repository = new PostgresPropertyRepository(runtime);
+    const structures = new PostgresPropertyCompositionRepository(runtime);
+    const authority = { ...compositionAuthority(TENANT_A), grants: ["CREATE_PROPERTY", ...compositionAuthority(TENANT_A).grants] as const };
+    const now = { now: () => "2026-08-28T12:00:00.000Z" };
+    const location = { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue 1" };
+    await new CreateProperty(repository, { generate: () => PROPERTY_ID }, now, structures).execute({
+      authority, correlationId: CORRELATION, title: "Résidence Jardins", propertyType: "COMPLEX", transactionType: "LONG_TERM_RENTAL", location,
+    });
+    const ids = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222", "33333333-3333-4333-8333-333333333333"];
+    const createChild = new CreatePropertyComplexChild(structures, { generate: () => ids.shift()! }, now);
+    const villa = await createChild.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID,
+      childCode: "V-01", title: "Villa 01", propertyType: "HOUSE", transactionType: "LONG_TERM_RENTAL", location });
+    const apartment = await createChild.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID,
+      childCode: "A-01", title: "Appartement A", propertyType: "APARTMENT", apartmentSubtype: "STUDIO", transactionType: "LONG_TERM_RENTAL", location });
+    expect(villa.property.structuralRole).toBe("STANDALONE");
+    expect(apartment.property.structuralRole).toBe("STANDALONE");
+    const list = new ListPropertyComplexChildren(structures);
+    const first = await list.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, limit: 1 });
+    const second = await list.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, limit: 1, cursor: first.nextCursor });
+    expect([...first.items, ...second.items].map((item) => item.childCode)).toEqual(["A-01", "V-01"]);
+    await expect(createChild.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID,
+      childCode: "A-01", title: "Doublon", propertyType: "HOUSE", transactionType: "LONG_TERM_RENTAL", location }))
+      .rejects.toBeInstanceOf(PropertyComplexChildCodeConflictError);
+    await expect(list.execute({ authority: { ...authority, tenantIds: [TENANT_B] }, correlationId: CORRELATION, propertyId: PROPERTY_ID, limit: 10 }))
+      .rejects.toBeInstanceOf(PropertyNotFoundError);
+    expect((await runtime.query("SELECT * FROM property_management.property_complex_children")).rows).toHaveLength(0);
+    expect((await owner.query("SELECT count(*)::int AS count FROM property_management.property_complex_children")).rows[0]?.count).toBe(2);
+  });
+
+  it("sépare disponibilité et tarification des modes immeuble entier et unités individuelles", async () => {
+    const repository = new PostgresPropertyRepository(runtime);
+    const structures = new PostgresPropertyCompositionRepository(runtime);
+    const authority = { ...compositionAuthority(TENANT_A), grants: ["CREATE_PROPERTY", ...compositionAuthority(TENANT_A).grants] as const };
+    const now = { now: () => "2026-08-28T12:00:00.000Z" };
+    const location = { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue 1" };
+    const whole = await new CreateProperty(repository, { generate: (() => {
+      const ids = [PROPERTY_ID, BUILDING_ID]; return () => ids.shift()!;
+    })() }, now, structures).execute({ authority, correlationId: CORRELATION, title: "Immeuble entier",
+      propertyType: "BUILDING", commercializationMode: "WHOLE_BUILDING", transactionType: "LONG_TERM_RENTAL", location });
+    expect(whole.commercializationMode).toBe("WHOLE_BUILDING");
+    expect((await new PostgresPropertyAvailabilityQuery(runtime).retrieve(TENANT_A, PROPERTY_ID))?.source).toBe("DIRECT");
+    await repository.updateAtomically(TENANT_A, PROPERTY_ID,
+      (current) => current.defineAvailability("AVAILABLE", "VACANT", now.now()), { correlationId: CORRELATION, actorId: "actor" });
+    const buildingId = (await structures.listBuildings(TENANT_A, PROPERTY_ID, 10))!.items[0]!.buildingId;
+    const unit = await new CreatePropertyUnit(structures, { generate: () => UNIT_ID }, now).execute({
+      authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId, ...unitFields,
+    });
+    await expect(repository.updateAtomically(TENANT_A, unit.property.propertyId,
+      (current) => current.setPricing({ kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 100000, rentPeriod: "MONTH" }, now.now()),
+      { correlationId: CORRELATION, actorId: "actor" })).rejects.toBeInstanceOf(PropertyCommercialTargetNotEligibleError);
+    const individualId = "11111111-1111-4111-8111-111111111111";
+    const individual = await new CreateProperty(repository, { generate: (() => {
+      const ids = [individualId, "22222222-2222-4222-8222-222222222222"]; return () => ids.shift()!;
+    })() }, now, structures).execute({ authority, correlationId: CORRELATION, title: "Immeuble par unités",
+      propertyType: "BUILDING", commercializationMode: "INDIVIDUAL_UNITS", transactionType: "LONG_TERM_RENTAL", location });
+    expect(Property.rehydrate(individual).assessPublicationReadiness().missingRequirements).toContain("COMMERCIAL_TARGET");
+    expect((await new PostgresPropertyAvailabilityQuery(runtime).retrieve(TENANT_A, individualId))?.source).toBe("DERIVED_FROM_UNITS");
+    await expect(repository.updateAtomically(TENANT_A, individualId,
+      (current) => current.setPricing({ kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 100000, rentPeriod: "MONTH" }, now.now()),
+      { correlationId: CORRELATION, actorId: "actor" })).rejects.toBeInstanceOf(PropertyCommercialTargetNotEligibleError);
+  });
+  it("crée directement un immeuble et une résidence avec leurs fiches canoniques", async () => {
+    const repository = new PostgresPropertyRepository(runtime);
+    const structures = new PostgresPropertyCompositionRepository(runtime);
+    const authority = { ...compositionAuthority(TENANT_A), grants: ["CREATE_PROPERTY", ...compositionAuthority(TENANT_A).grants] as const };
+    const now = { now: () => "2026-08-28T12:00:00.000Z" };
+    const location = { country: "CI", city: "Abidjan", district: "Cocody", addressLine: "Rue 1" };
+    const direct = await new CreateProperty(repository, { generate: (() => {
+      const ids = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"];
+      return () => ids.shift()!;
+    })() }, now, structures).execute({ authority, correlationId: CORRELATION, title: "Immeuble Horizon", propertyType: "BUILDING", transactionType: "LONG_TERM_RENTAL", location });
+    expect(direct.structuralRole).toBe("COMPOSITE");
+    const directBuildings = await structures.listBuildings(TENANT_A, direct.propertyId, 20);
+    expect(directBuildings?.items).toMatchObject([{ buildingPropertyId: direct.propertyId, buildingCode: "MAIN" }]);
+    const directUnit = await new CreatePropertyUnit(structures, { generate: () => UNIT_ID }, now).execute({
+      authority, correlationId: CORRELATION, propertyId: direct.propertyId,
+      buildingId: directBuildings!.items[0]!.buildingId, ...unitFields,
+    });
+    expect((await structures.listUnits(TENANT_A, direct.propertyId, directBuildings!.items[0]!.buildingId, 20))?.items).toMatchObject([directUnit]);
+    const complexId = "33333333-3333-4333-8333-333333333333";
+    await new CreateProperty(repository, { generate: () => complexId }, now, structures).execute({
+      authority, correlationId: CORRELATION, title: "Résidence Palmiers", propertyType: "COMPLEX", transactionType: "LONG_TERM_RENTAL", location,
+    });
+    const child = await new CreatePropertyBuilding(repository, structures, { generate: (() => {
+      const ids = ["44444444-4444-4444-8444-444444444444", "55555555-5555-4555-8555-555555555555"];
+      return () => ids.shift()!;
+    })() }, now).execute({ authority, correlationId: CORRELATION, propertyId: complexId, buildingCode: "BAT-A", name: "Immeuble A" });
+    expect(child.buildingPropertyId).toBe("55555555-5555-4555-8555-555555555555");
+    expect((await repository.findById(TENANT_A, child.buildingPropertyId!))?.values).toMatchObject({ propertyType: "BUILDING", structuralRole: "COMPOSITE" });
+    expect((await structures.listBuildings(TENANT_A, child.buildingPropertyId!, 20))?.items).toMatchObject([child]);
+    expect((await structures.listBuildings(TENANT_B, complexId, 20))).toBeUndefined();
+  });
+  it("refuse de persister une Unit par le repository générique sans relation", async () => {
+    const unit = Property.createUnit({
+      propertyId: UNIT_ID, tenantId: TENANT_A, title: "Orpheline", propertyType: "APARTMENT", transactionType: "SALE",
+      location: unitFields.location, createdAt: "2026-08-28T12:00:00.000Z", updatedAt: "2026-08-28T12:00:00.000Z",
+    });
+    await expect(new PostgresPropertyRepository(runtime).saveStandalone(unit, CORRELATION, "actor"))
+      .rejects.toBeInstanceOf(PropertyStructuralRoleConflictError);
+    expect((await owner.query("SELECT count(*)::int AS count FROM property_management.properties")).rows[0]?.count).toBe(0);
+  });
+
+  it("refuse de charger une Unit persistée sans son unique relation Building", async () => {
+    await owner.query(`INSERT INTO property_management.properties
+      (property_id, tenant_id, title, property_type, transaction_type, status, structural_role,
+       country, city, district, address_line, created_at, updated_at, correlation_id, actor_id)
+      VALUES ($1,$2,'Unit orpheline','APARTMENT','SALE','DRAFT','UNIT',
+       'CI','Abidjan','Cocody','Rue 1',now(),now(),$3,'actor')`, [UNIT_ID, TENANT_A, CORRELATION]);
+
+    await expect(new PostgresPropertyRepository(runtime).findById(TENANT_A, UNIT_ID))
+      .rejects.toBeInstanceOf(PersistedPropertyCorruptionError);
+  });
+
+  it("refuse de modifier le rôle structurel par le repository générique", async () => {
+    const repository = new PostgresPropertyRepository(runtime);
+    await create(repository);
+
+    await expect(repository.updateAtomically(
+      TENANT_A,
+      PROPERTY_ID,
+      (property) => property.becomeComposite("2026-08-28T12:00:00.000Z"),
+      { correlationId: CORRELATION, actorId: "actor" },
+    )).rejects.toBeInstanceOf(PropertyStructuralRoleConflictError);
+    expect((await owner.query("SELECT structural_role FROM property_management.properties WHERE property_id=$1", [PROPERTY_ID])).rows[0]?.structural_role)
+      .toBe("STANDALONE");
+  });
+
+  it("crée, lit et modifie Building puis Unit avec les rôles normatifs", async () => { await createCompositionParent(); const useCases = compositionUseCases(); const authority = compositionAuthority(TENANT_A);
+    await useCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: " bat-a ", name: " Immeuble A " });
+    expect((await owner.query("SELECT structural_role FROM property_management.properties WHERE property_id=$1", [PROPERTY_ID])).rows[0]?.structural_role).toBe("COMPOSITE");
+    await useCases.updateBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: BUILDING_ID, buildingCode: "BAT-B", name: "Immeuble B" });
+    const createdUnit = await useCases.createUnit.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: BUILDING_ID, ...unitFields }); expect(createdUnit.property.structuralRole).toBe("UNIT");
+    await useCases.updateUnit.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: BUILDING_ID, unitPropertyId: UNIT_ID, unitCode: "B-102" });
+    expect((await useCases.listBuildings.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, limit: 20 })).items[0]).toMatchObject({ buildingCode: "BAT-B", name: "Immeuble B" });
+    expect((await useCases.listUnits.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: BUILDING_ID, limit: 20 })).items[0]).toMatchObject({ unitCode: "B-102", property: { propertyId: UNIT_ID, structuralRole: "UNIT" } });
+  });
+  it("publie indépendamment une racine COMPOSITE et sa Property UNIT sans cascade", async () => {
+    await createCompositionParent(); const useCases = compositionUseCases(); const composition = compositionAuthority(TENANT_A);
+    await useCases.createBuilding.execute({ authority: composition, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: "BAT-A", name: "A" });
+    await useCases.createUnit.execute({ authority: composition, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: BUILDING_ID, ...unitFields });
+    await insertStudioPhotoSet(TENANT_A, UNIT_ID);
+    const repository = new PostgresPropertyRepository(runtime);
+    const details = new UpdatePropertyDetails(repository, { now: () => "2026-08-28T13:00:00.000Z" });
+    const detailsAuthority = { ...authority(TENANT_A), grants: ["UPDATE_PROPERTY_DETAILS"] as const };
+    await details.execute({ authority: detailsAuthority, correlationId: CORRELATION, propertyId: PROPERTY_ID,
+      details: { rooms: 1 }, commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 1 } });
+    await details.execute({ authority: detailsAuthority, correlationId: CORRELATION, propertyId: UNIT_ID,
+      details: { rooms: 1 }, commercialTerms: { kind: "LONG_TERM_RENTAL", currency: "XOF", rentAmountMinor: 1, rentPeriod: "MONTH" } });
+    const publish = new PublishProperty(repository, { now: () => "2026-08-28T14:00:00.000Z" });
+    const publishAuthority = { ...authority(TENANT_A), grants: ["PUBLISH_PROPERTY"] as const };
+    await expect(publish.execute({ authority: publishAuthority, correlationId: PUBLICATION_CORRELATION, propertyId: UNIT_ID }))
+      .resolves.toMatchObject({ property: { status: "PUBLISHED", structuralRole: "UNIT" } });
+    expect((await owner.query("SELECT property_id, status FROM property_management.properties ORDER BY property_id")).rows)
+      .toEqual(expect.arrayContaining([{ property_id: PROPERTY_ID, status: "DRAFT" }, { property_id: UNIT_ID, status: "PUBLISHED" }]));
+    await expect(publish.execute({ authority: publishAuthority, correlationId: REPLAY_CORRELATION, propertyId: PROPERTY_ID }))
+      .resolves.toMatchObject({ property: { status: "PUBLISHED", structuralRole: "COMPOSITE" } });
+  });
+  it("refuse un Building sous une Unit et rollbacke une création Unit conflictuelle", async () => { await createCompositionParent(); const useCases = compositionUseCases(undefined, [BUILDING_ID], [UNIT_ID, "11111111-1111-4111-8111-111111111111"]); const authority = compositionAuthority(TENANT_A); await useCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: "BAT-A", name: "A" }); await useCases.createUnit.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: BUILDING_ID, ...unitFields });
+    await expect(useCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: UNIT_ID, buildingCode: "NEST", name: "Interdit" })).rejects.toBeInstanceOf(PropertyStructuralRoleConflictError);
+    await expect(useCases.createUnit.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: BUILDING_ID, ...unitFields })).rejects.toBeInstanceOf(PropertyUnitCodeConflictError);
+    expect((await owner.query("SELECT count(*)::int AS count FROM property_management.properties")).rows[0]?.count).toBe(3);
+  });
+  it("applique unicité, références tenant composites et RLS forcée", async () => { await createCompositionParent(); const useCases = compositionUseCases(undefined, [BUILDING_ID, "11111111-1111-4111-8111-111111111111"]); const authority = compositionAuthority(TENANT_A); await useCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: "BAT-A", name: "A" });
+    await expect(useCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: "bat-a", name: "Doublon" })).rejects.toBeInstanceOf(PropertyBuildingCodeConflictError);
+    expect((await runtime.query("SELECT * FROM property_management.property_buildings")).rows).toHaveLength(0);
+    await expect(owner.query(`INSERT INTO property_management.property_buildings (building_id,tenant_id,property_id,building_code,name,created_at,updated_at,correlation_id,actor_id) VALUES ($1,$2,$3,'BAD','Bad',now(),now(),$4,'actor')`, ["22222222-2222-4222-8222-222222222222", TENANT_B, PROPERTY_ID, CORRELATION])).rejects.toMatchObject({ code: "23503" });
+    await expect(runtime.query(`INSERT INTO property_management.property_buildings (building_id,tenant_id,property_id,building_code,name,created_at,updated_at,correlation_id,actor_id) VALUES ($1,$2,$3,'BAD','Bad',now(),now(),$4,'actor')`, ["33333333-3333-4333-8333-333333333333", TENANT_A, PROPERTY_ID, CORRELATION])).rejects.toMatchObject({ code: "42501" });
+  });
+  it("isole aussi les relations Unit par tenant et par RLS", async () => {
+    await createCompositionParent(); const useCases = compositionUseCases(); const authority = compositionAuthority(TENANT_A);
+    await useCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: "BAT-A", name: "A" });
+    await useCases.createUnit.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: BUILDING_ID, ...unitFields });
+    await expect(useCases.listUnits.execute({ authority: compositionAuthority(TENANT_B), correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: BUILDING_ID, limit: 20 }))
+      .rejects.toBeInstanceOf(PropertyBuildingNotFoundError);
+    await expect(useCases.updateUnit.execute({ authority: compositionAuthority(TENANT_B), correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: BUILDING_ID, unitPropertyId: UNIT_ID, unitCode: "B-999" }))
+      .rejects.toBeInstanceOf(PropertyUnitNotFoundError);
+    expect((await runtime.query("SELECT * FROM property_management.property_building_units")).rows).toHaveLength(0);
+    await expect(runtime.query(`INSERT INTO property_management.property_building_units
+      (tenant_id,building_id,unit_property_id,unit_code,created_at,updated_at,correlation_id,actor_id)
+      VALUES ($1,$2,$3,'A-999',now(),now(),$4,'actor')`, [TENANT_A, BUILDING_ID, UNIT_ID, CORRELATION])).rejects.toMatchObject({ code: "42501" });
+    expect((await owner.query("SELECT unit_code FROM property_management.property_building_units WHERE unit_property_id=$1", [UNIT_ID])).rows[0]?.unit_code).toBe("A-101");
+  });
+  it("pagine Buildings et Units dans un ordre déterministe sans duplication", async () => { await createCompositionParent(); const buildingIds = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222", "33333333-3333-4333-8333-333333333333"]; const unitIds = ["44444444-4444-4444-8444-444444444444", "55555555-5555-4555-8555-555555555555", "66666666-6666-4666-8666-666666666666"]; const useCases = compositionUseCases(undefined, buildingIds, unitIds); const authority = compositionAuthority(TENANT_A);
+    for (const code of ["BAT-C", "BAT-A", "BAT-B"]) await useCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: code, name: code }); const first = await useCases.listBuildings.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, limit: 2 }); const second = await useCases.listBuildings.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, limit: 2, cursor: first.nextCursor }); expect([...first.items, ...second.items].map((item) => item.buildingCode)).toEqual(["BAT-A", "BAT-B", "BAT-C"]);
+    const target = first.items[0]!.buildingId; for (const code of ["A-103", "A-101", "A-102"]) await useCases.createUnit.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: target, ...unitFields, unitCode: code }); const unitFirst = await useCases.listUnits.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: target, limit: 2 }); const unitSecond = await useCases.listUnits.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: target, limit: 2, cursor: unitFirst.nextCursor }); expect([...unitFirst.items, ...unitSecond.items].map((item) => item.unitCode)).toEqual(["A-101", "A-102", "A-103"]);
+  });
+  it("sérialise les codes concurrents sous verrou parent", async () => { await createCompositionParent(); const ids = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"]; const useCases = compositionUseCases(undefined, ids); const authority = compositionAuthority(TENANT_A); const results = await Promise.allSettled(ids.map((_, index) => useCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: "BAT-X", name: `B${index}` }))); expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1); expect(results.filter((result) => result.status === "rejected")).toHaveLength(1); expect((await owner.query("SELECT count(*)::int AS count FROM property_management.property_buildings")).rows[0]?.count).toBe(1); });
+  it("sérialise les codes Unit concurrents et ne masque pas une collision d’identifiant en conflit de code", async () => {
+    await createCompositionParent(); const authority = compositionAuthority(TENANT_A);
+    const buildingCases = compositionUseCases(undefined, [BUILDING_ID, BUILDING_ID]);
+    await buildingCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: "BAT-A", name: "A" });
+    await expect(buildingCases.createBuilding.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingCode: "BAT-B", name: "B" }))
+      .rejects.not.toBeInstanceOf(PropertyBuildingCodeConflictError);
+
+    const unitIds = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"];
+    const unitCases = compositionUseCases(undefined, [], unitIds);
+    const results = await Promise.allSettled(unitIds.map(() => unitCases.createUnit.execute({ authority, correlationId: CORRELATION, propertyId: PROPERTY_ID, buildingId: BUILDING_ID, ...unitFields, unitCode: "A-X" })));
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+    expect((await owner.query("SELECT count(*)::int AS count FROM property_management.property_building_units WHERE unit_code='A-X'")).rows[0]?.count).toBe(1);
+  });
+});
+
+function availabilityAuthority(tenantId: string, actorId = "availability-editor") {
+  return {
+    actorId,
+    authorityId: "authority",
+    grants: ["RETRIEVE_PROPERTY_AVAILABILITY", "UPDATE_PROPERTY_AVAILABILITY"] as const,
+    tenantIds: [tenantId],
+  };
+}
+
+describe("Property availability PostgreSQL persistence", () => {
+  it("migre 0013 vers 0014 sans backfill et sans élargir le lecteur public", async () => {
+    const previousMigrations = await migrationsThrough(13);
+    await owner.query("CREATE DATABASE property_availability_upgrade_test");
+    const upgrade = new Pool({ connectionString: connection("owner", "synthetic-owner", "property_availability_upgrade_test") });
+    try {
+      await migrate(drizzle(upgrade), { migrationsFolder: previousMigrations });
+      await upgrade.query(`INSERT INTO property_management.properties
+        (property_id, tenant_id, title, property_type, transaction_type, status, country, city, district, address_line,
+         created_at, updated_at, correlation_id, actor_id)
+        VALUES ($1,$2,'Historical house','HOUSE','SALE','DRAFT','CI','Abidjan','Cocody','Riviera',now(),now(),$3,'historical')`,
+      [PROPERTY_ID, TENANT_A, CORRELATION]);
+
+      await migrate(drizzle(upgrade), { migrationsFolder });
+
+      expect((await upgrade.query(`SELECT availability_status, occupancy_status, availability_updated_at,
+        availability_updated_by_actor_id, availability_correlation_id
+        FROM property_management.properties WHERE property_id=$1`, [PROPERTY_ID])).rows[0]).toEqual({
+        availability_status: null,
+        occupancy_status: null,
+        availability_updated_at: null,
+        availability_updated_by_actor_id: null,
+        availability_correlation_id: null,
+      });
+      expect((await upgrade.query(`SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint
+        WHERE connamespace='property_management'::regnamespace
+          AND conname='properties_availability_occupancy_check'`)).rows[0]?.definition)
+        .toContain("'AVAILABLE'::text");
+      expect((await upgrade.query(`SELECT
+        has_column_privilege('monpiole_public_catalog_reader', 'property_management.properties', 'availability_status', 'SELECT') AS availability,
+        has_column_privilege('monpiole_public_catalog_reader', 'property_management.properties', 'occupancy_status', 'SELECT') AS occupancy`)).rows[0])
+        .toEqual({ availability: false, occupancy: false });
+    } finally {
+      await upgrade.end();
+      await rm(previousMigrations, { recursive: true, force: true });
+    }
+  });
+
+  it("persiste et relit le snapshot complet, conserve sa trace sur replay et isole les tenants", async () => {
+    const repository = new PostgresPropertyRepository(runtime);
+    await create(repository);
+    const update = new UpdatePropertyAvailability(repository, { now: () => "2026-09-01T12:00:00.000Z" });
+    const command = {
+      authority: availabilityAuthority(TENANT_A), correlationId: CORRELATION, propertyId: PROPERTY_ID,
+      availabilityStatus: "AVAILABLE" as const, occupancyStatus: "OCCUPIED" as const,
+    };
+    await expect(update.execute(command)).resolves.toMatchObject({
+      source: "DIRECT", structuralRole: "STANDALONE", configured: true,
+      availabilityStatus: "AVAILABLE", occupancyStatus: "OCCUPIED", updatedAt: "2026-09-01T12:00:00.000Z",
+    });
+    const persisted = await new RetrievePropertyAvailability(new PostgresPropertyAvailabilityQuery(runtime)).execute({
+      authority: availabilityAuthority(TENANT_A), propertyId: PROPERTY_ID,
+    });
+    expect(persisted).toMatchObject({ configured: true, availabilityStatus: "AVAILABLE", occupancyStatus: "OCCUPIED" });
+    await expect(new UpdatePropertyAvailability(repository, { now: () => { throw new Error("clock must not be read on replay"); } }).execute({
+      ...command,
+      correlationId: REPLAY_CORRELATION,
+      authority: availabilityAuthority(TENANT_A, "replayer"),
+    })).resolves.toMatchObject({ updatedAt: "2026-09-01T12:00:00.000Z" });
+    const row = (await owner.query(`SELECT availability_status, occupancy_status, availability_updated_at,
+      availability_updated_by_actor_id, availability_correlation_id, actor_id, correlation_id
+      FROM property_management.properties WHERE property_id=$1`, [PROPERTY_ID])).rows[0];
+    expect({ ...row, availability_updated_at: row.availability_updated_at.toISOString() }).toEqual({
+      availability_status: "AVAILABLE", occupancy_status: "OCCUPIED",
+      availability_updated_at: "2026-09-01T12:00:00.000Z",
+      availability_updated_by_actor_id: "availability-editor", availability_correlation_id: CORRELATION,
+      actor_id: "availability-editor", correlation_id: CORRELATION,
+    });
+    await expect(new RetrievePropertyAvailability(new PostgresPropertyAvailabilityQuery(runtime)).execute({
+      authority: availabilityAuthority(TENANT_B), propertyId: PROPERTY_ID,
+    })).rejects.toBeInstanceOf(PropertyNotFoundError);
+    await expect(update.execute({ ...command, authority: availabilityAuthority(TENANT_B) }))
+      .rejects.toBeInstanceOf(PropertyNotFoundError);
+  });
+
+  it("garde la visibilité publique strictement indépendante de la paire availability/occupancy", async () => {
+    const repository = new PostgresPropertyRepository(runtime);
+    await create(repository);
+    await new UpdatePropertyAvailability(repository, { now: () => "2026-09-01T11:00:00.000Z" }).execute({
+      authority: availabilityAuthority(TENANT_A), correlationId: CORRELATION, propertyId: PROPERTY_ID,
+      availabilityStatus: "AVAILABLE", occupancyStatus: "OCCUPIED",
+    });
+    const publicPool = new Pool({ connectionString: connection("monpiole_public_catalog_reader", "synthetic-public-reader") });
+    try {
+      const catalog = new PostgresPublicPropertyCatalogQuery(publicPool);
+      expect((await catalog.list({ tenantId: TENANT_A, limit: 20 })).items).toEqual([]);
+      await new UpdatePropertyDetails(repository, { now: () => "2026-09-01T11:30:00.000Z" }).execute({
+        authority: { ...authority(TENANT_A), grants: ["UPDATE_PROPERTY_DETAILS"] }, correlationId: CORRELATION,
+        propertyId: PROPERTY_ID, details: { rooms: 2 },
+        commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 1 },
+      });
+      await new PublishProperty(repository, { now: () => "2026-09-01T12:00:00.000Z" }).execute({
+        authority: { ...authority(TENANT_A), grants: ["PUBLISH_PROPERTY"] },
+        correlationId: PUBLICATION_CORRELATION, propertyId: PROPERTY_ID,
+      });
+      expect((await catalog.list({ tenantId: TENANT_A, limit: 20 })).items)
+        .toEqual([expect.objectContaining({ publicPropertyId: PROPERTY_ID })]);
+      await new WithdrawPropertyFromCatalog(repository, { now: () => "2026-09-01T13:00:00.000Z" }).execute({
+        authority: { ...authority(TENANT_A), grants: ["WITHDRAW_PROPERTY_FROM_CATALOG"] },
+        correlationId: WITHDRAWAL_CORRELATION, propertyId: PROPERTY_ID,
+      });
+      expect((await catalog.list({ tenantId: TENANT_A, limit: 20 })).items).toEqual([]);
+      await expect(new RetrieveProperty(repository).execute({ authority: authority(TENANT_A), propertyId: PROPERTY_ID }))
+        .resolves.toMatchObject({
+          status: "WITHDRAWN",
+          availability: { availabilityStatus: "AVAILABLE", occupancyStatus: "OCCUPIED" },
+        });
+    } finally {
+      await publicPool.end();
+    }
+  });
+
+  it("refuse les tuples partiels, les enums inconnus et un snapshot direct sur COMPOSITE", async () => {
+    await create();
+    await expect(owner.query(`UPDATE property_management.properties
+      SET availability_status='AVAILABLE' WHERE property_id=$1`, [PROPERTY_ID]))
+      .rejects.toMatchObject({ code: "23514", constraint: "properties_availability_occupancy_check" });
+    await expect(owner.query(`UPDATE property_management.properties
+      SET availability_status='PENDING', occupancy_status='VACANT', availability_updated_at=now(),
+        availability_updated_by_actor_id='actor', availability_correlation_id=$2 WHERE property_id=$1`,
+    [PROPERTY_ID, CORRELATION])).rejects.toMatchObject({ code: "23514", constraint: "properties_availability_occupancy_check" });
+    await expect(owner.query(`UPDATE property_management.properties
+      SET structural_role='COMPOSITE', availability_status='AVAILABLE', occupancy_status='VACANT', availability_updated_at=now(),
+        availability_updated_by_actor_id='actor', availability_correlation_id=$2 WHERE property_id=$1`,
+    [PROPERTY_ID, CORRELATION])).rejects.toMatchObject({ code: "23514", constraint: "properties_availability_occupancy_check" });
+  });
+
+  it("efface atomiquement le snapshot parent au premier Building puis dérive les compteurs des Units", async () => {
+    const propertyRepository = new PostgresPropertyRepository(runtime);
+    await create(propertyRepository);
+    await new UpdatePropertyAvailability(propertyRepository, { now: () => "2026-09-01T11:00:00.000Z" }).execute({
+      authority: availabilityAuthority(TENANT_A), correlationId: CORRELATION, propertyId: PROPERTY_ID,
+      availabilityStatus: "AVAILABLE", occupancyStatus: "VACANT",
+    });
+    const unitIds = [
+      UNIT_ID,
+      "11111111-1111-4111-8111-111111111111",
+      "22222222-2222-4222-8222-222222222222",
+    ];
+    const composition = compositionUseCases(undefined, [BUILDING_ID], unitIds);
+    const compositionActor = compositionAuthority(TENANT_A);
+    await composition.createBuilding.execute({
+      authority: compositionActor, correlationId: CORRELATION, propertyId: PROPERTY_ID,
+      buildingCode: "BAT-A", name: "Immeuble A",
+    });
+    for (const [index, propertyId] of unitIds.entries()) {
+      await composition.createUnit.execute({
+        authority: compositionActor, correlationId: CORRELATION, propertyId: PROPERTY_ID,
+        buildingId: BUILDING_ID, ...unitFields, unitCode: `A-10${index + 1}`,
+      });
+      expect(propertyId).toBe(unitIds[index]);
+    }
+    expect((await owner.query(`SELECT structural_role, availability_status, occupancy_status,
+      availability_updated_at, availability_updated_by_actor_id, availability_correlation_id
+      FROM property_management.properties WHERE property_id=$1`, [PROPERTY_ID])).rows[0]).toEqual({
+      structural_role: "COMPOSITE", availability_status: null, occupancy_status: null,
+      availability_updated_at: null, availability_updated_by_actor_id: null, availability_correlation_id: null,
+    });
+    const query = new RetrievePropertyAvailability(new PostgresPropertyAvailabilityQuery(runtime));
+    await expect(query.execute({ authority: availabilityAuthority(TENANT_A), propertyId: PROPERTY_ID }))
+      .resolves.toMatchObject({
+        source: "DERIVED_FROM_UNITS", availabilityStatus: "NOT_CONFIGURED",
+        totalUnitCount: 3, configuredUnitCount: 0, unconfiguredUnitCount: 3,
+      });
+    const update = new UpdatePropertyAvailability(propertyRepository, { now: () => "2026-09-01T12:00:00.000Z" });
+    await update.execute({
+      authority: availabilityAuthority(TENANT_A), correlationId: CORRELATION, propertyId: unitIds[0]!,
+      availabilityStatus: "AVAILABLE", occupancyStatus: "OCCUPIED",
+    });
+    await update.execute({
+      authority: availabilityAuthority(TENANT_A), correlationId: CORRELATION, propertyId: unitIds[1]!,
+      availabilityStatus: "UNAVAILABLE", occupancyStatus: "VACANT",
+    });
+    await expect(query.execute({ authority: availabilityAuthority(TENANT_A), propertyId: unitIds[0]! }))
+      .resolves.toMatchObject({
+        source: "DIRECT", structuralRole: "UNIT", configured: true,
+        availabilityStatus: "AVAILABLE", occupancyStatus: "OCCUPIED",
+      });
+    await expect(query.execute({ authority: availabilityAuthority(TENANT_A), propertyId: PROPERTY_ID }))
+      .resolves.toEqual({
+        propertyId: PROPERTY_ID, source: "DERIVED_FROM_UNITS", structuralRole: "COMPOSITE",
+        availabilityStatus: "AVAILABLE", totalUnitCount: 3, configuredUnitCount: 2,
+        availableUnitCount: 1, unavailableUnitCount: 1, vacantUnitCount: 1,
+        occupiedUnitCount: 1, unconfiguredUnitCount: 1, canUpdateAvailability: false,
+      });
+    await update.execute({
+      authority: availabilityAuthority(TENANT_A), correlationId: CORRELATION, propertyId: unitIds[0]!,
+      availabilityStatus: "UNAVAILABLE", occupancyStatus: "OCCUPIED",
+    });
+    await update.execute({
+      authority: availabilityAuthority(TENANT_A), correlationId: CORRELATION, propertyId: unitIds[2]!,
+      availabilityStatus: "UNAVAILABLE", occupancyStatus: "VACANT",
+    });
+    await expect(query.execute({ authority: availabilityAuthority(TENANT_A), propertyId: PROPERTY_ID }))
+      .resolves.toMatchObject({
+        availabilityStatus: "UNAVAILABLE", totalUnitCount: 3, configuredUnitCount: 3,
+        availableUnitCount: 0, unavailableUnitCount: 3, unconfiguredUnitCount: 0,
+      });
+    await expect(update.execute({
+      authority: availabilityAuthority(TENANT_A), correlationId: CORRELATION, propertyId: PROPERTY_ID,
+      availabilityStatus: "UNAVAILABLE", occupancyStatus: "VACANT",
+    })).rejects.toBeInstanceOf(PropertyAvailabilityDerivedFromUnitsError);
+  });
+
+  it("sérialise les remplacements concurrents sans produire de paire hybride", async () => {
+    const repository = new PostgresPropertyRepository(runtime);
+    await create(repository);
+    const attempts = [
+      { availabilityStatus: "AVAILABLE" as const, occupancyStatus: "OCCUPIED" as const, instant: "2026-09-01T12:00:00.000Z", actorId: "editor-a", correlationId: CORRELATION },
+      { availabilityStatus: "UNAVAILABLE" as const, occupancyStatus: "VACANT" as const, instant: "2026-09-01T12:00:01.000Z", actorId: "editor-b", correlationId: REPLAY_CORRELATION },
+    ];
+    const results = await Promise.all(attempts.map((attempt) => new UpdatePropertyAvailability(repository, { now: () => attempt.instant }).execute({
+      authority: availabilityAuthority(TENANT_A, attempt.actorId), correlationId: attempt.correlationId,
+      propertyId: PROPERTY_ID, availabilityStatus: attempt.availabilityStatus, occupancyStatus: attempt.occupancyStatus,
+    })));
+    expect(results).toHaveLength(2);
+    const row = (await owner.query(`SELECT availability_status, occupancy_status, availability_updated_at,
+      availability_updated_by_actor_id, availability_correlation_id FROM property_management.properties
+      WHERE property_id=$1`, [PROPERTY_ID])).rows[0];
+    const winner = attempts.find((attempt) => attempt.instant === row.availability_updated_at.toISOString());
+    expect(winner).toBeDefined();
+    expect(row).toMatchObject({
+      availability_status: winner?.availabilityStatus,
+      occupancy_status: winner?.occupancyStatus,
+      availability_updated_by_actor_id: winner?.actorId,
+      availability_correlation_id: winner?.correlationId,
+    });
+  });
+
+  it("persists idempotent public inquiries and isolates private reads by tenant", async () => {
+    await create();
+    await new SetPropertyPricing(new PostgresPropertyRepository(runtime), { now: () => "2026-09-09T11:59:00.000Z" }).execute({ authority: pricingAuthority(TENANT_A), correlationId: CORRELATION, propertyId: PROPERTY_ID, pricing: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 10000000 } });
+    await owner.query("UPDATE property_management.properties SET status='PUBLISHED', published_at=now(), published_by_actor_id='actor', publication_correlation_id=$1 WHERE property_id=$2", [CORRELATION, PROPERTY_ID]);
+    const repository = new PostgresPropertyInquiryRepository(runtime);
+    const inquiry = PropertyInquiry.create({ inquiryId: randomUUID(), tenantId: TENANT_A, propertyId: PROPERTY_ID,
+      contactName: "Awa Koné", email: "awa@example.com", consentVersion: "inquiry-v1",
+      consentGivenAt: "2026-09-09T12:00:00.000Z", idempotencyKey: "request-1",
+      createdAt: "2026-09-09T12:00:00.000Z", updatedAt: "2026-09-09T12:00:00.000Z" });
+    const saved = await repository.submitForPublishedProperty(inquiry, PROPERTY_ID, { actorId: "public-inquiry", correlationId: CORRELATION });
+    const replayed = await repository.submitForPublishedProperty(PropertyInquiry.create({ ...inquiry.values, inquiryId: randomUUID() }), PROPERTY_ID, { actorId: "public-inquiry", correlationId: CORRELATION });
+    expect(replayed?.values.inquiryId).toBe(saved?.values.inquiryId);
+    expect((await repository.list(TENANT_A, PROPERTY_ID, 20))?.items).toHaveLength(1);
+    const journeys = new PostgresPropertyCommercialJourneyQuery(runtime);
+    await expect(journeys.list(TENANT_A, { sort: "RECENT" }, 20)).resolves.toMatchObject({ totalCount: 1, properties: [{ propertyId: PROPERTY_ID, title: "House" }], items: [{ inquiryId: saved?.values.inquiryId, propertyId: PROPERTY_ID, propertyTitle: "House", stage: "NEW_INQUIRY", nextAction: "ACKNOWLEDGE" }] });
+    await expect(journeys.list(TENANT_A, { q: "awa KONÉ", sort: "RECENT" }, 20)).resolves.toMatchObject({ totalCount: 1, items: [{ contactName: "Awa Koné" }] });
+    await expect(journeys.list(TENANT_A, { q: "HOUSE", propertyId: PROPERTY_ID, stage: "NEW_INQUIRY", nextAction: "ACKNOWLEDGE", sort: "OLDEST" }, 20)).resolves.toMatchObject({ totalCount: 1, items: [{ propertyTitle: "House" }] });
+    await expect(journeys.list(TENANT_A, { stage: "ACTIVE_CONTRACT", sort: "RECENT" }, 20)).resolves.toMatchObject({ totalCount: 0, items: [] });
+    const laterInquiry = PropertyInquiry.create({ ...inquiry.values, inquiryId: randomUUID(), contactName: "Traoré Sarah", email: "sarah@example.com", idempotencyKey: "request-2", consentGivenAt: "2026-09-09T13:00:00.000Z", createdAt: "2026-09-09T13:00:00.000Z", updatedAt: "2026-09-09T13:00:00.000Z" });
+    await repository.submitForPublishedProperty(laterInquiry, PROPERTY_ID, { actorId: "public-inquiry", correlationId: REPLAY_CORRELATION });
+    const recentFirst = await journeys.list(TENANT_A, { sort: "RECENT" }, 1);
+    expect(recentFirst).toMatchObject({ totalCount: 2, items: [{ contactName: "Traoré Sarah" }] });
+    expect(recentFirst.nextCursor).toBeDefined();
+    await expect(journeys.list(TENANT_A, { sort: "RECENT" }, 1, recentFirst.nextCursor)).resolves.toMatchObject({ totalCount: 2, items: [{ contactName: "Awa Koné" }] });
+    const oldestFirst = await journeys.list(TENANT_A, { sort: "OLDEST" }, 1);
+    expect(oldestFirst).toMatchObject({ totalCount: 2, items: [{ contactName: "Awa Koné" }] });
+    await expect(journeys.list(TENANT_A, { sort: "OLDEST" }, 1, oldestFirst.nextCursor)).resolves.toMatchObject({ totalCount: 2, items: [{ contactName: "Traoré Sarah" }] });
+    await expect(journeys.list(TENANT_B, { sort: "RECENT" }, 20)).resolves.toEqual({ items: [], totalCount: 0, properties: [] });
+    expect(await repository.list(TENANT_B, PROPERTY_ID, 20)).toBeUndefined();
+    await expect(withTenantPostgresTransaction(runtime, TENANT_B, (scope) => scope.query("SELECT * FROM property_management.property_inquiries"))).resolves.toEqual([]);
+  });
+  it("persists inquiry intent and preferred contact channel and enforces database constraints", async () => {
+    await create();
+    await new SetPropertyPricing(
+      new PostgresPropertyRepository(runtime),
+      { now: () => "2026-09-09T14:00:00.000Z" },
+    ).execute({
+      authority: pricingAuthority(TENANT_A),
+      correlationId: CORRELATION,
+      propertyId: PROPERTY_ID,
+      pricing: {
+        kind: "SALE",
+        currency: "XOF",
+        salePriceAmountMinor: 10000000,
+      },
+    });
+
+    await owner.query(
+      "UPDATE property_management.properties SET status='PUBLISHED', published_at=now(), published_by_actor_id='actor', publication_correlation_id=$1 WHERE property_id=$2",
+      [CORRELATION, PROPERTY_ID],
+    );
+
+    const repository = new PostgresPropertyInquiryRepository(runtime);
+
+    const contactInquiry = PropertyInquiry.create({
+      inquiryId: randomUUID(),
+      tenantId: TENANT_A,
+      propertyId: PROPERTY_ID,
+      contactName: "Aminata Yao",
+      email: "aminata@example.com",
+      intent: "CONTACT",
+      preferredContactChannel: "EMAIL",
+      consentVersion: "inquiry-v1",
+      consentGivenAt: "2026-09-09T14:01:00.000Z",
+      idempotencyKey: "task099-contact-email",
+      createdAt: "2026-09-09T14:01:00.000Z",
+      updatedAt: "2026-09-09T14:01:00.000Z",
+    });
+
+    const viewingInquiry = PropertyInquiry.create({
+      inquiryId: randomUUID(),
+      tenantId: TENANT_A,
+      propertyId: PROPERTY_ID,
+      contactName: "Koffi N'Guessan",
+      phoneNumber: "+2250700000000",
+      intent: "VIEWING_REQUEST",
+      preferredContactChannel: "SMS",
+      consentVersion: "inquiry-v1",
+      consentGivenAt: "2026-09-09T14:02:00.000Z",
+      idempotencyKey: "task099-viewing-sms",
+      createdAt: "2026-09-09T14:02:00.000Z",
+      updatedAt: "2026-09-09T14:02:00.000Z",
+    });
+
+    await repository.submitForPublishedProperty(
+      contactInquiry,
+      PROPERTY_ID,
+      { actorId: "public-inquiry", correlationId: CORRELATION },
+    );
+
+    await repository.submitForPublishedProperty(
+      viewingInquiry,
+      PROPERTY_ID,
+      { actorId: "public-inquiry", correlationId: REPLAY_CORRELATION },
+    );
+
+    const inquiries = await repository.list(TENANT_A, PROPERTY_ID, 20);
+
+    expect(inquiries?.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          values: expect.objectContaining({
+            inquiryId: contactInquiry.values.inquiryId,
+            intent: "CONTACT",
+            preferredContactChannel: "EMAIL",
+            email: "aminata@example.com",
+          }),
+        }),
+        expect.objectContaining({
+          values: expect.objectContaining({
+            inquiryId: viewingInquiry.values.inquiryId,
+            intent: "VIEWING_REQUEST",
+            preferredContactChannel: "SMS",
+            phoneNumber: "+2250700000000",
+          }),
+        }),
+      ]),
+    );
+
+    const persisted = await owner.query(
+      `SELECT inquiry_id, intent, preferred_contact_channel
+       FROM property_management.property_inquiries
+       WHERE inquiry_id = ANY($1::uuid[])
+       ORDER BY inquiry_id`,
+      [[contactInquiry.values.inquiryId, viewingInquiry.values.inquiryId]],
+    );
+
+    expect(persisted.rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          inquiry_id: contactInquiry.values.inquiryId,
+          intent: "CONTACT",
+          preferred_contact_channel: "EMAIL",
+        }),
+        expect.objectContaining({
+          inquiry_id: viewingInquiry.values.inquiryId,
+          intent: "VIEWING_REQUEST",
+          preferred_contact_channel: "SMS",
+        }),
+      ]),
+    );
+
+    await expect(
+      owner.query(
+        "UPDATE property_management.property_inquiries SET intent='UNKNOWN' WHERE inquiry_id=$1",
+        [contactInquiry.values.inquiryId],
+      ),
+    ).rejects.toMatchObject({ code: "23514" });
+
+    await expect(
+      owner.query(
+        "UPDATE property_management.property_inquiries SET email=NULL, preferred_contact_channel='EMAIL' WHERE inquiry_id=$1",
+        [contactInquiry.values.inquiryId],
+      ),
+    ).rejects.toMatchObject({ code: "23514" });
+
+    await expect(
+      owner.query(
+        "UPDATE property_management.property_inquiries SET phone_number=NULL, preferred_contact_channel='SMS' WHERE inquiry_id=$1",
+        [viewingInquiry.values.inquiryId],
+      ),
+    ).rejects.toMatchObject({ code: "23514" });
+  });
+
+  it("records and paginates inquiry communications with tenant isolation", async () => {
+    await create();
+
+    await new SetPropertyPricing(
+      new PostgresPropertyRepository(runtime),
+      { now: () => "2026-09-09T15:00:00.000Z" },
+    ).execute({
+      authority: pricingAuthority(TENANT_A),
+      correlationId: CORRELATION,
+      propertyId: PROPERTY_ID,
+      pricing: {
+        kind: "SALE",
+        currency: "XOF",
+        salePriceAmountMinor: 10000000,
+      },
+    });
+
+    await owner.query(
+      "UPDATE property_management.properties SET status='PUBLISHED', published_at=now(), published_by_actor_id='actor', publication_correlation_id=$1 WHERE property_id=$2",
+      [CORRELATION, PROPERTY_ID],
+    );
+
+    const inquiryRepository = new PostgresPropertyInquiryRepository(runtime);
+
+    const inquiry = PropertyInquiry.create({
+      inquiryId: randomUUID(),
+      tenantId: TENANT_A,
+      propertyId: PROPERTY_ID,
+      contactName: "Awa Koné",
+      phoneNumber: "+2250700000000",
+      intent: "VIEWING_REQUEST",
+      preferredContactChannel: "PHONE",
+      consentVersion: "inquiry-v1",
+      consentGivenAt: "2026-09-09T15:01:00.000Z",
+      idempotencyKey: "task099-communication",
+      createdAt: "2026-09-09T15:01:00.000Z",
+      updatedAt: "2026-09-09T15:01:00.000Z",
+    });
+
+    const savedInquiry =
+      await inquiryRepository.submitForPublishedProperty(
+        inquiry,
+        PROPERTY_ID,
+        {
+          actorId: "public-inquiry",
+          correlationId: CORRELATION,
+        },
+      );
+
+    expect(savedInquiry).toBeDefined();
+
+    const repository =
+      new PostgresPropertyInquiryCommunicationRepository(runtime);
+
+    const firstId = "11111111-1111-4111-8111-111111111111";
+    const secondId = "22222222-2222-4222-8222-222222222222";
+    const thirdId = "33333333-3333-4333-8333-333333333333";
+
+    const communications = [
+      PropertyInquiryCommunication.create({
+        communicationId: firstId,
+        tenantId: TENANT_A,
+        propertyId: PROPERTY_ID,
+        inquiryId: inquiry.values.inquiryId,
+        channel: "PHONE",
+        direction: "OUTBOUND",
+        status: "RECORDED",
+        summary: "Premier appel au prospect",
+        occurredAt: "2026-09-09T15:10:00.000Z",
+        performedByActorId: "commercial-1",
+        createdAt: "2026-09-09T15:20:00.000Z",
+      }),
+
+      PropertyInquiryCommunication.create({
+        communicationId: secondId,
+        tenantId: TENANT_A,
+        propertyId: PROPERTY_ID,
+        inquiryId: inquiry.values.inquiryId,
+        channel: "SMS",
+        direction: "OUTBOUND",
+        status: "SENT",
+        summary: "Confirmation envoyée par SMS",
+        occurredAt: "2026-09-09T15:15:00.000Z",
+        performedByActorId: "commercial-1",
+        createdAt: "2026-09-09T15:20:00.000Z",
+      }),
+
+      PropertyInquiryCommunication.create({
+        communicationId: thirdId,
+        tenantId: TENANT_A,
+        propertyId: PROPERTY_ID,
+        inquiryId: inquiry.values.inquiryId,
+        channel: "PHONE",
+        direction: "INBOUND",
+        status: "RECORDED",
+        summary: "Le prospect rappelle",
+        occurredAt: "2026-09-09T15:15:00.000Z",
+        performedByActorId: "commercial-2",
+        createdAt: "2026-09-09T15:20:00.000Z",
+      }),
+    ];
+
+    for (const communication of communications) {
+      await expect(
+        repository.record(communication, {
+          actorId: communication.values.performedByActorId,
+          correlationId: CORRELATION,
+        }),
+      ).resolves.toBe("CREATED");
+    }
+
+    const firstPage = await repository.list(
+      TENANT_A,
+      PROPERTY_ID,
+      inquiry.values.inquiryId,
+      2,
+    );
+
+    expect(firstPage).toBeDefined();
+
+    expect(
+      firstPage?.items.map(
+        (item) => item.values.communicationId,
+      ),
+    ).toEqual([
+      thirdId,
+      secondId,
+    ]);
+
+    expect(firstPage?.nextCursor).toEqual({
+      occurredAt: "2026-09-09T15:15:00.000Z",
+      communicationId: secondId,
+    });
+
+    const secondPage = await repository.list(
+      TENANT_A,
+      PROPERTY_ID,
+      inquiry.values.inquiryId,
+      2,
+      firstPage?.nextCursor,
+    );
+
+    expect(
+      secondPage?.items.map(
+        (item) => item.values.communicationId,
+      ),
+    ).toEqual([
+      firstId,
+    ]);
+
+    expect(secondPage?.nextCursor).toBeUndefined();
+
+    const persisted = await owner.query(
+      `SELECT
+         communication_id,
+         channel,
+         direction,
+         status,
+         summary,
+         performed_by_actor_id
+       FROM property_management.property_inquiry_communications
+       WHERE tenant_id=$1
+         AND property_id=$2
+         AND inquiry_id=$3
+       ORDER BY occurred_at DESC, communication_id DESC`,
+      [
+        TENANT_A,
+        PROPERTY_ID,
+        inquiry.values.inquiryId,
+      ],
+    );
+
+    expect(persisted.rows).toMatchObject([
+      {
+        communication_id: thirdId,
+        channel: "PHONE",
+        direction: "INBOUND",
+        status: "RECORDED",
+        summary: "Le prospect rappelle",
+        performed_by_actor_id: "commercial-2",
+      },
+      {
+        communication_id: secondId,
+        channel: "SMS",
+        direction: "OUTBOUND",
+        status: "SENT",
+        summary: "Confirmation envoyée par SMS",
+        performed_by_actor_id: "commercial-1",
+      },
+      {
+        communication_id: firstId,
+        channel: "PHONE",
+        direction: "OUTBOUND",
+        status: "RECORDED",
+        summary: "Premier appel au prospect",
+        performed_by_actor_id: "commercial-1",
+      },
+    ]);
+
+    await expect(
+      repository.list(
+        TENANT_B,
+        PROPERTY_ID,
+        inquiry.values.inquiryId,
+        20,
+      ),
+    ).resolves.toBeUndefined();
+
+    const missingInquiryCommunication =
+      PropertyInquiryCommunication.create({
+        communicationId: randomUUID(),
+        tenantId: TENANT_A,
+        propertyId: PROPERTY_ID,
+        inquiryId: randomUUID(),
+        channel: "PHONE",
+        direction: "OUTBOUND",
+        status: "RECORDED",
+        occurredAt: "2026-09-09T15:30:00.000Z",
+        performedByActorId: "commercial-1",
+        createdAt: "2026-09-09T15:30:00.000Z",
+      });
+
+    await expect(
+      repository.record(
+        missingInquiryCommunication,
+        {
+          actorId: "commercial-1",
+          correlationId: REPLAY_CORRELATION,
+        },
+      ),
+    ).resolves.toBe("INQUIRY_NOT_FOUND");
+  });
+
+  it("enforces inquiry communication database constraints and append-only privileges", async () => {
+    await create();
+
+    await new SetPropertyPricing(
+      new PostgresPropertyRepository(runtime),
+      { now: () => "2026-09-09T16:00:00.000Z" },
+    ).execute({
+      authority: pricingAuthority(TENANT_A),
+      correlationId: CORRELATION,
+      propertyId: PROPERTY_ID,
+      pricing: {
+        kind: "SALE",
+        currency: "XOF",
+        salePriceAmountMinor: 10000000,
+      },
+    });
+
+    await owner.query(
+      "UPDATE property_management.properties SET status='PUBLISHED', published_at=now(), published_by_actor_id='actor', publication_correlation_id=$1 WHERE property_id=$2",
+      [CORRELATION, PROPERTY_ID],
+    );
+
+    const inquiryRepository =
+      new PostgresPropertyInquiryRepository(runtime);
+
+    const inquiry = PropertyInquiry.create({
+      inquiryId: randomUUID(),
+      tenantId: TENANT_A,
+      propertyId: PROPERTY_ID,
+      contactName: "Koffi Test",
+      email: "koffi@example.com",
+      intent: "CONTACT",
+      preferredContactChannel: "EMAIL",
+      consentVersion: "inquiry-v1",
+      consentGivenAt: "2026-09-09T16:01:00.000Z",
+      idempotencyKey: "task099-db-constraints",
+      createdAt: "2026-09-09T16:01:00.000Z",
+      updatedAt: "2026-09-09T16:01:00.000Z",
+    });
+
+    await inquiryRepository.submitForPublishedProperty(
+      inquiry,
+      PROPERTY_ID,
+      {
+        actorId: "public-inquiry",
+        correlationId: CORRELATION,
+      },
+    );
+
+    const validId = randomUUID();
+
+    await owner.query(
+      `INSERT INTO property_management.property_inquiry_communications (
+         communication_id,
+         tenant_id,
+         property_id,
+         inquiry_id,
+         channel,
+         direction,
+         status,
+         summary,
+         occurred_at,
+         performed_by_actor_id,
+         created_at,
+         correlation_id,
+         actor_id
+       )
+       VALUES (
+         $1,$2,$3,$4,
+         'EMAIL','OUTBOUND','RECORDED',
+         'Message manuel',
+         '2026-09-09T16:05:00.000Z',
+         'commercial-1',
+         '2026-09-09T16:06:00.000Z',
+         $5,
+         'commercial-1'
+       )`,
+      [
+        validId,
+        TENANT_A,
+        PROPERTY_ID,
+        inquiry.values.inquiryId,
+        CORRELATION,
+      ],
+    );
+
+    const invalidChecks = [
+      {
+        field: "channel",
+        value: "WHATSAPP",
+      },
+      {
+        field: "direction",
+        value: "SIDEWAYS",
+      },
+      {
+        field: "status",
+        value: "PENDING",
+      },
+    ] as const;
+
+    for (const invalid of invalidChecks) {
+      const candidateId = randomUUID();
+
+      const result = await owner.query(
+        `INSERT INTO property_management.property_inquiry_communications (
+           communication_id,
+           tenant_id,
+           property_id,
+           inquiry_id,
+           channel,
+           direction,
+           status,
+           occurred_at,
+           performed_by_actor_id,
+           created_at,
+           correlation_id,
+           actor_id
+         )
+         VALUES (
+           $1,$2,$3,$4,
+           $5,$6,$7,
+           '2026-09-09T16:10:00.000Z',
+           'commercial-1',
+           '2026-09-09T16:11:00.000Z',
+           $8,
+           'commercial-1'
+         )
+         ON CONFLICT DO NOTHING`,
+        [
+          candidateId,
+          TENANT_A,
+          PROPERTY_ID,
+          inquiry.values.inquiryId,
+          invalid.field === "channel"
+            ? invalid.value
+            : "PHONE",
+          invalid.field === "direction"
+            ? invalid.value
+            : "OUTBOUND",
+          invalid.field === "status"
+            ? invalid.value
+            : "RECORDED",
+          REPLAY_CORRELATION,
+        ],
+      ).then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+
+      expect(result).toMatchObject({
+        code: "23514",
+      });
+    }
+
+    const invalidSummary = await owner.query(
+      `INSERT INTO property_management.property_inquiry_communications (
+         communication_id,
+         tenant_id,
+         property_id,
+         inquiry_id,
+         channel,
+         direction,
+         status,
+         summary,
+         occurred_at,
+         performed_by_actor_id,
+         created_at,
+         correlation_id,
+         actor_id
+       )
+       VALUES (
+         $1,$2,$3,$4,
+         'PHONE','OUTBOUND','RECORDED',
+         '',
+         '2026-09-09T16:10:00.000Z',
+         'commercial-1',
+         '2026-09-09T16:11:00.000Z',
+         $5,
+         'commercial-1'
+       )`,
+      [
+        randomUUID(),
+        TENANT_A,
+        PROPERTY_ID,
+        inquiry.values.inquiryId,
+        REPLAY_CORRELATION,
+      ],
+    ).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+    expect(invalidSummary).toMatchObject({
+      code: "23514",
+    });
+
+    const invalidActor = await owner.query(
+      `INSERT INTO property_management.property_inquiry_communications (
+         communication_id,
+         tenant_id,
+         property_id,
+         inquiry_id,
+         channel,
+         direction,
+         status,
+         occurred_at,
+         performed_by_actor_id,
+         created_at,
+         correlation_id,
+         actor_id
+       )
+       VALUES (
+         $1,$2,$3,$4,
+         'PHONE','OUTBOUND','RECORDED',
+         '2026-09-09T16:10:00.000Z',
+         '   ',
+         '2026-09-09T16:11:00.000Z',
+         $5,
+         'commercial-1'
+       )`,
+      [
+        randomUUID(),
+        TENANT_A,
+        PROPERTY_ID,
+        inquiry.values.inquiryId,
+        REPLAY_CORRELATION,
+      ],
+    ).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+    expect(invalidActor).toMatchObject({
+      code: "23514",
+    });
+
+    const invalidTime = await owner.query(
+      `INSERT INTO property_management.property_inquiry_communications (
+         communication_id,
+         tenant_id,
+         property_id,
+         inquiry_id,
+         channel,
+         direction,
+         status,
+         occurred_at,
+         performed_by_actor_id,
+         created_at,
+         correlation_id,
+         actor_id
+       )
+       VALUES (
+         $1,$2,$3,$4,
+         'PHONE','OUTBOUND','RECORDED',
+         '2026-09-09T17:00:00.000Z',
+         'commercial-1',
+         '2026-09-09T16:00:00.000Z',
+         $5,
+         'commercial-1'
+       )`,
+      [
+        randomUUID(),
+        TENANT_A,
+        PROPERTY_ID,
+        inquiry.values.inquiryId,
+        REPLAY_CORRELATION,
+      ],
+    ).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+    expect(invalidTime).toMatchObject({
+      code: "23514",
+    });
+
+    const invalidFk = await owner.query(
+      `INSERT INTO property_management.property_inquiry_communications (
+         communication_id,
+         tenant_id,
+         property_id,
+         inquiry_id,
+         channel,
+         direction,
+         status,
+         occurred_at,
+         performed_by_actor_id,
+         created_at,
+         correlation_id,
+         actor_id
+       )
+       VALUES (
+         $1,$2,$3,$4,
+         'PHONE','OUTBOUND','RECORDED',
+         '2026-09-09T16:10:00.000Z',
+         'commercial-1',
+         '2026-09-09T16:11:00.000Z',
+         $5,
+         'commercial-1'
+       )`,
+      [
+        randomUUID(),
+        TENANT_A,
+        PROPERTY_ID,
+        randomUUID(),
+        REPLAY_CORRELATION,
+      ],
+    ).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+    expect(invalidFk).toMatchObject({
+      code: "23503",
+    });
+
+    const privileges = await owner.query(
+      `SELECT
+         has_table_privilege(
+           'monpiole_runtime',
+           'property_management.property_inquiry_communications',
+           'SELECT'
+         ) AS can_select,
+         has_table_privilege(
+           'monpiole_runtime',
+           'property_management.property_inquiry_communications',
+           'INSERT'
+         ) AS can_insert,
+         has_table_privilege(
+           'monpiole_runtime',
+           'property_management.property_inquiry_communications',
+           'UPDATE'
+         ) AS can_update,
+         has_table_privilege(
+           'monpiole_runtime',
+           'property_management.property_inquiry_communications',
+           'DELETE'
+         ) AS can_delete
+      `,
+    );
+
+    expect(privileges.rows[0]).toMatchObject({
+      can_select: true,
+      can_insert: true,
+      can_update: false,
+      can_delete: false,
+    });
+
+    const rls = await owner.query(
+      `SELECT
+         c.relrowsecurity,
+         c.relforcerowsecurity
+       FROM pg_class c
+       JOIN pg_namespace n
+         ON n.oid = c.relnamespace
+       WHERE n.nspname = 'property_management'
+         AND c.relname = 'property_inquiry_communications'`,
+    );
+
+    expect(rls.rows[0]).toMatchObject({
+      relrowsecurity: true,
+      relforcerowsecurity: true,
+    });
+
+    const runtimeUpdate = await runtime.query(
+      `UPDATE property_management.property_inquiry_communications
+       SET summary='Mutation interdite'
+       WHERE communication_id=$1`,
+      [validId],
+    ).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+    expect(runtimeUpdate).toMatchObject({
+      code: "42501",
+    });
+
+    const runtimeDelete = await runtime.query(
+      `DELETE FROM property_management.property_inquiry_communications
+       WHERE communication_id=$1`,
+      [validId],
+    ).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+    expect(runtimeDelete).toMatchObject({
+      code: "42501",
+    });
+  });
+});

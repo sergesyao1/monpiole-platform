@@ -1,0 +1,55 @@
+{
+    "version":  "7",
+    "dialect":  "postgresql",
+    "entries":  [
+                    {
+                        "idx":  0,
+                        "version":  "7",
+                        "when":  1789486479082,
+                        "tag":  "0000_agency_onboarding_baseline",
+                        "breakpoints":  true
+                    },
+                    {
+                        "idx":  1,
+                        "version":  "7",
+                        "when":  1789581059610,
+                        "tag":  "0001_runtime_schema_permissions",
+                        "breakpoints":  true
+                    },
+                    {
+                        "idx":  2,
+                        "version":  "7",
+                        "when":  1789664313886,
+                        "tag":  "0002_agency_document_upload_staging",
+                        "breakpoints":  true
+                    },
+                    {
+                        "idx":  3,
+                        "version":  "7",
+                        "when":  1789664313887,
+                        "tag":  "0003_first_administrator_bootstrap",
+                        "breakpoints":  true
+                    },
+                    {
+                        "idx":  4,
+                        "version":  "7",
+                        "when":  1789664313888,
+                        "tag":  "0004_first_administrator_registration_read",
+                        "breakpoints":  true
+                    },
+                    {
+                        "idx":  5,
+                        "version":  "7",
+                        "when":  1789664313889,
+                        "tag":  "0005_first_administrator_external_identity_provenance",
+                        "breakpoints":  true
+                    },
+                    {
+                        "idx":  6,
+                        "version":  "7",
+                        "when":  1789664313890,
+                        "tag":  "0006_first_administrator_invited_email",
+                        "breakpoints":  true
+                    }
+                ]
+}

@@ -14,8 +14,12 @@ function normalizeValue(value: unknown, key?: string): unknown {
     return normalized;
   }
   if (value !== null && typeof value === "object") {
+    const source = value as Record<string, unknown>;
+    const enriched = source["format"] === "uuid" && source["type"] === undefined
+      ? { ...source, type: "string" }
+      : source;
     return Object.fromEntries(
-      Object.entries(value)
+      Object.entries(enriched)
         .sort(([left], [right]) => left.localeCompare(right))
         .map(([entryKey, entryValue]) => [
           entryKey,

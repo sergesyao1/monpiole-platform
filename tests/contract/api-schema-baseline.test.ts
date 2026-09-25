@@ -5,6 +5,16 @@ import {
   ContractBaselineResponseSchema,
 } from "../../apps/api/src/contracts/v1/contract-baseline/contract-baseline.schema.js";
 import { ProblemDetailsSchema } from "../../apps/api/src/contracts/v1/common/problem-details.schema.js";
+import { CreateTenantRequestSchema, CreateTenantResponseSchema } from "../../apps/api/src/contracts/v1/tenants/create-tenant.schema.js";
+import {
+  BootstrapAdministratorPathSchema,
+  BootstrapAdministratorRequestSchema,
+  BootstrapAdministratorResponseSchema,
+} from "../../apps/api/src/contracts/v1/tenants/bootstrap-administrator.schema.js";
+import {
+  ActivateAdministratorPathSchema,
+  ActivateAdministratorResponseSchema,
+} from "../../apps/api/src/contracts/v1/tenants/activate-administrator.schema.js";
 import {
   TENANT_CONTEXT_METADATA,
   TenantContext,
@@ -68,5 +78,41 @@ describe("canonical Zod transport contracts", () => {
         PreTenantFixture.prototype.execute,
       ),
     ).toBe("not-applicable");
+  });
+
+  it("validates and normalizes the strict Create Tenant v1 transport contract", () => {
+    expect(CreateTenantRequestSchema.parse({
+      organizationName: " Agency ", responsiblePersonName: " Ada ", responsibleEmail: " ADA@EXAMPLE.INVALID ",
+      responsibleTelephone: "+2250102030405", country: "CI",
+    })).toEqual({ organizationName: "Agency", responsiblePersonName: "Ada", responsibleEmail: "ada@example.invalid",
+      responsibleTelephone: "+2250102030405", country: "CI" });
+    expect(CreateTenantRequestSchema.safeParse({ organizationName: "Agency", responsiblePersonName: "Ada",
+      responsibleEmail: "ada@example.invalid", responsibleTelephone: "0102", country: "ci" }).success).toBe(false);
+    expect(CreateTenantResponseSchema.safeParse({ tenantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", lifecycleState: "PENDING" }).success).toBe(true);
+    expect(CreateTenantResponseSchema.safeParse({ tenantId: "tenant_demo", lifecycleState: "PENDING" }).success).toBe(false);
+  });
+
+  it("validates the strict Bootstrap Tenant Administrator transport contract", () => {
+    expect(BootstrapAdministratorPathSchema.safeParse({ tenantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }).success).toBe(true);
+    expect(BootstrapAdministratorRequestSchema.parse({
+      email: " Admin@Example.com ", firstName: " Alice ", lastName: " Admin ",
+    })).toEqual({ email: "admin@example.com", firstName: "Alice", lastName: "Admin" });
+    expect(BootstrapAdministratorResponseSchema.safeParse({
+      tenantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      administratorId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      email: "admin@example.com", role: "TENANT_ADMINISTRATOR", status: "PENDING_ACTIVATION",
+    }).success).toBe(true);
+  });
+
+  it("validates the Activate Tenant Administrator path and ACTIVE response", () => {
+    expect(ActivateAdministratorPathSchema.safeParse({
+      tenantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      administratorId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    }).success).toBe(true);
+    expect(ActivateAdministratorResponseSchema.safeParse({
+      tenantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      administratorId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      email: "admin@example.com", role: "TENANT_ADMINISTRATOR", status: "ACTIVE",
+    }).success).toBe(true);
   });
 });

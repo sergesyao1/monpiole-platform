@@ -1,0 +1,32 @@
+{
+  "name": "@monpiole/identity",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "migration:generate": "drizzle-kit generate --config drizzle.config.ts --name external_identity_resolution",
+    "migration:check": "drizzle-kit check --config drizzle.config.ts",
+    "test:integration": "vitest run --root ../.. --config vitest.config.ts --project persistence-integration services/identity/tests"
+  },
+  "dependencies": {
+    "@monpiole/persistence": "workspace:*",
+    "drizzle-orm": "0.45.2",
+    "pg": "8.23.0"
+  },
+  "devDependencies": {
+    "@types/pg": "8.23.1",
+    "drizzle-kit": "0.31.10",
+    "testcontainers": "12.1.0"
+  }
+}

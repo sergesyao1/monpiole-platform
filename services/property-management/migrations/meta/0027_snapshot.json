@@ -1,0 +1,3842 @@
+{
+  "id": "bc611b68-9ed9-4670-8204-901cfe9351b0",
+  "prevId": "b4e99e47-409c-48f2-b223-2fd58452f5bc",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "property_management.amenities": {
+      "name": "amenities",
+      "schema": "property_management",
+      "columns": {
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label_fr": {
+          "name": "label_fr",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_order": {
+          "name": "display_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {
+        "amenities_category_order_unique": {
+          "name": "amenities_category_order_unique",
+          "columns": [
+            {
+              "expression": "category",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "display_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "property_management.properties": {
+      "name": "properties",
+      "schema": "property_management",
+      "columns": {
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "property_type": {
+          "name": "property_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "transaction_type": {
+          "name": "transaction_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "commercialization_mode": {
+          "name": "commercialization_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "apartment_subtype": {
+          "name": "apartment_subtype",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "country": {
+          "name": "country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "city": {
+          "name": "city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "structural_role": {
+          "name": "structural_role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'STANDALONE'"
+        },
+        "district": {
+          "name": "district",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "address_line": {
+          "name": "address_line",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "published_at": {
+          "name": "published_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "published_by_actor_id": {
+          "name": "published_by_actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "publication_correlation_id": {
+          "name": "publication_correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "withdrawn_at": {
+          "name": "withdrawn_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "withdrawn_by_actor_id": {
+          "name": "withdrawn_by_actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "withdrawal_correlation_id": {
+          "name": "withdrawal_correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "availability_status": {
+          "name": "availability_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "occupancy_status": {
+          "name": "occupancy_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "availability_updated_at": {
+          "name": "availability_updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "availability_updated_by_actor_id": {
+          "name": "availability_updated_by_actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "availability_correlation_id": {
+          "name": "availability_correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "photo_standard_version": {
+          "name": "photo_standard_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "usable_surface_square_meters": {
+          "name": "usable_surface_square_meters",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rooms": {
+          "name": "rooms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bedrooms": {
+          "name": "bedrooms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bathrooms": {
+          "name": "bathrooms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "furnished": {
+          "name": "furnished",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "commercial_kind": {
+          "name": "commercial_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rent_amount_minor": {
+          "name": "rent_amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rent_period": {
+          "name": "rent_period",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "security_deposit_amount_minor": {
+          "name": "security_deposit_amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "charges_amount_minor": {
+          "name": "charges_amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rate_amount_minor": {
+          "name": "rate_amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pricing_unit": {
+          "name": "pricing_unit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sale_price_amount_minor": {
+          "name": "sale_price_amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "agency_fee_amount_minor": {
+          "name": "agency_fee_amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cleaning_fee_amount_minor": {
+          "name": "cleaning_fee_amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "minimum_stay_nights": {
+          "name": "minimum_stay_nights",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pricing_version": {
+          "name": "pricing_version",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "properties_tenant_property_unique": {
+          "name": "properties_tenant_property_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "properties_tenant_created_property_idx": {
+          "name": "properties_tenant_created_property_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "properties_tenant_status_created_property_idx": {
+          "name": "properties_tenant_status_created_property_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "properties_public_catalog_idx": {
+          "name": "properties_public_catalog_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "published_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"property_management\".\"properties\".\"status\" = 'PUBLISHED'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "properties_tenant_isolation": {
+          "name": "properties_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"property_management\".\"properties\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"property_management\".\"properties\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        },
+        "properties_public_catalog_published_select": {
+          "name": "properties_public_catalog_published_select",
+          "as": "RESTRICTIVE",
+          "for": "SELECT",
+          "to": [
+            "monpiole_public_catalog_reader"
+          ],
+          "using": "\"property_management\".\"properties\".\"status\" = 'PUBLISHED'"
+        }
+      },
+      "checkConstraints": {
+        "properties_title_length_check": {
+          "name": "properties_title_length_check",
+          "value": "char_length(\"property_management\".\"properties\".\"title\") BETWEEN 1 AND 200"
+        },
+        "properties_description_length_check": {
+          "name": "properties_description_length_check",
+          "value": "\"property_management\".\"properties\".\"description\" IS NULL OR char_length(\"property_management\".\"properties\".\"description\") <= 5000"
+        },
+        "properties_type_check": {
+          "name": "properties_type_check",
+          "value": "\"property_management\".\"properties\".\"property_type\" IN ('APARTMENT', 'HOUSE', 'LAND', 'COMMERCIAL', 'OFFICE', 'SHOP', 'BUILDING', 'COMPLEX', 'OTHER')"
+        },
+        "properties_commercialization_mode_check": {
+          "name": "properties_commercialization_mode_check",
+          "value": "(\"property_management\".\"properties\".\"property_type\" = 'BUILDING' AND \"property_management\".\"properties\".\"commercialization_mode\" IS NOT NULL AND \"property_management\".\"properties\".\"commercialization_mode\" IN ('WHOLE_BUILDING', 'INDIVIDUAL_UNITS')) OR (\"property_management\".\"properties\".\"property_type\" <> 'BUILDING' AND \"property_management\".\"properties\".\"commercialization_mode\" IS NULL)"
+        },
+        "properties_commercial_target_check": {
+          "name": "properties_commercial_target_check",
+          "value": "\"property_management\".\"properties\".\"status\" <> 'PUBLISHED' OR (\"property_management\".\"properties\".\"property_type\" <> 'COMPLEX' AND (\"property_management\".\"properties\".\"property_type\" <> 'BUILDING' OR \"property_management\".\"properties\".\"commercialization_mode\" = 'WHOLE_BUILDING'))"
+        },
+        "properties_transaction_type_check": {
+          "name": "properties_transaction_type_check",
+          "value": "\"property_management\".\"properties\".\"transaction_type\" IN ('LONG_TERM_RENTAL', 'SHORT_TERM_RENTAL', 'SALE')"
+        },
+        "properties_apartment_subtype_check": {
+          "name": "properties_apartment_subtype_check",
+          "value": "\n    \"property_management\".\"properties\".\"apartment_subtype\" IS NULL\n    OR (\"property_management\".\"properties\".\"property_type\" = 'APARTMENT' AND \"property_management\".\"properties\".\"transaction_type\" = 'LONG_TERM_RENTAL'\n      AND \"property_management\".\"properties\".\"apartment_subtype\" IN ('STUDIO', 'MULTI_ROOM'))\n  "
+        },
+        "properties_status_check": {
+          "name": "properties_status_check",
+          "value": "\"property_management\".\"properties\".\"status\" IN ('DRAFT', 'PUBLISHED', 'WITHDRAWN')"
+        },
+        "properties_photo_standard_version_check": {
+          "name": "properties_photo_standard_version_check",
+          "value": "\"property_management\".\"properties\".\"photo_standard_version\" IS NULL OR \"property_management\".\"properties\".\"photo_standard_version\" = 1"
+        },
+        "properties_country_check": {
+          "name": "properties_country_check",
+          "value": "\"property_management\".\"properties\".\"country\" ~ '^[A-Z]{2}$'"
+        },
+        "properties_details_values_check": {
+          "name": "properties_details_values_check",
+          "value": "\n    (\"property_management\".\"properties\".\"usable_surface_square_meters\" IS NULL OR (\"property_management\".\"properties\".\"usable_surface_square_meters\" > 0 AND \"property_management\".\"properties\".\"usable_surface_square_meters\" < 'Infinity'::double precision))\n    AND (\"property_management\".\"properties\".\"rooms\" IS NULL OR \"property_management\".\"properties\".\"rooms\" >= 0)\n    AND (\"property_management\".\"properties\".\"bedrooms\" IS NULL OR \"property_management\".\"properties\".\"bedrooms\" >= 0)\n    AND (\"property_management\".\"properties\".\"bathrooms\" IS NULL OR \"property_management\".\"properties\".\"bathrooms\" >= 0)\n    AND (\"property_management\".\"properties\".\"rooms\" IS NULL OR \"property_management\".\"properties\".\"bedrooms\" IS NULL OR \"property_management\".\"properties\".\"bedrooms\" <= \"property_management\".\"properties\".\"rooms\")\n  "
+        },
+        "properties_commercial_terms_check": {
+          "name": "properties_commercial_terms_check",
+          "value": "\n    (\"property_management\".\"properties\".\"commercial_kind\" IS NULL AND \"property_management\".\"properties\".\"currency\" IS NULL\n      AND \"property_management\".\"properties\".\"rent_amount_minor\" IS NULL AND \"property_management\".\"properties\".\"rent_period\" IS NULL AND \"property_management\".\"properties\".\"security_deposit_amount_minor\" IS NULL\n      AND \"property_management\".\"properties\".\"charges_amount_minor\" IS NULL AND \"property_management\".\"properties\".\"rate_amount_minor\" IS NULL AND \"property_management\".\"properties\".\"pricing_unit\" IS NULL\n      AND \"property_management\".\"properties\".\"sale_price_amount_minor\" IS NULL AND \"property_management\".\"properties\".\"agency_fee_amount_minor\" IS NULL\n      AND \"property_management\".\"properties\".\"cleaning_fee_amount_minor\" IS NULL AND \"property_management\".\"properties\".\"minimum_stay_nights\" IS NULL\n      AND (\"property_management\".\"properties\".\"pricing_version\" IS NULL OR \"property_management\".\"properties\".\"pricing_version\" = 1))\n    OR\n    (\"property_management\".\"properties\".\"pricing_version\" IN (1, 2)\n      AND ((\"property_management\".\"properties\".\"pricing_version\" = 1 AND \"property_management\".\"properties\".\"currency\" ~ '^[A-Z]{3}$')\n        OR (\"property_management\".\"properties\".\"pricing_version\" = 2 AND \"property_management\".\"properties\".\"currency\" = 'XOF'))\n      AND (\"property_management\".\"properties\".\"pricing_version\" = 2 OR (\"property_management\".\"properties\".\"agency_fee_amount_minor\" IS NULL\n        AND \"property_management\".\"properties\".\"cleaning_fee_amount_minor\" IS NULL AND \"property_management\".\"properties\".\"minimum_stay_nights\" IS NULL\n        AND (\"property_management\".\"properties\".\"commercial_kind\" <> 'SHORT_TERM_RENTAL' OR \"property_management\".\"properties\".\"security_deposit_amount_minor\" IS NULL)))\n      AND (\n        (\"property_management\".\"properties\".\"commercial_kind\" = 'LONG_TERM_RENTAL' AND \"property_management\".\"properties\".\"transaction_type\" = 'LONG_TERM_RENTAL'\n          AND \"property_management\".\"properties\".\"rent_amount_minor\" BETWEEN CASE WHEN \"property_management\".\"properties\".\"pricing_version\" = 1 THEN 0 ELSE 1 END AND 9007199254740991\n          AND \"property_management\".\"properties\".\"rent_period\" = 'MONTH'\n          AND (\"property_management\".\"properties\".\"security_deposit_amount_minor\" IS NULL OR \"property_management\".\"properties\".\"security_deposit_amount_minor\" BETWEEN 0 AND 9007199254740991)\n          AND (\"property_management\".\"properties\".\"charges_amount_minor\" IS NULL OR \"property_management\".\"properties\".\"charges_amount_minor\" BETWEEN 0 AND 9007199254740991)\n          AND (\"property_management\".\"properties\".\"agency_fee_amount_minor\" IS NULL OR \"property_management\".\"properties\".\"agency_fee_amount_minor\" BETWEEN 0 AND 9007199254740991)\n          AND \"property_management\".\"properties\".\"rate_amount_minor\" IS NULL AND \"property_management\".\"properties\".\"pricing_unit\" IS NULL AND \"property_management\".\"properties\".\"sale_price_amount_minor\" IS NULL\n          AND \"property_management\".\"properties\".\"cleaning_fee_amount_minor\" IS NULL AND \"property_management\".\"properties\".\"minimum_stay_nights\" IS NULL)\n        OR (\"property_management\".\"properties\".\"commercial_kind\" = 'SHORT_TERM_RENTAL' AND \"property_management\".\"properties\".\"transaction_type\" = 'SHORT_TERM_RENTAL'\n          AND \"property_management\".\"properties\".\"rate_amount_minor\" BETWEEN CASE WHEN \"property_management\".\"properties\".\"pricing_version\" = 1 THEN 0 ELSE 1 END AND 9007199254740991\n          AND \"property_management\".\"properties\".\"pricing_unit\" IN ('NIGHT', 'WEEK')\n          AND (\"property_management\".\"properties\".\"security_deposit_amount_minor\" IS NULL OR \"property_management\".\"properties\".\"security_deposit_amount_minor\" BETWEEN 0 AND 9007199254740991)\n          AND (\"property_management\".\"properties\".\"cleaning_fee_amount_minor\" IS NULL OR \"property_management\".\"properties\".\"cleaning_fee_amount_minor\" BETWEEN 0 AND 9007199254740991)\n          AND (\"property_management\".\"properties\".\"minimum_stay_nights\" IS NULL OR \"property_management\".\"properties\".\"minimum_stay_nights\" >= 1)\n          AND \"property_management\".\"properties\".\"rent_amount_minor\" IS NULL AND \"property_management\".\"properties\".\"rent_period\" IS NULL\n          AND \"property_management\".\"properties\".\"charges_amount_minor\" IS NULL AND \"property_management\".\"properties\".\"sale_price_amount_minor\" IS NULL AND \"property_management\".\"properties\".\"agency_fee_amount_minor\" IS NULL)\n        OR (\"property_management\".\"properties\".\"commercial_kind\" = 'SALE' AND \"property_management\".\"properties\".\"transaction_type\" = 'SALE'\n          AND \"property_management\".\"properties\".\"sale_price_amount_minor\" BETWEEN CASE WHEN \"property_management\".\"properties\".\"pricing_version\" = 1 THEN 0 ELSE 1 END AND 9007199254740991\n          AND (\"property_management\".\"properties\".\"agency_fee_amount_minor\" IS NULL OR \"property_management\".\"properties\".\"agency_fee_amount_minor\" BETWEEN 0 AND 9007199254740991)\n          AND \"property_management\".\"properties\".\"rent_amount_minor\" IS NULL AND \"property_management\".\"properties\".\"rent_period\" IS NULL AND \"property_management\".\"properties\".\"security_deposit_amount_minor\" IS NULL\n          AND \"property_management\".\"properties\".\"charges_amount_minor\" IS NULL AND \"property_management\".\"properties\".\"rate_amount_minor\" IS NULL AND \"property_management\".\"properties\".\"pricing_unit\" IS NULL\n          AND \"property_management\".\"properties\".\"cleaning_fee_amount_minor\" IS NULL AND \"property_management\".\"properties\".\"minimum_stay_nights\" IS NULL)\n      ))\n  "
+        },
+        "properties_structural_role_check": {
+          "name": "properties_structural_role_check",
+          "value": "\"property_management\".\"properties\".\"structural_role\" IN ('STANDALONE', 'COMPOSITE', 'UNIT')"
+        },
+        "properties_availability_occupancy_check": {
+          "name": "properties_availability_occupancy_check",
+          "value": "\n    (\"property_management\".\"properties\".\"availability_status\" IS NULL AND \"property_management\".\"properties\".\"occupancy_status\" IS NULL\n      AND \"property_management\".\"properties\".\"availability_updated_at\" IS NULL AND \"property_management\".\"properties\".\"availability_updated_by_actor_id\" IS NULL\n      AND \"property_management\".\"properties\".\"availability_correlation_id\" IS NULL)\n    OR\n    ((\"property_management\".\"properties\".\"structural_role\" IN ('STANDALONE', 'UNIT') OR (\"property_management\".\"properties\".\"property_type\" = 'BUILDING' AND \"property_management\".\"properties\".\"commercialization_mode\" = 'WHOLE_BUILDING'))\n      AND \"property_management\".\"properties\".\"availability_status\" IN ('AVAILABLE', 'UNAVAILABLE')\n      AND \"property_management\".\"properties\".\"occupancy_status\" IN ('VACANT', 'OCCUPIED')\n      AND \"property_management\".\"properties\".\"availability_updated_at\" IS NOT NULL AND \"property_management\".\"properties\".\"availability_updated_by_actor_id\" IS NOT NULL\n      AND \"property_management\".\"properties\".\"availability_correlation_id\" IS NOT NULL)\n  "
+        },
+        "properties_publication_state_check": {
+          "name": "properties_publication_state_check",
+          "value": "\n    (\"property_management\".\"properties\".\"status\" = 'DRAFT' AND \"property_management\".\"properties\".\"published_at\" IS NULL AND \"property_management\".\"properties\".\"published_by_actor_id\" IS NULL\n      AND \"property_management\".\"properties\".\"publication_correlation_id\" IS NULL AND \"property_management\".\"properties\".\"withdrawn_at\" IS NULL\n      AND \"property_management\".\"properties\".\"withdrawn_by_actor_id\" IS NULL AND \"property_management\".\"properties\".\"withdrawal_correlation_id\" IS NULL)\n    OR\n    (\"property_management\".\"properties\".\"status\" = 'PUBLISHED' AND \"property_management\".\"properties\".\"published_at\" IS NOT NULL AND \"property_management\".\"properties\".\"published_by_actor_id\" IS NOT NULL\n      AND \"property_management\".\"properties\".\"publication_correlation_id\" IS NOT NULL AND \"property_management\".\"properties\".\"withdrawn_at\" IS NULL\n      AND \"property_management\".\"properties\".\"withdrawn_by_actor_id\" IS NULL AND \"property_management\".\"properties\".\"withdrawal_correlation_id\" IS NULL\n      AND \"property_management\".\"properties\".\"commercial_kind\" IS NOT NULL)\n    OR\n    (\"property_management\".\"properties\".\"status\" = 'WITHDRAWN' AND \"property_management\".\"properties\".\"published_at\" IS NOT NULL AND \"property_management\".\"properties\".\"published_by_actor_id\" IS NOT NULL\n      AND \"property_management\".\"properties\".\"publication_correlation_id\" IS NOT NULL AND \"property_management\".\"properties\".\"withdrawn_at\" IS NOT NULL\n      AND \"property_management\".\"properties\".\"withdrawn_by_actor_id\" IS NOT NULL AND \"property_management\".\"properties\".\"withdrawal_correlation_id\" IS NOT NULL\n      AND \"property_management\".\"properties\".\"withdrawn_at\" >= \"property_management\".\"properties\".\"published_at\" AND \"property_management\".\"properties\".\"commercial_kind\" IS NOT NULL)\n  "
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "property_management.property_amenities": {
+      "name": "property_amenities",
+      "schema": "property_management",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amenity_code": {
+          "name": "amenity_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "property_amenities_tenant_property_idx": {
+          "name": "property_amenities_tenant_property_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "property_amenities_property_tenant_fk": {
+          "name": "property_amenities_property_tenant_fk",
+          "tableFrom": "property_amenities",
+          "tableTo": "properties",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "property_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "property_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "property_amenities_amenity_fk": {
+          "name": "property_amenities_amenity_fk",
+          "tableFrom": "property_amenities",
+          "tableTo": "amenities",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "amenity_code"
+          ],
+          "columnsTo": [
+            "code"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "property_amenities_tenant_id_property_id_amenity_code_pk": {
+          "name": "property_amenities_tenant_id_property_id_amenity_code_pk",
+          "columns": [
+            "tenant_id",
+            "property_id",
+            "amenity_code"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "property_amenities_tenant_isolation": {
+          "name": "property_amenities_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"property_management\".\"property_amenities\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"property_management\".\"property_amenities\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "property_management.property_application_client_conversions": {
+      "name": "property_application_client_conversions",
+      "schema": "property_management",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "application_id": {
+          "name": "application_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "client_id": {
+          "name": "client_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "converted_at": {
+          "name": "converted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "property_application_client_conversions_tenant_client_unique": {
+          "name": "property_application_client_conversions_tenant_client_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "client_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "property_application_client_conversions_application_tenant_fk": {
+          "name": "property_application_client_conversions_application_tenant_fk",
+          "tableFrom": "property_application_client_conversions",
+          "tableTo": "property_applications",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "application_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "application_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "property_application_client_conversions_client_tenant_fk": {
+          "name": "property_application_client_conversions_client_tenant_fk",
+          "tableFrom": "property_application_client_conversions",
+          "tableTo": "property_clients",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "client_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "client_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "property_application_client_conversions_tenant_id_application_id_pk": {
+          "name": "property_application_client_conversions_tenant_id_application_id_pk",
+          "columns": [
+            "tenant_id",
+            "application_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "property_application_client_conversions_tenant_isolation": {
+          "name": "property_application_client_conversions_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"property_management\".\"property_application_client_conversions\".\"tenant_id\"=NULLIF(current_setting('app.tenant_id',true),'')::uuid",
+          "withCheck": "\"property_management\".\"property_application_client_conversions\".\"tenant_id\"=NULLIF(current_setting('app.tenant_id',true),'')::uuid"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "property_management.property_application_contract_origins": {
+      "name": "property_application_contract_origins",
+      "schema": "property_management",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "application_id": {
+          "name": "application_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contract_id": {
+          "name": "contract_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "property_application_contract_origins_tenant_contract_unique": {
+          "name": "property_application_contract_origins_tenant_contract_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "contract_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "property_application_contract_origins_conversion_tenant_fk": {
+          "name": "property_application_contract_origins_conversion_tenant_fk",
+          "tableFrom": "property_application_contract_origins",
+          "tableTo": "property_application_client_conversions",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "application_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "application_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "property_application_contract_origins_contract_tenant_fk": {
+          "name": "property_application_contract_origins_contract_tenant_fk",
+          "tableFrom": "property_application_contract_origins",
+          "tableTo": "property_contracts",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "contract_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "contract_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "property_application_contract_origins_tenant_id_application_id_pk": {
+          "name": "property_application_contract_origins_tenant_id_application_id_pk",
+          "columns": [
+            "tenant_id",
+            "application_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "property_application_contract_origins_tenant_isolation": {
+          "name": "property_application_contract_origins_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"property_management\".\"property_application_contract_origins\".\"tenant_id\"=NULLIF(current_setting('app.tenant_id',true),'')::uuid",
+          "withCheck": "\"property_management\".\"property_application_contract_origins\".\"tenant_id\"=NULLIF(current_setting('app.tenant_id',true),'')::uuid"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "property_management.property_applications": {
+      "name": "property_applications",
+      "schema": "property_management",
+      "columns": {
+        "application_id": {
+          "name": "application_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "inquiry_id": {
+          "name": "inquiry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "viewing_id": {
+          "name": "viewing_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "outcome_id": {
+          "name": "outcome_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "property_applications_tenant_application_unique": {
+          "name": "property_applications_tenant_application_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "application_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_applications_tenant_viewing_unique": {
+          "name": "property_applications_tenant_viewing_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "viewing_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_applications_tenant_outcome_unique": {
+          "name": "property_applications_tenant_outcome_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "outcome_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_applications_tenant_property_created_idx": {
+          "name": "property_applications_tenant_property_created_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "application_id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "property_applications_property_tenant_fk": {
+          "name": "property_applications_property_tenant_fk",
+          "tableFrom": "property_applications",
+          "tableTo": "properties",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "property_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "property_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "property_applications_viewing_tenant_fk": {
+          "name": "property_applications_viewing_tenant_fk",
+          "tableFrom": "property_applications",
+          "tableTo": "property_viewings",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "property_id",
+            "viewing_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "property_id",
+            "viewing_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "property_applications_outcome_tenant_fk": {
+          "name": "property_applications_outcome_tenant_fk",
+          "tableFrom": "property_applications",
+          "tableTo": "property_viewing_outcomes",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "outcome_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "outcome_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "property_applications_inquiry_tenant_fk": {
+          "name": "property_applications_inquiry_tenant_fk",
+          "tableFrom": "property_applications",
+          "tableTo": "property_inquiries",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "inquiry_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "inquiry_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "property_applications_tenant_isolation": {
+          "name": "property_applications_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"property_management\".\"property_applications\".\"tenant_id\"=NULLIF(current_setting('app.tenant_id',true),'')::uuid",
+          "withCheck": "\"property_management\".\"property_applications\".\"tenant_id\"=NULLIF(current_setting('app.tenant_id',true),'')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "property_applications_note_check": {
+          "name": "property_applications_note_check",
+          "value": "\"property_management\".\"property_applications\".\"note\" IS NULL OR char_length(btrim(\"property_management\".\"property_applications\".\"note\")) BETWEEN 1 AND 2000"
+        },
+        "property_applications_lifecycle_check": {
+          "name": "property_applications_lifecycle_check",
+          "value": "(\"property_management\".\"property_applications\".\"status\"='SUBMITTED' AND \"property_management\".\"property_applications\".\"decided_at\" IS NULL) OR (\"property_management\".\"property_applications\".\"status\" IN ('APPROVED','REJECTED','WITHDRAWN') AND \"property_management\".\"property_applications\".\"decided_at\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "property_management.property_building_units": {
+      "name": "property_building_units",
+      "schema": "property_management",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "building_id": {
+          "name": "building_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_property_id": {
+          "name": "unit_property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_code": {
+          "name": "unit_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "property_building_units_tenant_unit_unique": {
+          "name": "property_building_units_tenant_unit_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "unit_property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_building_units_tenant_building_code_unique": {
+          "name": "property_building_units_tenant_building_code_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "building_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "unit_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_building_units_tenant_building_code_idx": {
+          "name": "property_building_units_tenant_building_code_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "building_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "unit_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "unit_property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "property_building_units_building_tenant_fk": {
+          "name": "property_building_units_building_tenant_fk",
+          "tableFrom": "property_building_units",
+          "tableTo": "property_buildings",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "building_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "building_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "property_building_units_property_tenant_fk": {
+          "name": "property_building_units_property_tenant_fk",
+          "tableFrom": "property_building_units",
+          "tableTo": "properties",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "unit_property_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "property_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "property_building_units_pkey": {
+          "name": "property_building_units_pkey",
+          "columns": [
+            "tenant_id",
+            "building_id",
+            "unit_property_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "property_building_units_tenant_isolation": {
+          "name": "property_building_units_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"property_management\".\"property_building_units\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"property_management\".\"property_building_units\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "property_building_units_code_check": {
+          "name": "property_building_units_code_check",
+          "value": "\"property_management\".\"property_building_units\".\"unit_code\" ~ '^[A-Z0-9][A-Z0-9._/ -]{0,49}$'"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "property_management.property_buildings": {
+      "name": "property_buildings",
+      "schema": "property_management",
+      "columns": {
+        "building_id": {
+          "name": "building_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "building_code": {
+          "name": "building_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "building_property_id": {
+          "name": "building_property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "property_buildings_tenant_building_unique": {
+          "name": "property_buildings_tenant_building_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "building_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_buildings_tenant_property_code_unique": {
+          "name": "property_buildings_tenant_property_code_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "building_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_buildings_tenant_building_property_unique": {
+          "name": "property_buildings_tenant_building_property_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "building_property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_buildings_tenant_property_code_idx": {
+          "name": "property_buildings_tenant_property_code_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "building_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "building_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "property_buildings_property_tenant_fk": {
+          "name": "property_buildings_property_tenant_fk",
+          "tableFrom": "property_buildings",
+          "tableTo": "properties",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "property_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "property_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "property_buildings_building_property_tenant_fk": {
+          "name": "property_buildings_building_property_tenant_fk",
+          "tableFrom": "property_buildings",
+          "tableTo": "properties",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "building_property_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "property_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "property_buildings_tenant_isolation": {
+          "name": "property_buildings_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"property_management\".\"property_buildings\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"property_management\".\"property_buildings\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "property_buildings_code_check": {
+          "name": "property_buildings_code_check",
+          "value": "\"property_management\".\"property_buildings\".\"building_code\" ~ '^[A-Z0-9][A-Z0-9._/ -]{0,49}$'"
+        },
+        "property_buildings_name_check": {
+          "name": "property_buildings_name_check",
+          "value": "length(btrim(\"property_management\".\"property_buildings\".\"name\")) BETWEEN 1 AND 200"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "property_management.property_clients": {
+      "name": "property_clients",
+      "schema": "property_management",
+      "columns": {
+        "client_id": {
+          "name": "client_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone_number": {
+          "name": "phone_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "property_clients_tenant_client_unique": {
+          "name": "property_clients_tenant_client_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "client_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_clients_tenant_created_client_idx": {
+          "name": "property_clients_tenant_created_client_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "client_id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "property_clients_tenant_isolation": {
+          "name": "property_clients_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"property_management\".\"property_clients\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"property_management\".\"property_clients\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "property_clients_display_name_check": {
+          "name": "property_clients_display_name_check",
+          "value": "char_length(btrim(\"property_management\".\"property_clients\".\"display_name\")) BETWEEN 1 AND 200"
+        },
+        "property_clients_contact_check": {
+          "name": "property_clients_contact_check",
+          "value": "\n    (\"property_management\".\"property_clients\".\"phone_number\" IS NULL OR char_length(btrim(\"property_management\".\"property_clients\".\"phone_number\")) BETWEEN 1 AND 100)\n    AND (\"property_management\".\"property_clients\".\"email\" IS NULL OR (char_length(\"property_management\".\"property_clients\".\"email\") BETWEEN 3 AND 320\n      AND \"property_management\".\"property_clients\".\"email\" = lower(\"property_management\".\"property_clients\".\"email\")\n      AND \"property_management\".\"property_clients\".\"email\" ~ '^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$'))\n  "
+        },
+        "property_clients_timestamps_check": {
+          "name": "property_clients_timestamps_check",
+          "value": "\"property_management\".\"property_clients\".\"updated_at\" >= \"property_management\".\"property_clients\".\"created_at\""
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "property_management.property_complex_children": {
+      "name": "property_complex_children",
+      "schema": "property_management",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "complex_property_id": {
+          "name": "complex_property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "child_property_id": {
+          "name": "child_property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "child_code": {
+          "name": "child_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "property_complex_children_tenant_complex_code_unique": {
+          "name": "property_complex_children_tenant_complex_code_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "complex_property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "child_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "property_complex_children_complex_tenant_fk": {
+          "name": "property_complex_children_complex_tenant_fk",
+          "tableFrom": "property_complex_children",
+          "tableTo": "properties",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "complex_property_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "property_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "property_complex_children_child_tenant_fk": {
+          "name": "property_complex_children_child_tenant_fk",
+          "tableFrom": "property_complex_children",
+          "tableTo": "properties",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "child_property_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "property_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "property_complex_children_pkey": {
+          "name": "property_complex_children_pkey",
+          "columns": [
+            "tenant_id",
+            "child_property_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "property_complex_children_tenant_isolation": {
+          "name": "property_complex_children_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"property_management\".\"property_complex_children\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"property_management\".\"property_complex_children\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "property_complex_children_distinct_check": {
+          "name": "property_complex_children_distinct_check",
+          "value": "\"property_management\".\"property_complex_children\".\"complex_property_id\" <> \"property_management\".\"property_complex_children\".\"child_property_id\""
+        },
+        "property_complex_children_code_check": {
+          "name": "property_complex_children_code_check",
+          "value": "\"property_management\".\"property_complex_children\".\"child_code\" ~ '^[A-Z0-9][A-Z0-9._/ -]{0,49}$'"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "property_management.property_contracts": {
+      "name": "property_contracts",
+      "schema": "property_management",
+      "columns": {
+        "contract_id": {
+          "name": "contract_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "client_id": {
+          "name": "client_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contract_type": {
+          "name": "contract_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "activated_at": {
+          "name": "activated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activated_by_actor_id": {
+          "name": "activated_by_actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activation_correlation_id": {
+          "name": "activation_correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ended_at": {
+          "name": "ended_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ended_by_actor_id": {
+          "name": "ended_by_actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ending_correlation_id": {
+          "name": "ending_correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cancelled_at": {
+          "name": "cancelled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cancelled_by_actor_id": {
+          "name": "cancelled_by_actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cancellation_correlation_id": {
+          "name": "cancellation_correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "property_contracts_tenant_contract_unique": {
+          "name": "property_contracts_tenant_contract_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "contract_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_contracts_tenant_reference_unique": {
+          "name": "property_contracts_tenant_reference_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "reference",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_contracts_tenant_property_created_idx": {
+          "name": "property_contracts_tenant_property_created_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "contract_id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_contracts_tenant_property_status_idx": {
+          "name": "property_contracts_tenant_property_status_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_contracts_tenant_client_idx": {
+          "name": "property_contracts_tenant_client_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "client_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "property_contracts_property_tenant_fk": {
+          "name": "property_contracts_property_tenant_fk",
+          "tableFrom": "property_contracts",
+          "tableTo": "properties",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "property_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "property_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "property_contracts_client_tenant_fk": {
+          "name": "property_contracts_client_tenant_fk",
+          "tableFrom": "property_contracts",
+          "tableTo": "property_clients",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "client_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "client_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "property_contracts_tenant_isolation": {
+          "name": "property_contracts_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"property_management\".\"property_contracts\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"property_management\".\"property_contracts\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "property_contracts_type_check": {
+          "name": "property_contracts_type_check",
+          "value": "\"property_management\".\"property_contracts\".\"contract_type\" IN ('LEASE', 'MANAGEMENT', 'OTHER')"
+        },
+        "property_contracts_status_check": {
+          "name": "property_contracts_status_check",
+          "value": "\"property_management\".\"property_contracts\".\"status\" IN ('DRAFT', 'ACTIVE', 'ENDED', 'CANCELLED')"
+        },
+        "property_contracts_reference_check": {
+          "name": "property_contracts_reference_check",
+          "value": "\n    \"property_management\".\"property_contracts\".\"reference\" = upper(\"property_management\".\"property_contracts\".\"reference\")\n    AND \"property_management\".\"property_contracts\".\"reference\" ~ '^[A-Z0-9][A-Z0-9._/ -]{0,99}$'\n  "
+        },
+        "property_contracts_dates_check": {
+          "name": "property_contracts_dates_check",
+          "value": "\n    (\"property_management\".\"property_contracts\".\"start_date\" IS NULL OR \"property_management\".\"property_contracts\".\"end_date\" IS NULL OR \"property_management\".\"property_contracts\".\"end_date\" >= \"property_management\".\"property_contracts\".\"start_date\")\n    AND (\"property_management\".\"property_contracts\".\"notes\" IS NULL OR char_length(btrim(\"property_management\".\"property_contracts\".\"notes\")) BETWEEN 1 AND 5000)\n    AND \"property_management\".\"property_contracts\".\"updated_at\" >= \"property_management\".\"property_contracts\".\"created_at\"\n  "
+        },
+        "property_contracts_lifecycle_check": {
+          "name": "property_contracts_lifecycle_check",
+          "value": "\n    (\"property_management\".\"property_contracts\".\"status\" = 'DRAFT'\n      AND \"property_management\".\"property_contracts\".\"activated_at\" IS NULL AND \"property_management\".\"property_contracts\".\"activated_by_actor_id\" IS NULL AND \"property_management\".\"property_contracts\".\"activation_correlation_id\" IS NULL\n      AND \"property_management\".\"property_contracts\".\"ended_at\" IS NULL AND \"property_management\".\"property_contracts\".\"ended_by_actor_id\" IS NULL AND \"property_management\".\"property_contracts\".\"ending_correlation_id\" IS NULL\n      AND \"property_management\".\"property_contracts\".\"cancelled_at\" IS NULL AND \"property_management\".\"property_contracts\".\"cancelled_by_actor_id\" IS NULL AND \"property_management\".\"property_contracts\".\"cancellation_correlation_id\" IS NULL)\n    OR (\"property_management\".\"property_contracts\".\"status\" = 'ACTIVE'\n      AND \"property_management\".\"property_contracts\".\"start_date\" IS NOT NULL\n      AND \"property_management\".\"property_contracts\".\"activated_at\" IS NOT NULL AND \"property_management\".\"property_contracts\".\"activated_at\" >= \"property_management\".\"property_contracts\".\"created_at\"\n      AND \"property_management\".\"property_contracts\".\"activated_by_actor_id\" IS NOT NULL AND \"property_management\".\"property_contracts\".\"activation_correlation_id\" IS NOT NULL\n      AND \"property_management\".\"property_contracts\".\"ended_at\" IS NULL AND \"property_management\".\"property_contracts\".\"ended_by_actor_id\" IS NULL AND \"property_management\".\"property_contracts\".\"ending_correlation_id\" IS NULL\n      AND \"property_management\".\"property_contracts\".\"cancelled_at\" IS NULL AND \"property_management\".\"property_contracts\".\"cancelled_by_actor_id\" IS NULL AND \"property_management\".\"property_contracts\".\"cancellation_correlation_id\" IS NULL)\n    OR (\"property_management\".\"property_contracts\".\"status\" = 'ENDED'\n      AND \"property_management\".\"property_contracts\".\"start_date\" IS NOT NULL AND \"property_management\".\"property_contracts\".\"end_date\" IS NOT NULL\n      AND \"property_management\".\"property_contracts\".\"activated_at\" IS NOT NULL AND \"property_management\".\"property_contracts\".\"activated_at\" >= \"property_management\".\"property_contracts\".\"created_at\"\n      AND \"property_management\".\"property_contracts\".\"activated_by_actor_id\" IS NOT NULL AND \"property_management\".\"property_contracts\".\"activation_correlation_id\" IS NOT NULL\n      AND \"property_management\".\"property_contracts\".\"ended_at\" IS NOT NULL AND \"property_management\".\"property_contracts\".\"ended_at\" >= \"property_management\".\"property_contracts\".\"activated_at\"\n      AND \"property_management\".\"property_contracts\".\"ended_by_actor_id\" IS NOT NULL AND \"property_management\".\"property_contracts\".\"ending_correlation_id\" IS NOT NULL\n      AND \"property_management\".\"property_contracts\".\"cancelled_at\" IS NULL AND \"property_management\".\"property_contracts\".\"cancelled_by_actor_id\" IS NULL AND \"property_management\".\"property_contracts\".\"cancellation_correlation_id\" IS NULL)\n    OR (\"property_management\".\"property_contracts\".\"status\" = 'CANCELLED'\n      AND \"property_management\".\"property_contracts\".\"ended_at\" IS NULL AND \"property_management\".\"property_contracts\".\"ended_by_actor_id\" IS NULL AND \"property_management\".\"property_contracts\".\"ending_correlation_id\" IS NULL\n      AND \"property_management\".\"property_contracts\".\"cancelled_at\" IS NOT NULL AND \"property_management\".\"property_contracts\".\"cancelled_at\" >= \"property_management\".\"property_contracts\".\"created_at\"\n      AND \"property_management\".\"property_contracts\".\"cancellation_correlation_id\" IS NOT NULL AND \"property_management\".\"property_contracts\".\"cancelled_by_actor_id\" IS NOT NULL\n      AND ((\"property_management\".\"property_contracts\".\"activated_at\" IS NULL AND \"property_management\".\"property_contracts\".\"activated_by_actor_id\" IS NULL AND \"property_management\".\"property_contracts\".\"activation_correlation_id\" IS NULL)\n        OR (\"property_management\".\"property_contracts\".\"activated_at\" IS NOT NULL AND \"property_management\".\"property_contracts\".\"activated_at\" >= \"property_management\".\"property_contracts\".\"created_at\"\n          AND \"property_management\".\"property_contracts\".\"cancelled_at\" >= \"property_management\".\"property_contracts\".\"activated_at\"\n          AND \"property_management\".\"property_contracts\".\"activated_by_actor_id\" IS NOT NULL AND \"property_management\".\"property_contracts\".\"activation_correlation_id\" IS NOT NULL)))\n  "
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "property_management.property_geolocations": {
+      "name": "property_geolocations",
+      "schema": "property_management",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "latitude": {
+          "name": "latitude",
+          "type": "numeric(8, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "longitude": {
+          "name": "longitude",
+          "type": "numeric(9, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "public_visibility": {
+          "name": "public_visibility",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "property_geolocations_property_tenant_fk": {
+          "name": "property_geolocations_property_tenant_fk",
+          "tableFrom": "property_geolocations",
+          "tableTo": "properties",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "property_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "property_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "property_geolocations_pkey": {
+          "name": "property_geolocations_pkey",
+          "columns": [
+            "tenant_id",
+            "property_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "property_geolocations_tenant_isolation": {
+          "name": "property_geolocations_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"property_management\".\"property_geolocations\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"property_management\".\"property_geolocations\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "property_geolocations_latitude_check": {
+          "name": "property_geolocations_latitude_check",
+          "value": "\"property_management\".\"property_geolocations\".\"latitude\" BETWEEN -90 AND 90"
+        },
+        "property_geolocations_longitude_check": {
+          "name": "property_geolocations_longitude_check",
+          "value": "\"property_management\".\"property_geolocations\".\"longitude\" BETWEEN -180 AND 180"
+        },
+        "property_geolocations_public_visibility_check": {
+          "name": "property_geolocations_public_visibility_check",
+          "value": "\"property_management\".\"property_geolocations\".\"public_visibility\" IN ('EXACT', 'APPROXIMATE', 'HIDDEN')"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "property_management.property_inquiries": {
+      "name": "property_inquiries",
+      "schema": "property_management",
+      "columns": {
+        "inquiry_id": {
+          "name": "inquiry_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contact_name": {
+          "name": "contact_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone_number": {
+          "name": "phone_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "intent": {
+          "name": "intent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'CONTACT'"
+        },
+        "preferred_contact_channel": {
+          "name": "preferred_contact_channel",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "consent_version": {
+          "name": "consent_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "consent_given_at": {
+          "name": "consent_given_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "acknowledged_at": {
+          "name": "acknowledged_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "property_inquiries_tenant_inquiry_unique": {
+          "name": "property_inquiries_tenant_inquiry_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "inquiry_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_inquiries_tenant_property_idempotency_unique": {
+          "name": "property_inquiries_tenant_property_idempotency_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_inquiries_tenant_property_created_idx": {
+          "name": "property_inquiries_tenant_property_created_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "inquiry_id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "property_inquiries_property_tenant_fk": {
+          "name": "property_inquiries_property_tenant_fk",
+          "tableFrom": "property_inquiries",
+          "tableTo": "properties",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "property_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "property_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "property_inquiries_tenant_isolation": {
+          "name": "property_inquiries_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"property_management\".\"property_inquiries\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"property_management\".\"property_inquiries\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "property_inquiries_contact_check": {
+          "name": "property_inquiries_contact_check",
+          "value": "char_length(btrim(\"property_management\".\"property_inquiries\".\"contact_name\")) BETWEEN 1 AND 200\n      AND (\"property_management\".\"property_inquiries\".\"email\" IS NOT NULL OR \"property_management\".\"property_inquiries\".\"phone_number\" IS NOT NULL)\n      AND (\n        \"property_management\".\"property_inquiries\".\"email\" IS NULL\n        OR (\n          char_length(\"property_management\".\"property_inquiries\".\"email\") BETWEEN 3 AND 320\n          AND \"property_management\".\"property_inquiries\".\"email\" = lower(\"property_management\".\"property_inquiries\".\"email\")\n          AND \"property_management\".\"property_inquiries\".\"email\" ~ '^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$'\n        )\n      )\n      AND (\n        \"property_management\".\"property_inquiries\".\"phone_number\" IS NULL\n        OR char_length(btrim(\"property_management\".\"property_inquiries\".\"phone_number\")) BETWEEN 1 AND 100\n      )\n      AND (\n        \"property_management\".\"property_inquiries\".\"message\" IS NULL\n        OR char_length(btrim(\"property_management\".\"property_inquiries\".\"message\")) BETWEEN 1 AND 2000\n      )"
+        },
+        "property_inquiries_intent_check": {
+          "name": "property_inquiries_intent_check",
+          "value": "\"property_management\".\"property_inquiries\".\"intent\" IN ('CONTACT', 'VIEWING_REQUEST')"
+        },
+        "property_inquiries_preferred_contact_channel_check": {
+          "name": "property_inquiries_preferred_contact_channel_check",
+          "value": "(\n      \"property_management\".\"property_inquiries\".\"preferred_contact_channel\" IS NULL\n      OR (\n        \"property_management\".\"property_inquiries\".\"preferred_contact_channel\" = 'EMAIL'\n        AND \"property_management\".\"property_inquiries\".\"email\" IS NOT NULL\n      )\n      OR (\n        \"property_management\".\"property_inquiries\".\"preferred_contact_channel\" IN ('PHONE', 'SMS')\n        AND \"property_management\".\"property_inquiries\".\"phone_number\" IS NOT NULL\n      )\n    )"
+        },
+        "property_inquiries_consent_check": {
+          "name": "property_inquiries_consent_check",
+          "value": "char_length(btrim(\"property_management\".\"property_inquiries\".\"consent_version\")) BETWEEN 1 AND 50\n      AND char_length(btrim(\"property_management\".\"property_inquiries\".\"idempotency_key\")) BETWEEN 1 AND 100"
+        },
+        "property_inquiries_lifecycle_check": {
+          "name": "property_inquiries_lifecycle_check",
+          "value": "(\n      \"property_management\".\"property_inquiries\".\"status\" = 'NEW'\n      AND \"property_management\".\"property_inquiries\".\"acknowledged_at\" IS NULL\n      AND \"property_management\".\"property_inquiries\".\"closed_at\" IS NULL\n    )\n    OR (\n      \"property_management\".\"property_inquiries\".\"status\" = 'ACKNOWLEDGED'\n      AND \"property_management\".\"property_inquiries\".\"acknowledged_at\" IS NOT NULL\n      AND \"property_management\".\"property_inquiries\".\"closed_at\" IS NULL\n    )\n    OR (\n      \"property_management\".\"property_inquiries\".\"status\" = 'CLOSED'\n      AND \"property_management\".\"property_inquiries\".\"closed_at\" IS NOT NULL\n    )"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "property_management.property_owners": {
+      "name": "property_owners",
+      "schema": "property_management",
+      "columns": {
+        "owner_id": {
+          "name": "owner_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner_type": {
+          "name": "owner_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "first_name": {
+          "name": "first_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_name": {
+          "name": "last_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "legal_name": {
+          "name": "legal_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "registration_number": {
+          "name": "registration_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone_number": {
+          "name": "phone_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "property_owners_tenant_owner_unique": {
+          "name": "property_owners_tenant_owner_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_owners_tenant_created_owner_idx": {
+          "name": "property_owners_tenant_created_owner_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "property_owners_tenant_isolation": {
+          "name": "property_owners_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"property_management\".\"property_owners\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"property_management\".\"property_owners\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "property_owners_identity_check": {
+          "name": "property_owners_identity_check",
+          "value": "\n    (\"property_management\".\"property_owners\".\"owner_type\" = 'INDIVIDUAL'\n      AND char_length(btrim(\"property_management\".\"property_owners\".\"first_name\")) BETWEEN 1 AND 200\n      AND char_length(btrim(\"property_management\".\"property_owners\".\"last_name\")) BETWEEN 1 AND 200\n      AND \"property_management\".\"property_owners\".\"legal_name\" IS NULL AND \"property_management\".\"property_owners\".\"registration_number\" IS NULL)\n    OR\n    (\"property_management\".\"property_owners\".\"owner_type\" = 'LEGAL_ENTITY'\n      AND char_length(btrim(\"property_management\".\"property_owners\".\"legal_name\")) BETWEEN 1 AND 300\n      AND \"property_management\".\"property_owners\".\"first_name\" IS NULL AND \"property_management\".\"property_owners\".\"last_name\" IS NULL\n      AND (\"property_management\".\"property_owners\".\"registration_number\" IS NULL OR char_length(btrim(\"property_management\".\"property_owners\".\"registration_number\")) BETWEEN 1 AND 200))\n  "
+        },
+        "property_owners_contact_check": {
+          "name": "property_owners_contact_check",
+          "value": "\n    (\"property_management\".\"property_owners\".\"phone_number\" IS NULL OR char_length(btrim(\"property_management\".\"property_owners\".\"phone_number\")) BETWEEN 1 AND 100)\n    AND (\"property_management\".\"property_owners\".\"email\" IS NULL OR (char_length(\"property_management\".\"property_owners\".\"email\") BETWEEN 3 AND 320 AND \"property_management\".\"property_owners\".\"email\" ~ '^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$'))\n  "
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "property_management.property_ownerships": {
+      "name": "property_ownerships",
+      "schema": "property_management",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ownership_share": {
+          "name": "ownership_share",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "property_ownerships_tenant_owner_idx": {
+          "name": "property_ownerships_tenant_owner_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "property_ownerships_property_tenant_fk": {
+          "name": "property_ownerships_property_tenant_fk",
+          "tableFrom": "property_ownerships",
+          "tableTo": "properties",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "property_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "property_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "property_ownerships_owner_tenant_fk": {
+          "name": "property_ownerships_owner_tenant_fk",
+          "tableFrom": "property_ownerships",
+          "tableTo": "property_owners",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "owner_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "owner_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "property_ownerships_pkey": {
+          "name": "property_ownerships_pkey",
+          "columns": [
+            "tenant_id",
+            "property_id",
+            "owner_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "property_ownerships_tenant_isolation": {
+          "name": "property_ownerships_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"property_management\".\"property_ownerships\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"property_management\".\"property_ownerships\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "property_ownerships_share_check": {
+          "name": "property_ownerships_share_check",
+          "value": "\"property_management\".\"property_ownerships\".\"ownership_share\" > 0 AND \"property_management\".\"property_ownerships\".\"ownership_share\" <= 100"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "property_management.property_photo_standards": {
+      "name": "property_photo_standards",
+      "schema": "property_management",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "minimum_photo_count": {
+          "name": "minimum_photo_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "additional_required_categories": {
+          "name": "additional_required_categories",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "ARRAY[]::text[]"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "property_photo_standards_tenant_isolation": {
+          "name": "property_photo_standards_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"property_management\".\"property_photo_standards\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"property_management\".\"property_photo_standards\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "property_photo_standards_minimum_check": {
+          "name": "property_photo_standards_minimum_check",
+          "value": "\"property_management\".\"property_photo_standards\".\"minimum_photo_count\" >= 1"
+        },
+        "property_photo_standards_categories_check": {
+          "name": "property_photo_standards_categories_check",
+          "value": "\"property_management\".\"property_photo_standards\".\"additional_required_categories\" <@ ARRAY[\n    'BUILDING_EXTERIOR_OR_ENTRANCE', 'MAIN_LIVING_SLEEPING_AREA', 'LIVING_ROOM_OR_MAIN_ROOM',\n    'KITCHEN_OR_KITCHENETTE', 'BEDROOM_OR_SLEEPING_AREA', 'BATHROOM_OR_SHOWER_ROOM', 'OTHER'\n  ]::text[]"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "property_management.property_photos": {
+      "name": "property_photos",
+      "schema": "property_management",
+      "columns": {
+        "photo_id": {
+          "name": "photo_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "media_kind": {
+          "name": "media_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'IMAGE'"
+        },
+        "gallery_position": {
+          "name": "gallery_position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_primary": {
+          "name": "is_primary",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "content_base64": {
+          "name": "content_base64",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "content_type": {
+          "name": "content_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "content_byte_size": {
+          "name": "content_byte_size",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "content_sha256": {
+          "name": "content_sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "registered_at": {
+          "name": "registered_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "available_at": {
+          "name": "available_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "property_photos_tenant_property_photo_unique": {
+          "name": "property_photos_tenant_property_photo_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "photo_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_photos_one_primary_per_property_idx": {
+          "name": "property_photos_one_primary_per_property_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"property_management\".\"property_photos\".\"is_primary\"",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_photos_gallery_position_unique_idx": {
+          "name": "property_photos_gallery_position_unique_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "gallery_position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"property_management\".\"property_photos\".\"gallery_position\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_photos_tenant_property_registered_idx": {
+          "name": "property_photos_tenant_property_registered_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "registered_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "photo_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "property_photos_property_tenant_fk": {
+          "name": "property_photos_property_tenant_fk",
+          "tableFrom": "property_photos",
+          "tableTo": "properties",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "property_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "property_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "property_photos_tenant_isolation": {
+          "name": "property_photos_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"property_management\".\"property_photos\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"property_management\".\"property_photos\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        },
+        "property_photos_public_catalog_media_select": {
+          "name": "property_photos_public_catalog_media_select",
+          "as": "RESTRICTIVE",
+          "for": "SELECT",
+          "to": [
+            "monpiole_public_catalog_reader"
+          ],
+          "using": "\n      \"property_management\".\"property_photos\".\"status\" = 'AVAILABLE'\n      AND \"property_management\".\"property_photos\".\"content_base64\" IS NOT NULL\n      AND \"property_management\".\"property_photos\".\"content_type\" IS NOT NULL\n      AND \"property_management\".\"property_photos\".\"content_byte_size\" IS NOT NULL\n      AND \"property_management\".\"property_photos\".\"content_sha256\" IS NOT NULL\n      AND \"property_management\".\"property_photos\".\"media_kind\" = 'IMAGE'\n      AND \"property_management\".\"property_photos\".\"gallery_position\" IS NOT NULL\n      AND EXISTS (\n        SELECT 1\n        FROM \"property_management\".\"properties\" AS \"public_catalog_property\"\n        WHERE \"public_catalog_property\".\"tenant_id\" = \"property_management\".\"property_photos\".\"tenant_id\"\n          AND \"public_catalog_property\".\"property_id\" = \"property_management\".\"property_photos\".\"property_id\"\n          AND \"public_catalog_property\".\"status\" = 'PUBLISHED'\n      )\n    "
+        }
+      },
+      "checkConstraints": {
+        "property_photos_category_check": {
+          "name": "property_photos_category_check",
+          "value": "\"property_management\".\"property_photos\".\"category\" IN (\n    'BUILDING_EXTERIOR_OR_ENTRANCE', 'MAIN_LIVING_SLEEPING_AREA', 'LIVING_ROOM_OR_MAIN_ROOM',\n    'KITCHEN_OR_KITCHENETTE', 'BEDROOM_OR_SLEEPING_AREA', 'BATHROOM_OR_SHOWER_ROOM',\n    'EXTERIOR', 'INTERIOR', 'LIVING_ROOM', 'KITCHEN', 'BEDROOM', 'BATHROOM', 'OTHER'\n  )"
+        },
+        "property_photos_status_check": {
+          "name": "property_photos_status_check",
+          "value": "\"property_management\".\"property_photos\".\"status\" IN ('PENDING', 'AVAILABLE')"
+        },
+        "property_photos_media_kind_check": {
+          "name": "property_photos_media_kind_check",
+          "value": "\"property_management\".\"property_photos\".\"media_kind\" = 'IMAGE'"
+        },
+        "property_photos_gallery_position_check": {
+          "name": "property_photos_gallery_position_check",
+          "value": "\n    (\"property_management\".\"property_photos\".\"content_base64\" IS NULL AND \"property_management\".\"property_photos\".\"gallery_position\" IS NULL)\n    OR (\"property_management\".\"property_photos\".\"content_base64\" IS NOT NULL AND \"property_management\".\"property_photos\".\"gallery_position\" IS NOT NULL AND \"property_management\".\"property_photos\".\"gallery_position\" >= 0)\n  "
+        },
+        "property_photos_url_check": {
+          "name": "property_photos_url_check",
+          "value": "\"property_management\".\"property_photos\".\"url\" IS NULL OR (char_length(\"property_management\".\"property_photos\".\"url\") BETWEEN 1 AND 2048 AND \"property_management\".\"property_photos\".\"url\" ~ '^https://')"
+        },
+        "property_photos_content_check": {
+          "name": "property_photos_content_check",
+          "value": "\n    (\"property_management\".\"property_photos\".\"content_base64\" IS NULL AND \"property_management\".\"property_photos\".\"content_type\" IS NULL\n      AND \"property_management\".\"property_photos\".\"content_byte_size\" IS NULL AND \"property_management\".\"property_photos\".\"content_sha256\" IS NULL AND \"property_management\".\"property_photos\".\"url\" IS NOT NULL)\n    OR\n    (\"property_management\".\"property_photos\".\"status\" = 'AVAILABLE' AND \"property_management\".\"property_photos\".\"content_base64\" IS NOT NULL AND char_length(\"property_management\".\"property_photos\".\"content_base64\") > 0\n      AND \"property_management\".\"property_photos\".\"content_type\" IN ('image/jpeg', 'image/png', 'image/webp')\n      AND octet_length(decode(\"property_management\".\"property_photos\".\"content_base64\", 'base64')) = \"property_management\".\"property_photos\".\"content_byte_size\"\n      AND \"property_management\".\"property_photos\".\"content_byte_size\" > 0 AND \"property_management\".\"property_photos\".\"content_sha256\" ~ '^[0-9a-f]{64}$' AND \"property_management\".\"property_photos\".\"available_at\" IS NOT NULL)\n  "
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "property_management.property_primary_photo_audits": {
+      "name": "property_primary_photo_audits",
+      "schema": "property_management",
+      "columns": {
+        "audit_id": {
+          "name": "audit_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "previous_photo_id": {
+          "name": "previous_photo_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "selected_photo_id": {
+          "name": "selected_photo_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "property_status": {
+          "name": "property_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "selected_at": {
+          "name": "selected_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "property_primary_photo_audits_tenant_property_selected_idx": {
+          "name": "property_primary_photo_audits_tenant_property_selected_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "selected_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "audit_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "property_primary_photo_audits_property_tenant_fk": {
+          "name": "property_primary_photo_audits_property_tenant_fk",
+          "tableFrom": "property_primary_photo_audits",
+          "tableTo": "properties",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "property_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "property_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "property_primary_photo_audits_tenant_isolation": {
+          "name": "property_primary_photo_audits_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"property_management\".\"property_primary_photo_audits\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"property_management\".\"property_primary_photo_audits\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "property_primary_photo_audits_status_check": {
+          "name": "property_primary_photo_audits_status_check",
+          "value": "\"property_management\".\"property_primary_photo_audits\".\"property_status\" IN ('DRAFT', 'PUBLISHED', 'WITHDRAWN')"
+        },
+        "property_primary_photo_audits_replacement_check": {
+          "name": "property_primary_photo_audits_replacement_check",
+          "value": "\"property_management\".\"property_primary_photo_audits\".\"previous_photo_id\" IS NULL OR \"property_management\".\"property_primary_photo_audits\".\"previous_photo_id\" <> \"property_management\".\"property_primary_photo_audits\".\"selected_photo_id\""
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "property_management.property_viewing_outcomes": {
+      "name": "property_viewing_outcomes",
+      "schema": "property_management",
+      "columns": {
+        "outcome_id": {
+          "name": "outcome_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "viewing_id": {
+          "name": "viewing_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "property_viewing_outcomes_tenant_outcome_unique": {
+          "name": "property_viewing_outcomes_tenant_outcome_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "outcome_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_viewing_outcomes_tenant_viewing_unique": {
+          "name": "property_viewing_outcomes_tenant_viewing_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "viewing_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "property_viewing_outcomes_viewing_tenant_fk": {
+          "name": "property_viewing_outcomes_viewing_tenant_fk",
+          "tableFrom": "property_viewing_outcomes",
+          "tableTo": "property_viewings",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "property_id",
+            "viewing_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "property_id",
+            "viewing_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "property_viewing_outcomes_tenant_isolation": {
+          "name": "property_viewing_outcomes_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"property_management\".\"property_viewing_outcomes\".\"tenant_id\"=NULLIF(current_setting('app.tenant_id',true),'')::uuid",
+          "withCheck": "\"property_management\".\"property_viewing_outcomes\".\"tenant_id\"=NULLIF(current_setting('app.tenant_id',true),'')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "property_viewing_outcomes_note_check": {
+          "name": "property_viewing_outcomes_note_check",
+          "value": "\"property_management\".\"property_viewing_outcomes\".\"note\" IS NULL OR char_length(btrim(\"property_management\".\"property_viewing_outcomes\".\"note\")) BETWEEN 1 AND 2000"
+        },
+        "property_viewing_outcomes_lifecycle_check": {
+          "name": "property_viewing_outcomes_lifecycle_check",
+          "value": "(\"property_management\".\"property_viewing_outcomes\".\"status\"='FOLLOW_UP_REQUIRED' AND \"property_management\".\"property_viewing_outcomes\".\"decided_at\" IS NULL) OR (\"property_management\".\"property_viewing_outcomes\".\"status\" IN ('PROCEED','DECLINED') AND \"property_management\".\"property_viewing_outcomes\".\"decided_at\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "property_management.property_viewings": {
+      "name": "property_viewings",
+      "schema": "property_management",
+      "columns": {
+        "viewing_id": {
+          "name": "viewing_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "inquiry_id": {
+          "name": "inquiry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "starts_at": {
+          "name": "starts_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ends_at": {
+          "name": "ends_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "time_zone": {
+          "name": "time_zone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cancelled_at": {
+          "name": "cancelled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "property_viewings_tenant_viewing_unique": {
+          "name": "property_viewings_tenant_viewing_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "viewing_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_viewings_tenant_property_viewing_unique": {
+          "name": "property_viewings_tenant_property_viewing_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "viewing_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_viewings_tenant_inquiry_unique": {
+          "name": "property_viewings_tenant_inquiry_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "inquiry_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_viewings_tenant_property_time_idx": {
+          "name": "property_viewings_tenant_property_time_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "starts_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "viewing_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "property_viewings_property_tenant_fk": {
+          "name": "property_viewings_property_tenant_fk",
+          "tableFrom": "property_viewings",
+          "tableTo": "properties",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "property_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "property_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "property_viewings_inquiry_tenant_fk": {
+          "name": "property_viewings_inquiry_tenant_fk",
+          "tableFrom": "property_viewings",
+          "tableTo": "property_inquiries",
+          "schemaTo": "property_management",
+          "columnsFrom": [
+            "tenant_id",
+            "inquiry_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "inquiry_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "property_viewings_tenant_isolation": {
+          "name": "property_viewings_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"property_management\".\"property_viewings\".\"tenant_id\"=NULLIF(current_setting('app.tenant_id',true),'')::uuid",
+          "withCheck": "\"property_management\".\"property_viewings\".\"tenant_id\"=NULLIF(current_setting('app.tenant_id',true),'')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "property_viewings_time_check": {
+          "name": "property_viewings_time_check",
+          "value": "\"property_management\".\"property_viewings\".\"ends_at\">\"property_management\".\"property_viewings\".\"starts_at\" AND \"property_management\".\"property_viewings\".\"ends_at\"<=\"property_management\".\"property_viewings\".\"starts_at\"+interval '4 hours' AND char_length(btrim(\"property_management\".\"property_viewings\".\"time_zone\")) BETWEEN 1 AND 100"
+        },
+        "property_viewings_lifecycle_check": {
+          "name": "property_viewings_lifecycle_check",
+          "value": "(\"property_management\".\"property_viewings\".\"status\"='SCHEDULED' AND \"property_management\".\"property_viewings\".\"completed_at\" IS NULL AND \"property_management\".\"property_viewings\".\"cancelled_at\" IS NULL) OR (\"property_management\".\"property_viewings\".\"status\"='COMPLETED' AND \"property_management\".\"property_viewings\".\"completed_at\" IS NOT NULL AND \"property_management\".\"property_viewings\".\"cancelled_at\" IS NULL) OR (\"property_management\".\"property_viewings\".\"status\"='CANCELLED' AND \"property_management\".\"property_viewings\".\"cancelled_at\" IS NOT NULL AND \"property_management\".\"property_viewings\".\"completed_at\" IS NULL)"
+        }
+      },
+      "isRLSEnabled": true
+    }
+  },
+  "enums": {},
+  "schemas": {
+    "property_management": "property_management"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

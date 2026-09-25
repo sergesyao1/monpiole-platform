@@ -1,0 +1,1 @@
+CREATE INDEX "properties_tenant_created_property_idx" ON "property_management"."properties" USING btree ("tenant_id","created_at" DESC NULLS LAST,"property_id" DESC NULLS LAST);

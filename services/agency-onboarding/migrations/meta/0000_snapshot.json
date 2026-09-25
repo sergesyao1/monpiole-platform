@@ -1,0 +1,474 @@
+{
+  "id": "91be19c1-d7ab-4e91-b4bf-e927add6c3f6",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "agency_onboarding.agency_registration_documents": {
+      "name": "agency_registration_documents",
+      "schema": "agency_onboarding",
+      "columns": {
+        "document_id": {
+          "name": "document_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "registration_id": {
+          "name": "registration_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "document_type": {
+          "name": "document_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "storage_key": {
+          "name": "storage_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "original_filename": {
+          "name": "original_filename",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "size_bytes": {
+          "name": "size_bytes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "checksum_sha256": {
+          "name": "checksum_sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "agency_registration_documents_registration_idx": {
+          "name": "agency_registration_documents_registration_idx",
+          "columns": [
+            {
+              "expression": "registration_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "document_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agency_registration_documents_storage_key_unique": {
+          "name": "agency_registration_documents_storage_key_unique",
+          "columns": [
+            {
+              "expression": "storage_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "agency_registration_documents_registration_fk": {
+          "name": "agency_registration_documents_registration_fk",
+          "tableFrom": "agency_registration_documents",
+          "tableTo": "agency_registrations",
+          "schemaTo": "agency_onboarding",
+          "columnsFrom": [
+            "registration_id"
+          ],
+          "columnsTo": [
+            "registration_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "agency_registration_documents_platform_select": {
+          "name": "agency_registration_documents_platform_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "public"
+          ],
+          "using": "\n        current_setting('app.platform_capability', true)\n          IN (\n            'agency-registration:retrieve',\n            'agency-registration:review',\n            'agency-registration:decide'\n          )\n      "
+        },
+        "agency_registration_documents_public_submit": {
+          "name": "agency_registration_documents_public_submit",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "public"
+          ],
+          "withCheck": "\n        current_setting('app.platform_capability', true)\n          = 'agency-registration:submit'\n      "
+        }
+      },
+      "checkConstraints": {
+        "agency_registration_documents_type_check": {
+          "name": "agency_registration_documents_type_check",
+          "value": "char_length(btrim(\"agency_onboarding\".\"agency_registration_documents\".\"document_type\")) BETWEEN 1 AND 100"
+        },
+        "agency_registration_documents_filename_check": {
+          "name": "agency_registration_documents_filename_check",
+          "value": "char_length(btrim(\"agency_onboarding\".\"agency_registration_documents\".\"original_filename\")) BETWEEN 1 AND 255"
+        },
+        "agency_registration_documents_storage_key_check": {
+          "name": "agency_registration_documents_storage_key_check",
+          "value": "char_length(btrim(\"agency_onboarding\".\"agency_registration_documents\".\"storage_key\")) BETWEEN 1 AND 1000"
+        },
+        "agency_registration_documents_size_check": {
+          "name": "agency_registration_documents_size_check",
+          "value": "\"agency_onboarding\".\"agency_registration_documents\".\"size_bytes\" > 0 AND \"agency_onboarding\".\"agency_registration_documents\".\"size_bytes\" <= 52428800"
+        },
+        "agency_registration_documents_checksum_check": {
+          "name": "agency_registration_documents_checksum_check",
+          "value": "\"agency_onboarding\".\"agency_registration_documents\".\"checksum_sha256\" ~ '^[0-9a-f]{64}$'"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "agency_onboarding.agency_registrations": {
+      "name": "agency_registrations",
+      "schema": "agency_onboarding",
+      "columns": {
+        "registration_id": {
+          "name": "registration_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "agency_legal_name": {
+          "name": "agency_legal_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "agency_trade_name": {
+          "name": "agency_trade_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "registration_number": {
+          "name": "registration_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tax_identifier": {
+          "name": "tax_identifier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "website": {
+          "name": "website",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "city": {
+          "name": "city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "country_code": {
+          "name": "country_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contact_first_name": {
+          "name": "contact_first_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contact_last_name": {
+          "name": "contact_last_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contact_email": {
+          "name": "contact_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contact_phone": {
+          "name": "contact_phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "submitted_at": {
+          "name": "submitted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "review_started_at": {
+          "name": "review_started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reviewed_by_identity_id": {
+          "name": "reviewed_by_identity_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "approved_at": {
+          "name": "approved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rejected_at": {
+          "name": "rejected_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rejection_reason": {
+          "name": "rejection_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "approval_provisioning_started_at": {
+          "name": "approval_provisioning_started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provisioned_tenant_id": {
+          "name": "provisioned_tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "agency_registrations_registration_number_unique": {
+          "name": "agency_registrations_registration_number_unique",
+          "columns": [
+            {
+              "expression": "registration_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agency_registrations_status_submitted_idx": {
+          "name": "agency_registrations_status_submitted_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "submitted_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "registration_id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agency_registrations_provisioned_tenant_unique": {
+          "name": "agency_registrations_provisioned_tenant_unique",
+          "columns": [
+            {
+              "expression": "provisioned_tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"agency_onboarding\".\"agency_registrations\".\"provisioned_tenant_id\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "agency_registrations_platform_select": {
+          "name": "agency_registrations_platform_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "public"
+          ],
+          "using": "\n        current_setting('app.platform_capability', true)\n          IN (\n            'agency-registration:retrieve',\n            'agency-registration:review',\n            'agency-registration:decide'\n          )\n      "
+        },
+        "agency_registrations_platform_update": {
+          "name": "agency_registrations_platform_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "public"
+          ],
+          "using": "\n        current_setting('app.platform_capability', true)\n          IN ('agency-registration:review', 'agency-registration:decide')\n      ",
+          "withCheck": "\n        current_setting('app.platform_capability', true)\n          IN ('agency-registration:review', 'agency-registration:decide')\n      "
+        },
+        "agency_registrations_public_submit": {
+          "name": "agency_registrations_public_submit",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "public"
+          ],
+          "withCheck": "\n        current_setting('app.platform_capability', true)\n          = 'agency-registration:submit'\n        AND \"agency_onboarding\".\"agency_registrations\".\"status\" = 'SUBMITTED'\n      "
+        }
+      },
+      "checkConstraints": {
+        "agency_registrations_status_check": {
+          "name": "agency_registrations_status_check",
+          "value": "\"agency_onboarding\".\"agency_registrations\".\"status\" IN ('SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED')"
+        },
+        "agency_registrations_country_check": {
+          "name": "agency_registrations_country_check",
+          "value": "\"agency_onboarding\".\"agency_registrations\".\"country_code\" ~ '^[A-Z]{2}$'"
+        },
+        "agency_registrations_legal_name_check": {
+          "name": "agency_registrations_legal_name_check",
+          "value": "char_length(btrim(\"agency_onboarding\".\"agency_registrations\".\"agency_legal_name\")) BETWEEN 1 AND 200"
+        },
+        "agency_registrations_registration_number_check": {
+          "name": "agency_registrations_registration_number_check",
+          "value": "char_length(btrim(\"agency_onboarding\".\"agency_registrations\".\"registration_number\")) BETWEEN 1 AND 100"
+        },
+        "agency_registrations_rejection_reason_check": {
+          "name": "agency_registrations_rejection_reason_check",
+          "value": "\"agency_onboarding\".\"agency_registrations\".\"rejection_reason\" IS NULL\n        OR char_length(btrim(\"agency_onboarding\".\"agency_registrations\".\"rejection_reason\")) BETWEEN 1 AND 2000"
+        },
+        "agency_registrations_lifecycle_check": {
+          "name": "agency_registrations_lifecycle_check",
+          "value": "\n        (\n          \"agency_onboarding\".\"agency_registrations\".\"status\" = 'SUBMITTED'\n          AND \"agency_onboarding\".\"agency_registrations\".\"review_started_at\" IS NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"reviewed_by_identity_id\" IS NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"approved_at\" IS NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"rejected_at\" IS NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"rejection_reason\" IS NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"approval_provisioning_started_at\" IS NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"provisioned_tenant_id\" IS NULL\n        )\n        OR\n        (\n          \"agency_onboarding\".\"agency_registrations\".\"status\" = 'UNDER_REVIEW'\n          AND \"agency_onboarding\".\"agency_registrations\".\"review_started_at\" IS NOT NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"reviewed_by_identity_id\" IS NOT NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"approved_at\" IS NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"rejected_at\" IS NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"rejection_reason\" IS NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"provisioned_tenant_id\" IS NULL\n        )\n        OR\n        (\n          \"agency_onboarding\".\"agency_registrations\".\"status\" = 'APPROVED'\n          AND \"agency_onboarding\".\"agency_registrations\".\"review_started_at\" IS NOT NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"reviewed_by_identity_id\" IS NOT NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"approved_at\" IS NOT NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"rejected_at\" IS NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"rejection_reason\" IS NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"approval_provisioning_started_at\" IS NOT NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"provisioned_tenant_id\" IS NOT NULL\n        )\n        OR\n        (\n          \"agency_onboarding\".\"agency_registrations\".\"status\" = 'REJECTED'\n          AND \"agency_onboarding\".\"agency_registrations\".\"review_started_at\" IS NOT NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"reviewed_by_identity_id\" IS NOT NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"approved_at\" IS NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"rejected_at\" IS NOT NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"rejection_reason\" IS NOT NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"approval_provisioning_started_at\" IS NULL\n          AND \"agency_onboarding\".\"agency_registrations\".\"provisioned_tenant_id\" IS NULL\n        )\n      "
+        }
+      },
+      "isRLSEnabled": true
+    }
+  },
+  "enums": {},
+  "schemas": {
+    "agency_onboarding": "agency_onboarding"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

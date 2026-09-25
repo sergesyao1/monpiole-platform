@@ -20,14 +20,41 @@ function nodeProject(
   };
 }
 
+const webProject: TestProjectConfiguration = {
+  test: {
+    name: "web",
+    environment: "jsdom",
+    include: ["apps/web/src/**/*.test.ts", "apps/web/src/**/*.test.tsx"],
+    setupFiles: ["apps/web/src/test/setup.ts"],
+    env: {
+      VITE_OIDC_ISSUER: "https://tests.eu.auth0.com/",
+      VITE_OIDC_CLIENT_ID: "test-public-client",
+      VITE_OIDC_AUDIENCE: "https://api.tests.monpiole.example",
+      VITE_OIDC_REDIRECT_URI: "http://localhost:5173",
+      VITE_OIDC_LOGOUT_RETURN_URI: "http://localhost:5173/connexion",
+    },
+    isolate: true,
+  },
+};
+
 export default defineConfig({
   test: {
     passWithNoTests: false,
     projects: [
-      nodeProject("unit", ["tests/unit/**/*.test.ts"]),
+      nodeProject("unit", [
+        "tests/unit/**/*.test.ts",
+        "apps/api/tests/unit/**/*.test.ts",
+      ]),
       nodeProject("integration", ["tests/integration/**/*.test.ts"]),
-      nodeProject("persistence-integration", ["packages/persistence/tests/**/*.test.ts"], 60_000),
+      nodeProject("persistence-integration", [
+        "packages/persistence/tests/**/*.test.ts",
+        "services/tenant-management/tests/**/*.test.ts",
+        "services/identity/tests/**/*.test.ts",
+        "services/property-management/tests/**/*.test.ts",
+        "services/agency-onboarding/tests/**/*.test.ts",
+      ], 60_000),
       nodeProject("contract", ["tests/contract/**/*.test.ts"]),
+      webProject,
     ],
     coverage: {
       provider: "v8",

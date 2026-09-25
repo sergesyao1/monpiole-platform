@@ -1,0 +1,333 @@
+# services/property-management
+
+## Purpose
+
+Own the Property real-estate bounded context.
+
+## TASK-034 baseline
+
+The service owns the tenant-bound `Property` aggregate and the
+`property_management.properties` PostgreSQL table. Create and retrieve use cases
+derive ownership from authenticated authority, never request payloads. The
+PostgreSQL adapter uses tenant-scoped transactions and forced RLS. Publication,
+search, pricing, object storage, upload, broad media lifecycle, availability,
+and workflow are outside this baseline.
+
+## TASK-035 details and commercial terms
+
+`Property` optionally owns explicit physical details and exactly one commercial
+terms variant compatible with its transaction type. Amounts are non-negative
+safe integers in minor currency units; currency uses an uppercase ISO 4217
+three-letter representation. Long-term rental uses monthly rent, optional
+deposit and charges; short-term rental uses a nightly or weekly rate; sale uses
+a sale price. `UpdatePropertyDetails` executes through one tenant-scoped,
+row-locked PostgreSQL transaction. Existing properties without details remain
+readable.
+
+## TASK-037 property owner management
+
+`PropertyOwner` is a tenant-owned aggregate distinct from `Property`, the
+authenticated authority, and the tenant organization. It supports discriminated
+`INDIVIDUAL` and `LEGAL_ENTITY` identities with optional validated contact
+information. Owner identity type, owner ID, and tenant ID are immutable; contact
+and identity details may be updated through a tenant-scoped, row-locked
+transaction. PostgreSQL forced RLS protects the service-owned
+`property_management.property_owners` table. Ownership assignment, shared
+ownership, building/unit composition, and publication remain outside this slice.
+
+## TASK-038 property ownership assignment
+
+`PropertyOwnership` is an explicit tenant-scoped relation between `Property` and
+`PropertyOwner`, identified naturally by `(tenantId, propertyId, ownerId)`. It
+supports multiple owners per property, one owner across multiple properties,
+and percentage shares from `0.01` through `100.00`; partial totals are valid but
+the total for one property cannot exceed 100. PostgreSQL composite foreign keys,
+a composite primary key, forced RLS, and a transaction-level lock on the target
+Property enforce reference, uniqueness, tenant, and concurrency guarantees.
+Assignment, listing by Property, and removal are supported. Share updates,
+inverse Owner-to-Property listing, history, building/unit composition, and
+publication remain outside this slice.
+
+## Property core information update
+
+`UpdatePropertyCoreInformation` replaces title, optional description and
+location under the dedicated `UPDATE_PROPERTY_CORE_INFORMATION` grant. The
+aggregate reuses creation invariants, while the PostgreSQL repository performs
+the update atomically in the tenant-scoped transaction and preserves type,
+transaction type, status, details, commercial terms and ownerships. A missing
+or cross-tenant Property remains indistinguishable through `PropertyNotFoundError`.
+
+## Property portfolio listing
+
+`ListProperties` exposes a private tenant portfolio through a dedicated query
+port. It requires `LIST_PROPERTIES`, derives the single tenant from the internal
+authority, and never accepts a tenant identifier from the caller. The
+PostgreSQL adapter applies forced RLS, optional status/type filters, bounded
+text discovery and keyset pagination ordered by `createdAt DESC, propertyId
+DESC`. The projection deliberately excludes details, commercial terms and
+ownership relations.
+
+The default page size is 20 and the server maximum is 100. Search covers the
+existing title, description, city, district and address fields using a
+parameterized PostgreSQL `ILIKE`; it is a private bounded convenience search,
+not a public full-text engine.
+
+## Property owner directory
+
+`ListPropertyOwners` exposes a tenant-scoped directory through a dedicated read
+port and PostgreSQL keyset query. It requires `LIST_PROPERTY_OWNERS`, orders by
+`(createdAt DESC, ownerId DESC)`, supports bounded identity search, and returns
+the existing public Owner representation without tenant or persistence fields.
+
+## Property composition
+
+A standalone Property can become `COMPOSITE` when its first Building is created.
+Buildings are structural entities identified by a code unique inside the parent
+Property. Units remain full Properties with structural role `UNIT` and belong to
+exactly one Building through a tenant-scoped relation. The model is deliberately
+non-recursive and exposes no move, detach, deletion, or reverse transition.
+The private workspace summary resolves a Unit's parent Building and parent
+Property through that relation under tenant RLS. Building has no independent
+Property workspace; its units are managed in the composite parent's workspace.
+The Building code is a mutable business identifier used for uniqueness and
+ordering, distinct from the generated Building UUID.
+
+Creation and structural updates use tenant-scoped PostgreSQL transactions and
+parent row locks. Composite foreign keys, unique constraints, and forced RLS
+enforce tenant ownership and attachment invariants. Building and Unit lists use
+deterministic keyset pagination; their cursors are transport-opaque.
+
+The generic Property creation and persistence boundary accepts only
+`STANDALONE` Properties. A Unit can be created only by the composition use case,
+which builds a `PropertyBuildingUnit` domain relation and persists the Unit and
+its parent relation atomically. Loading or modifying a Unit through the generic
+repository rehydrates and validates its unique relation; an orphan or ambiguous
+persisted Unit is reported as corruption, and generic updates cannot mutate a
+structural role. The first Building remains the sole supported transition to
+`COMPOSITE`.
+
+Migration `0006_property_composition.sql` is paired with its Drizzle snapshot.
+The PostgreSQL integration suite exercises the explicit `0005` to `0006`
+upgrade with historical data and verifies the resulting role, constraints,
+indexes, and forced-RLS policies. No trigger is used: supported write and load
+boundaries enforce the cross-table role/relation invariant under the existing
+tenant-scoped locks, while foreign keys and unique constraints provide the SQL
+defence for relation identity and cardinality.
+
+## Property publication lifecycle
+
+`PublishProperty` performs the single supported transition from `DRAFT` to
+`PUBLISHED` under the dedicated `PUBLISH_PROPERTY` grant. A Property is eligible
+when its existing details, compatible commercial terms and exactly one
+content-backed AVAILABLE primary photo are present. The selected photo counts
+in both the applicable minimum and its category. Description, ownership, a
+100% ownership total and composition are not publication prerequisites. Standalone, composite and Unit
+Properties publish independently, with no cascade and no Building publication.
+
+The PostgreSQL repository serializes the transition with its existing
+tenant-scoped row lock. A replay returns the same published aggregate without a
+write or a new clock value. `published_at`, `published_by_actor_id` and
+`publication_correlation_id` preserve the first-publication evidence while the
+generic actor and correlation columns continue to describe the last mutation.
+Existing core, details, ownership and composition mutations remain available
+after publication and preserve its status and date.
+
+TASK-062 extends this lifecycle to `DRAFT -> PUBLISHED -> WITHDRAWN`.
+`WithdrawPropertyFromCatalog` requires `WITHDRAW_PROPERTY_FROM_CATALOG`, locks
+the same tenant-owned row, rejects `DRAFT`, and changes `PUBLISHED` to
+`WITHDRAWN`. A replay is a no-op that preserves the first `withdrawn_at`, actor
+and correlation trace. Publishing a withdrawn Property is rejected by
+`PROPERTY_REPUBLICATION_NOT_SUPPORTED`; republication, archive, deletion,
+publication events and an outbox remain outside this slice. Private core,
+details, ownership, composition, photo and geolocation changes remain possible
+after withdrawal without changing the lifecycle evidence.
+
+Migration `0007_property_publication.sql` preserves historical drafts, expands
+the status constraint, enforces the publication trace tuple and adds the
+tenant/status portfolio index. Before generating it, CG-01 was closed by
+representing all existing Property Management CHECK constraints, RLS enablement
+and tenant policies in `schema.ts` and snapshot `0007`. PostgreSQL `FORCE ROW
+LEVEL SECURITY` remains explicit in the historical SQL migrations because
+Drizzle snapshots do not model it; integration tests verify enabled/forced RLS,
+named policies and constraints for all five tables on empty-to-head and
+`0006 → 0007` paths.
+
+Migration `0013_property_catalog_withdrawal.sql` is append-only. It adds the
+nullable first-withdrawal trace, extends the status and publication-state CHECK
+constraints, and permits `WITHDRAWN` in primary-photo audit rows. Existing
+`DRAFT` and `PUBLISHED` rows need no backfill. The Properties RLS and runtime
+grants remain the enforcement boundary; the public reader receives no access
+to the new columns.
+
+## Property primary photo
+
+Migration `0008_property_management_baseline.sql` adds tenant-owned
+`property_photos` and append-only `property_primary_photo_audits`. A composite
+foreign key binds every photo to its Property and tenant, an AVAILABLE-only
+CHECK bounds this slice, and a partial unique index guarantees at most one
+primary photo per Property. Both tables enable and force RLS with named tenant
+policies. A deletion trigger rejects a primary photo until another photo has
+been selected; a second trigger keeps the audit immutable. Deferred constraint
+triggers also require every PUBLISHED Property to finish its transaction with
+exactly one AVAILABLE primary photo, including for direct SQL writes.
+
+`SelectPropertyPrimaryPhoto` locks the parent Property, verifies the target is
+AVAILABLE under the same tenant and Property, clears the previous marker, sets
+the replacement and appends the actor/correlation/status audit in one
+transaction. Parent locking serializes concurrent selectors; the partial unique
+index is the final database defence. Replacement remains allowed after
+publication and records `PUBLISHED` in the audit.
+
+Migration `0009_property_management_baseline.sql` leaves `0007` and `0008`
+unchanged and adds actual JPEG/PNG/WebP content evidence, `STUDIO | MULTI_ROOM`,
+tenant photo standards and a versioned deferred publication guard. New photos
+are stored with canonical base64 content, decoded byte size and SHA-256; legacy
+URL-only rows remain readable as historical data but are excluded from
+readiness and private galleries. The private content endpoint returns the
+persisted bytes. There is no functional maximum photo count.
+
+The MonPiole baseline is one photo except for `APARTMENT + LONG_TERM_RENTAL`,
+which requires six. Studio requires building exterior/entrance, a combined
+living/sleeping main area, kitchen/kitchenette and bathroom/shower room.
+Multi-room requires exterior/entrance, living/main room, kitchen,
+bedroom/sleeping area and bathroom/shower room. Count and required-category
+checks are independent. Tenant standards may only increase the minimum and add
+required categories; resolution uses `max` plus category union. The repository
+reloads that standard with the photos inside the locked publication
+transaction. Image transformation, CDN lifecycle and public catalogue
+projection remain separate capabilities.
+
+## Catalogue public tenant-scoped
+
+TASK-058 ajoute une frontière de lecture publique dédiée sans réutiliser le
+portfolio privé ni sa représentation. `ListPublicProperties`,
+`RetrievePublicProperty` et `RetrievePublicPrimaryPhoto` reçoivent explicitement
+le tenant déjà résolu à la frontière HTTP. Leur adapter PostgreSQL applique
+encore les prédicats `tenant_id` et `PUBLISHED` dans une transaction portant
+`SET LOCAL app.tenant_id`.
+
+Après TASK-062, la visibilité reste définie positivement par
+`status = 'PUBLISHED'`. Une Property `WITHDRAWN` demeure dans le portfolio privé
+mais disparaît des listes publiques et produit la même absence 404 sur le détail
+et la photo principale. Cette garantie est immédiate à l’origine après commit ;
+les réponses JSON et photo déjà cachées peuvent subsister pendant leurs TTL
+respectifs de 60 et 300 secondes.
+
+La migration append-only `0011_public_property_catalog_read_boundary.sql`
+ajoute l’index keyset partiel, deux policies RLS restrictives et uniquement des
+grants `SELECT` par colonne au rôle pré-provisionné
+`monpiole_public_catalog_reader`. Ce rôle est distinct de `monpiole_runtime`,
+sans écriture ni `BYPASSRLS`, et ne peut lire ni adresse exacte, owners,
+ownerships, composition, standards ou audits. Les publications historiques
+sans photo content-backed restent visibles avec une photo principale nulle.
+
+Le login et son credential sont provisionnés par Operations avant la migration,
+jamais créés ou stockés dans le dépôt. La diffusion globale cross-tenant,
+l’écriture publique, la recherche libre, les Buildings et le graphe de
+composition restent interdits.
+
+## Géolocalisation structurée des biens — TASK-060
+
+`PropertyGeolocation` est un concept distinct de l'adresse textuelle. Il porte
+une latitude WGS84 `[-90, 90]`, une longitude `[-180, 180]` et une décision de
+visibilité publique `EXACT | APPROXIMATE | HIDDEN`. La représentation canonique
+accepte au plus six décimales ; PostgreSQL utilise `numeric(8,6)` et
+`numeric(9,6)`. La projection approximative du domaine arrondit de façon stable
+à `0.01°` (ordre de grandeur d'un kilomètre), sans aléa ni fournisseur externe.
+Cette projection n'est pas encore branchée au catalogue public.
+
+Une `STANDALONE` ou `COMPOSITE` possède au plus une géolocalisation propre. Une
+`UNIT` n'en stocke jamais : sa lecture effective hérite de la Property
+`COMPOSITE` parente et ses tentatives de mise à jour ou suppression échouent par
+`PROPERTY_UNIT_GEOLOCATION_INHERITED`. `Building` reste une entité structurelle
+sans coordonnées propres. La géolocalisation est facultative et ne modifie ni
+les prérequis ni la transition de publication.
+
+La table dédiée `property_geolocations` sépare les données privées du catalogue,
+porte une clé primaire/FK `(tenant_id, property_id)`, des contraintes de bornes,
+une RLS activée et forcée, et les traces de dernière mutation. Le runtime reçoit
+les seuls droits CRUD ; `monpiole_public_catalog_reader` n'a aucun privilège sur
+cette table. Géocodage, reverse geocoding, carte, PostGIS et recherches spatiales
+restent des capacités séparées.
+
+## Disponibilité et occupation — TASK-064
+
+La disponibilité commerciale (`AVAILABLE | UNAVAILABLE`) et l’occupation
+(`VACANT | OCCUPIED`) forment une paire indépendante du cycle de publication
+`DRAFT | PUBLISHED | WITHDRAWN` et du type de transaction. Les quatre
+combinaisons sont valides. Une absence de snapshot signifie « non configuré » ;
+elle n’est jamais déduite du statut de publication et aucun backfill n’est
+effectué.
+
+Une Property `STANDALONE` ou `UNIT` porte au plus un snapshot direct avec son
+instant de mise à jour. Une Property `COMPOSITE` ne porte aucun snapshot direct :
+sa lecture agrège en une requête toutes ses Units et retourne les compteurs total,
+configuré, disponible, indisponible, libre, occupé et non configuré. Le résumé
+est `AVAILABLE` dès qu’une Unit est disponible, `UNAVAILABLE` lorsque toutes les
+Units sont configurées et qu’aucune n’est disponible, et `NOT_CONFIGURED` dans
+les autres cas. Il n’existe pas de statut d’occupation unique du parent.
+
+`UpdatePropertyAvailability` réutilise le verrou de ligne tenant-scoped du
+repository Property. Deux remplacements concurrents sont sérialisés et la
+dernière écriture validée gagne sans produire de paire hybride. Le replay de la
+même paire est un no-op : il ne lit pas l’horloge et conserve l’instant, l’acteur
+et la corrélation initiaux du snapshot courant. La création du premier Building
+efface atomiquement tout snapshot direct du parent avant de le rendre
+`COMPOSITE`.
+
+La migration append-only `0014_property_availability_occupancy.sql` ajoute les
+cinq colonnes nullables du snapshot et de sa trace dans `properties`. Une CHECK
+nommée impose le tuple entièrement nul ou entièrement renseigné, borne les deux
+enums et interdit tout tuple sur `COMPOSITE`. La RLS, les index et les policies
+existants sont réutilisés. Le lecteur du catalogue public ne reçoit aucun droit
+sur ces colonnes ; la visibilité publique reste exactement `status =
+'PUBLISHED'`, même si le bien est occupé ou indisponible.
+
+## Tarification avancée des biens — TASK-066
+
+La tarification est indépendante des caractéristiques physiques. Une écriture
+de caractéristiques peut donc conserver une tarification existante, tandis que
+`SetPropertyPricing` remplace atomiquement la variante financière complète avec
+le grant dédié `UPDATE_PROPERTY_PRICING`. Le replay d'une valeur strictement
+identique est un no-op et conserve l'instant et la trace de la première écriture.
+
+Les nouvelles écritures utilisent exclusivement `XOF`, imposent un prix
+principal entier strictement positif et bornent les montants facultatifs à des
+entiers positifs ou nuls compatibles JavaScript. La location longue durée ajoute
+les frais d'agence ; la courte durée ajoute frais de ménage, dépôt de garantie
+et durée minimale ; la vente ajoute les frais d'agence. Une nouvelle publication
+réapplique les mêmes règles strictes, y compris lorsqu'elle part d'une ligne
+historique.
+
+La migration append-only `0015_property_advanced_pricing.sql` ajoute ces champs
+et une `pricing_version` interne. Le `DEFAULT 1` temporaire marque sans DML toutes
+les lignes antérieures comme legacy, puis le défaut est retiré. Cette stratégie
+évite les événements de triggers différés qui rendraient un `ALTER TABLE`
+ultérieur impossible dans la transaction Drizzle. Les lignes historiques v1
+restent lisibles avec une devise ISO différente de XOF ou un prix principal nul ;
+un trigger passe toute nouvelle tarification, modification financière ou
+nouvelle publication en v2, où la CHECK PostgreSQL applique les règles strictes.
+Une ligne publiée historiquement reste lisible et retirable sans réécriture
+forcée de son prix.
+
+La RLS tenant activée et forcée ainsi que les policies existantes restent en
+place. `monpiole_runtime` reçoit `SELECT`, `INSERT` et `UPDATE` uniquement sur les
+nouvelles colonnes. Le lecteur public reçoit seulement `SELECT` sur les trois
+champs avancés utiles au catalogue, jamais sur `pricing_version` et jamais de
+droit d'écriture. Les endpoints publics existants exposent les nouvelles
+conditions financières sans adresse exacte, autorité, trace ni version interne.
+# Property viewings
+
+Une visite privée est planifiée depuis une demande `ACKNOWLEDGED`. Le bien et le tenant sont dérivés côté serveur. Une seule visite logique est admise par demande; sa planification, sa replanification, son achèvement et son annulation sont protégés par transaction, verrouillage et RLS PostgreSQL.
+
+## Property viewing outcomes
+
+Une visite `COMPLETED` peut recevoir un unique résultat commercial privé, initialement `FOLLOW_UP_REQUIRED`, puis terminalement `PROCEED` ou `DECLINED`. La création reverrouille la visite et les décisions verrouillent le résultat. Aucun client, contrat, offre ou réservation n’est créé implicitement.
+
+## Hiérarchie immobilière canonique
+
+Une `Property` peut être indépendante, un `BUILDING`, un `COMPLEX`, une unité d'immeuble ou un enfant direct de résidence. `property_buildings.building_property_id` relie l'immeuble structurel à sa Property canonique ; les anciennes lignes non liées conservent leur sens historique. `property_complex_children` rattache directement Villas, Appartements et autres biens individuels à une résidence sans faux immeuble. Chaque enfant conserve ses propres tarifs, propriétaires et contrats ; aucun héritage implicite n'est appliqué.
+
+Le mode d'un nouvel immeuble est fixé à la création : `WHOLE_BUILDING` rend l'immeuble publiable, tarifable, disponible directement et éligible au bail longue durée lorsque les autres prérequis sont satisfaits. Ses unités ne peuvent être ni tarifées/publiées individuellement ni recevoir de bail individuel. `INDIVIDUAL_UNITS` rend l'immeuble non publiable et non tarifable, avec disponibilité dérivée ; ses unités éligibles sont les cibles commerciales. Une résidence `COMPLEX` reste un conteneur non publiable et non tarifable en V1. Les contrôles de publication, prix et bail sont côté serveur.
+
+Les migrations additives `0025` et `0026` préservent les identifiants et données antérieurs. La nouvelle relation utilise des FK tenant-scoped, une unicité du code par résidence, des transactions verrouillant le parent, la RLS forcée et des grants explicites. Le rattachement ultérieur d'un bien indépendant existant et le changement de mode d'un immeuble ne sont pas proposés en V1.

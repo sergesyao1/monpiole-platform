@@ -1,0 +1,209 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1787700717790,
+      "tag": "0000_property_management_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787702885417,
+      "tag": "0001_property_management_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787732488152,
+      "tag": "0002_property_management_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787734844714,
+      "tag": "0003_property_management_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787855739359,
+      "tag": "0004_property_management_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787914731143,
+      "tag": "0005_property_management_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787920000000,
+      "tag": "0006_property_composition",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788034953040,
+      "tag": "0007_property_publication",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788089893766,
+      "tag": "0008_property_management_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788098738773,
+      "tag": "0009_property_management_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788165439167,
+      "tag": "0010_runtime_photo_permissions_recovery",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788187260766,
+      "tag": "0011_public_property_catalog_read_boundary",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788204632162,
+      "tag": "0012_property_geolocation",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1788252356097,
+      "tag": "0013_property_catalog_withdrawal",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1788258560162,
+      "tag": "0014_property_availability_occupancy",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1788271728252,
+      "tag": "0015_property_advanced_pricing",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1788850914492,
+      "tag": "0016_property_media_gallery",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1788881735208,
+      "tag": "0017_property_client_contracts",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1788958854991,
+      "tag": "0018_property_amenities",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788961121046,
+      "tag": "0019_property_management_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1788979340149,
+      "tag": "0020_property_management_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1789041438297,
+      "tag": "0021_property_management_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1789049291802,
+      "tag": "0022_property_management_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1789056306749,
+      "tag": "0023_property_management_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1789060837792,
+      "tag": "0024_property_management_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1789220805224,
+      "tag": "0025_property_management_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1789222489724,
+      "tag": "0026_property_management_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1789298297132,
+      "tag": "0027_property_management_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1789301186588,
+      "tag": "0028_property_management_baseline",
+      "breakpoints": true
+    }
+  ]
+}
