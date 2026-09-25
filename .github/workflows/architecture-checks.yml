@@ -76,6 +76,14 @@ jobs:
       - *locate_store
       - *cache_store
       - *install
+      - name: Build architecture export targets
+        run: |
+          corepack pnpm --filter @monpiole/agency-onboarding build
+          corepack pnpm --filter @monpiole/events build
+          corepack pnpm --filter @monpiole/identity build
+          corepack pnpm --filter @monpiole/persistence build
+          corepack pnpm --filter @monpiole/property-management build
+          corepack pnpm --filter @monpiole/tenant-management build
       - name: Validate architecture
         run: corepack pnpm architecture:check
 
@@ -92,6 +100,8 @@ jobs:
       - *locate_store
       - *cache_store
       - *install
+      - name: Build test workspace dependencies
+        run: corepack pnpm app:api:build
       - name: Run unit tests
         run: corepack pnpm test:unit
 
@@ -108,6 +118,8 @@ jobs:
       - *locate_store
       - *cache_store
       - *install
+      - name: Build test workspace dependencies
+        run: corepack pnpm app:api:build
       - name: Run non-PostgreSQL integration tests
         run: corepack pnpm test:integration
       - name: Run API and event contract tests
