@@ -8,9 +8,23 @@ export const agencyRegistrationStatuses = [
 export type AgencyRegistrationStatus =
   (typeof agencyRegistrationStatuses)[number];
 
+export const registrationOrganizationTypes = [
+  "REAL_ESTATE_AGENCY",
+  "PROPERTY_MANAGEMENT_COMPANY",
+  "SCI",
+  "DEVELOPER",
+  "SYNDIC",
+  "PROFESSIONAL_LANDLORD",
+  "OTHER",
+] as const;
+
+export type RegistrationOrganizationType =
+  (typeof registrationOrganizationTypes)[number];
+
 export interface AgencyRegistration {
   readonly id: string;
   readonly status: AgencyRegistrationStatus;
+  readonly organizationType?: RegistrationOrganizationType;
 
   readonly agencyLegalName: string;
   readonly agencyTradeName?: string;

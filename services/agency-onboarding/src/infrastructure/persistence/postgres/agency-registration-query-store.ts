@@ -16,6 +16,7 @@ const MAX_AGENCY_REGISTRATION_DOCUMENT_SIZE_BYTES =
 const SELECT_COLUMNS = `
   registration_id,
   status,
+  organization_type,
   agency_legal_name,
   agency_trade_name,
   registration_number,

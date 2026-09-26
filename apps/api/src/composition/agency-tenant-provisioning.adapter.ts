@@ -85,7 +85,9 @@ export class AgencyTenantProvisioningAdapter
         },
 
         organization: {
-          type: "REAL_ESTATE_AGENCY",
+          type:
+            registration.organizationType ??
+            "REAL_ESTATE_AGENCY",
           legalName: registration.agencyLegalName,
           ...(registration.agencyTradeName === undefined
             ? {}

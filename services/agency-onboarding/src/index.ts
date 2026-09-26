@@ -7,6 +7,8 @@ export {
   startAgencyRegistrationReview,
   type AgencyRegistration,
   type AgencyRegistrationStatus,
+  registrationOrganizationTypes,
+  type RegistrationOrganizationType,
 } from "./domain/agency-registration.js";
 
 export {
@@ -65,8 +67,11 @@ export {
 } from "./infrastructure/persistence/postgres/agency-registration-review-store.js";
 export {
   agencyRegistrationTenantIdempotencyKey,
+  organizationRegistrationTenantIdempotencyKey,
   type AgencyTenantProvisioningPort,
   type AgencyTenantProvisioningResult,
+  type OrganizationTenantProvisioningPort,
+  type OrganizationTenantProvisioningResult,
 } from "./application/agency-tenant-provisioning.js";
 
 export {

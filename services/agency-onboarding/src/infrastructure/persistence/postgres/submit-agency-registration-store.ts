@@ -148,6 +148,8 @@ export class PostgresSubmitAgencyRegistrationStore
           await database.insert(agencyRegistrations).values({
             registrationId: registration.id,
             status: registration.status,
+            organizationType:
+              registration.organizationType ?? "REAL_ESTATE_AGENCY",
 
             agencyLegalName: registration.agencyLegalName,
             agencyTradeName: registration.agencyTradeName ?? null,

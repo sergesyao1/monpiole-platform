@@ -14,8 +14,20 @@ export interface AgencyTenantProvisioningPort {
   }>): Promise<AgencyTenantProvisioningResult>;
 }
 
+export type OrganizationTenantProvisioningResult =
+  AgencyTenantProvisioningResult;
+
+export type OrganizationTenantProvisioningPort =
+  AgencyTenantProvisioningPort;
+
 export function agencyRegistrationTenantIdempotencyKey(
   registrationId: string,
 ): string {
   return `agency-registration:${registrationId}`;
+}
+
+export function organizationRegistrationTenantIdempotencyKey(
+  registrationId: string,
+): string {
+  return agencyRegistrationTenantIdempotencyKey(registrationId);
 }

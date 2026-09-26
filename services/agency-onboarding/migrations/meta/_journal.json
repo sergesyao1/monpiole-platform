@@ -50,6 +50,13 @@
                         "when":  1789664313890,
                         "tag":  "0006_first_administrator_invited_email",
                         "breakpoints":  true
+                    },
+                    {
+                        "idx":  7,
+                        "version":  "7",
+                        "when":  1790413200000,
+                        "tag":  "0007_registration_organization_type",
+                        "breakpoints":  true
                     }
                 ]
 }
