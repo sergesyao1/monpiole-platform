@@ -32,6 +32,10 @@ export interface CreateOrganizationValues {
   readonly address: string;
   readonly city: string;
   readonly countryCode: string;
+  readonly defaultLanguageCode: string;
+  readonly defaultLocale: string;
+  readonly defaultCurrencyCode: string;
+  readonly defaultTimezone: string;
 
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -81,6 +85,26 @@ export class Organization {
     if (!COUNTRY_CODE.test(values.countryCode)) {
       throw new InvalidOrganizationInputError("countryCode");
     }
+    if (!/^[a-z]{2,3}$/u.test(values.defaultLanguageCode)) {
+      throw new InvalidOrganizationInputError("defaultLanguageCode");
+    }
+    if (!/^[A-Z]{3}$/u.test(values.defaultCurrencyCode)) {
+      throw new InvalidOrganizationInputError("defaultCurrencyCode");
+    }
+    try {
+      if (Intl.getCanonicalLocales(values.defaultLocale)[0] !== values.defaultLocale) {
+        throw new Error("Non-canonical locale");
+      }
+    } catch {
+      throw new InvalidOrganizationInputError("defaultLocale");
+    }
+    try {
+      new Intl.DateTimeFormat("en", {
+        timeZone: values.defaultTimezone,
+      }).format();
+    } catch {
+      throw new InvalidOrganizationInputError("defaultTimezone");
+    }
 
     if (!validTimestamp(values.createdAt)) {
       throw new InvalidOrganizationInputError("createdAt");
@@ -116,6 +140,10 @@ export class Organization {
         address,
         city,
         countryCode: values.countryCode,
+        defaultLanguageCode: values.defaultLanguageCode,
+        defaultLocale: values.defaultLocale,
+        defaultCurrencyCode: values.defaultCurrencyCode,
+        defaultTimezone: values.defaultTimezone,
 
         createdAt: values.createdAt,
         updatedAt: values.updatedAt,

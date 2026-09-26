@@ -66,6 +66,7 @@ import {
   PostgresActivateTenantUnitOfWork,
   PostgresCreateTenantUnitOfWork,
   ProvisionOrganizationTenant,
+  ResolveOrganizationInternationalDefaults,
   PostgresProvisionOrganizationTenantUnitOfWork,
   PostgresTenantExistenceRepository,
 } from "@monpiole/tenant-management";
@@ -131,6 +132,7 @@ export function createPostgresApiRuntime(
   const tenantExists = new CheckTenantExists(new PostgresTenantExistenceRepository(pool));
   const authorityPolicy = new OnboardingAuthorityPolicy();
   const compositionClock = { now: () => new Date().toISOString() };
+  const referenceQuery = new PostgresPlatformReferenceQuery(pool);
   const createTenant = new CreateTenant(
     authorityPolicy,
     new PostgresCreateTenantUnitOfWork(pool),
@@ -161,7 +163,10 @@ export function createPostgresApiRuntime(
   const agencyReviewUnitOfWork =
     new PostgresAgencyRegistrationReviewUnitOfWork(pool);
   const agencyTenantProvisioning =
-    new AgencyTenantProvisioningAdapter(provisionOrganizationTenant);
+    new AgencyTenantProvisioningAdapter(
+      provisionOrganizationTenant,
+      new ResolveOrganizationInternationalDefaults(referenceQuery),
+    );
 
   const bootstrapTenantAdministrator =
     new BootstrapTenantAdministrator(
@@ -259,7 +264,7 @@ export function createPostgresApiRuntime(
     : new PostgresPublicPropertyCatalogQuery(publicCatalogDatabase.infrastructurePool());
 
   const composition: ApiComposition = {
-    platformReferenceQuery: new PostgresPlatformReferenceQuery(pool),
+    platformReferenceQuery: referenceQuery,
     authenticatedAuthorityProvider,
     verifiedAuthenticationContextProvider,
 

@@ -36,6 +36,13 @@
       "when": 1790416118877,
       "tag": "0004_organization_tenant_provisioning_idempotency",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790421000000,
+      "tag": "0005_organization_international_configuration",
+      "breakpoints": true
     }
   ]
 }

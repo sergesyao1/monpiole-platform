@@ -274,6 +274,14 @@ describe(
         const realProvisioning =
           new AgencyTenantProvisioningAdapter(
             provisionOrganizationTenant,
+            {
+              execute: async () => ({
+                defaultLanguageCode: "fr",
+                defaultLocale: "fr-CI",
+                defaultCurrencyCode: "XOF",
+                defaultTimezone: "Africa/Abidjan",
+              }),
+            },
           );
 
         let simulateCrash = true;

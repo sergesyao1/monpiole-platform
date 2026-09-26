@@ -154,6 +154,10 @@ function command(
       address: "Cocody",
       city: "Abidjan",
       countryCode: "CI",
+      defaultLanguageCode: "fr",
+      defaultLocale: "fr-CI",
+      defaultCurrencyCode: "XOF",
+      defaultTimezone: "Africa/Abidjan",
     },
   };
 }
@@ -251,11 +255,19 @@ describe(
             tenant_id: string;
             organization_type: string;
             legal_name: string;
+            default_language_code: string;
+            default_locale: string;
+            default_currency_code: string;
+            default_timezone: string;
           }>(
             `SELECT
                tenant_id,
                organization_type,
-               legal_name
+               legal_name,
+               default_language_code,
+               default_locale,
+               default_currency_code,
+               default_timezone
              FROM tenant_management.organizations
              WHERE id = $1`,
             [result.organizationId],
@@ -266,6 +278,10 @@ describe(
           organization_type:
             "PROPERTY_MANAGEMENT_COMPANY",
           legal_name: input.organization.legalName,
+          default_language_code: "fr",
+          default_locale: "fr-CI",
+          default_currency_code: "XOF",
+          default_timezone: "Africa/Abidjan",
         });
 
         const outbox =

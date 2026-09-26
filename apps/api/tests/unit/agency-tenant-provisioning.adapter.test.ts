@@ -26,6 +26,15 @@ function registration(organizationType?: "REAL_ESTATE_AGENCY" | "SCI") {
 }
 
 describe("AgencyTenantProvisioningAdapter organization compatibility", () => {
+  const internationalDefaults = {
+    execute: vi.fn().mockResolvedValue({
+      defaultLanguageCode: "fr",
+      defaultLocale: "fr-CI",
+      defaultCurrencyCode: "XOF",
+      defaultTimezone: "Africa/Abidjan",
+    }),
+  };
+
   it.each([
     [undefined, "REAL_ESTATE_AGENCY"],
     ["SCI" as const, "SCI"],
@@ -37,14 +46,23 @@ describe("AgencyTenantProvisioningAdapter organization compatibility", () => {
       replayed: false,
     });
 
-    await new AgencyTenantProvisioningAdapter({ execute }).provision({
+    await new AgencyTenantProvisioningAdapter(
+      { execute },
+      internationalDefaults,
+    ).provision({
       registration: registration(organizationType),
       idempotencyKey: "agency-registration:test",
     });
 
     expect(execute).toHaveBeenCalledOnce();
     expect(execute.mock.calls[0]?.[0]).toMatchObject({
-      organization: { type: expected },
+      organization: {
+        type: expected,
+        defaultLanguageCode: "fr",
+        defaultLocale: "fr-CI",
+        defaultCurrencyCode: "XOF",
+        defaultTimezone: "Africa/Abidjan",
+      },
     });
   });
 });

@@ -89,6 +89,10 @@ export const organizations = tenantManagement.table("organizations", {
   address: text("address").notNull(),
   city: text("city").notNull(),
   countryCode: text("country_code").notNull(),
+  defaultLanguageCode: text("default_language_code"),
+  defaultLocale: text("default_locale"),
+  defaultCurrencyCode: text("default_currency_code"),
+  defaultTimezone: text("default_timezone"),
 
   createdAt: timestamp("created_at", {
     withTimezone: true,

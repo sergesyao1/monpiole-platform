@@ -32,6 +32,10 @@ const organizationIntent = {
   address: "Cocody",
   city: "Abidjan",
   countryCode: "CI",
+  defaultLanguageCode: "fr",
+  defaultLocale: "fr-CI",
+  defaultCurrencyCode: "XOF",
+  defaultTimezone: "Africa/Abidjan",
 };
 
 const command = {

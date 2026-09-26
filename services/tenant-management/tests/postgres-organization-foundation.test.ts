@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -176,6 +177,10 @@ function organizationValues(
     address: "Cocody",
     city: "Abidjan",
     countryCode: "CI",
+    defaultLanguageCode: "fr",
+    defaultLocale: "fr-CI",
+    defaultCurrencyCode: "XOF",
+    defaultTimezone: "Africa/Abidjan",
     createdAt: "2026-09-25T12:00:00.000Z",
     updatedAt: "2026-09-25T12:00:00.000Z",
     ...overrides,
@@ -202,13 +207,18 @@ async function insertOrganization(
         address,
         city,
         country_code,
+        default_language_code,
+        default_locale,
+        default_currency_code,
+        default_timezone,
         created_at,
         updated_at
       )
       VALUES (
         $1, $2, $3, $4, $5,
         $6, $7, $8, $9, $10,
-        $11, $12, $13, $14, $15
+        $11, $12, $13, $14, $15,
+        $16, $17, $18, $19
       )
     `,
     [
@@ -225,6 +235,10 @@ async function insertOrganization(
       values.address,
       values.city,
       values.countryCode,
+      values.defaultLanguageCode,
+      values.defaultLocale,
+      values.defaultCurrencyCode,
+      values.defaultTimezone,
       values.createdAt,
       values.updatedAt,
     ],
@@ -261,6 +275,81 @@ async function insertOrganizationAsProvisioner(
 }
 
 describe("Organization PostgreSQL foundation", () => {
+  it("backfills only legacy CI organizations", async () => {
+    const client = await ownerPool.connect();
+    const migration = await readFile(
+      new URL(
+        "../migrations/0005_organization_international_configuration.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+
+    try {
+      await client.query("BEGIN");
+      await client.query(`
+        ALTER TABLE tenant_management.organizations
+          DROP CONSTRAINT organizations_international_all_or_none_check,
+          DROP CONSTRAINT organizations_default_language_code_check,
+          DROP CONSTRAINT organizations_default_currency_code_check,
+          DROP COLUMN default_language_code,
+          DROP COLUMN default_locale,
+          DROP COLUMN default_currency_code,
+          DROP COLUMN default_timezone
+      `);
+
+      for (const countryCode of ["CI", "GH"]) {
+        const tenantId = await createTenant();
+        const values = organizationValues(tenantId, { countryCode });
+        await client.query(
+          `INSERT INTO tenant_management.organizations (
+             id, tenant_id, organization_type, legal_name, trade_name,
+             registration_number, tax_identifier, phone, email, website,
+             address, city, country_code, created_at, updated_at
+           ) VALUES (
+             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+             $11, $12, $13, $14, $15
+           )`,
+          [
+            values.id, values.tenantId, values.organizationType,
+            values.legalName, values.tradeName, values.registrationNumber,
+            values.taxIdentifier, values.phone, values.email, values.website,
+            values.address, values.city, values.countryCode,
+            values.createdAt, values.updatedAt,
+          ],
+        );
+      }
+
+      await client.query(migration);
+      const result = await client.query(`
+        SELECT country_code, default_language_code, default_locale,
+               default_currency_code, default_timezone
+        FROM tenant_management.organizations
+        ORDER BY country_code
+      `);
+
+      expect(result.rows).toEqual([
+        {
+          country_code: "CI",
+          default_language_code: "fr",
+          default_locale: "fr-CI",
+          default_currency_code: "XOF",
+          default_timezone: "Africa/Abidjan",
+        },
+        {
+          country_code: "GH",
+          default_language_code: null,
+          default_locale: null,
+          default_currency_code: null,
+          default_timezone: null,
+        },
+      ]);
+    } finally {
+      await client.query("ROLLBACK");
+      client.release();
+    }
+  });
+
   it("allows an authorized organization insert for an existing tenant", async () => {
     const tenantId = await createTenant();
     const values = organizationValues(tenantId);
@@ -276,7 +365,11 @@ describe("Organization PostgreSQL foundation", () => {
           tenant_id,
           organization_type,
           legal_name,
-          country_code
+          country_code,
+          default_language_code,
+          default_locale,
+          default_currency_code,
+          default_timezone
         FROM tenant_management.organizations
       `,
     );
@@ -288,6 +381,10 @@ describe("Organization PostgreSQL foundation", () => {
         organization_type: "REAL_ESTATE_AGENCY",
         legal_name: "Example Immobilier CI",
         country_code: "CI",
+        default_language_code: "fr",
+        default_locale: "fr-CI",
+        default_currency_code: "XOF",
+        default_timezone: "Africa/Abidjan",
       },
     ]);
   });

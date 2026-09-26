@@ -203,6 +203,10 @@ implements ProvisionOrganizationTenantTransaction {
       address: organization.values.address,
       city: organization.values.city,
       countryCode: organization.values.countryCode,
+      defaultLanguageCode: organization.values.defaultLanguageCode,
+      defaultLocale: organization.values.defaultLocale,
+      defaultCurrencyCode: organization.values.defaultCurrencyCode,
+      defaultTimezone: organization.values.defaultTimezone,
       createdAt: organization.values.createdAt,
       updatedAt: organization.values.updatedAt,
     });

@@ -27,6 +27,10 @@ export interface OrganizationProvisioningIntent {
   readonly address: string;
   readonly city: string;
   readonly countryCode: string;
+  readonly defaultLanguageCode: string;
+  readonly defaultLocale: string;
+  readonly defaultCurrencyCode: string;
+  readonly defaultTimezone: string;
 }
 
 export interface ProvisionOrganizationTenantCommand {
@@ -165,6 +169,10 @@ export function normalizeOrganizationProvisioningIntent(
     address: intent.address.trim(),
     city: intent.city.trim(),
     countryCode: intent.countryCode.trim().toUpperCase(),
+    defaultLanguageCode: intent.defaultLanguageCode.trim().toLowerCase(),
+    defaultLocale: intent.defaultLocale.trim(),
+    defaultCurrencyCode: intent.defaultCurrencyCode.trim().toUpperCase(),
+    defaultTimezone: intent.defaultTimezone.trim(),
   });
 }
 
@@ -189,6 +197,10 @@ export function deterministicOrganizationTenantProvisioningIntent(
     organization.address,
     organization.city,
     organization.countryCode,
+    organization.defaultLanguageCode,
+    organization.defaultLocale,
+    organization.defaultCurrencyCode,
+    organization.defaultTimezone,
   ]);
 }
 

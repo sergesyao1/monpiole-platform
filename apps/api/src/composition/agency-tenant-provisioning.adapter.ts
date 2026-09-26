@@ -5,6 +5,7 @@ import type {
 import type {
   PlatformAuthority,
   ProvisionOrganizationTenant,
+  ResolveOrganizationInternationalDefaults,
 } from "@monpiole/tenant-management";
 
 const E164_PHONE = /^\+[1-9][0-9]{1,14}$/;
@@ -51,12 +52,19 @@ export class AgencyTenantProvisioningAdapter
   public constructor(
     private readonly provisionOrganizationTenant:
       Pick<ProvisionOrganizationTenant, "execute">,
+    private readonly internationalDefaults: Pick<
+      ResolveOrganizationInternationalDefaults,
+      "execute"
+    >,
   ) {}
 
   public async provision(
     input: Parameters<AgencyTenantProvisioningPort["provision"]>[0],
   ): Promise<AgencyTenantProvisioningResult> {
     const registration = input.registration;
+    const international = await this.internationalDefaults.execute({
+      countryCode: registration.countryCode,
+    });
 
     const responsiblePersonName = [
       registration.contactFirstName,
@@ -105,6 +113,7 @@ export class AgencyTenantProvisioningAdapter
           address: registration.address,
           city: registration.city,
           countryCode: registration.countryCode,
+          ...international,
         },
       });
 
