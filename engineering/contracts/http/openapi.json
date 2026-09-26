@@ -964,6 +964,100 @@
         "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
         "type": "string"
       },
+      "CountriesDto": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "callingCode": {
+                  "type": "string"
+                },
+                "code": {
+                  "pattern": "^[A-Z]{2}$",
+                  "type": "string"
+                },
+                "defaultCurrencyCode": {
+                  "type": "string"
+                },
+                "defaultLanguageCode": {
+                  "type": "string"
+                },
+                "defaultLocale": {
+                  "type": "string"
+                },
+                "defaultTimezone": {
+                  "type": "string"
+                },
+                "nameKey": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "active",
+                "callingCode",
+                "code",
+                "defaultCurrencyCode",
+                "defaultLanguageCode",
+                "defaultLocale",
+                "defaultTimezone",
+                "nameKey"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "CountryDto": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "callingCode": {
+            "type": "string"
+          },
+          "code": {
+            "pattern": "^[A-Z]{2}$",
+            "type": "string"
+          },
+          "defaultCurrencyCode": {
+            "type": "string"
+          },
+          "defaultLanguageCode": {
+            "type": "string"
+          },
+          "defaultLocale": {
+            "type": "string"
+          },
+          "defaultTimezone": {
+            "type": "string"
+          },
+          "nameKey": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "active",
+          "callingCode",
+          "code",
+          "defaultCurrencyCode",
+          "defaultLanguageCode",
+          "defaultLocale",
+          "defaultTimezone",
+          "nameKey"
+        ],
+        "type": "object"
+      },
       "CreateBuildingDto": {
         "additionalProperties": false,
         "properties": {
@@ -1466,6 +1560,44 @@
         ],
         "type": "object"
       },
+      "CurrenciesDto": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "code": {
+                  "type": "string"
+                },
+                "minorUnit": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                "nameKey": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "active",
+                "code",
+                "minorUnit",
+                "nameKey"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "EndPropertyContractRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1834,6 +1966,42 @@
         },
         "required": [
           "viewing"
+        ],
+        "type": "object"
+      },
+      "LanguagesDto": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "code": {
+                  "type": "string"
+                },
+                "isDefault": {
+                  "type": "boolean"
+                },
+                "nameKey": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "active",
+                "code",
+                "isDefault",
+                "nameKey"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
         ],
         "type": "object"
       },
@@ -18439,6 +18607,118 @@
         "summary": "Retrieve the public primary photo of one published Property",
         "tags": [
           "Public Property catalog"
+        ]
+      }
+    },
+    "/v1/reference/countries": {
+      "get": {
+        "operationId": "listReferenceCountries",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountriesDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [],
+        "summary": "",
+        "tags": [
+          "Platform reference"
+        ]
+      }
+    },
+    "/v1/reference/countries/{countryCode}": {
+      "get": {
+        "operationId": "getReferenceCountry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "countryCode",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Z]{2}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountryDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [],
+        "summary": "",
+        "tags": [
+          "Platform reference"
+        ]
+      }
+    },
+    "/v1/reference/countries/{countryCode}/languages": {
+      "get": {
+        "operationId": "listReferenceCountryLanguages",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "countryCode",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Z]{2}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LanguagesDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [],
+        "summary": "",
+        "tags": [
+          "Platform reference"
+        ]
+      }
+    },
+    "/v1/reference/currencies": {
+      "get": {
+        "operationId": "listReferenceCurrencies",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrenciesDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [],
+        "summary": "",
+        "tags": [
+          "Platform reference"
         ]
       }
     },

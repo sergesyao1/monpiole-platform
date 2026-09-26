@@ -19,6 +19,7 @@
     "@monpiole/agency-onboarding": "workspace:*",
     "@monpiole/identity": "workspace:*",
     "@monpiole/persistence": "workspace:*",
+    "@monpiole/platform-reference": "workspace:*",
     "@monpiole/property-management": "workspace:*",
     "@monpiole/tenant-management": "workspace:*",
     "@nestjs/common": "11.2.2",

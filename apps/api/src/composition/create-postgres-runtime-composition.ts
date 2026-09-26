@@ -8,6 +8,7 @@ import {
   PostgresExternalIdentityStore,
 } from "@monpiole/identity";
 import { PostgresPool, postgresConfigurationFromEnvironment } from "@monpiole/persistence";
+import { PostgresPlatformReferenceQuery } from "@monpiole/platform-reference";
 import {
   ApproveAgencyRegistration,
   CompleteFirstAdministratorIdentity,
@@ -258,6 +259,7 @@ export function createPostgresApiRuntime(
     : new PostgresPublicPropertyCatalogQuery(publicCatalogDatabase.infrastructurePool());
 
   const composition: ApiComposition = {
+    platformReferenceQuery: new PostgresPlatformReferenceQuery(pool),
     authenticatedAuthorityProvider,
     verifiedAuthenticationContextProvider,
 

@@ -54,6 +54,7 @@ import type {
 } from "./operations/finalize-first-administrator-bootstrap.js";
 import type { ActivateTenant, CreateTenant, PlatformAuthorityAuthorizer } from "@monpiole/tenant-management";
 import type { ActivateTenantAdministrator, BootstrapTenantAdministrator } from "@monpiole/identity";
+import type { PlatformReferenceQuery } from "@monpiole/platform-reference";
 import type {
   CreateProperty, CreatePropertyOwner, ListProperties, ListPropertyOwners, RetrieveProperty, RetrievePropertyOwner,
   SetPropertyPricing, UpdatePropertyCoreInformation, UpdatePropertyDetails, UpdatePropertyOwner, AssignPropertyOwner,
@@ -169,6 +170,7 @@ import { PropertyApplicationsController, CREATE_PROPERTY_APPLICATION, RETRIEVE_V
 import { PropertyApplicationClientConversionsController, CONVERT_PROPERTY_APPLICATION_TO_CLIENT, RETRIEVE_PROPERTY_APPLICATION_CLIENT } from "./http/properties/property-application-client-conversions.controller.js";
 import { PropertyApplicationContractsController, CREATE_PROPERTY_CONTRACT_FROM_APPLICATION } from "./http/properties/property-application-contracts.controller.js";
 import { PropertyCommercialJourneysController, LIST_PROPERTY_COMMERCIAL_JOURNEYS } from "./http/properties/property-commercial-journeys.controller.js";
+import { PLATFORM_REFERENCE_QUERY, ReferenceController } from "./http/reference/reference.controller.js";
 
 const BaseStrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
@@ -199,6 +201,7 @@ const unavailableAgencyOperation = {
 };
 
 export interface ApiComposition {
+  readonly platformReferenceQuery?: PlatformReferenceQuery;
   readonly uploadAgencyRegistrationDocument?: Pick<
     UploadAgencyRegistrationDocument,
     "execute"
@@ -412,6 +415,7 @@ export class AppModule {
     return {
       module: AppModule,
       controllers: [
+      ReferenceController,
       AgencyRegistrationsController,
       OrganizationRegistrationsController,
       PlatformAgencyRegistrationsController,
@@ -433,6 +437,7 @@ export class AppModule {
         PropertyClientsController, PropertyContractsController, PropertyWorkspaceController,
       ],
       providers: [
+      { provide: PLATFORM_REFERENCE_QUERY, useValue: composition.platformReferenceQuery ?? { async getCountry(){return undefined},async listActiveCountries(){return[]},async getLanguage(){return undefined},async listLanguagesForCountry(){return[]},async getCurrency(){return undefined},async listActiveCurrencies(){return[]} } },
       {
         provide: UPLOAD_AGENCY_REGISTRATION_DOCUMENT,
         useValue:
