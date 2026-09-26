@@ -77,7 +77,10 @@ class ReissueFirstAdministratorBootstrapResponseDto extends createZodDto(
 ) {}
 
 @ApiTags("Agency registrations")
-@Controller("v1/platform/agency-registrations")
+@Controller([
+  "v1/platform/agency-registrations",
+  "v1/platform/organization-registrations",
+])
 @TenantContext("not-applicable")
 export class PlatformFirstAdministratorController {
   public constructor(

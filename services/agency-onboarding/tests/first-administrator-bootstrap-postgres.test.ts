@@ -51,12 +51,15 @@ function connectionString(
   );
 }
 
-function registration(): AgencyRegistration {
+function registration(
+  organizationType: "REAL_ESTATE_AGENCY" | "SCI" = "REAL_ESTATE_AGENCY",
+): AgencyRegistration {
   const now = "2026-09-18T12:00:00.000Z";
 
   return Object.freeze({
     id: randomUUID(),
     status: "SUBMITTED",
+    organizationType,
     agencyLegalName: "Agence First Admin CI",
     agencyTradeName: "First Admin Immobilier",
     registrationNumber: `CI-ABJ-${randomUUID()}`,
@@ -149,7 +152,7 @@ describe(
     it(
       "persists and replays one first administrator bootstrap under administrator capability",
       async () => {
-        const value = registration();
+        const value = registration("SCI");
 
         await new PostgresSubmitAgencyRegistrationStore(
           runtimePool,
@@ -212,6 +215,7 @@ describe(
         expect(prepared.registration).toMatchObject({
           id: value.id,
           status: "APPROVED",
+          organizationType: "SCI",
           provisionedTenantId: tenantId,
         });
 

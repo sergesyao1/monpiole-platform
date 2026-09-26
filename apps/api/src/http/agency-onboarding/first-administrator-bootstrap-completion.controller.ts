@@ -70,7 +70,10 @@ class CompleteFirstAdministratorIdentityResponseDto extends createZodDto(
 ) {}
 
 @ApiTags("Agency administrator bootstrap")
-@Controller("v1/agency-administrator-bootstrap")
+@Controller([
+  "v1/agency-administrator-bootstrap",
+  "v1/organization-administrator-bootstrap",
+])
 @TenantContext("not-applicable")
 export class FirstAdministratorBootstrapCompletionController {
   public constructor(
