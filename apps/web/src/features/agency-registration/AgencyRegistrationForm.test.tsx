@@ -29,6 +29,10 @@ describe("AgencyRegistrationForm", () => {
 
     render(<AgencyRegistrationForm api={api} />);
 
+    fireEvent.change(screen.getByLabelText("Type d'organisation"), {
+      target: { value: "SCI" },
+    });
+
     fireEvent.change(screen.getByLabelText("Raison sociale"), {
       target: { value: "Agence Ivoire Immobilier" },
     });
@@ -41,10 +45,10 @@ describe("AgencyRegistrationForm", () => {
     fireEvent.change(screen.getByLabelText("Identifiant fiscal"), {
       target: { value: "CC-1234567" },
     });
-    fireEvent.change(screen.getByLabelText("Téléphone de l'agence"), {
+    fireEvent.change(screen.getByLabelText("Téléphone de l'organisation"), {
       target: { value: "+2250102030405" },
     });
-    fireEvent.change(screen.getByLabelText("E-mail de l'agence"), {
+    fireEvent.change(screen.getByLabelText("E-mail de l'organisation"), {
       target: { value: "contact@a2i.example" },
     });
     fireEvent.change(screen.getByLabelText("Site web"), {
@@ -106,8 +110,9 @@ describe("AgencyRegistrationForm", () => {
 
     await waitFor(() =>
       expect(api.submitRegistration).toHaveBeenCalledWith({
-        agencyLegalName: "Agence Ivoire Immobilier",
-        agencyTradeName: "A2I",
+        organizationType: "SCI",
+        legalName: "Agence Ivoire Immobilier",
+        tradeName: "A2I",
         registrationNumber: "CI-ABJ-2026-B-12345",
         taxIdentifier: "CC-1234567",
         phone: "+2250102030405",

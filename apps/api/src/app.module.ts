@@ -21,6 +21,7 @@ import {
   AgencyRegistrationsController,
   SUBMIT_AGENCY_REGISTRATION,
 } from "./http/agency-onboarding/agency-registrations.controller.js";
+import { OrganizationRegistrationsController } from "./http/agency-onboarding/organization-registrations.controller.js";
 import {
   AgencyRegistrationDocumentsController,
   UPLOAD_AGENCY_REGISTRATION_DOCUMENT,
@@ -412,6 +413,7 @@ export class AppModule {
       module: AppModule,
       controllers: [
       AgencyRegistrationsController,
+      OrganizationRegistrationsController,
       PlatformAgencyRegistrationsController,
       PlatformFirstAdministratorController,
       FirstAdministratorBootstrapCompletionController,

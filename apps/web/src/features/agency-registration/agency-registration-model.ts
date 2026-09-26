@@ -4,8 +4,9 @@ export interface AgencyRegistrationDocumentReference {
 }
 
 export interface AgencyRegistrationInput {
-  readonly agencyLegalName: string;
-  readonly agencyTradeName?: string;
+  readonly organizationType: "REAL_ESTATE_AGENCY" | "PROPERTY_MANAGEMENT_COMPANY" | "SCI" | "DEVELOPER" | "SYNDIC" | "PROFESSIONAL_LANDLORD" | "OTHER";
+  readonly legalName: string;
+  readonly tradeName?: string;
   readonly registrationNumber: string;
   readonly taxIdentifier?: string;
   readonly phone: string;

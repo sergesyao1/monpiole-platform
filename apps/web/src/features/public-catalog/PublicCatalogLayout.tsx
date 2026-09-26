@@ -11,7 +11,7 @@ export function PublicCatalogLayout({ children }: PropsWithChildren) {
         </Link>
         <nav aria-label="Navigation publique">
           <Link to="/catalogue">Catalogue</Link>
-          <Link to="/inscription-agence">Inscrire mon agence</Link>
+          <Link to="/inscription-organisation">Inscrire mon organisation</Link>
           <Link to="/connexion">Espace de gestion</Link>
         </nav>
       </header>

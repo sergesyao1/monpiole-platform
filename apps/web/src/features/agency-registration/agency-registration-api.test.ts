@@ -24,8 +24,9 @@ describe("AgencyRegistrationApi", () => {
     const api = createAgencyRegistrationApi();
 
     const input = {
-      agencyLegalName: "Agence Ivoire Immobilier",
-      agencyTradeName: "A2I",
+      organizationType: "SCI",
+      legalName: "Agence Ivoire Immobilier",
+      tradeName: "A2I",
       registrationNumber: "CI-ABJ-2026-B-12345",
       taxIdentifier: "CC-1234567",
       phone: "+2250102030405",
@@ -57,7 +58,7 @@ describe("AgencyRegistrationApi", () => {
     const [requestUrl, requestInit] = fetchMock.mock.calls[0] ?? [];
 
     expect(String(requestUrl)).toBe(
-      "http://localhost:3000/v1/agency-registrations",
+      "http://localhost:3000/v1/organization-registrations",
     );
     expect(requestInit?.method).toBe("POST");
 
@@ -91,7 +92,8 @@ describe("AgencyRegistrationApi", () => {
 
     await expect(
       api.submitRegistration({
-        agencyLegalName: "Agence Test",
+        organizationType: "REAL_ESTATE_AGENCY",
+        legalName: "Agence Test",
         registrationNumber: "CI-TEST-001",
         phone: "+2250102030405",
         email: "contact@example.test",
@@ -145,7 +147,7 @@ describe("AgencyRegistrationApi", () => {
     const [requestUrl, requestInit] = fetchMock.mock.calls[0] ?? [];
 
     expect(String(requestUrl)).toBe(
-      "http://localhost:3000/v1/agency-registration-documents",
+      "http://localhost:3000/v1/organization-registration-documents",
     );
     expect(requestInit?.method).toBe("POST");
     expect(requestInit?.body).toBeInstanceOf(FormData);

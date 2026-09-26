@@ -27,6 +27,7 @@ export const applicationRoutes: RouteObject[] = [
   { path: "/connexion", element: <LoginPage /> },
   { path: "/catalogue", element: <PublicPropertyCatalogPage />, errorElement: <RouteErrorPage /> },
   { path: "/inscription-agence", element: <PublicAgencyRegistrationPage />, errorElement: <RouteErrorPage /> },
+  { path: "/inscription-organisation", element: <PublicAgencyRegistrationPage />, errorElement: <RouteErrorPage /> },
   { path: "/activation-agence", element: <AgencyAdministratorActivationPage />, errorElement: <RouteErrorPage /> },
   { path: "/catalogue/:publicPropertyId", element: <PublicPropertyDetailPage />, errorElement: <RouteErrorPage /> },
   {

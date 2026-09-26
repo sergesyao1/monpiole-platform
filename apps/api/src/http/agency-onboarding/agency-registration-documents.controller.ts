@@ -46,7 +46,10 @@ interface UploadedAgencyRegistrationFile {
 }
 
 @ApiTags("Agency registrations")
-@Controller("v1/agency-registration-documents")
+@Controller([
+  "v1/agency-registration-documents",
+  "v1/organization-registration-documents",
+])
 @TenantContext("not-applicable")
 export class AgencyRegistrationDocumentsController {
   public constructor(

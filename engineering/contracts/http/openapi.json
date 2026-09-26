@@ -6498,6 +6498,21 @@
             ],
             "type": "object"
           },
+          "legalName": {
+            "type": "string"
+          },
+          "organizationType": {
+            "enum": [
+              "DEVELOPER",
+              "OTHER",
+              "PROFESSIONAL_LANDLORD",
+              "PROPERTY_MANAGEMENT_COMPANY",
+              "REAL_ESTATE_AGENCY",
+              "SCI",
+              "SYNDIC"
+            ],
+            "type": "string"
+          },
           "phone": {
             "type": "string"
           },
@@ -6541,6 +6556,9 @@
           "taxIdentifier": {
             "type": "string"
           },
+          "tradeName": {
+            "type": "string"
+          },
           "updatedAt": {
             "type": "string"
           },
@@ -6561,6 +6579,8 @@
           "createdAt",
           "documents",
           "email",
+          "legalName",
+          "organizationType",
           "phone",
           "registrationId",
           "registrationNumber",
@@ -6668,6 +6688,21 @@
           "email": {
             "type": "string"
           },
+          "legalName": {
+            "type": "string"
+          },
+          "organizationType": {
+            "enum": [
+              "DEVELOPER",
+              "OTHER",
+              "PROFESSIONAL_LANDLORD",
+              "PROPERTY_MANAGEMENT_COMPANY",
+              "REAL_ESTATE_AGENCY",
+              "SCI",
+              "SYNDIC"
+            ],
+            "type": "string"
+          },
           "phone": {
             "type": "string"
           },
@@ -6711,6 +6746,9 @@
           "taxIdentifier": {
             "type": "string"
           },
+          "tradeName": {
+            "type": "string"
+          },
           "updatedAt": {
             "type": "string"
           },
@@ -6730,6 +6768,8 @@
           "countryCode",
           "createdAt",
           "email",
+          "legalName",
+          "organizationType",
           "phone",
           "registrationId",
           "registrationNumber",
@@ -6788,6 +6828,21 @@
                 "email": {
                   "type": "string"
                 },
+                "legalName": {
+                  "type": "string"
+                },
+                "organizationType": {
+                  "enum": [
+                    "DEVELOPER",
+                    "OTHER",
+                    "PROFESSIONAL_LANDLORD",
+                    "PROPERTY_MANAGEMENT_COMPANY",
+                    "REAL_ESTATE_AGENCY",
+                    "SCI",
+                    "SYNDIC"
+                  ],
+                  "type": "string"
+                },
                 "phone": {
                   "type": "string"
                 },
@@ -6831,6 +6886,9 @@
                 "taxIdentifier": {
                   "type": "string"
                 },
+                "tradeName": {
+                  "type": "string"
+                },
                 "updatedAt": {
                   "type": "string"
                 },
@@ -6850,6 +6908,8 @@
                 "countryCode",
                 "createdAt",
                 "email",
+                "legalName",
+                "organizationType",
                 "phone",
                 "registrationId",
                 "registrationNumber",
@@ -7182,6 +7242,135 @@
           "contactName",
           "idempotencyKey",
           "intent"
+        ],
+        "type": "object"
+      },
+      "SubmitOrganizationRegistrationRequestDto": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "city": {
+            "maxLength": 150,
+            "minLength": 1,
+            "type": "string"
+          },
+          "contactEmail": {
+            "format": "email",
+            "maxLength": 320,
+            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "type": "string"
+          },
+          "contactFirstName": {
+            "maxLength": 150,
+            "minLength": 1,
+            "type": "string"
+          },
+          "contactLastName": {
+            "maxLength": 150,
+            "minLength": 1,
+            "type": "string"
+          },
+          "contactPhone": {
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
+          },
+          "countryCode": {
+            "pattern": "^[A-Z]{2}$",
+            "type": "string"
+          },
+          "documents": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "documentType": {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "uploadId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "documentType",
+                "uploadId"
+              ],
+              "type": "object"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "type": "array"
+          },
+          "email": {
+            "format": "email",
+            "maxLength": 320,
+            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "type": "string"
+          },
+          "legalName": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "organizationType": {
+            "enum": [
+              "DEVELOPER",
+              "OTHER",
+              "PROFESSIONAL_LANDLORD",
+              "PROPERTY_MANAGEMENT_COMPANY",
+              "REAL_ESTATE_AGENCY",
+              "SCI",
+              "SYNDIC"
+            ],
+            "type": "string"
+          },
+          "phone": {
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
+          },
+          "registrationNumber": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "taxIdentifier": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "tradeName": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "website": {
+            "format": "uri",
+            "maxLength": 2048,
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "city",
+          "contactEmail",
+          "contactFirstName",
+          "contactLastName",
+          "contactPhone",
+          "countryCode",
+          "documents",
+          "email",
+          "legalName",
+          "organizationType",
+          "phone",
+          "registrationNumber"
         ],
         "type": "object"
       },
@@ -8240,6 +8429,136 @@
         ]
       }
     },
+    "/v1/organization-administrator-bootstrap/completions": {
+      "post": {
+        "operationId": "completeFirstAdministratorIdentity",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteFirstAdministratorIdentityRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompleteFirstAdministratorIdentityResponseDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Invalid bootstrap completion request"
+          },
+          "401": {
+            "description": "Missing or invalid bearer authentication"
+          },
+          "403": {
+            "description": "Authenticated email does not match the invited administrator"
+          },
+          "404": {
+            "description": "Bootstrap token not found"
+          },
+          "409": {
+            "description": "Bootstrap is not completable or external identity provenance conflicts"
+          },
+          "410": {
+            "description": "Bootstrap token expired"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency administrator bootstrap"
+        ]
+      }
+    },
+    "/v1/organization-registration-documents": {
+      "post": {
+        "operationId": "uploadAgencyRegistrationDocument",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadDocumentResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/organization-registrations": {
+      "post": {
+        "operationId": "submitOrganizationRegistration",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitOrganizationRegistrationRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [],
+        "summary": "",
+        "tags": [
+          "Organization registrations"
+        ]
+      }
+    },
     "/v1/platform/agency-registrations": {
       "get": {
         "operationId": "listAgencyRegistrations",
@@ -8588,6 +8907,391 @@
       }
     },
     "/v1/platform/agency-registrations/{registrationId}/review": {
+      "post": {
+        "operationId": "startAgencyRegistrationReview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/platform/organization-registrations": {
+      "get": {
+        "operationId": "listAgencyRegistrations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationListDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/platform/organization-registrations/{registrationId}": {
+      "get": {
+        "operationId": "retrieveAgencyRegistration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationDetailsDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/platform/organization-registrations/{registrationId}/approve": {
+      "post": {
+        "operationId": "approveAgencyRegistration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/platform/organization-registrations/{registrationId}/documents": {
+      "get": {
+        "operationId": "listAgencyRegistrationDocuments",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationDocumentListDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/platform/organization-registrations/{registrationId}/documents/{documentId}/content": {
+      "get": {
+        "operationId": "retrieveAgencyRegistrationDocumentContent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "documentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/platform/organization-registrations/{registrationId}/first-administrator": {
+      "post": {
+        "operationId": "createFirstAgencyAdministrator",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFirstAdministratorRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateFirstAdministratorResponseDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Invalid registration identifier or request"
+          },
+          "401": {
+            "description": "Missing or invalid bearer authentication"
+          },
+          "403": {
+            "description": "Platform authorization required"
+          },
+          "404": {
+            "description": "Agency registration not found"
+          },
+          "409": {
+            "description": "Registration is not ready or first administrator already exists"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/platform/organization-registrations/{registrationId}/first-administrator/reinvitation": {
+      "post": {
+        "description": "Rotates a pending first-administrator invitation. The previous link becomes invalid and the returned token is sensitive one-time material.",
+        "operationId": "reissueFirstAdministratorBootstrap",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReissueFirstAdministratorBootstrapResponseDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Invalid registration identifier"
+          },
+          "401": {
+            "description": "Missing or invalid bearer authentication"
+          },
+          "403": {
+            "description": "Platform authorization required"
+          },
+          "404": {
+            "description": "Agency registration or first administrator not found"
+          },
+          "409": {
+            "description": "Registration or first administrator is not eligible for reinvitation"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/platform/organization-registrations/{registrationId}/reject": {
+      "post": {
+        "operationId": "rejectAgencyRegistration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/platform/organization-registrations/{registrationId}/review": {
       "post": {
         "operationId": "startAgencyRegistrationReview",
         "parameters": [
