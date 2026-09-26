@@ -2,7 +2,7 @@
 
 ## Status
 
-IN PROGRESS
+COMPLETE
 
 ## Architectural boundary
 
@@ -72,3 +72,38 @@ they are not duplicated business workflows.
 - Same first-administrator lifecycle for both types.
 - Existing C1/C2 38-test baseline.
 - Migration, API contract, Web, authorization and complete regression suites.
+
+## Delivered behavior
+
+- Canonical public submission: `POST /v1/organization-registrations`.
+- Canonical document upload: `POST /v1/organization-registration-documents`.
+- Canonical platform review aliases under `/v1/platform/organization-registrations`.
+- Legacy Agency routes and payloads remain supported and default to `REAL_ESTATE_AGENCY`.
+- The public Web route `/inscription-organisation` requires one of the seven supported types;
+  `/inscription-agence` remains a compatible bookmark.
+- The first administrator uses the existing tenant-scoped `TENANT_ADMINISTRATOR` role for every
+  organization type. Organization type is never consulted for authorization.
+
+## Final validation results
+
+- C2 regression baseline: 6 files, 38/38 tests passed.
+- Unit suite: 57 files, 385/385 tests passed.
+- Integration suite: 31 files, 284/284 tests passed.
+- Contract suite: 26 files, 117/117 tests passed.
+- Web suite: 37 files, 239/239 tests passed.
+- First-administrator PostgreSQL suite: 8/8 tests passed, including SCI.
+- Organization HTTP suite: 49/49 tests passed, including canonical SCI and invalid type cases.
+- Organization registration schema: 2/2 tests passed.
+- Agency Onboarding and Tenant Management migration checks: passed.
+- Recursive workspace typecheck and test typecheck: passed.
+- Architecture check: passed.
+- Web production build: passed (only the pre-existing chunk-size advisory).
+- OpenAPI regenerated and its dedicated contract test passed 7/7.
+- `git diff --check`: passed.
+
+## Deferred transitional debt
+
+- Physical `agency_onboarding` schema/table names, package names, legacy DTO fields and legacy routes
+  remain deliberate compatibility surfaces. Removing them requires a separately versioned migration.
+- Côte d'Ivoire national-number canonicalization remains explicitly limited technical debt; E.164
+  numbers work independently of country and no country value affects tenant isolation.
