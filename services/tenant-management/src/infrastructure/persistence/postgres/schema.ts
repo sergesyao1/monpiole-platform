@@ -31,6 +31,37 @@ export const createTenantIdempotency = tenantManagement.table("create_tenant_ide
   index("create_tenant_idempotency_tenant_idx").on(table.tenantId),
 ]);
 
+export const organizationTenantProvisioningIdempotency =
+  tenantManagement.table("organization_tenant_provisioning_idempotency", {
+    authorityId: text("authority_id").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    normalizedIntent: text("normalized_intent").notNull(),
+
+    tenantId: uuid("tenant_id").notNull(),
+    organizationId: uuid("organization_id").notNull(),
+
+    lifecycleState: text("lifecycle_state").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+
+    correlationId: uuid("correlation_id").notNull(),
+    actorId: text("actor_id").notNull(),
+  }, (table) => [
+    uniqueIndex(
+      "organization_tenant_provisioning_idempotency_authority_key_unique",
+    ).on(
+      table.authorityId,
+      table.idempotencyKey,
+    ),
+    index(
+      "organization_tenant_provisioning_idempotency_tenant_idx",
+    ).on(table.tenantId),
+    index(
+      "organization_tenant_provisioning_idempotency_organization_idx",
+    ).on(table.organizationId),
+  ]);
 export const tenantOutbox = tenantManagement.table("outbox", {
   eventId: uuid("event_id").primaryKey(),
   tenantId: uuid("tenant_id").notNull(),

@@ -11,8 +11,8 @@ import {
   type AgencyTenantProvisioningPort,
 } from "../src/index.js";
 import {
-  CreateTenant,
-  PostgresCreateTenantUnitOfWork,
+  PostgresProvisionOrganizationTenantUnitOfWork,
+  ProvisionOrganizationTenant,
 } from "../../tenant-management/src/index.js";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
@@ -206,7 +206,7 @@ describe(
   "Agency registration to tenant provisioning composition",
   () => {
     it(
-      "converges to one pending tenant after a post-provisioning crash",
+      "converges to one pending tenant and organization after a post-provisioning crash",
       async () => {
         const value = registration();
 
@@ -241,35 +241,39 @@ describe(
           registrationId: value.id,
         });
 
-        const createTenant = new CreateTenant(
-          {
-            authorizeCreateTenant: async (
-              authority,
-            ) =>
-              authority.authorityId ===
-                "system:agency-tenant-provisioning" &&
-              authority.grants.includes(
-                "CREATE_TENANT",
-              ),
-          },
-          new PostgresCreateTenantUnitOfWork(
-            tenantRuntimePool,
-          ),
-          {
-            generate: () => randomUUID(),
-          },
-          {
-            generate: () => randomUUID(),
-          },
-          {
-            now: () =>
-              "2026-09-16T12:20:00.000Z",
-          },
-        );
+        const provisionOrganizationTenant =
+          new ProvisionOrganizationTenant(
+            {
+              authorizeCreateTenant: async (
+                authority,
+              ) =>
+                authority.authorityId ===
+                  "system:agency-tenant-provisioning" &&
+                authority.grants.includes(
+                  "CREATE_TENANT",
+                ),
+            },
+            new PostgresProvisionOrganizationTenantUnitOfWork(
+              tenantRuntimePool,
+            ),
+            {
+              generate: () => randomUUID(),
+            },
+            {
+              generate: () => randomUUID(),
+            },
+            {
+              generate: () => randomUUID(),
+            },
+            {
+              now: () =>
+                "2026-09-16T12:20:00.000Z",
+            },
+          );
 
         const realProvisioning =
           new AgencyTenantProvisioningAdapter(
-            createTenant,
+            provisionOrganizationTenant,
           );
 
         let simulateCrash = true;
@@ -286,7 +290,7 @@ describe(
                 simulateCrash = false;
 
                 throw new Error(
-                  "Simulated crash after committed tenant provisioning",
+                  "Simulated crash after committed organization tenant provisioning",
                 );
               }
 
@@ -326,7 +330,7 @@ describe(
             registrationId: value.id,
           }),
         ).rejects.toThrow(
-          "Simulated crash after committed tenant provisioning",
+          "Simulated crash after committed organization tenant provisioning",
         );
 
         const afterCrash =
@@ -348,6 +352,7 @@ describe(
         const countsAfterCrash =
           await ownerPool.query<{
             tenants: string;
+            organizations: string;
             idempotency: string;
             outbox: string;
           }>(`
@@ -358,7 +363,11 @@ describe(
               )::text AS tenants,
               (
                 SELECT count(*)
-                FROM tenant_management.create_tenant_idempotency
+                FROM tenant_management.organizations
+              )::text AS organizations,
+              (
+                SELECT count(*)
+                FROM tenant_management.organization_tenant_provisioning_idempotency
               )::text AS idempotency,
               (
                 SELECT count(*)
@@ -372,6 +381,7 @@ describe(
           countsAfterCrash.rows[0],
         ).toEqual({
           tenants: "1",
+          organizations: "1",
           idempotency: "1",
           outbox: "1",
         });
@@ -427,33 +437,97 @@ describe(
             "system:agency-tenant-provisioning",
         });
 
+        const organization =
+          await ownerPool.query<{
+            id: string;
+            tenant_id: string;
+            organization_type: string;
+            legal_name: string;
+            trade_name: string | null;
+            registration_number: string;
+            tax_identifier: string | null;
+            phone: string;
+            email: string;
+            website: string | null;
+            address: string;
+            city: string;
+            country_code: string;
+          }>(`
+            SELECT
+              id,
+              tenant_id,
+              organization_type,
+              legal_name,
+              trade_name,
+              registration_number,
+              tax_identifier,
+              phone,
+              email,
+              website,
+              address,
+              city,
+              country_code
+            FROM tenant_management.organizations
+          `);
+
+        expect(organization.rows).toHaveLength(1);
+
+        expect(organization.rows[0]).toMatchObject({
+          tenant_id:
+            approved.provisionedTenantId,
+          organization_type: "REAL_ESTATE_AGENCY",
+          legal_name:
+            value.agencyLegalName,
+          trade_name:
+            value.agencyTradeName,
+          registration_number:
+            value.registrationNumber,
+          tax_identifier:
+            value.taxIdentifier,
+          phone:
+            value.phone,
+          email:
+            value.email.toLowerCase(),
+          website:
+            value.website,
+          address:
+            value.address,
+          city:
+            value.city,
+          country_code:
+            value.countryCode.toUpperCase(),
+        });
+
         const idempotency =
           await ownerPool.query<{
             authority_id: string;
             idempotency_key: string;
             tenant_id: string;
+            organization_id: string;
           }>(`
             SELECT
               authority_id,
               idempotency_key,
-              tenant_id
-            FROM tenant_management.create_tenant_idempotency
+              tenant_id,
+              organization_id
+            FROM tenant_management.organization_tenant_provisioning_idempotency
           `);
 
-        expect(idempotency.rows).toEqual([
-          {
-            authority_id:
-              "system:agency-tenant-provisioning",
-            idempotency_key:
-              `agency-registration:${value.id}`,
-            tenant_id:
-              approved.provisionedTenantId,
-          },
-        ]);
+        expect(idempotency.rows).toHaveLength(1);
+
+        expect(idempotency.rows[0]).toMatchObject({
+          authority_id:
+            "system:agency-tenant-provisioning",
+          idempotency_key:
+            `agency-registration:${value.id}`,
+          tenant_id:
+            approved.provisionedTenantId,
+        });
 
         const finalCounts =
           await ownerPool.query<{
             tenants: string;
+            organizations: string;
             idempotency: string;
             outbox: string;
           }>(`
@@ -464,7 +538,11 @@ describe(
               )::text AS tenants,
               (
                 SELECT count(*)
-                FROM tenant_management.create_tenant_idempotency
+                FROM tenant_management.organizations
+              )::text AS organizations,
+              (
+                SELECT count(*)
+                FROM tenant_management.organization_tenant_provisioning_idempotency
               )::text AS idempotency,
               (
                 SELECT count(*)
@@ -476,6 +554,7 @@ describe(
 
         expect(finalCounts.rows[0]).toEqual({
           tenants: "1",
+          organizations: "1",
           idempotency: "1",
           outbox: "1",
         });

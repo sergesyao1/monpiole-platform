@@ -64,6 +64,8 @@ import {
   CreateTenant,
   PostgresActivateTenantUnitOfWork,
   PostgresCreateTenantUnitOfWork,
+  ProvisionOrganizationTenant,
+  PostgresProvisionOrganizationTenantUnitOfWork,
   PostgresTenantExistenceRepository,
 } from "@monpiole/tenant-management";
 
@@ -136,6 +138,16 @@ export function createPostgresApiRuntime(
     compositionClock,
   );
 
+  const provisionOrganizationTenant =
+    new ProvisionOrganizationTenant(
+      authorityPolicy,
+      new PostgresProvisionOrganizationTenantUnitOfWork(pool),
+      { generate: randomUUID },
+      { generate: randomUUID },
+      { generate: randomUUID },
+      compositionClock,
+    );
+
   const agencySubmitStore = new PostgresSubmitAgencyRegistrationStore(pool);
   const agencyQueryStore = new PostgresAgencyRegistrationQueryStore(pool);
   const agencyDocumentUploadStore =
@@ -148,7 +160,7 @@ export function createPostgresApiRuntime(
   const agencyReviewUnitOfWork =
     new PostgresAgencyRegistrationReviewUnitOfWork(pool);
   const agencyTenantProvisioning =
-    new AgencyTenantProvisioningAdapter(createTenant);
+    new AgencyTenantProvisioningAdapter(provisionOrganizationTenant);
 
   const bootstrapTenantAdministrator =
     new BootstrapTenantAdministrator(
