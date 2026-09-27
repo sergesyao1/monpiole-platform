@@ -211,6 +211,10 @@ function businessProblem(exception: unknown) {
     status: 403, type: "https://api.monpiole.example/problems/forbidden",
     title: "Forbidden", code: "FORBIDDEN",
   };
+  if (code === "RENTABLE_TARGET_NOT_FOUND" || code === "RENTAL_AVAILABILITY_NOT_APPLICABLE") return {
+    status: 404, type: "https://api.monpiole.example/problems/rental-availability-not-found",
+    title: "Rental availability not found", code: "RENTAL_AVAILABILITY_NOT_FOUND",
+  };
   if (code === "INVALID_PROPERTY_AMENITIES") return {
     status: 400, type: "https://api.monpiole.example/problems/invalid-request",
     title: "Invalid request", code: "INVALID_REQUEST",

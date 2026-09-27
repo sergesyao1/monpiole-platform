@@ -105,6 +105,14 @@ function bookingAllocation(bookingId: string, rentableAssetId: string, startsAt:
   });
 }
 
+function leaseAllocation(leaseId: string, startsAt: string) {
+  return RentalAllocation.create({
+    allocationId: randomUUID(), tenantId: tenantA, rentableAssetId: assetId,
+    allocationType: "LEASE", rentalMode: "LONG_TERM_RENTAL", sourceLeaseId: leaseId,
+    startAt: startsAt, status: "ACTIVE", createdAt, updatedAt: createdAt,
+  });
+}
+
 describe("Rental Operations PostgreSQL foundation", () => {
   it("persists Lease, Booking, Stay, both Occupancy modes and ENTRY/EXIT inspections", async () => {
     await tenantTransaction(tenantA, async (client) => {
@@ -267,6 +275,18 @@ describe("Rental Operations PostgreSQL foundation", () => {
     ]));
     await repository.commitIfAvailable(bookingAllocation(bookingA, unitA, "2026-10-10T14:00:00Z", "2026-10-15T11:00:00Z"), [unitA]);
     await expect(repository.commitIfAvailable(bookingAllocation(bookingB, unitB, "2026-10-10T14:00:00Z", "2026-10-15T11:00:00Z"), [unitB])).resolves.toBeUndefined();
+  });
+
+  it("lists effective long-term occupied scopes in one tenant-safe catalog query", async () => {
+    const repository = new PostgresTemporalAvailabilityRepository(runtimePool);
+    const leaseId = await tenantTransaction(tenantA, (client) => insertLease(client, tenantA));
+    await repository.commitIfAvailable(leaseAllocation(leaseId, "2026-09-01T00:00:00Z"), [assetId]);
+    await expect(repository.listEffectiveLongTermOccupiedScopeIds({
+      tenantId: tenantA, conflictScopeIds: [assetId], at: "2026-10-01T00:00:00Z",
+    })).resolves.toEqual(new Set([assetId]));
+    await expect(repository.listEffectiveLongTermOccupiedScopeIds({
+      tenantId: tenantB, conflictScopeIds: [assetId], at: "2026-10-01T00:00:00Z",
+    })).resolves.toEqual(new Set());
   });
 
 });

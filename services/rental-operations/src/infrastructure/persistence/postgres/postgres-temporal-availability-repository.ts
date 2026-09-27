@@ -4,6 +4,7 @@ import type { Pool } from "pg";
 import type {
   AvailabilityConflict,
   AvailabilityQueryPort,
+  CatalogAvailabilityQueryPort,
   RentalAllocationCommitPort,
 } from "../../../application/temporal-availability.js";
 import type { RentalAllocation } from "../../../domain/rental-operations.js";
@@ -16,7 +17,7 @@ interface ConflictRow extends Record<string, unknown> {
 }
 
 export class PostgresTemporalAvailabilityRepository
-implements AvailabilityQueryPort, RentalAllocationCommitPort {
+implements AvailabilityQueryPort, CatalogAvailabilityQueryPort, RentalAllocationCommitPort {
   constructor(private readonly pool: Pool) {}
 
   listActiveConflicts(input: Readonly<{
@@ -63,6 +64,28 @@ implements AvailabilityQueryPort, RentalAllocationCommitPort {
         ) AS present
       `, [input.tenantId, input.conflictScopeIds, input.at]);
       return rows[0]?.present ?? false;
+    });
+  }
+
+  listEffectiveLongTermOccupiedScopeIds(input: Readonly<{
+    tenantId: string;
+    conflictScopeIds: readonly string[];
+    at: string;
+  }>): Promise<ReadonlySet<string>> {
+    return withTenantPostgresTransaction(this.pool, input.tenantId, async (scope) => {
+      const rows = await scope.query<{ readonly conflict_scope_id: string }>(`
+        SELECT DISTINCT claim.conflict_scope_id
+        FROM rental_operations.rental_allocation_claims AS claim
+        INNER JOIN rental_operations.rental_allocations AS a
+          ON a.tenant_id = claim.tenant_id AND a.allocation_id = claim.allocation_id
+        WHERE claim.tenant_id = $1::uuid
+          AND claim.conflict_scope_id = ANY($2::uuid[])
+          AND claim.status = 'ACTIVE'
+          AND a.rental_mode = 'LONG_TERM_RENTAL'
+          AND claim.start_at <= $3::timestamptz
+          AND (claim.end_at IS NULL OR claim.end_at > $3::timestamptz)
+      `, [input.tenantId, input.conflictScopeIds, input.at]);
+      return new Set(rows.map((row) => row.conflict_scope_id));
     });
   }
 

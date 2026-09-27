@@ -18,6 +18,9 @@ export type {
   PropertyAvailabilityQuery, PropertyAvailabilityReadModel,
   DirectPropertyAvailability, CompositePropertyAvailability,
 } from "./application/property-availability-query.js";
+export type {
+  PropertyRentalTargetQuery, PropertyRentalTarget, PropertyRentalMode,
+} from "./application/property-rental-target-query.js";
 export {
   RetrievePropertyGeolocation, UpdatePropertyGeolocation, RemovePropertyGeolocation,
   type PropertyGeolocationView, type PropertyGeolocationClock,
@@ -156,6 +159,7 @@ export {
 } from "./domain/property-contract.js";
 export { PostgresPropertyRepository } from "./infrastructure/persistence/postgres/postgres-property-repository.js";
 export { PostgresPropertyAvailabilityQuery } from "./infrastructure/persistence/postgres/postgres-property-availability-query.js";
+export { PostgresPropertyRentalTargetQuery } from "./infrastructure/persistence/postgres/postgres-property-rental-target-query.js";
 export { PostgresPropertyGeolocationRepository } from "./infrastructure/persistence/postgres/postgres-property-geolocation-repository.js";
 export { AMENITIES, AMENITY_CATEGORIES, amenityCatalog, validateAmenityCodes, InvalidPropertyAmenitiesError, type Amenity, type AmenityCode, type AmenityCategory } from "./domain/property-amenity.js";
 export { RetrieveAmenityCatalog, RetrievePropertyAmenities, ReplacePropertyAmenities, type PropertyAmenityRepository } from "./application/property-amenities.js";

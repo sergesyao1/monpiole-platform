@@ -29,6 +29,14 @@ export interface AvailabilityQueryPort {
   }>): Promise<boolean>;
 }
 
+export interface CatalogAvailabilityQueryPort {
+  listEffectiveLongTermOccupiedScopeIds(input: Readonly<{
+    tenantId: string;
+    conflictScopeIds: readonly string[];
+    at: string;
+  }>): Promise<ReadonlySet<string>>;
+}
+
 export interface RentalAllocationCommitPort {
   commitIfAvailable(
     allocation: RentalAllocation,
@@ -45,6 +53,10 @@ export interface RentableTargetConflictScopeResolver {
   resolve(tenantId: string, rentableAssetId: string): Promise<RentableTargetConflictScope | undefined>;
 }
 
+export interface BatchRentableTargetConflictScopeResolver {
+  resolveMany(tenantId: string, rentableAssetIds: readonly string[]): Promise<readonly RentableTargetConflictScope[]>;
+}
+
 export class RentableTargetNotFoundError extends Error {
   readonly code = "RENTABLE_TARGET_NOT_FOUND";
 }
@@ -59,6 +71,48 @@ export interface AvailabilityDecision {
   readonly conflicts: readonly AvailabilityConflict[];
   readonly nextAvailableAt?: string;
   readonly catalogDisposition: "AVAILABLE_FOR_INTERVAL" | "UNAVAILABLE_FOR_INTERVAL" | "REMOVE_FROM_RENTAL_CATALOG";
+}
+
+export interface CatalogRentalAvailabilityDisposition {
+  readonly rentableAssetId: string;
+  readonly catalogDisposition: "AVAILABLE_FOR_INTERVAL" | "REMOVE_FROM_RENTAL_CATALOG";
+}
+
+export class GetCatalogRentalAvailability {
+  constructor(
+    private readonly queries: CatalogAvailabilityQueryPort,
+    private readonly targets: BatchRentableTargetConflictScopeResolver,
+  ) {}
+
+  async execute(input: Readonly<{
+    tenantId: string;
+    properties: readonly Readonly<{ rentableAssetId: string; rentalMode: RentalOperationMode }>[];
+    evaluatedAt: string;
+  }>): Promise<readonly CatalogRentalAvailabilityDisposition[]> {
+    const targets = await this.targets.resolveMany(
+      input.tenantId,
+      input.properties.map((property) => property.rentableAssetId),
+    );
+    const byAsset = new Map(targets.map((target) => [target.rentableAssetId, target]));
+    const allScopes = [...new Set(targets.flatMap((target) => target.conflictScopeIds))];
+    const occupied = allScopes.length === 0
+      ? new Set<string>()
+      : await this.queries.listEffectiveLongTermOccupiedScopeIds({
+        tenantId: input.tenantId,
+        conflictScopeIds: allScopes,
+        at: input.evaluatedAt,
+      });
+    return input.properties.flatMap((property) => {
+      const target = byAsset.get(property.rentableAssetId);
+      if (target === undefined) return [];
+      const remove = property.rentalMode === "LONG_TERM_RENTAL"
+        && target.conflictScopeIds.some((scopeId) => occupied.has(scopeId));
+      return [{
+        rentableAssetId: property.rentableAssetId,
+        catalogDisposition: remove ? "REMOVE_FROM_RENTAL_CATALOG" : "AVAILABLE_FOR_INTERVAL",
+      } satisfies CatalogRentalAvailabilityDisposition];
+    });
+  }
 }
 
 export class CheckRentalAvailability {

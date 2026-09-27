@@ -58,7 +58,13 @@ import {
   PostgresPropertyApplicationClientConversionRepository, ConvertPropertyApplicationToClient, RetrievePropertyApplicationClientConversion,
   PostgresPropertyApplicationContractRepository, CreatePropertyContractFromApplication,
   PostgresPropertyCommercialJourneyQuery, ListPropertyCommercialJourneys,
+  PostgresPropertyRentalTargetQuery,
 } from "@monpiole/property-management";
+import {
+  CheckRentalAvailability,
+  GetCatalogRentalAvailability,
+  PostgresTemporalAvailabilityRepository,
+} from "@monpiole/rental-operations";
 import {
   ActivateTenant,
   CheckTenantExists,
@@ -90,6 +96,12 @@ import { AgencyExternalIdentityLinkAdapter } from "./agency-external-identity-li
 import { firstAdministratorBootstrapConfigurationFromEnvironment } from "../configuration/first-administrator-bootstrap.js";
 import { FilesystemAgencyDocumentStorage } from "./filesystem-agency-document-storage.adapter.js";
 import { publicCatalogHostAllowlistFromEnvironment } from "../configuration/public-catalog.js";
+import {
+  ListRentablePublicProperties,
+  PropertyRentalTargetResolver,
+  RetrievePrivateRentalAvailability,
+  RetrievePublicRentalAvailability,
+} from "../operations/rental-availability.js";
 
 export interface PostgresApiRuntime {
   readonly composition: ApiComposition;
@@ -262,6 +274,11 @@ export function createPostgresApiRuntime(
   const publicCatalogQuery = publicCatalogDatabase === undefined
     ? undefined
     : new PostgresPublicPropertyCatalogQuery(publicCatalogDatabase.infrastructurePool());
+  const propertyRentalTargets = new PropertyRentalTargetResolver(new PostgresPropertyRentalTargetQuery(pool));
+  const temporalAvailability = new PostgresTemporalAvailabilityRepository(pool);
+  const checkRentalAvailability = new CheckRentalAvailability(temporalAvailability, propertyRentalTargets);
+  const catalogRentalAvailability = new GetCatalogRentalAvailability(temporalAvailability, propertyRentalTargets);
+  const retrieveProperty = new RetrieveProperty(propertyRepository);
 
   const composition: ApiComposition = {
     platformReferenceQuery: referenceQuery,
@@ -309,7 +326,10 @@ export function createPostgresApiRuntime(
     activateTenant,
     finalizeFirstAdministratorBootstrap,
     createProperty: new CreateProperty(propertyRepository, { generate: randomUUID }, { now: () => new Date().toISOString() }, propertyCompositionRepository),
-    retrieveProperty: new RetrieveProperty(propertyRepository),
+    retrieveProperty,
+    retrievePrivateRentalAvailability: new RetrievePrivateRentalAvailability(
+      retrieveProperty, checkRentalAvailability, compositionClock,
+    ),
     listProperties: new ListProperties(new PostgresPropertyPortfolioQuery(pool)),
     updatePropertyDetails: new UpdatePropertyDetails(propertyRepository, { now: () => new Date().toISOString() }),
     setPropertyPricing: new SetPropertyPricing(propertyRepository, { now: () => new Date().toISOString() }),
@@ -387,8 +407,13 @@ export function createPostgresApiRuntime(
     ),
     publicCatalogTenantResolver: publicCatalogAllowlist.resolver,
     ...(publicCatalogQuery === undefined ? {} : {
-      listPublicProperties: new ListPublicProperties(publicCatalogQuery),
+      listPublicProperties: new ListRentablePublicProperties(
+        new ListPublicProperties(publicCatalogQuery), catalogRentalAvailability, compositionClock,
+      ),
       retrievePublicProperty: new RetrievePublicProperty(publicCatalogQuery),
+      retrievePublicRentalAvailability: new RetrievePublicRentalAvailability(
+        new RetrievePublicProperty(publicCatalogQuery), checkRentalAvailability, compositionClock,
+      ),
       retrievePublicPrimaryPhoto: new RetrievePublicPrimaryPhoto(publicCatalogQuery),
       retrievePublicPropertyMedia: new RetrievePublicPropertyMedia(publicCatalogQuery),
     }),

@@ -4,6 +4,14 @@
 
 Own the Property real-estate bounded context.
 
+## Rental availability integration
+
+Property Management remains the owner of structure, hierarchy, `transactionType`, commercial terms and publication. `transactionType` is the canonical rental-mode source; rental mode is never inferred from Property type.
+
+The tenant-scoped `PropertyRentalTargetQuery` resolves rentable targets and their conflict scopes in batch. Standalone properties and Units claim their own identity. A whole-building commercial target additionally exposes all child Unit identities so Rental Operations can enforce building/Unit exclusivity without owning Property hierarchy.
+
+Publication and operational availability are deliberately separate. An effective long-term allocation can exclude a published Property from rentable catalog results without changing its `PUBLISHED` state. Short-term allocations never withdraw publication and affect only conflicting UTC half-open periods.
+
 ## TASK-034 baseline
 
 The service owns the tenant-bound `Property` aggregate and the

@@ -4,6 +4,14 @@
 
 Public API edge application.
 
+## Rental availability
+
+- `GET /v1/properties/{propertyId}/rental-availability` is authenticated and tenant-scoped through Property authority.
+- `GET /v1/public/properties/{propertyId}/rental-availability` first resolves a published Property from the host-bound public catalog, then returns sanitized availability without allocation IDs, customer data, notes or provenance.
+- Both endpoints require canonical UTC `startsAt` and `endsAt` instants and use half-open `[startsAt, endsAt)` semantics.
+- Public catalog lists compose publication with Rental Operations in batch. Effective long-term occupancy removes a rental from results without unpublishing it; short-term listings remain visible.
+- Next availability is duration-aware and comes from Rental Operations rather than controller overlap logic.
+
 ## Ownership
 
 API Platform owns this area and approves changes affecting its responsibilities.

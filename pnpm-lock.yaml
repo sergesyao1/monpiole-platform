@@ -44,6 +44,9 @@ importers:
       '@monpiole/property-management':
         specifier: workspace:*
         version: link:../../services/property-management
+      '@monpiole/rental-operations':
+        specifier: workspace:*
+        version: link:../../services/rental-operations
       '@monpiole/tenant-management':
         specifier: workspace:*
         version: link:../../services/tenant-management

@@ -11,7 +11,7 @@ import { Pool } from "pg";
 import { GenericContainer, Wait, type StartedTestContainer } from "testcontainers";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { PostgresPublicPropertyCatalogQuery } from "../src/index.js";
+import { PostgresPropertyRentalTargetQuery, PostgresPublicPropertyCatalogQuery } from "../src/index.js";
 
 const IMAGE = "postgres@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687";
 const TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -27,6 +27,7 @@ const migrationsFolder = fileURLToPath(new URL("../migrations", import.meta.url)
 let container: StartedTestContainer;
 let owner: Pool;
 let reader: Pool;
+let runtime: Pool;
 
 function connection(user: string, password: string, database = "public_catalog_test") {
   return `postgresql://${user}:${password}@${container.getHost()}:${container.getMappedPort(5432)}/${database}`;
@@ -43,6 +44,7 @@ beforeAll(async () => {
   await owner.query("CREATE ROLE monpiole_public_catalog_reader LOGIN PASSWORD 'synthetic-public-reader' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS");
   await migrate(drizzle(owner), { migrationsFolder });
   reader = new Pool({ connectionString: connection("monpiole_public_catalog_reader", "synthetic-public-reader"), max: 2 });
+  runtime = new Pool({ connectionString: connection("monpiole_runtime", "synthetic-runtime"), max: 2 });
 });
 
 afterEach(async () => {
@@ -51,11 +53,28 @@ afterEach(async () => {
 
 afterAll(async () => {
   await reader?.end();
+  await runtime?.end();
   await owner?.end();
   await container?.stop();
 });
 
 describe("PostgreSQL public Property catalog boundary", () => {
+  it("resolves canonical rental modes in one tenant-scoped batch without inferring from Property type", async () => {
+    await owner.query(`INSERT INTO property_management.properties
+      (property_id,tenant_id,title,property_type,transaction_type,status,structural_role,country,city,district,address_line,
+       created_at,updated_at,correlation_id,actor_id)
+      VALUES ($1,$3,'Maison longue durée','HOUSE','LONG_TERM_RENTAL','DRAFT','STANDALONE','CI','Abidjan','Cocody','Adresse',now(),now(),$4,'actor'),
+             ($2,$3,'Maison courte durée','HOUSE','SHORT_TERM_RENTAL','DRAFT','STANDALONE','CI','Abidjan','Cocody','Adresse',now(),now(),$5,'actor')`,
+    [PROPERTY_A, PROPERTY_B, TENANT_A, randomUUID(), randomUUID()]);
+    const targets = [...await new PostgresPropertyRentalTargetQuery(runtime).resolveMany(TENANT_A, [PROPERTY_A, PROPERTY_B])]
+      .sort((left, right) => left.propertyId.localeCompare(right.propertyId));
+    expect(targets).toMatchObject([
+      { propertyId: PROPERTY_A, rentalMode: "LONG_TERM_RENTAL", conflictScopeIds: [PROPERTY_A] },
+      { propertyId: PROPERTY_B, rentalMode: "SHORT_TERM_RENTAL", conflictScopeIds: [PROPERTY_B] },
+    ]);
+    await expect(new PostgresPropertyRentalTargetQuery(runtime).resolveMany(TENANT_B, [PROPERTY_A])).resolves.toEqual([]);
+  });
+
   it("lists only PUBLISHED rows for the explicit tenant with deterministic keyset pagination", async () => {
     await seedPublished(owner, TENANT_A, PROPERTY_A, "Maison A", "2026-08-31T12:00:00.000Z", "HOUSE", "SALE");
     await seedPublished(owner, TENANT_A, PROPERTY_B, "Maison B", "2026-08-31T11:00:00.000Z", "HOUSE", "SALE");

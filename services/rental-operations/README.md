@@ -32,6 +32,8 @@ Rental Operations Team owns this bounded context, its data, migrations, contract
 
 The application surface exposes check, assert, conflict-listing, next-availability and atomic allocation-commit capabilities. Rentable-target existence, hierarchy and rental eligibility remain behind the Property Management resolver port.
 
+Catalog composition uses `GetCatalogRentalAvailability`: Property targets are resolved once per page and effective long-term occupied scopes are fetched in one tenant-scoped query. This prevents N+1 access while keeping Property publication and Rental Operations availability under their respective owners. Public transport exposes only disposition, requested-period availability and duration-aware next availability.
+
 Maintenance may create or release explicit blocks through a future integration adapter. Billing consumes rental facts but does not decide availability. Future entry/exit inspection workflows create a block only when operational time is actually reserved.
 
 Property identity and hierarchy remain owned by Property Management. Rentable-target and PropertyContract identifiers are validated through future explicit ports; cross-service database foreign keys are intentionally absent.

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   CheckRentalAvailability,
+  GetCatalogRentalAvailability,
   findNextAvailableAt,
   intervalsOverlap,
   type AvailabilityConflict,
@@ -113,5 +114,36 @@ describe("half-open temporal availability", () => {
       { startsAt: at(10), endsAt: at(13) },
       [conflict(10, 17), conflict(20, 24)],
     )).toBe(at(17));
+  });
+});
+
+describe("batch catalog rental availability", () => {
+  it("removes only effectively occupied long-term rentals with one batch query", async () => {
+    let queryCount = 0;
+    let resolutionCount = 0;
+    const useCase = new GetCatalogRentalAvailability({
+      listEffectiveLongTermOccupiedScopeIds: async () => {
+        queryCount += 1;
+        return new Set([assetId]);
+      },
+    }, {
+      resolveMany: async (_tenantId, ids) => {
+        resolutionCount += 1;
+        return ids.map((id) => ({ rentableAssetId: id, conflictScopeIds: [id] }));
+      },
+    });
+    const other = "33333333-3333-4333-8333-333333333333";
+    await expect(useCase.execute({
+      tenantId,
+      properties: [
+        { rentableAssetId: assetId, rentalMode: "LONG_TERM_RENTAL" },
+        { rentableAssetId: other, rentalMode: "SHORT_TERM_RENTAL" },
+      ],
+      evaluatedAt: at(1),
+    })).resolves.toEqual([
+      { rentableAssetId: assetId, catalogDisposition: "REMOVE_FROM_RENTAL_CATALOG" },
+      { rentableAssetId: other, catalogDisposition: "AVAILABLE_FOR_INTERVAL" },
+    ]);
+    expect({ queryCount, resolutionCount }).toEqual({ queryCount: 1, resolutionCount: 1 });
   });
 });
