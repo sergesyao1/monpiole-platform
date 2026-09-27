@@ -1,0 +1,16 @@
+TASK-110-E9-A - LONG-TERM CLOSURE & CATALOG TRUTH
+
+STATUS: DONE
+
+- Starting long-term Occupancy now requires and locks an ACTIVE LONG_TERM_RENTAL allocation.
+- Catalog removal now requires an effective ACTIVE long-term Occupancy linked to that allocation.
+- A prepared Lease allocation alone no longer removes the target from the rental catalog.
+- Ending long-term Occupancy releases the Lease allocation and all hierarchy claims atomically.
+- Exact start/end replay remains convergent; source locks and uniqueness serialize concurrency.
+- Tenant-scoped catalog queries continue to use RLS and explicit tenant predicates.
+
+Validation
+- Rental Operations typecheck: PASS.
+- Test typecheck: PASS.
+- Rental Operations PostgreSQL: PASS - 1 file, 17 tests.
+- git diff --check: PASS.

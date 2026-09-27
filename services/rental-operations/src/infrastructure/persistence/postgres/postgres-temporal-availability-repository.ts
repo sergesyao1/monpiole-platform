@@ -55,12 +55,15 @@ implements AvailabilityQueryPort, CatalogAvailabilityQueryPort, RentalAllocation
           FROM rental_operations.rental_allocation_claims AS claim
           INNER JOIN rental_operations.rental_allocations AS a
             ON a.tenant_id = claim.tenant_id AND a.allocation_id = claim.allocation_id
+          INNER JOIN rental_operations.occupancies AS o
+            ON o.tenant_id = a.tenant_id AND o.source_lease_id = a.source_lease_id
           WHERE claim.tenant_id = $1::uuid
             AND claim.conflict_scope_id = ANY($2::uuid[])
             AND claim.status = 'ACTIVE'
             AND a.rental_mode = 'LONG_TERM_RENTAL'
-            AND claim.start_at <= $3::timestamptz
-            AND (claim.end_at IS NULL OR claim.end_at > $3::timestamptz)
+            AND o.mode = 'LONG_TERM_RENTAL' AND o.lifecycle_status = 'ACTIVE'
+            AND o.started_at <= $3::timestamptz
+            AND (o.ended_at IS NULL OR o.ended_at > $3::timestamptz)
         ) AS present
       `, [input.tenantId, input.conflictScopeIds, input.at]);
       return rows[0]?.present ?? false;
@@ -78,12 +81,15 @@ implements AvailabilityQueryPort, CatalogAvailabilityQueryPort, RentalAllocation
         FROM rental_operations.rental_allocation_claims AS claim
         INNER JOIN rental_operations.rental_allocations AS a
           ON a.tenant_id = claim.tenant_id AND a.allocation_id = claim.allocation_id
+        INNER JOIN rental_operations.occupancies AS o
+          ON o.tenant_id = a.tenant_id AND o.source_lease_id = a.source_lease_id
         WHERE claim.tenant_id = $1::uuid
           AND claim.conflict_scope_id = ANY($2::uuid[])
           AND claim.status = 'ACTIVE'
           AND a.rental_mode = 'LONG_TERM_RENTAL'
-          AND claim.start_at <= $3::timestamptz
-          AND (claim.end_at IS NULL OR claim.end_at > $3::timestamptz)
+          AND o.mode = 'LONG_TERM_RENTAL' AND o.lifecycle_status = 'ACTIVE'
+          AND o.started_at <= $3::timestamptz
+          AND (o.ended_at IS NULL OR o.ended_at > $3::timestamptz)
       `, [input.tenantId, input.conflictScopeIds, input.at]);
       return new Set(rows.map((row) => row.conflict_scope_id));
     });

@@ -76,6 +76,10 @@ export class PostgresOperationalLifecycleRepository implements OperationalLifecy
         return leaseSnapshot(input.tenantId, lease, replay);
       }
       if (lease.operational_status !== "PREPARING") throw new OperationalLifecycleConflictError();
+      const allocation = await scope.query<{ readonly allocation_id: string }>(`SELECT allocation_id FROM rental_operations.rental_allocations
+        WHERE tenant_id=$1::uuid AND source_lease_id=$2::uuid AND rental_mode='LONG_TERM_RENTAL' AND status='ACTIVE' FOR UPDATE`,
+      [input.tenantId, input.leaseId]);
+      if (allocation[0] === undefined) throw new OperationalLifecycleConflictError();
       await requireInspection(scope, input.tenantId, "source_lease_id", input.leaseId, "ENTRY");
       await scope.query(`INSERT INTO rental_operations.occupancies
         (occupancy_id,tenant_id,rentable_asset_id,mode,source_lease_id,started_at,lifecycle_status,created_at,updated_at)
@@ -141,6 +145,13 @@ export class PostgresOperationalLifecycleRepository implements OperationalLifecy
       if (occupancy.mode === "LONG_TERM_RENTAL") {
         await scope.query(`UPDATE rental_operations.leases SET operational_status='ENDED',updated_at=$3
           WHERE tenant_id=$1::uuid AND lease_id=$2::uuid`, [input.tenantId, occupancy.source_lease_id, input.occurredAt]);
+        const allocations = await scope.query<{ readonly allocation_id: string }>(`UPDATE rental_operations.rental_allocations
+          SET status='RELEASED',updated_at=$3 WHERE tenant_id=$1::uuid AND source_lease_id=$2::uuid AND status='ACTIVE'
+          RETURNING allocation_id`, [input.tenantId, occupancy.source_lease_id, input.occurredAt]);
+        for (const allocation of allocations) {
+          await scope.query(`UPDATE rental_operations.rental_allocation_claims SET status='RELEASED'
+            WHERE tenant_id=$1::uuid AND allocation_id=$2::uuid`, [input.tenantId, allocation.allocation_id]);
+        }
       } else {
         await scope.query(`UPDATE rental_operations.stays SET lifecycle_status='COMPLETED',actual_check_out_at=$3,updated_at=$3
           WHERE tenant_id=$1::uuid AND stay_id=$2::uuid`, [input.tenantId, occupancy.source_stay_id, input.occurredAt]);
