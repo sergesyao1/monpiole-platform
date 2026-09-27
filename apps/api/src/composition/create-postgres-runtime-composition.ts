@@ -66,7 +66,8 @@ import {
   PostgresTemporalAvailabilityRepository,
   PostgresOperationalLifecycleRepository, PostgresPropertyInspectionRepository, PostgresTurnoverRepository,
   ListRentalOperations, StartLeaseOccupancy, StartBookingStay, EndRentalOccupancy, CompletePropertyInspection,
-  CheckoutShortTermStay, CompleteCleaningTurnover,
+  CheckoutShortTermStay, CompleteCleaningTurnover, ExtendCleaningTurnover, CancelRentalLease, CloseRentalBooking,
+  ExtendRentalBooking, RenewRentalLease,
 } from "@monpiole/rental-operations";
 import {
   ActivateTenant,
@@ -344,6 +345,11 @@ export function createPostgresApiRuntime(
       endOccupancy: new EndRentalOccupancy(operationalLifecycle),
       checkout: new CheckoutShortTermStay(turnover, propertyRentalTargets),
       completeCleaning: new CompleteCleaningTurnover(turnover),
+      extendCleaning: new ExtendCleaningTurnover(turnover),
+      cancelLease: new CancelRentalLease(operationalLifecycle),
+      closeBooking: new CloseRentalBooking(operationalLifecycle),
+      extendBooking: new ExtendRentalBooking(operationalLifecycle),
+      renewLease: new RenewRentalLease(operationalLifecycle),
     },
     listProperties: new ListProperties(new PostgresPropertyPortfolioQuery(pool)),
     updatePropertyDetails: new UpdatePropertyDetails(propertyRepository, { now: () => new Date().toISOString() }),

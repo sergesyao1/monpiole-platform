@@ -239,6 +239,34 @@
         ],
         "type": "object"
       },
+      "BookingClosureDto": {
+        "additionalProperties": false,
+        "properties": {
+          "occurredAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "CANCELLED",
+              "NO_SHOW"
+            ],
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "occurredAt",
+          "outcome",
+          "reason"
+        ],
+        "type": "object"
+      },
       "BootstrapAdministratorRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1657,6 +1685,15 @@
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
             "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "EARLY_DEPARTURE",
+              "EARLY_TERMINATION",
+              "OVERSTAY",
+              "SCHEDULED"
+            ],
+            "type": "string"
           }
         },
         "required": [
@@ -1759,6 +1796,26 @@
         },
         "required": [
           "application"
+        ],
+        "type": "object"
+      },
+      "ExceptionalClosureDto": {
+        "additionalProperties": false,
+        "properties": {
+          "occurredAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "occurredAt",
+          "reason"
         ],
         "type": "object"
       },
@@ -7840,6 +7897,47 @@
       "SnapshotDto": {
         "additionalProperties": false,
         "properties": {
+          "activeBlocks": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "endAt": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                  "type": "string"
+                },
+                "operationalBlockId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "startAt": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                  "type": "string"
+                },
+                "status": {
+                  "enum": [
+                    "ACTIVE",
+                    "RELEASED"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "endAt",
+                "operationalBlockId",
+                "reason",
+                "startAt",
+                "status"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
           "actualCheckInAt": {
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
@@ -7878,6 +7976,9 @@
           "capabilities": {
             "additionalProperties": false,
             "properties": {
+              "canCancel": {
+                "type": "boolean"
+              },
               "canCompleteEntryInspection": {
                 "type": "boolean"
               },
@@ -7887,17 +7988,65 @@
               "canEndOccupancy": {
                 "type": "boolean"
               },
+              "canExtend": {
+                "type": "boolean"
+              },
+              "canRecordNoShow": {
+                "type": "boolean"
+              },
+              "canRenew": {
+                "type": "boolean"
+              },
               "canStartOccupancy": {
                 "type": "boolean"
               }
             },
             "required": [
+              "canCancel",
               "canCompleteEntryInspection",
               "canCompleteExitInspection",
               "canEndOccupancy",
+              "canExtend",
+              "canRecordNoShow",
+              "canRenew",
               "canStartOccupancy"
             ],
             "type": "object"
+          },
+          "inspections": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "damageObserved": {
+                  "type": "boolean"
+                },
+                "inspectionId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "occurredAt": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "ENTRY",
+                    "EXIT"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "damageObserved",
+                "inspectionId",
+                "occurredAt",
+                "type"
+              ],
+              "type": "object"
+            },
+            "type": "array"
           },
           "leaseId": {
             "format": "uuid",
@@ -7920,6 +8069,11 @@
             ],
             "type": "string"
           },
+          "nextAvailableAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
           "occupancyId": {
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -7934,6 +8088,27 @@
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
             "type": "string"
+          },
+          "recentOperations": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "eventType": {
+                  "type": "string"
+                },
+                "occurredAt": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "eventType",
+                "occurredAt"
+              ],
+              "type": "object"
+            },
+            "type": "array"
           },
           "rentableAssetId": {
             "format": "uuid",
@@ -8332,6 +8507,26 @@
           "registrationId",
           "status",
           "submittedAt"
+        ],
+        "type": "object"
+      },
+      "TemporalExtensionDto": {
+        "additionalProperties": false,
+        "properties": {
+          "newEndAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "newEndAt",
+          "occurredAt"
         ],
         "type": "object"
       },
@@ -19785,6 +19980,102 @@
         ]
       }
     },
+    "/v1/rental-operations/bookings/{id}/close": {
+      "post": {
+        "operationId": "closeRentalBooking",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingClosureDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Rental operations"
+        ]
+      }
+    },
+    "/v1/rental-operations/bookings/{id}/extend": {
+      "post": {
+        "operationId": "extendRentalBooking",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemporalExtensionDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Rental operations"
+        ]
+      }
+    },
     "/v1/rental-operations/bookings/{id}/stays": {
       "post": {
         "operationId": "startBookingStay",
@@ -19870,6 +20161,54 @@
         ]
       }
     },
+    "/v1/rental-operations/leases/{id}/cancel": {
+      "post": {
+        "operationId": "cancelRentalLease",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExceptionalClosureDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Rental operations"
+        ]
+      }
+    },
     "/v1/rental-operations/leases/{id}/occupancies": {
       "post": {
         "operationId": "startLeaseOccupancy",
@@ -19911,6 +20250,54 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Rental operations"
+        ]
+      }
+    },
+    "/v1/rental-operations/leases/{id}/renew": {
+      "post": {
+        "operationId": "renewRentalLease",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemporalExtensionDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotDto"
                 }
               }
             },
@@ -20044,6 +20431,54 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CompleteCleaningDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnoverDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Rental operations"
+        ]
+      }
+    },
+    "/v1/rental-operations/turnovers/{id}/extend": {
+      "post": {
+        "operationId": "extendCleaningTurnover",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemporalExtensionDto"
               }
             }
           },

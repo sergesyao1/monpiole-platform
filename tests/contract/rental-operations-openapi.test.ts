@@ -16,6 +16,11 @@ describe("Rental Operations OpenAPI", () => {
       ["/v1/rental-operations/occupancies/{id}/end", "post", "endRentalOccupancy"],
       ["/v1/rental-operations/occupancies/{id}/checkout", "post", "checkoutShortTermStay"],
       ["/v1/rental-operations/turnovers/{id}/complete", "post", "completeCleaningTurnover"],
+      ["/v1/rental-operations/turnovers/{id}/extend", "post", "extendCleaningTurnover"],
+      ["/v1/rental-operations/leases/{id}/cancel", "post", "cancelRentalLease"],
+      ["/v1/rental-operations/leases/{id}/renew", "post", "renewRentalLease"],
+      ["/v1/rental-operations/bookings/{id}/close", "post", "closeRentalBooking"],
+      ["/v1/rental-operations/bookings/{id}/extend", "post", "extendRentalBooking"],
     ] as const;
     for (const [path, method, operationId] of operations) {
       expect(document.paths[path]?.[method]?.operationId).toBe(operationId);
