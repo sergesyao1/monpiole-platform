@@ -7,7 +7,7 @@ import { SessionContext, type Session } from "../../auth/session.js";
 const session: Session = { status: "authenticated", user: { name: "Jeanne" }, login: vi.fn(async () => undefined), logout: vi.fn(async () => undefined), getAccessToken: vi.fn(async () => "token") };
 const assetId="11111111-1111-4111-8111-111111111111",bookingId="22222222-2222-4222-8222-222222222222";
 const preparing={tenantId:"33333333-3333-4333-8333-333333333333",rentableAssetId:assetId,mode:"SHORT_TERM_RENTAL",bookingId,bookingStatus:"CONFIRMED",
-  plannedArrivalAt:"2026-10-01T14:00:00.000Z",plannedDepartureAt:"2026-10-05T10:00:00.000Z",capabilities:{canCompleteEntryInspection:true,canStartOccupancy:false,canCompleteExitInspection:false,canEndOccupancy:false}};
+  plannedArrivalAt:"2026-10-01T14:00:00.000Z",plannedDepartureAt:"2026-10-05T10:00:00.000Z",capabilities:{canCompleteEntryInspection:true,canStartOccupancy:false,canCompleteExitInspection:false,canEndOccupancy:false,canCancel:true,canRecordNoShow:true,canExtend:true,canRenew:false}};
 function response(value:unknown,status=200){return new Response(JSON.stringify(value),{status,headers:{"content-type":"application/json"}});}
 function show(fetcher:typeof fetch){vi.stubGlobal("fetch",fetcher);const router=createMemoryRouter(applicationRoutes,{initialEntries:["/operations-locatives"]});render(<SessionContext.Provider value={session}><RouterProvider router={router}/></SessionContext.Provider>);}
 
@@ -41,5 +41,15 @@ describe("Espace Opérations locatives",()=>{
   it("affiche les états vide et erreur en français",async()=>{
     show(vi.fn(async(input:RequestInfo|URL)=>String(input).includes("platform-agency")?new Response(null,{status:403}):response({items:[]})) as typeof fetch);
     expect(await screen.findByText("Aucune opération locative à traiter.")).toBeVisible();
+  });
+  it("affiche les blocages, la disponibilité et les opérations récentes puis exécute les actions autorisées",async()=>{
+    const enriched={...preparing,nextAvailableAt:"2026-10-05T12:00:00.000Z",activeBlocks:[{operationalBlockId:"66666666-6666-4666-8666-666666666666",reason:"CLEANING",startAt:"2026-10-05T10:00:00.000Z",endAt:"2026-10-05T12:00:00.000Z",status:"ACTIVE"}],recentOperations:[{eventType:"monpiole.rental-operations.booking-extended",occurredAt:"2026-10-04T10:00:00.000Z"}]};
+    const fetcher=vi.fn(async(input:RequestInfo|URL,init?:RequestInit)=>String(input).includes("platform-agency")?new Response(null,{status:403}):init?.method==="POST"?response({}):response({items:[enriched]}));
+    show(fetcher as typeof fetch);
+    expect(await screen.findByRole("heading",{name:"Blocages actifs et nettoyage"})).toBeVisible();
+    expect(screen.getByText(/Séjour prolongé/)).toBeVisible();
+    expect(screen.getByLabelText("Motif de l’annulation")).toBeRequired();
+    fireEvent.click(screen.getByRole("button",{name:"Terminer le nettoyage"}));
+    await waitFor(()=>expect(fetcher).toHaveBeenCalledWith(expect.stringContaining("/turnovers/66666666-6666-4666-8666-666666666666/complete"),expect.objectContaining({method:"POST"})));
   });
 });
