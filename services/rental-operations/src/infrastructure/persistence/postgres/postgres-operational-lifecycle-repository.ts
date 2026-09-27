@@ -47,6 +47,7 @@ export class PostgresOperationalLifecycleRepository implements OperationalLifecy
         return leaseSnapshot(input.tenantId, lease, replay);
       }
       if (lease.operational_status !== "PREPARING") throw new OperationalLifecycleConflictError();
+      await requireInspection(scope, input.tenantId, "source_lease_id", input.leaseId, "ENTRY");
       await scope.query(`INSERT INTO rental_operations.occupancies
         (occupancy_id,tenant_id,rentable_asset_id,mode,source_lease_id,started_at,lifecycle_status,created_at,updated_at)
         VALUES ($1,$2,$3,'LONG_TERM_RENTAL',$4,$5,'ACTIVE',$5,$5)`,
@@ -75,6 +76,7 @@ export class PostgresOperationalLifecycleRepository implements OperationalLifecy
         return bookingSnapshot(input.tenantId, booking, existing[0].stay_id, existing[0]);
       }
       if (booking.lifecycle_status !== "CONFIRMED") throw new OperationalLifecycleConflictError();
+      await requireInspection(scope, input.tenantId, "source_booking_id", input.bookingId, "ENTRY");
       await scope.query(`INSERT INTO rental_operations.stays
         (stay_id,tenant_id,rentable_asset_id,booking_id,mode,lifecycle_status,actual_check_in_at,created_at,updated_at)
         VALUES ($1,$2,$3,$4,'SHORT_TERM_RENTAL','ACTIVE',$5,$5,$5)`,
@@ -103,6 +105,7 @@ export class PostgresOperationalLifecycleRepository implements OperationalLifecy
         return this.snapshotForEnded(scope, input.tenantId, occupancy);
       }
       if (Date.parse(input.occurredAt) <= occupancy.started_at.getTime()) throw new OperationalLifecycleConflictError();
+      await requireInspection(scope, input.tenantId, "occupancy_id", input.occupancyId, "EXIT");
       await scope.query(`UPDATE rental_operations.occupancies SET lifecycle_status='ENDED',ended_at=$3,updated_at=$3
         WHERE tenant_id=$1::uuid AND occupancy_id=$2::uuid`, [input.tenantId, input.occupancyId, input.occurredAt]);
       const ended = { ...occupancy, ended_at: new Date(input.occurredAt) };
@@ -136,6 +139,20 @@ export class PostgresOperationalLifecycleRepository implements OperationalLifecy
       WHERE s.tenant_id=$1::uuid AND s.stay_id=$2::uuid`, [tenantId, occupancy.source_stay_id]))[0]!;
     return bookingSnapshot(tenantId, row, row.stay_id, occupancy);
   }
+}
+
+async function requireInspection(
+  scope: PostgresTransactionScope,
+  tenantId: string,
+  sourceColumn: "source_lease_id" | "source_booking_id" | "occupancy_id",
+  sourceId: string,
+  type: "ENTRY" | "EXIT",
+): Promise<void> {
+  const rows = await scope.query<{ readonly present: boolean }>(`SELECT EXISTS (
+    SELECT 1 FROM rental_operations.property_inspections
+    WHERE tenant_id=$1::uuid AND ${sourceColumn}=$2::uuid AND inspection_type=$3 AND lifecycle_status='COMPLETED'
+  ) AS present`, [tenantId, sourceId, type]);
+  if (!(rows[0]?.present ?? false)) throw new OperationalLifecycleConflictError();
 }
 
 function leaseSnapshot(tenantId: string, lease: LeaseRow, occupancy: OccupancyRow): OperationalLifecycleSnapshot {

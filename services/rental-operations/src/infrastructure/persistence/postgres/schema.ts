@@ -3,6 +3,7 @@ import {
   check,
   foreignKey,
   index,
+  jsonb,
   pgPolicy,
   pgSchema,
   primaryKey,
@@ -118,17 +119,39 @@ export const occupancies = rentalOperations.table("occupancies", {
 export const propertyInspections = rentalOperations.table("property_inspections", {
   inspectionId: uuid("inspection_id").notNull(),
   tenantId: uuid("tenant_id").notNull(),
-  occupancyId: uuid("occupancy_id").notNull(),
+  rentableAssetId: uuid("rentable_asset_id").notNull(),
+  occupancyId: uuid("occupancy_id"),
+  sourceLeaseId: uuid("source_lease_id"),
+  sourceBookingId: uuid("source_booking_id"),
   mode: text("mode").notNull(),
   inspectionType: text("inspection_type").notNull(),
   occurredAt: timestamp("occurred_at", { withTimezone: true, mode: "string" }).notNull(),
+  lifecycleStatus: text("lifecycle_status").notNull(),
+  responsibleActorId: text("responsible_actor_id").notNull(),
+  idempotencyKey: uuid("idempotency_key").notNull(),
+  conditionRecords: jsonb("condition_records").notNull(),
+  evidenceReferences: jsonb("evidence_references").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
 }, (table) => [
   primaryKey({ name: "property_inspections_tenant_inspection_pk", columns: [table.tenantId, table.inspectionId] }),
   index("property_inspections_tenant_occupancy_idx").on(table.tenantId, table.occupancyId),
+  uniqueIndex("property_inspections_tenant_idempotency_unique").on(table.tenantId, table.idempotencyKey),
+  uniqueIndex("property_inspections_tenant_lease_type_unique").on(table.tenantId, table.sourceLeaseId, table.inspectionType).where(sql`${table.sourceLeaseId} IS NOT NULL`),
+  uniqueIndex("property_inspections_tenant_booking_type_unique").on(table.tenantId, table.sourceBookingId, table.inspectionType).where(sql`${table.sourceBookingId} IS NOT NULL`),
+  uniqueIndex("property_inspections_tenant_occupancy_type_unique").on(table.tenantId, table.occupancyId, table.inspectionType).where(sql`${table.occupancyId} IS NOT NULL`),
   foreignKey({ name: "property_inspections_occupancy_tenant_fk", columns: [table.tenantId, table.occupancyId, table.mode], foreignColumns: [occupancies.tenantId, occupancies.occupancyId, occupancies.mode] }),
+  foreignKey({ name: "property_inspections_lease_tenant_fk", columns: [table.tenantId, table.sourceLeaseId, table.rentableAssetId], foreignColumns: [leases.tenantId, leases.leaseId, leases.rentableAssetId] }),
+  foreignKey({ name: "property_inspections_booking_tenant_fk", columns: [table.tenantId, table.sourceBookingId, table.rentableAssetId], foreignColumns: [bookings.tenantId, bookings.bookingId, bookings.rentableAssetId] }),
   check("property_inspections_mode_check", sql`${table.mode} IN ('LONG_TERM_RENTAL', 'SHORT_TERM_RENTAL')`),
   check("property_inspections_type_check", sql`${table.inspectionType} IN ('ENTRY', 'EXIT')`),
+  check("property_inspections_status_check", sql`${table.lifecycleStatus} = 'COMPLETED'`),
+  check("property_inspections_provenance_check", sql`
+    (${table.inspectionType} = 'ENTRY' AND ${table.occupancyId} IS NULL AND (
+      (${table.mode} = 'LONG_TERM_RENTAL' AND ${table.sourceLeaseId} IS NOT NULL AND ${table.sourceBookingId} IS NULL)
+      OR (${table.mode} = 'SHORT_TERM_RENTAL' AND ${table.sourceLeaseId} IS NULL AND ${table.sourceBookingId} IS NOT NULL)))
+    OR (${table.inspectionType} = 'EXIT' AND ${table.occupancyId} IS NOT NULL AND ${table.sourceLeaseId} IS NULL AND ${table.sourceBookingId} IS NULL)
+  `),
   pgPolicy("property_inspections_tenant_isolation", tenantPolicy(table.tenantId)),
 ]).enableRLS();
 
