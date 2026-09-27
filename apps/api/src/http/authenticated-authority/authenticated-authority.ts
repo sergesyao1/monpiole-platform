@@ -6,6 +6,7 @@ import type {
 import type { IdentityOnboardingAuthority, IdentityOnboardingGrant } from "@monpiole/identity";
 import type { PlatformAuthority, TenantOnboardingGrant } from "@monpiole/tenant-management";
 import type { PropertyAuthority, PropertyGrant } from "@monpiole/property-management";
+import type { RentalOperationsAuthority, RentalOperationsGrant } from "@monpiole/rental-operations";
 
 import type { RequestWithContext } from "../request-context/request-context.js";
 
@@ -13,6 +14,7 @@ export type AuthorityGrant =
   | TenantOnboardingGrant
   | IdentityOnboardingGrant
   | PropertyGrant
+  | RentalOperationsGrant
   | AgencyOnboardingGrant;
 
 export interface AuthenticatedAuthority {
@@ -62,6 +64,11 @@ export function toTenantManagementAuthority(authority: AuthenticatedAuthority): 
       grant === "CREATE_TENANT" || grant === "ACTIVATE_TENANT"),
     tenantIds: authority.tenantIds,
   };
+}
+
+export function toRentalOperationsAuthority(authority: AuthenticatedAuthority): RentalOperationsAuthority {
+  return { actorId: authority.actorId, tenantIds: authority.tenantIds,
+    grants: authority.grants.filter((grant): grant is RentalOperationsGrant => grant === "MANAGE_RENTAL_OPERATIONS" || grant === "RETRIEVE_RENTAL_OPERATIONS") };
 }
 
 export function toIdentityOnboardingAuthority(authority: AuthenticatedAuthority): IdentityOnboardingAuthority {

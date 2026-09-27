@@ -25,9 +25,16 @@ export interface OperationalLifecycleSnapshot {
   readonly occupancyId?: string;
   readonly actualOccupancyStartedAt?: string;
   readonly actualOccupancyEndedAt?: string;
+  readonly capabilities?: Readonly<{
+    canCompleteEntryInspection: boolean;
+    canStartOccupancy: boolean;
+    canCompleteExitInspection: boolean;
+    canEndOccupancy: boolean;
+  }>;
 }
 
 export interface OperationalLifecycleRepository {
+  list(tenantId: string): Promise<readonly OperationalLifecycleSnapshot[]>;
   startLeaseOccupancy(input: Readonly<{ tenantId: string; leaseId: string; occupancyId: string; occurredAt: string }>): Promise<OperationalLifecycleSnapshot>;
   startBookingStay(input: Readonly<{ tenantId: string; bookingId: string; stayId: string; occupancyId: string; occurredAt: string }>): Promise<OperationalLifecycleSnapshot>;
   endOccupancy(input: Readonly<{ tenantId: string; occupancyId: string; occurredAt: string }>): Promise<OperationalLifecycleSnapshot>;
@@ -67,5 +74,16 @@ export class EndRentalOccupancy extends AuthorizedLifecycleUseCase {
 
   execute(command: Readonly<{ authority: RentalOperationsAuthority; occupancyId: string; occurredAt: string }>): Promise<OperationalLifecycleSnapshot> {
     return this.repository.endOccupancy({ ...command, tenantId: this.tenant(command.authority) });
+  }
+}
+
+export class ListRentalOperations {
+  constructor(private readonly repository: OperationalLifecycleRepository) {}
+
+  execute(query: Readonly<{ authority: RentalOperationsAuthority }>): Promise<readonly OperationalLifecycleSnapshot[]> {
+    if (!query.authority.grants.includes("RETRIEVE_RENTAL_OPERATIONS") || query.authority.tenantIds.length !== 1) {
+      throw new RentalOperationsForbiddenError();
+    }
+    return this.repository.list(query.authority.tenantIds[0]!);
   }
 }

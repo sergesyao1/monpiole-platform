@@ -64,6 +64,9 @@ import {
   CheckRentalAvailability,
   GetCatalogRentalAvailability,
   PostgresTemporalAvailabilityRepository,
+  PostgresOperationalLifecycleRepository, PostgresPropertyInspectionRepository, PostgresTurnoverRepository,
+  ListRentalOperations, StartLeaseOccupancy, StartBookingStay, EndRentalOccupancy, CompletePropertyInspection,
+  CheckoutShortTermStay, CompleteCleaningTurnover,
 } from "@monpiole/rental-operations";
 import {
   ActivateTenant,
@@ -278,6 +281,9 @@ export function createPostgresApiRuntime(
   const temporalAvailability = new PostgresTemporalAvailabilityRepository(pool);
   const checkRentalAvailability = new CheckRentalAvailability(temporalAvailability, propertyRentalTargets);
   const catalogRentalAvailability = new GetCatalogRentalAvailability(temporalAvailability, propertyRentalTargets);
+  const operationalLifecycle = new PostgresOperationalLifecycleRepository(pool);
+  const inspections = new PostgresPropertyInspectionRepository(pool);
+  const turnover = new PostgresTurnoverRepository(pool);
   const retrieveProperty = new RetrieveProperty(propertyRepository);
 
   const composition: ApiComposition = {
@@ -330,6 +336,15 @@ export function createPostgresApiRuntime(
     retrievePrivateRentalAvailability: new RetrievePrivateRentalAvailability(
       retrieveProperty, checkRentalAvailability, compositionClock,
     ),
+    rentalOperationalLifecycle: {
+      list: new ListRentalOperations(operationalLifecycle),
+      startLease: new StartLeaseOccupancy(operationalLifecycle),
+      startBooking: new StartBookingStay(operationalLifecycle),
+      completeInspection: new CompletePropertyInspection(inspections),
+      endOccupancy: new EndRentalOccupancy(operationalLifecycle),
+      checkout: new CheckoutShortTermStay(turnover, propertyRentalTargets),
+      completeCleaning: new CompleteCleaningTurnover(turnover),
+    },
     listProperties: new ListProperties(new PostgresPropertyPortfolioQuery(pool)),
     updatePropertyDetails: new UpdatePropertyDetails(propertyRepository, { now: () => new Date().toISOString() }),
     setPropertyPricing: new SetPropertyPricing(propertyRepository, { now: () => new Date().toISOString() }),

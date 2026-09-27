@@ -181,6 +181,7 @@ import {
   RETRIEVE_PRIVATE_RENTAL_AVAILABILITY,
   RETRIEVE_PUBLIC_RENTAL_AVAILABILITY,
 } from "./http/rental-availability/rental-availability.controller.js";
+import { RentalOperationsController, RENTAL_OPERATIONAL_LIFECYCLE, type RentalOperationalLifecycleApi } from "./http/rental-operations/rental-operations.controller.js";
 
 const BaseStrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
@@ -336,6 +337,7 @@ export interface ApiComposition {
   readonly retrievePublicProperty?: Pick<RetrievePublicProperty, "execute">;
   readonly retrievePrivateRentalAvailability?: Pick<RetrievePrivateRentalAvailability, "execute">;
   readonly retrievePublicRentalAvailability?: Pick<RetrievePublicRentalAvailability, "execute">;
+  readonly rentalOperationalLifecycle?: RentalOperationalLifecycleApi;
   readonly retrievePublicPrimaryPhoto?: Pick<RetrievePublicPrimaryPhoto, "execute">;
   readonly retrievePublicPropertyMedia?: Pick<RetrievePublicPropertyMedia, "execute">;
   readonly createPropertyOwner?: Pick<CreatePropertyOwner, "execute">;
@@ -409,6 +411,7 @@ const unavailableUpdatePropertyAvailability: Pick<UpdatePropertyAvailability, "e
 const unavailableListPublicProperties: Pick<ListPublicProperties, "execute"> = { async execute() { throw new Error("Public Property catalog composition is unavailable"); } };
 const unavailableRetrievePublicProperty: Pick<RetrievePublicProperty, "execute"> = { async execute() { throw new Error("Public Property detail composition is unavailable"); } };
 const unavailableRentalAvailability = { async execute(): Promise<never> { throw new Error("Rental availability composition is unavailable"); } };
+const unavailableRentalOperationalLifecycle = new Proxy({}, { get: () => unavailableRentalAvailability }) as RentalOperationalLifecycleApi;
 const unavailableRetrievePublicPrimaryPhoto: Pick<RetrievePublicPrimaryPhoto, "execute"> = { async execute() { throw new Error("Public Property photo composition is unavailable"); } };
 const unavailableRetrievePublicPropertyMedia: Pick<RetrievePublicPropertyMedia, "execute"> = { async execute() { throw new Error("Public Property media composition is unavailable"); } };
 const unavailablePublicCatalogTenantResolver = new AllowlistedPublicCatalogTenantResolver(new Map());
@@ -444,7 +447,7 @@ export class AppModule {
         UpdatePropertyCoreInformationController, UpdatePropertyDetailsController, SetPropertyPricingController,
         PublishPropertyController,
         PropertyPhotosController, PropertyPhotoStandardController, PropertyGeolocationController, PropertyAvailabilityController, PropertyAmenitiesController,
-        PublicPropertiesController, PrivateRentalAvailabilityController, PublicRentalAvailabilityController, PublicPropertyInquiriesController, PropertyInquiriesController, PropertyInquiryCommunicationsController, PropertyCommercialJourneysController, PropertyViewingsController, PropertyViewingOutcomesController, PropertyApplicationsController, PropertyApplicationClientConversionsController, PropertyApplicationContractsController,
+        PublicPropertiesController, PrivateRentalAvailabilityController, PublicRentalAvailabilityController, RentalOperationsController, PublicPropertyInquiriesController, PropertyInquiriesController, PropertyInquiryCommunicationsController, PropertyCommercialJourneysController, PropertyViewingsController, PropertyViewingOutcomesController, PropertyApplicationsController, PropertyApplicationClientConversionsController, PropertyApplicationContractsController,
         CreatePropertyOwnerController, ListPropertyOwnersController, RetrievePropertyOwnerController, UpdatePropertyOwnerController,
         AssignPropertyOwnerController, RetrievePropertyOwnershipsController, RemovePropertyOwnerController, PropertyCompositionController, PropertyComplexChildrenController,
         PropertyClientsController, PropertyContractsController, PropertyWorkspaceController,
@@ -603,6 +606,7 @@ export class AppModule {
         { provide: RETRIEVE_PUBLIC_PROPERTY_USE_CASE, useValue: composition.retrievePublicProperty ?? unavailableRetrievePublicProperty },
         { provide: RETRIEVE_PRIVATE_RENTAL_AVAILABILITY, useValue: composition.retrievePrivateRentalAvailability ?? unavailableRentalAvailability },
         { provide: RETRIEVE_PUBLIC_RENTAL_AVAILABILITY, useValue: composition.retrievePublicRentalAvailability ?? unavailableRentalAvailability },
+        { provide: RENTAL_OPERATIONAL_LIFECYCLE, useValue: composition.rentalOperationalLifecycle ?? unavailableRentalOperationalLifecycle },
         { provide: RETRIEVE_PUBLIC_PRIMARY_PHOTO_USE_CASE, useValue: composition.retrievePublicPrimaryPhoto ?? unavailableRetrievePublicPrimaryPhoto },
         { provide: RETRIEVE_PUBLIC_PROPERTY_MEDIA_USE_CASE, useValue: composition.retrievePublicPropertyMedia ?? unavailableRetrievePublicPropertyMedia },
         { provide: CREATE_PROPERTY_OWNER_USE_CASE, useValue: composition.createPropertyOwner ?? unavailableCreatePropertyOwner },

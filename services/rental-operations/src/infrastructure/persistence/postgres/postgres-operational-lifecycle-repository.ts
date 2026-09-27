@@ -35,6 +35,35 @@ interface OccupancyRow extends Record<string, unknown> {
 export class PostgresOperationalLifecycleRepository implements OperationalLifecycleRepository {
   constructor(private readonly pool: Pool) {}
 
+  list(tenantId: string): Promise<readonly OperationalLifecycleSnapshot[]> {
+    return withTenantPostgresTransaction(this.pool, tenantId, async (scope) => {
+      const longTerm = await scope.query<LeaseRow & OccupancyRow & { readonly entry_completed: boolean; readonly exit_completed: boolean }>(`SELECT l.lease_id,l.rentable_asset_id,l.operational_status,
+        o.occupancy_id,o.mode,o.source_lease_id,o.source_stay_id,o.started_at,o.ended_at,
+        EXISTS(SELECT 1 FROM rental_operations.property_inspections i WHERE i.tenant_id=l.tenant_id AND i.source_lease_id=l.lease_id AND i.inspection_type='ENTRY') entry_completed,
+        EXISTS(SELECT 1 FROM rental_operations.property_inspections i WHERE i.tenant_id=l.tenant_id AND i.occupancy_id=o.occupancy_id AND i.inspection_type='EXIT') exit_completed
+        FROM rental_operations.leases l LEFT JOIN rental_operations.occupancies o ON o.tenant_id=l.tenant_id AND o.source_lease_id=l.lease_id
+        WHERE l.tenant_id=$1::uuid ORDER BY l.operationalized_at DESC`, [tenantId]);
+      const shortTerm = await scope.query<BookingRow & OccupancyRow & { readonly stay_id: string | null; readonly entry_completed: boolean; readonly exit_completed: boolean }>(`SELECT b.booking_id,b.rentable_asset_id,b.lifecycle_status,b.arrival_at,b.departure_at,s.stay_id,
+        o.occupancy_id,o.mode,o.source_lease_id,o.source_stay_id,o.started_at,o.ended_at,
+        EXISTS(SELECT 1 FROM rental_operations.property_inspections i WHERE i.tenant_id=b.tenant_id AND i.source_booking_id=b.booking_id AND i.inspection_type='ENTRY') entry_completed,
+        EXISTS(SELECT 1 FROM rental_operations.property_inspections i WHERE i.tenant_id=b.tenant_id AND i.occupancy_id=o.occupancy_id AND i.inspection_type='EXIT') exit_completed
+        FROM rental_operations.bookings b LEFT JOIN rental_operations.stays s ON s.tenant_id=b.tenant_id AND s.booking_id=b.booking_id
+        LEFT JOIN rental_operations.occupancies o ON o.tenant_id=s.tenant_id AND o.source_stay_id=s.stay_id
+        WHERE b.tenant_id=$1::uuid ORDER BY b.arrival_at`, [tenantId]);
+      return [
+        ...longTerm.map((row) => ({ tenantId, rentableAssetId: row.rentable_asset_id, mode: "LONG_TERM_RENTAL" as const,
+          leaseId: row.lease_id, leaseStatus: row.operational_status,
+          ...(row.occupancy_id === null ? {} : { occupancyId: row.occupancy_id, actualOccupancyStartedAt: row.started_at.toISOString(), ...(row.ended_at === null ? {} : { actualOccupancyEndedAt: row.ended_at.toISOString() }) }),
+          capabilities: capabilities(row.operational_status === "PREPARING", row.entry_completed, row.occupancy_id !== null && row.ended_at === null, row.exit_completed) })),
+        ...shortTerm.map((row) => ({ tenantId, rentableAssetId: row.rentable_asset_id, mode: "SHORT_TERM_RENTAL" as const,
+          bookingId: row.booking_id, bookingStatus: row.lifecycle_status, plannedArrivalAt: row.arrival_at.toISOString(), plannedDepartureAt: row.departure_at.toISOString(),
+          ...(row.stay_id === null ? {} : { stayId: row.stay_id }),
+          ...(row.occupancy_id === null ? {} : { occupancyId: row.occupancy_id, actualCheckInAt: row.started_at.toISOString(), actualOccupancyStartedAt: row.started_at.toISOString(), ...(row.ended_at === null ? {} : { actualCheckOutAt: row.ended_at.toISOString(), actualOccupancyEndedAt: row.ended_at.toISOString() }) }),
+          capabilities: capabilities(row.lifecycle_status === "CONFIRMED", row.entry_completed, row.occupancy_id !== null && row.ended_at === null, row.exit_completed) })),
+      ];
+    });
+  }
+
   startLeaseOccupancy(input: Readonly<{ tenantId: string; leaseId: string; occupancyId: string; occurredAt: string }>): Promise<OperationalLifecycleSnapshot> {
     return withTenantPostgresTransaction(this.pool, input.tenantId, async (scope) => {
       const leases = await scope.query<LeaseRow>(`SELECT lease_id, rentable_asset_id, operational_status
@@ -168,4 +197,9 @@ function bookingSnapshot(tenantId: string, booking: BookingRow, stayId: string, 
     stayId, actualCheckInAt: occupancy.started_at.toISOString(), occupancyId: occupancy.occupancy_id,
     actualOccupancyStartedAt: occupancy.started_at.toISOString(),
     ...(occupancy.ended_at === null ? {} : { actualCheckOutAt: occupancy.ended_at.toISOString(), actualOccupancyEndedAt: occupancy.ended_at.toISOString() }) };
+}
+
+function capabilities(preparing: boolean, entryCompleted: boolean, active: boolean, exitCompleted: boolean) {
+  return { canCompleteEntryInspection: preparing && !entryCompleted, canStartOccupancy: preparing && entryCompleted,
+    canCompleteExitInspection: active && !exitCompleted, canEndOccupancy: active && exitCompleted };
 }
