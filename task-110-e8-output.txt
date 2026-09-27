@@ -1,0 +1,122 @@
+TASK-110-E8 - POST-LIFECYCLE READINESS AUDIT
+
+MODE: READ-ONLY AUDIT
+
+TASK-110-E STATUS:
+NOT_READY
+
+1. IMPLEMENTED CAPABILITIES
+
+- Normative state machines for Lease, Booking, Stay, Occupancy and PropertyInspection.
+- Explicit planned Booking time and actual Stay/Occupancy time.
+- Transactional Lease -> Occupancy and Booking -> Stay -> Occupancy execution.
+- Shared ENTRY and EXIT inspection model for both rental modes.
+- Structured condition, damage observations and external evidence references.
+- Inspection comparison without financial interpretation.
+- Short-term checkout with first-class CLEANING OperationalBlock.
+- Atomic release of Booking allocation and creation/release of turnover claims.
+- Authenticated capability-driven operational HTTP API and OpenAPI contract.
+- French /operations-locatives Web workspace and Property deep links.
+- Tenant-scoped persistence, RLS, composite provenance and concurrent source locking.
+
+2. VERIFIED INVARIANTS
+
+- LONG_TERM_RENTAL and SHORT_TERM_RENTAL remain distinct.
+- Long-term Occupancy has Lease provenance; short-term Occupancy has Stay/Booking provenance.
+- ENTRY is required before Occupancy start; EXIT is required before end/checkout.
+- Planned arrival/departure are not overwritten by actual check-in/check-out.
+- Exact starts, inspections and turnover commands converge; changed replay conflicts.
+- One Stay per Booking and one Occupancy per Lease/Stay are database enforced.
+- Cross-tenant reads behave as not found and writes remain RLS protected.
+- Availability intervals and cleaning blocks remain UTC half-open.
+- Short-term checkout releases its Booking claim before installing the cleaning claim.
+- Condition evidence is private and absent from public availability/catalog routes.
+- Billing, Property Management and Maintenance ownership boundaries remain intact.
+
+3. BLOCKING GAPS
+
+- Long-term Occupancy end changes lifecycle state but does not transactionally release the Lease
+  RentalAllocation and rental_allocation_claims. The required operational closure is incomplete.
+- Long-term `REMOVE_FROM_RENTAL_CATALOG` is still derived from an active long-term allocation rather
+  than an effective active Occupancy. A prepared Lease can therefore remove a target too early, and
+  a closed Occupancy can remain excluded while its allocation stays active.
+- Lifecycle commands do not publish the declared domain events through the repository event/outbox
+  convention. Constants exist, but no facts are emitted transactionally.
+- Cancellation, no-show, early termination, extension, renewal and controlled overstay states are
+  specified but have no application commands, persistence transitions, API or tests.
+- There is no separate Lease operationalization command/API; current execution assumes a Lease and
+  allocation already exist and starts Occupancy directly after ENTRY.
+- The operational collection does not include inspections, active OperationalBlocks, cleaning state,
+  next availability or completed/recent operation summaries required by E6/E7.
+- Web does not provide the required dedicated views for pending cleaning, operational blocks, next
+  availability and recent completed operations. It also does not integrate an operational summary
+  into Property Workspace.
+- Cleaning delay cannot extend an existing active cleaning block through a dedicated lifecycle
+  command; only its initial expected end and final release are implemented.
+- Maintenance discovered at EXIT is recordable as damage/observation, but no adapter command/event
+  boundary creates or retains a MAINTENANCE block from that fact.
+
+4. TECHNICAL DEBT / RESIDUAL RISKS
+
+- Operational list query currently materializes capabilities in PostgreSQL repository code; these
+  should be consolidated with domain policy tests as exceptional transitions are added.
+- Client-generated command entity IDs make mutation replay dependent on the caller retaining its
+  identifiers. A canonical Idempotency-Key command ledger would improve HTTP retry semantics.
+- Evidence references are syntactically validated but not resolved through a media/document port.
+- API HTTP coverage validates authentication, validation and tenant authority forwarding, while
+  dedicated tests for every command's 403/404/409 mapping remain incomplete.
+- The repository emits pg@8 deprecation warnings in concurrency tests because the test deliberately
+  overlaps commands; tests pass, but the eventual pg@9 migration should be reviewed.
+- Web production build emits the pre-existing >500 kB chunk advisory.
+
+5. DEFERRED CAPABILITIES
+
+- Financial charges, deposits, invoices and accounting remain deferred to Billing.
+- Maintenance work-order execution remains deferred to a Maintenance bounded context.
+- Binary media storage, signature capture and document lifecycle remain external capabilities.
+- Workforce/housekeeping scheduling is intentionally not implemented.
+
+6. A-AH AUDIT SUMMARY
+
+- A-G provenance and dual-mode inspections: PASS.
+- H-J cancellation/no-show/early/extension/overstay: FAIL - specification only.
+- K-M observations, damage and evidence references: PASS with unresolved-reference risk.
+- N-O cleaning and OperationalBlock integration: PARTIAL - base flow passes, delay API absent.
+- P-R Maintenance/Billing/Property boundaries: PASS.
+- S public catalog behavior: FAIL for effective long-term Occupancy timing.
+- T short-term interval availability: PASS.
+- U long-term catalog exclusion: FAIL for allocation-versus-Occupancy semantics.
+- V next availability: PASS in engine, FAIL in operational API/Web exposure.
+- W whole-building/unit conflicts: PASS through existing claims/scopes.
+- X-Y RLS and concurrency: PASS for implemented transitions.
+- Z idempotency: PARTIAL - repository replay passes; no general HTTP command ledger.
+- AA events: FAIL - contracts only, no emission.
+- AB-AC API/OpenAPI: PARTIAL - implemented routes documented; required retrieval detail incomplete.
+- AD Web workspace: PARTIAL - core actions present; required operational views incomplete.
+- AE public/private separation: PASS.
+- AF tests: PARTIAL - green suite, missing exceptional transition and full HTTP matrix coverage.
+- AG documentation: PASS through E2-E8 outputs and OpenAPI.
+- AH remaining business gaps: the blocking gaps above require a completion slice.
+
+7. VALIDATION RESULTS
+
+- Workspace typecheck: PASS - 12 workspace projects.
+- Test typecheck: PASS.
+- Rental migration check: PASS.
+- Architecture: PASS.
+- Unit: PASS - 64 files, 435 tests.
+- HTTP/integration: PASS - 34 files, 292 tests.
+- Contract: PASS - 28 files, 119 tests.
+- Rental PostgreSQL: PASS - 1 file, 17 tests.
+- Web: PASS - 38 files, 242 tests.
+- Web build: PASS - 191 modules; chunk-size advisory only.
+- Global suite: PASS - 188 files, 1,387 tests.
+- git diff --check: PASS before this report.
+
+8. RECOMMENDED NEXT TASK
+
+TASK-110-E9 - Rental Operational Lifecycle Closure & Readiness Remediation
+
+Scope: correct effective long-term catalog semantics and allocation release, add transactional event
+emission, implement exceptional transitions, expose operational blocks/next availability/recent work,
+complete the Web views and full HTTP/PostgreSQL regression matrix, then repeat the read-only audit.
