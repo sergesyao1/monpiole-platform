@@ -23,6 +23,11 @@ export interface ActivePropertyContractResolver {
 export const RENTAL_OPERATIONS_EVENT_TYPES = [
   "monpiole.rental-operations.lease-operationalized",
   "monpiole.rental-operations.booking-confirmed",
+  "monpiole.rental-operations.booking-cancelled",
+  "monpiole.rental-operations.booking-no-show-recorded",
+  "monpiole.rental-operations.booking-extended",
+  "monpiole.rental-operations.lease-cancelled",
+  "monpiole.rental-operations.lease-renewed",
   "monpiole.rental-operations.stay-started",
   "monpiole.rental-operations.stay-completed",
   "monpiole.rental-operations.occupancy-started",
@@ -33,6 +38,7 @@ export const RENTAL_OPERATIONS_EVENT_TYPES = [
   "monpiole.rental-operations.allocation-released",
   "monpiole.rental-operations.operational-block-created",
   "monpiole.rental-operations.operational-block-released",
+  "monpiole.rental-operations.operational-block-extended",
 ] as const;
 
 export type RentalOperationsEventType = typeof RENTAL_OPERATIONS_EVENT_TYPES[number];

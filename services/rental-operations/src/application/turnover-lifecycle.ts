@@ -20,6 +20,7 @@ export interface TurnoverSnapshot {
 export interface TurnoverRepository {
   checkout(input: Readonly<{ tenantId: string; actorId: string; occupancyId: string; operationalBlockId: string; allocationId: string; checkedOutAt: string; expectedCleaningCompletionAt: string; conflictScopeIds: readonly string[] }>): Promise<TurnoverSnapshot>;
   completeCleaning(input: Readonly<{ tenantId: string; actorId: string; operationalBlockId: string; completedAt: string }>): Promise<TurnoverSnapshot>;
+  extendCleaning(input: Readonly<{ tenantId: string; actorId: string; operationalBlockId: string; newEndAt: string; occurredAt: string }>): Promise<TurnoverSnapshot>;
 }
 
 export class CheckoutShortTermStay {
@@ -38,6 +39,13 @@ export class CompleteCleaningTurnover {
 
   execute(command: Readonly<{ authority: RentalOperationsAuthority; operationalBlockId: string; completedAt: string }>): Promise<TurnoverSnapshot> {
     return this.repository.completeCleaning({ ...command, tenantId: authorizedTenant(command.authority), actorId: command.authority.actorId });
+  }
+}
+
+export class ExtendCleaningTurnover {
+  constructor(private readonly repository: TurnoverRepository) {}
+  execute(command: Readonly<{ authority: RentalOperationsAuthority; operationalBlockId: string; newEndAt: string; occurredAt: string }>): Promise<TurnoverSnapshot> {
+    return this.repository.extendCleaning({ ...command, tenantId: authorizedTenant(command.authority), actorId: command.authority.actorId });
   }
 }
 

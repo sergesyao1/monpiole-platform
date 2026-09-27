@@ -29,6 +29,8 @@ export const leases = rentalOperations.table("leases", {
   mode: text("mode").notNull(),
   operationalStatus: text("operational_status").notNull(),
   operationalizedAt: timestamp("operationalized_at", { withTimezone: true, mode: "string" }).notNull(),
+  closedAt: timestamp("closed_at", { withTimezone: true, mode: "string" }),
+  closureReason: text("closure_reason"),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
 }, (table) => [
@@ -38,6 +40,7 @@ export const leases = rentalOperations.table("leases", {
   index("leases_tenant_asset_idx").on(table.tenantId, table.rentableAssetId),
   check("leases_mode_check", sql`${table.mode} = 'LONG_TERM_RENTAL'`),
   check("leases_operational_status_check", sql`${table.operationalStatus} IN ('PREPARING', 'OCCUPIED', 'ENDED', 'CANCELLED')`),
+  check("leases_closure_check", sql`(${table.operationalStatus} = 'CANCELLED') = (${table.closedAt} IS NOT NULL AND ${table.closureReason} IS NOT NULL)`),
   pgPolicy("leases_tenant_isolation", tenantPolicy(table.tenantId)),
 ]).enableRLS();
 
@@ -49,6 +52,9 @@ export const bookings = rentalOperations.table("bookings", {
   lifecycleStatus: text("lifecycle_status").notNull(),
   arrivalAt: timestamp("arrival_at", { withTimezone: true, mode: "string" }).notNull(),
   departureAt: timestamp("departure_at", { withTimezone: true, mode: "string" }).notNull(),
+  originalDepartureAt: timestamp("original_departure_at", { withTimezone: true, mode: "string" }).notNull(),
+  closedAt: timestamp("closed_at", { withTimezone: true, mode: "string" }),
+  closureReason: text("closure_reason"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
 }, (table) => [
@@ -58,6 +64,8 @@ export const bookings = rentalOperations.table("bookings", {
   check("bookings_mode_check", sql`${table.mode} = 'SHORT_TERM_RENTAL'`),
   check("bookings_lifecycle_status_check", sql`${table.lifecycleStatus} IN ('CONFIRMED', 'IN_STAY', 'COMPLETED', 'CANCELLED', 'NO_SHOW')`),
   check("bookings_interval_check", sql`${table.departureAt} > ${table.arrivalAt}`),
+  check("bookings_original_interval_check", sql`${table.originalDepartureAt} > ${table.arrivalAt}`),
+  check("bookings_closure_check", sql`(${table.lifecycleStatus} IN ('CANCELLED', 'NO_SHOW')) = (${table.closedAt} IS NOT NULL AND ${table.closureReason} IS NOT NULL)`),
   pgPolicy("bookings_tenant_isolation", tenantPolicy(table.tenantId)),
 ]).enableRLS();
 
@@ -96,6 +104,7 @@ export const occupancies = rentalOperations.table("occupancies", {
   sourceStayId: uuid("source_stay_id"),
   startedAt: timestamp("started_at", { withTimezone: true, mode: "string" }).notNull(),
   endedAt: timestamp("ended_at", { withTimezone: true, mode: "string" }),
+  endReason: text("end_reason"),
   lifecycleStatus: text("lifecycle_status").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
@@ -112,7 +121,7 @@ export const occupancies = rentalOperations.table("occupancies", {
     OR (${table.mode} = 'SHORT_TERM_RENTAL' AND ${table.sourceLeaseId} IS NULL AND ${table.sourceStayId} IS NOT NULL)
   `),
   check("occupancies_interval_check", sql`${table.endedAt} IS NULL OR ${table.endedAt} > ${table.startedAt}`),
-  check("occupancies_lifecycle_status_check", sql`(${table.lifecycleStatus} = 'ACTIVE' AND ${table.endedAt} IS NULL) OR (${table.lifecycleStatus} = 'ENDED' AND ${table.endedAt} IS NOT NULL)`),
+  check("occupancies_lifecycle_status_check", sql`(${table.lifecycleStatus} = 'ACTIVE' AND ${table.endedAt} IS NULL AND ${table.endReason} IS NULL) OR (${table.lifecycleStatus} = 'ENDED' AND ${table.endedAt} IS NOT NULL AND ${table.endReason} IN ('SCHEDULED', 'EARLY_DEPARTURE', 'EARLY_TERMINATION', 'OVERSTAY'))`),
   pgPolicy("occupancies_tenant_isolation", tenantPolicy(table.tenantId)),
 ]).enableRLS();
 
@@ -254,7 +263,11 @@ export const rentalOperationsOutbox = rentalOperations.table("outbox", {
     'monpiole.rental-operations.occupancy-started', 'monpiole.rental-operations.occupancy-ended',
     'monpiole.rental-operations.entry-inspection-completed', 'monpiole.rental-operations.exit-inspection-completed',
     'monpiole.rental-operations.allocation-created', 'monpiole.rental-operations.allocation-released',
-    'monpiole.rental-operations.operational-block-created', 'monpiole.rental-operations.operational-block-released'
+    'monpiole.rental-operations.operational-block-created', 'monpiole.rental-operations.operational-block-released',
+    'monpiole.rental-operations.operational-block-extended',
+    'monpiole.rental-operations.booking-cancelled', 'monpiole.rental-operations.booking-no-show-recorded',
+    'monpiole.rental-operations.booking-extended', 'monpiole.rental-operations.lease-cancelled',
+    'monpiole.rental-operations.lease-renewed'
   ) AND ${table.eventVersion} = '1'`),
   pgPolicy("rental_operations_outbox_tenant_isolation", tenantPolicy(table.tenantId)),
 ]).enableRLS();

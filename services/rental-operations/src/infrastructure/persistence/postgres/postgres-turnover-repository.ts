@@ -12,6 +12,7 @@ interface CheckoutSource extends Record<string, unknown> {
   readonly rentable_asset_id: string;
   readonly started_at: Date;
   readonly ended_at: Date | null;
+  readonly planned_departure_at: Date;
 }
 
 interface TurnoverRow extends Record<string, unknown> {
@@ -32,8 +33,9 @@ export class PostgresTurnoverRepository implements TurnoverRepository {
 
   checkout(input: Readonly<{ tenantId: string; actorId: string; occupancyId: string; operationalBlockId: string; allocationId: string; checkedOutAt: string; expectedCleaningCompletionAt: string; conflictScopeIds: readonly string[] }>): Promise<TurnoverSnapshot> {
     return withTenantPostgresTransaction(this.pool, input.tenantId, async (scope) => {
-      const source = (await scope.query<CheckoutSource>(`SELECT o.occupancy_id,o.rentable_asset_id,o.started_at,o.ended_at,s.stay_id,s.booking_id
+      const source = (await scope.query<CheckoutSource>(`SELECT o.occupancy_id,o.rentable_asset_id,o.started_at,o.ended_at,s.stay_id,s.booking_id,b.departure_at planned_departure_at
         FROM rental_operations.occupancies o JOIN rental_operations.stays s ON s.tenant_id=o.tenant_id AND s.stay_id=o.source_stay_id
+        JOIN rental_operations.bookings b ON b.tenant_id=s.tenant_id AND b.booking_id=s.booking_id
         WHERE o.tenant_id=$1::uuid AND o.occupancy_id=$2::uuid AND o.mode='SHORT_TERM_RENTAL' FOR UPDATE OF o,s`,
       [input.tenantId, input.occupancyId]))[0];
       if (source === undefined) throw new OperationalSourceNotFoundError();
@@ -49,7 +51,9 @@ export class PostgresTurnoverRepository implements TurnoverRepository {
         WHERE tenant_id=$1::uuid AND occupancy_id=$2::uuid AND inspection_type='EXIT' AND lifecycle_status='COMPLETED') AS present`,
       [input.tenantId, input.occupancyId]);
       if (!(exit[0]?.present ?? false)) throw new OperationalLifecycleConflictError();
-      await scope.query(`UPDATE rental_operations.occupancies SET lifecycle_status='ENDED',ended_at=$3,updated_at=$3 WHERE tenant_id=$1::uuid AND occupancy_id=$2::uuid`, [input.tenantId, input.occupancyId, input.checkedOutAt]);
+      const checkoutTime = Date.parse(input.checkedOutAt); const plannedDeparture = source.planned_departure_at.getTime();
+      const endReason = checkoutTime < plannedDeparture ? "EARLY_DEPARTURE" : checkoutTime > plannedDeparture ? "OVERSTAY" : "SCHEDULED";
+      await scope.query(`UPDATE rental_operations.occupancies SET lifecycle_status='ENDED',ended_at=$3,end_reason=$4,updated_at=$3 WHERE tenant_id=$1::uuid AND occupancy_id=$2::uuid`, [input.tenantId, input.occupancyId, input.checkedOutAt, endReason]);
       await scope.query(`UPDATE rental_operations.stays SET lifecycle_status='COMPLETED',actual_check_out_at=$3,updated_at=$3 WHERE tenant_id=$1::uuid AND stay_id=$2::uuid`, [input.tenantId, source.stay_id, input.checkedOutAt]);
       await scope.query(`UPDATE rental_operations.bookings SET lifecycle_status='COMPLETED',updated_at=$3 WHERE tenant_id=$1::uuid AND booking_id=$2::uuid`, [input.tenantId, source.booking_id, input.checkedOutAt]);
       const bookingAllocations = await scope.query<{ readonly allocation_id: string }>(`UPDATE rental_operations.rental_allocations SET status='RELEASED',updated_at=$3
@@ -74,7 +78,7 @@ export class PostgresTurnoverRepository implements TurnoverRepository {
       }
       await recordRentalOperationsEvent(scope, { tenantId: input.tenantId, eventType: "monpiole.rental-operations.occupancy-ended",
         aggregateId: input.occupancyId, correlationId: input.operationalBlockId, occurredAt: input.checkedOutAt,
-        payload: { occupancyId: input.occupancyId, stayId: source.stay_id, rentableAssetId: source.rentable_asset_id, mode: "SHORT_TERM_RENTAL" } });
+        payload: { occupancyId: input.occupancyId, stayId: source.stay_id, rentableAssetId: source.rentable_asset_id, mode: "SHORT_TERM_RENTAL", reason: endReason } });
       await recordRentalOperationsEvent(scope, { tenantId: input.tenantId, eventType: "monpiole.rental-operations.stay-completed",
         aggregateId: source.stay_id, correlationId: input.operationalBlockId, occurredAt: input.checkedOutAt,
         payload: { stayId: source.stay_id, bookingId: source.booking_id, occupancyId: input.occupancyId, rentableAssetId: source.rentable_asset_id } });
@@ -113,6 +117,22 @@ export class PostgresTurnoverRepository implements TurnoverRepository {
           completedByActorId: input.actorId } });
       return toSnapshot((await scope.query<TurnoverRow>(`${turnoverSelect()} AND b.operational_block_id=$2::uuid`, [input.tenantId, input.operationalBlockId]))[0]!);
     });
+  }
+
+  extendCleaning(input: Readonly<{ tenantId: string; actorId: string; operationalBlockId: string; newEndAt: string; occurredAt: string }>): Promise<TurnoverSnapshot> {
+    return withTenantPostgresTransaction(this.pool, input.tenantId, async (scope) => {
+      const row = (await scope.query<TurnoverRow>(`${turnoverSelect()} AND b.operational_block_id=$2::uuid FOR UPDATE OF b`, [input.tenantId, input.operationalBlockId]))[0];
+      if (row === undefined) throw new OperationalSourceNotFoundError();
+      if (row.status !== "ACTIVE") throw new OperationalLifecycleConflictError();
+      if (row.end_at.toISOString() === input.newEndAt) return toSnapshot(row);
+      if (Date.parse(input.newEndAt) <= row.end_at.getTime()) throw new OperationalLifecycleConflictError();
+      const allocation = (await scope.query<{ readonly allocation_id: string }>(`UPDATE rental_operations.rental_allocations SET end_at=$3,updated_at=$4 WHERE tenant_id=$1::uuid AND source_operational_block_id=$2::uuid AND status='ACTIVE' RETURNING allocation_id`, [input.tenantId, input.operationalBlockId, input.newEndAt, input.occurredAt]))[0];
+      if (allocation === undefined) throw new OperationalLifecycleConflictError();
+      await scope.query(`UPDATE rental_operations.rental_allocation_claims SET end_at=$3 WHERE tenant_id=$1::uuid AND allocation_id=$2::uuid`, [input.tenantId, allocation.allocation_id, input.newEndAt]);
+      await scope.query(`UPDATE rental_operations.operational_blocks SET end_at=$3,updated_at=$4 WHERE tenant_id=$1::uuid AND operational_block_id=$2::uuid`, [input.tenantId, input.operationalBlockId, input.newEndAt, input.occurredAt]);
+      await recordRentalOperationsEvent(scope, { tenantId: input.tenantId, eventType: "monpiole.rental-operations.operational-block-extended", aggregateId: input.operationalBlockId, correlationId: input.operationalBlockId, occurredAt: input.occurredAt, payload: { operationalBlockId: input.operationalBlockId, rentableAssetId: row.rentable_asset_id, previousEndAt: row.end_at.toISOString(), newEndAt: input.newEndAt, extendedByActorId: input.actorId } });
+      return { ...toSnapshot(row), cleaningEndsAt: input.newEndAt };
+    }).catch((error: unknown) => { if (typeof error === "object" && error !== null && "code" in error && error.code === "23P01") throw new OperationalLifecycleConflictError(); throw error; });
   }
 }
 

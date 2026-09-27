@@ -25,20 +25,40 @@ export interface OperationalLifecycleSnapshot {
   readonly occupancyId?: string;
   readonly actualOccupancyStartedAt?: string;
   readonly actualOccupancyEndedAt?: string;
+  readonly nextAvailableAt?: string;
+  readonly activeBlocks?: readonly OperationalBlockSummary[];
+  readonly recentOperations?: readonly RecentOperationSummary[];
+  readonly inspections?: readonly InspectionSummary[];
   readonly capabilities?: Readonly<{
     canCompleteEntryInspection: boolean;
     canStartOccupancy: boolean;
     canCompleteExitInspection: boolean;
     canEndOccupancy: boolean;
+    canCancel: boolean;
+    canRecordNoShow: boolean;
+    canExtend: boolean;
+    canRenew: boolean;
   }>;
 }
+
+export interface OperationalBlockSummary { readonly operationalBlockId: string; readonly reason: string; readonly startAt: string; readonly endAt: string; readonly status: "ACTIVE" | "RELEASED"; }
+export interface InspectionSummary { readonly inspectionId: string; readonly type: "ENTRY" | "EXIT"; readonly occurredAt: string; readonly damageObserved: boolean; }
+export interface RecentOperationSummary { readonly eventType: string; readonly occurredAt: string; }
 
 export interface OperationalLifecycleRepository {
   list(tenantId: string): Promise<readonly OperationalLifecycleSnapshot[]>;
   startLeaseOccupancy(input: Readonly<{ tenantId: string; leaseId: string; occupancyId: string; occurredAt: string }>): Promise<OperationalLifecycleSnapshot>;
   startBookingStay(input: Readonly<{ tenantId: string; bookingId: string; stayId: string; occupancyId: string; occurredAt: string }>): Promise<OperationalLifecycleSnapshot>;
-  endOccupancy(input: Readonly<{ tenantId: string; occupancyId: string; occurredAt: string }>): Promise<OperationalLifecycleSnapshot>;
+  endOccupancy(input: Readonly<{ tenantId: string; occupancyId: string; occurredAt: string; reason?: OccupancyEndReason }>): Promise<OperationalLifecycleSnapshot>;
+  cancelLease(input: ExceptionalSourceCommand & Readonly<{ leaseId: string }>): Promise<OperationalLifecycleSnapshot>;
+  cancelBooking(input: ExceptionalSourceCommand & Readonly<{ bookingId: string; outcome: "CANCELLED" | "NO_SHOW" }>): Promise<OperationalLifecycleSnapshot>;
+  extendBooking(input: TemporalExtensionCommand & Readonly<{ bookingId: string }>): Promise<OperationalLifecycleSnapshot>;
+  renewLease(input: TemporalExtensionCommand & Readonly<{ leaseId: string }>): Promise<OperationalLifecycleSnapshot>;
 }
+
+export type OccupancyEndReason = "SCHEDULED" | "EARLY_DEPARTURE" | "EARLY_TERMINATION" | "OVERSTAY";
+interface ExceptionalSourceCommand { readonly tenantId: string; readonly occurredAt: string; readonly reason: string; }
+interface TemporalExtensionCommand { readonly tenantId: string; readonly newEndAt: string; readonly occurredAt: string; }
 
 export class RentalOperationsForbiddenError extends Error { readonly code = "RENTAL_OPERATIONS_FORBIDDEN"; }
 export class OperationalSourceNotFoundError extends Error { readonly code = "OPERATIONAL_SOURCE_NOT_FOUND"; }
@@ -72,8 +92,36 @@ export class StartBookingStay extends AuthorizedLifecycleUseCase {
 export class EndRentalOccupancy extends AuthorizedLifecycleUseCase {
   constructor(private readonly repository: OperationalLifecycleRepository) { super(); }
 
-  execute(command: Readonly<{ authority: RentalOperationsAuthority; occupancyId: string; occurredAt: string }>): Promise<OperationalLifecycleSnapshot> {
+  execute(command: Readonly<{ authority: RentalOperationsAuthority; occupancyId: string; occurredAt: string; reason?: OccupancyEndReason }>): Promise<OperationalLifecycleSnapshot> {
     return this.repository.endOccupancy({ ...command, tenantId: this.tenant(command.authority) });
+  }
+}
+
+export class CancelRentalLease extends AuthorizedLifecycleUseCase {
+  constructor(private readonly repository: OperationalLifecycleRepository) { super(); }
+  execute(command: Readonly<{ authority: RentalOperationsAuthority; leaseId: string; occurredAt: string; reason: string }>) {
+    return this.repository.cancelLease({ ...command, tenantId: this.tenant(command.authority) });
+  }
+}
+
+export class CloseRentalBooking extends AuthorizedLifecycleUseCase {
+  constructor(private readonly repository: OperationalLifecycleRepository) { super(); }
+  execute(command: Readonly<{ authority: RentalOperationsAuthority; bookingId: string; occurredAt: string; reason: string; outcome: "CANCELLED" | "NO_SHOW" }>) {
+    return this.repository.cancelBooking({ ...command, tenantId: this.tenant(command.authority) });
+  }
+}
+
+export class ExtendRentalBooking extends AuthorizedLifecycleUseCase {
+  constructor(private readonly repository: OperationalLifecycleRepository) { super(); }
+  execute(command: Readonly<{ authority: RentalOperationsAuthority; bookingId: string; newEndAt: string; occurredAt: string }>) {
+    return this.repository.extendBooking({ ...command, tenantId: this.tenant(command.authority) });
+  }
+}
+
+export class RenewRentalLease extends AuthorizedLifecycleUseCase {
+  constructor(private readonly repository: OperationalLifecycleRepository) { super(); }
+  execute(command: Readonly<{ authority: RentalOperationsAuthority; leaseId: string; newEndAt: string; occurredAt: string }>) {
+    return this.repository.renewLease({ ...command, tenantId: this.tenant(command.authority) });
   }
 }
 

@@ -87,8 +87,8 @@ async function insertLease(client: PoolClient, tenantId: string, leaseId = rando
 
 async function insertBooking(client: PoolClient, tenantId: string, bookingId = randomUUID(), rentableAssetId = assetId): Promise<string> {
   await client.query(`INSERT INTO rental_operations.bookings
-    (booking_id, tenant_id, rentable_asset_id, mode, lifecycle_status, arrival_at, departure_at, created_at, updated_at)
-    VALUES ($1, $2, $3, 'SHORT_TERM_RENTAL', 'CONFIRMED', '2026-10-01T14:00:00Z', '2026-10-05T10:00:00Z', $4, $4)`,
+    (booking_id, tenant_id, rentable_asset_id, mode, lifecycle_status, arrival_at, departure_at, original_departure_at, created_at, updated_at)
+    VALUES ($1, $2, $3, 'SHORT_TERM_RENTAL', 'CONFIRMED', '2026-10-01T14:00:00Z', '2026-10-05T10:00:00Z', '2026-10-05T10:00:00Z', $4, $4)`,
   [bookingId, tenantId, rentableAssetId, createdAt]);
   return bookingId;
 }
@@ -135,6 +135,12 @@ async function commitLeaseAllocation(leaseId: string) {
     .commitIfAvailable(leaseAllocation(leaseId, "2026-09-01T00:00:00.000Z"), [assetId]);
 }
 
+async function commitBookingAllocation(bookingId: string, rentableAssetId = assetId) {
+  await new PostgresTemporalAvailabilityRepository(runtimePool).commitIfAvailable(
+    bookingAllocation(bookingId, rentableAssetId, "2026-10-01T14:00:00.000Z", "2026-10-05T10:00:00.000Z"), [rentableAssetId],
+  );
+}
+
 describe("Rental Operations PostgreSQL foundation", () => {
   it("persists Lease, Booking, Stay, both Occupancy modes and ENTRY/EXIT inspections", async () => {
     await tenantTransaction(tenantA, async (client) => {
@@ -151,8 +157,8 @@ describe("Rental Operations PostgreSQL foundation", () => {
         VALUES ($1, $2, $3, 'LONG_TERM_RENTAL', $4, '2026-10-01T08:00:00Z', 'ACTIVE', $5, $5)`,
       [longOccupancyId, tenantA, assetId, leaseId, createdAt]);
       await client.query(`INSERT INTO rental_operations.occupancies
-        (occupancy_id, tenant_id, rentable_asset_id, mode, source_stay_id, started_at, ended_at, lifecycle_status, created_at, updated_at)
-        VALUES ($1, $2, $3, 'SHORT_TERM_RENTAL', $4, '2026-10-01T14:00:00Z', '2026-10-05T10:00:00Z', 'ENDED', $5, $5)`,
+        (occupancy_id, tenant_id, rentable_asset_id, mode, source_stay_id, started_at, ended_at, end_reason, lifecycle_status, created_at, updated_at)
+        VALUES ($1, $2, $3, 'SHORT_TERM_RENTAL', $4, '2026-10-01T14:00:00Z', '2026-10-05T10:00:00Z', 'SCHEDULED', 'ENDED', $5, $5)`,
       [shortOccupancyId, tenantA, assetId, stayId, createdAt]);
       for (const values of [
         [longOccupancyId, leaseId, null, "LONG_TERM_RENTAL"],
@@ -208,8 +214,8 @@ describe("Rental Operations PostgreSQL foundation", () => {
   it("rejects invalid intervals and ambiguous provenance", async () => {
     await expect(tenantTransaction(tenantA, async (client) => {
       await client.query(`INSERT INTO rental_operations.bookings
-        (booking_id, tenant_id, rentable_asset_id, mode, lifecycle_status, arrival_at, departure_at, created_at, updated_at)
-        VALUES ($1, $2, $3, 'SHORT_TERM_RENTAL', 'CONFIRMED', '2026-10-05T10:00:00Z', '2026-10-01T14:00:00Z', $4, $4)`,
+        (booking_id, tenant_id, rentable_asset_id, mode, lifecycle_status, arrival_at, departure_at, original_departure_at, created_at, updated_at)
+        VALUES ($1, $2, $3, 'SHORT_TERM_RENTAL', 'CONFIRMED', '2026-10-05T10:00:00Z', '2026-10-01T14:00:00Z', '2026-10-01T14:00:00Z', $4, $4)`,
       [randomUUID(), tenantA, assetId, createdAt]);
     })).rejects.toMatchObject({ code: "23514" });
 
@@ -361,6 +367,10 @@ describe("Rental Operations core operational lifecycle", () => {
     await expect(availability.listActiveConflicts({ tenantId: tenantA, conflictScopeIds: [assetId], startsAt: "2026-10-05T11:00:00.000Z", endsAt: "2026-10-05T12:00:00.000Z" }))
       .resolves.toHaveLength(1);
     await expect(repository.checkout(command)).resolves.toMatchObject({ cleaningBlockId: command.operationalBlockId });
+    await expect(repository.extendCleaning({ tenantId: tenantA, actorId: "operations-manager", operationalBlockId: command.operationalBlockId, newEndAt: "2026-10-05T16:00:00.000Z", occurredAt: "2026-10-05T12:00:00.000Z" }))
+      .resolves.toMatchObject({ cleaningEndsAt: "2026-10-05T16:00:00.000Z" });
+    await expect(repository.extendCleaning({ tenantId: tenantA, actorId: "operations-manager", operationalBlockId: command.operationalBlockId, newEndAt: "2026-10-05T16:00:00.000Z", occurredAt: "2026-10-05T12:30:00.000Z" }))
+      .resolves.toMatchObject({ cleaningEndsAt: "2026-10-05T16:00:00.000Z" });
     await expect(repository.completeCleaning({ tenantId: tenantA, actorId: "operations-manager", operationalBlockId: command.operationalBlockId, completedAt: "2026-10-05T13:00:00.000Z" }))
       .resolves.toMatchObject({ cleaningStatus: "RELEASED", cleaningCompletedByActorId: "operations-manager" });
     await expect(availability.listActiveConflicts({ tenantId: tenantA, conflictScopeIds: [assetId], startsAt: "2026-10-05T13:00:00.000Z", endsAt: "2026-10-05T14:00:00.000Z" }))
@@ -462,5 +472,35 @@ describe("Rental Operations core operational lifecycle", () => {
     const settled = await Promise.allSettled(attempts);
     expect(settled.filter((result) => result.status === "fulfilled")).toHaveLength(1);
     expect(settled.filter((result) => result.status === "rejected")).toHaveLength(1);
+  });
+
+  it("cancels and records no-show transactionally while exact replay remains convergent", async () => {
+    const repository = new PostgresOperationalLifecycleRepository(runtimePool);
+    const cancelled = await tenantTransaction(tenantA, (client) => insertBooking(client, tenantA));
+    await commitBookingAllocation(cancelled);
+    const command = { tenantId: tenantA, bookingId: cancelled, occurredAt: "2026-09-30T10:00:00.000Z", reason: "Annulation voyageur", outcome: "CANCELLED" as const };
+    await expect(repository.cancelBooking(command)).resolves.toMatchObject({ bookingStatus: "CANCELLED" });
+    await expect(repository.cancelBooking(command)).resolves.toMatchObject({ bookingStatus: "CANCELLED" });
+    await expect(repository.cancelBooking({ ...command, reason: "Autre motif" })).rejects.toBeInstanceOf(OperationalLifecycleConflictError);
+    await tenantTransaction(tenantA, async (client) => {
+      expect((await client.query(`SELECT status FROM rental_operations.rental_allocations WHERE source_booking_id=$1`, [cancelled])).rows).toEqual([{ status: "RELEASED" }]);
+      expect((await client.query(`SELECT event_type FROM rental_operations.outbox WHERE event_type LIKE '%booking-cancelled'`)).rows).toHaveLength(1);
+    });
+    const noShow = await tenantTransaction(tenantA, (client) => insertBooking(client, tenantA));
+    await commitBookingAllocation(noShow);
+    await expect(repository.cancelBooking({ tenantId: tenantA, bookingId: noShow, occurredAt: "2026-10-01T16:00:00.000Z", reason: "Voyageur absent", outcome: "NO_SHOW" })).resolves.toMatchObject({ bookingStatus: "NO_SHOW" });
+  });
+
+  it("extends a booking atomically, preserves its original plan and rejects an overlapping claim", async () => {
+    const repository = new PostgresOperationalLifecycleRepository(runtimePool);
+    const bookingId = await tenantTransaction(tenantA, (client) => insertBooking(client, tenantA));
+    await commitBookingAllocation(bookingId);
+    await expect(repository.extendBooking({ tenantId: tenantA, bookingId, newEndAt: "2026-10-07T10:00:00.000Z", occurredAt: "2026-10-04T12:00:00.000Z" })).resolves.toMatchObject({ plannedDepartureAt: "2026-10-07T10:00:00.000Z" });
+    await tenantTransaction(tenantA, async (client) => {
+      expect((await client.query(`SELECT departure_at,original_departure_at FROM rental_operations.bookings WHERE booking_id=$1`, [bookingId])).rows[0]).toMatchObject({ departure_at: new Date("2026-10-07T10:00:00.000Z"), original_departure_at: new Date("2026-10-05T10:00:00.000Z") });
+    });
+    const second = await tenantTransaction(tenantA, (client) => insertBooking(client, tenantA, undefined, assetId));
+    await new PostgresTemporalAvailabilityRepository(runtimePool).commitIfAvailable(bookingAllocation(second, assetId, "2026-10-08T10:00:00.000Z", "2026-10-10T10:00:00.000Z"), [assetId]);
+    await expect(repository.extendBooking({ tenantId: tenantA, bookingId, newEndAt: "2026-10-09T10:00:00.000Z", occurredAt: "2026-10-04T13:00:00.000Z" })).rejects.toBeInstanceOf(OperationalLifecycleConflictError);
   });
 });
