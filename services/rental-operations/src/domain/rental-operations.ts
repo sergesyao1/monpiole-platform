@@ -6,8 +6,10 @@ export const INSPECTION_TYPES = ["ENTRY", "EXIT"] as const;
 export type PropertyInspectionType = typeof INSPECTION_TYPES[number];
 export const ALLOCATION_TYPES = ["LEASE", "BOOKING", "OPERATIONAL_BLOCK"] as const;
 export type RentalAllocationType = typeof ALLOCATION_TYPES[number];
+export const TEMPORAL_RECORD_STATUSES = ["ACTIVE", "RELEASED"] as const;
+export type TemporalRecordStatus = typeof TEMPORAL_RECORD_STATUSES[number];
 export const OPERATIONAL_BLOCK_REASONS = [
-  "MAINTENANCE", "OWNER_USE", "CLEANING", "INSPECTION", "RENOVATION", "ADMINISTRATIVE", "OTHER",
+  "MAINTENANCE", "OWNER_USE", "CLEANING", "PREPARATION", "INSPECTION", "RENOVATION", "ADMINISTRATIVE_BLOCK", "OTHER",
 ] as const;
 export type OperationalBlockReason = typeof OPERATIONAL_BLOCK_REASONS[number];
 
@@ -136,6 +138,11 @@ export interface OperationalBlockValues extends RentableTargetRecord {
   readonly reason: OperationalBlockReason;
   readonly startAt: string;
   readonly endAt: string;
+  readonly status: TemporalRecordStatus;
+  readonly note?: string;
+  readonly sourceType?: string;
+  readonly sourceId?: string;
+  readonly updatedAt: string;
 }
 
 export class OperationalBlock {
@@ -146,6 +153,11 @@ export class OperationalBlock {
     uuid(input.operationalBlockId, "operationalBlockId");
     if (!OPERATIONAL_BLOCK_REASONS.includes(input.reason)) invalid("reason");
     boundedInterval(input.startAt, input.endAt);
+    temporalStatus(input.status);
+    instant(input.updatedAt, "updatedAt");
+    if (Date.parse(input.updatedAt) < Date.parse(input.createdAt)) invalid("updatedAt");
+    if ((input.sourceType === undefined) !== (input.sourceId === undefined)) invalid("source");
+    if (input.note !== undefined && (input.note.trim().length === 0 || input.note.length > 2_000)) invalid("note");
     return new OperationalBlock(Object.freeze({ ...input }));
   }
 }
@@ -154,17 +166,21 @@ interface AllocationBase extends RentableTargetRecord {
   readonly allocationId: string;
   readonly startAt: string;
   readonly endAt?: string;
+  readonly status: TemporalRecordStatus;
+  readonly updatedAt: string;
 }
 
 export type RentalAllocationValues =
   | (AllocationBase & Readonly<{
       allocationType: "LEASE";
+      rentalMode: "LONG_TERM_RENTAL";
       sourceLeaseId: string;
       sourceBookingId?: never;
       sourceOperationalBlockId?: never;
     }>)
   | (AllocationBase & Readonly<{
       allocationType: "BOOKING";
+      rentalMode: "SHORT_TERM_RENTAL";
       sourceBookingId: string;
       sourceLeaseId?: never;
       sourceOperationalBlockId?: never;
@@ -172,6 +188,7 @@ export type RentalAllocationValues =
     }>)
   | (AllocationBase & Readonly<{
       allocationType: "OPERATIONAL_BLOCK";
+      rentalMode?: RentalOperationMode;
       sourceOperationalBlockId: string;
       sourceLeaseId?: never;
       sourceBookingId?: never;
@@ -185,13 +202,19 @@ export class RentalAllocation {
     validateRecord(input);
     uuid(input.allocationId, "allocationId");
     instant(input.startAt, "startAt");
+    temporalStatus(input.status);
+    instant(input.updatedAt, "updatedAt");
+    if (Date.parse(input.updatedAt) < Date.parse(input.createdAt)) invalid("updatedAt");
     if (input.allocationType === "LEASE") {
+      if (input.rentalMode !== "LONG_TERM_RENTAL") invalid("rentalMode");
       uuid(input.sourceLeaseId, "sourceLeaseId");
       if (input.endAt !== undefined) boundedInterval(input.startAt, input.endAt);
     } else if (input.allocationType === "BOOKING") {
+      if (input.rentalMode !== "SHORT_TERM_RENTAL") invalid("rentalMode");
       uuid(input.sourceBookingId, "sourceBookingId");
       boundedInterval(input.startAt, input.endAt);
     } else if (input.allocationType === "OPERATIONAL_BLOCK") {
+      if (input.rentalMode !== undefined) mode(input.rentalMode);
       uuid(input.sourceOperationalBlockId, "sourceOperationalBlockId");
       boundedInterval(input.startAt, input.endAt);
     } else {
@@ -199,6 +222,10 @@ export class RentalAllocation {
     }
     return new RentalAllocation(Object.freeze({ ...input }));
   }
+}
+
+function temporalStatus(value: string): asserts value is TemporalRecordStatus {
+  if (!TEMPORAL_RECORD_STATUSES.includes(value as TemporalRecordStatus)) invalid("status");
 }
 
 function validateRecord(input: RentableTargetRecord): void {

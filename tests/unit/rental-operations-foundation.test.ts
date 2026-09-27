@@ -133,9 +133,12 @@ describe("Rental Operations domain foundation", () => {
       tenantId: ids.tenant,
       rentableAssetId: ids.asset,
       allocationType: "LEASE",
+      rentalMode: "LONG_TERM_RENTAL",
       sourceLeaseId: ids.lease,
       startAt: "2026-10-01T00:00:00.000Z",
+      status: "ACTIVE",
       createdAt,
+      updatedAt: createdAt,
     });
     expect(allocation.values.endAt).toBeUndefined();
   });
@@ -146,10 +149,13 @@ describe("Rental Operations domain foundation", () => {
       tenantId: ids.tenant,
       rentableAssetId: ids.asset,
       allocationType: "BOOKING",
+      rentalMode: "SHORT_TERM_RENTAL",
       sourceBookingId: ids.booking,
       startAt: "2026-10-05T10:00:00.000Z",
       endAt: "2026-10-01T14:00:00.000Z",
+      status: "ACTIVE",
       createdAt,
+      updatedAt: createdAt,
     })).toThrow(InvalidRentalOperationsInputError);
   });
 
@@ -161,7 +167,9 @@ describe("Rental Operations domain foundation", () => {
       reason: "MAINTENANCE",
       startAt: "2026-10-06T08:00:00.000Z",
       endAt: "2026-10-07T18:00:00.000Z",
+      status: "ACTIVE",
       createdAt,
+      updatedAt: createdAt,
     });
     expect(block.values.reason).toBe("MAINTENANCE");
   });

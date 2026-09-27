@@ -119,14 +119,24 @@ export const operationalBlocks = rentalOperations.table("operational_blocks", {
   tenantId: uuid("tenant_id").notNull(),
   rentableAssetId: uuid("rentable_asset_id").notNull(),
   reason: text("reason").notNull(),
+  note: text("note"),
+  sourceType: text("source_type"),
+  sourceId: uuid("source_id"),
+  status: text("status").notNull(),
   startAt: timestamp("start_at", { withTimezone: true, mode: "string" }).notNull(),
   endAt: timestamp("end_at", { withTimezone: true, mode: "string" }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
 }, (table) => [
   primaryKey({ name: "operational_blocks_tenant_block_pk", columns: [table.tenantId, table.operationalBlockId] }),
+  unique("operational_blocks_tenant_block_asset_unique").on(table.tenantId, table.operationalBlockId, table.rentableAssetId),
   index("operational_blocks_tenant_asset_start_idx").on(table.tenantId, table.rentableAssetId, table.startAt),
-  check("operational_blocks_reason_check", sql`${table.reason} IN ('MAINTENANCE', 'OWNER_USE', 'CLEANING', 'INSPECTION', 'RENOVATION', 'ADMINISTRATIVE', 'OTHER')`),
+  check("operational_blocks_reason_check", sql`${table.reason} IN ('MAINTENANCE', 'OWNER_USE', 'CLEANING', 'PREPARATION', 'INSPECTION', 'RENOVATION', 'ADMINISTRATIVE_BLOCK', 'OTHER')`),
   check("operational_blocks_interval_check", sql`${table.endAt} > ${table.startAt}`),
+  check("operational_blocks_status_check", sql`${table.status} IN ('ACTIVE', 'RELEASED')`),
+  check("operational_blocks_source_check", sql`(${table.sourceType} IS NULL) = (${table.sourceId} IS NULL)`),
+  check("operational_blocks_note_check", sql`${table.note} IS NULL OR char_length(btrim(${table.note})) BETWEEN 1 AND 2000`),
+  check("operational_blocks_timestamps_check", sql`${table.updatedAt} >= ${table.createdAt}`),
   pgPolicy("operational_blocks_tenant_isolation", tenantPolicy(table.tenantId)),
 ]).enableRLS();
 
@@ -135,26 +145,48 @@ export const rentalAllocations = rentalOperations.table("rental_allocations", {
   tenantId: uuid("tenant_id").notNull(),
   rentableAssetId: uuid("rentable_asset_id").notNull(),
   allocationType: text("allocation_type").notNull(),
+  rentalMode: text("rental_mode"),
   sourceLeaseId: uuid("source_lease_id"),
   sourceBookingId: uuid("source_booking_id"),
   sourceOperationalBlockId: uuid("source_operational_block_id"),
   startAt: timestamp("start_at", { withTimezone: true, mode: "string" }).notNull(),
   endAt: timestamp("end_at", { withTimezone: true, mode: "string" }),
+  status: text("status").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
 }, (table) => [
   primaryKey({ name: "rental_allocations_tenant_allocation_pk", columns: [table.tenantId, table.allocationId] }),
   uniqueIndex("rental_allocations_tenant_lease_unique").on(table.tenantId, table.sourceLeaseId).where(sql`${table.sourceLeaseId} IS NOT NULL`),
   uniqueIndex("rental_allocations_tenant_booking_unique").on(table.tenantId, table.sourceBookingId).where(sql`${table.sourceBookingId} IS NOT NULL`),
   uniqueIndex("rental_allocations_tenant_block_unique").on(table.tenantId, table.sourceOperationalBlockId).where(sql`${table.sourceOperationalBlockId} IS NOT NULL`),
   index("rental_allocations_tenant_asset_start_idx").on(table.tenantId, table.rentableAssetId, table.startAt),
-  foreignKey({ name: "rental_allocations_lease_tenant_fk", columns: [table.tenantId, table.sourceLeaseId], foreignColumns: [leases.tenantId, leases.leaseId] }),
-  foreignKey({ name: "rental_allocations_booking_tenant_fk", columns: [table.tenantId, table.sourceBookingId], foreignColumns: [bookings.tenantId, bookings.bookingId] }),
-  foreignKey({ name: "rental_allocations_block_tenant_fk", columns: [table.tenantId, table.sourceOperationalBlockId], foreignColumns: [operationalBlocks.tenantId, operationalBlocks.operationalBlockId] }),
+  foreignKey({ name: "rental_allocations_lease_tenant_fk", columns: [table.tenantId, table.sourceLeaseId, table.rentableAssetId], foreignColumns: [leases.tenantId, leases.leaseId, leases.rentableAssetId] }),
+  foreignKey({ name: "rental_allocations_booking_tenant_fk", columns: [table.tenantId, table.sourceBookingId, table.rentableAssetId], foreignColumns: [bookings.tenantId, bookings.bookingId, bookings.rentableAssetId] }),
+  foreignKey({ name: "rental_allocations_block_tenant_fk", columns: [table.tenantId, table.sourceOperationalBlockId, table.rentableAssetId], foreignColumns: [operationalBlocks.tenantId, operationalBlocks.operationalBlockId, operationalBlocks.rentableAssetId] }),
   check("rental_allocations_provenance_check", sql`
-    (${table.allocationType} = 'LEASE' AND ${table.sourceLeaseId} IS NOT NULL AND ${table.sourceBookingId} IS NULL AND ${table.sourceOperationalBlockId} IS NULL)
-    OR (${table.allocationType} = 'BOOKING' AND ${table.sourceLeaseId} IS NULL AND ${table.sourceBookingId} IS NOT NULL AND ${table.sourceOperationalBlockId} IS NULL AND ${table.endAt} IS NOT NULL)
+    (${table.allocationType} = 'LEASE' AND ${table.rentalMode} = 'LONG_TERM_RENTAL' AND ${table.sourceLeaseId} IS NOT NULL AND ${table.sourceBookingId} IS NULL AND ${table.sourceOperationalBlockId} IS NULL)
+    OR (${table.allocationType} = 'BOOKING' AND ${table.rentalMode} = 'SHORT_TERM_RENTAL' AND ${table.sourceLeaseId} IS NULL AND ${table.sourceBookingId} IS NOT NULL AND ${table.sourceOperationalBlockId} IS NULL AND ${table.endAt} IS NOT NULL)
     OR (${table.allocationType} = 'OPERATIONAL_BLOCK' AND ${table.sourceLeaseId} IS NULL AND ${table.sourceBookingId} IS NULL AND ${table.sourceOperationalBlockId} IS NOT NULL AND ${table.endAt} IS NOT NULL)
   `),
   check("rental_allocations_interval_check", sql`${table.endAt} IS NULL OR ${table.endAt} > ${table.startAt}`),
+  check("rental_allocations_mode_check", sql`${table.rentalMode} IS NULL OR ${table.rentalMode} IN ('LONG_TERM_RENTAL', 'SHORT_TERM_RENTAL')`),
+  check("rental_allocations_status_check", sql`${table.status} IN ('ACTIVE', 'RELEASED')`),
+  check("rental_allocations_timestamps_check", sql`${table.updatedAt} >= ${table.createdAt}`),
   pgPolicy("rental_allocations_tenant_isolation", tenantPolicy(table.tenantId)),
+]).enableRLS();
+
+export const rentalAllocationClaims = rentalOperations.table("rental_allocation_claims", {
+  tenantId: uuid("tenant_id").notNull(),
+  allocationId: uuid("allocation_id").notNull(),
+  conflictScopeId: uuid("conflict_scope_id").notNull(),
+  startAt: timestamp("start_at", { withTimezone: true, mode: "string" }).notNull(),
+  endAt: timestamp("end_at", { withTimezone: true, mode: "string" }),
+  status: text("status").notNull(),
+}, (table) => [
+  primaryKey({ name: "rental_allocation_claims_pk", columns: [table.tenantId, table.allocationId, table.conflictScopeId] }),
+  foreignKey({ name: "rental_allocation_claims_allocation_tenant_fk", columns: [table.tenantId, table.allocationId], foreignColumns: [rentalAllocations.tenantId, rentalAllocations.allocationId] }),
+  index("rental_allocation_claims_tenant_scope_start_idx").on(table.tenantId, table.conflictScopeId, table.startAt),
+  check("rental_allocation_claims_interval_check", sql`${table.endAt} IS NULL OR ${table.endAt} > ${table.startAt}`),
+  check("rental_allocation_claims_status_check", sql`${table.status} IN ('ACTIVE', 'RELEASED')`),
+  pgPolicy("rental_allocation_claims_tenant_isolation", tenantPolicy(table.tenantId)),
 ]).enableRLS();

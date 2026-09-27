@@ -8,6 +8,13 @@
       "when": 1790517423301,
       "tag": "0000_rental_operations_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790518701288,
+      "tag": "0001_unified_temporal_availability",
+      "breakpoints": true
     }
   ]
 }
