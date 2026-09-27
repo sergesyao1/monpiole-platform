@@ -1,5 +1,6 @@
 import { withTenantPostgresTransaction, type PostgresTransactionScope } from "@monpiole/persistence";
 import type { Pool } from "pg";
+import { recordRentalOperationsEvent } from "./rental-operations-outbox.js";
 
 import {
   OperationalLifecycleConflictError,
@@ -86,7 +87,10 @@ export class PostgresOperationalLifecycleRepository implements OperationalLifecy
         VALUES ($1,$2,$3,'LONG_TERM_RENTAL',$4,$5,'ACTIVE',$5,$5)`,
       [input.occupancyId, input.tenantId, lease.rentable_asset_id, input.leaseId, input.occurredAt]);
       await scope.query(`UPDATE rental_operations.leases SET operational_status='OCCUPIED', updated_at=$3
-        WHERE tenant_id=$1::uuid AND lease_id=$2::uuid`, [input.tenantId, input.leaseId, input.occurredAt]);
+      WHERE tenant_id=$1::uuid AND lease_id=$2::uuid`, [input.tenantId, input.leaseId, input.occurredAt]);
+      await recordRentalOperationsEvent(scope, { tenantId: input.tenantId, eventType: "monpiole.rental-operations.occupancy-started",
+        aggregateId: input.occupancyId, correlationId: input.occupancyId, occurredAt: input.occurredAt,
+        payload: { occupancyId: input.occupancyId, leaseId: input.leaseId, rentableAssetId: lease.rentable_asset_id, mode: "LONG_TERM_RENTAL" } });
       return leaseSnapshot(input.tenantId, { ...lease, operational_status: "OCCUPIED" }, {
         occupancy_id: input.occupancyId, rentable_asset_id: lease.rentable_asset_id, mode: "LONG_TERM_RENTAL",
         source_lease_id: input.leaseId, source_stay_id: null, started_at: new Date(input.occurredAt), ended_at: null,
@@ -119,7 +123,13 @@ export class PostgresOperationalLifecycleRepository implements OperationalLifecy
         VALUES ($1,$2,$3,'SHORT_TERM_RENTAL',$4,$5,'ACTIVE',$5,$5)`,
       [input.occupancyId, input.tenantId, booking.rentable_asset_id, input.stayId, input.occurredAt]);
       await scope.query(`UPDATE rental_operations.bookings SET lifecycle_status='IN_STAY',updated_at=$3
-        WHERE tenant_id=$1::uuid AND booking_id=$2::uuid`, [input.tenantId, input.bookingId, input.occurredAt]);
+      WHERE tenant_id=$1::uuid AND booking_id=$2::uuid`, [input.tenantId, input.bookingId, input.occurredAt]);
+      await recordRentalOperationsEvent(scope, { tenantId: input.tenantId, eventType: "monpiole.rental-operations.stay-started",
+        aggregateId: input.stayId, correlationId: input.occupancyId, occurredAt: input.occurredAt,
+        payload: { stayId: input.stayId, bookingId: input.bookingId, rentableAssetId: booking.rentable_asset_id } });
+      await recordRentalOperationsEvent(scope, { tenantId: input.tenantId, eventType: "monpiole.rental-operations.occupancy-started",
+        aggregateId: input.occupancyId, correlationId: input.occupancyId, occurredAt: input.occurredAt,
+        payload: { occupancyId: input.occupancyId, stayId: input.stayId, rentableAssetId: booking.rentable_asset_id, mode: "SHORT_TERM_RENTAL" } });
       return bookingSnapshot(input.tenantId, { ...booking, lifecycle_status: "IN_STAY" }, input.stayId, {
         occupancy_id: input.occupancyId, rentable_asset_id: booking.rentable_asset_id, mode: "SHORT_TERM_RENTAL",
         source_lease_id: null, source_stay_id: input.stayId, started_at: new Date(input.occurredAt), ended_at: null,
@@ -140,7 +150,10 @@ export class PostgresOperationalLifecycleRepository implements OperationalLifecy
       if (Date.parse(input.occurredAt) <= occupancy.started_at.getTime()) throw new OperationalLifecycleConflictError();
       await requireInspection(scope, input.tenantId, "occupancy_id", input.occupancyId, "EXIT");
       await scope.query(`UPDATE rental_operations.occupancies SET lifecycle_status='ENDED',ended_at=$3,updated_at=$3
-        WHERE tenant_id=$1::uuid AND occupancy_id=$2::uuid`, [input.tenantId, input.occupancyId, input.occurredAt]);
+      WHERE tenant_id=$1::uuid AND occupancy_id=$2::uuid`, [input.tenantId, input.occupancyId, input.occurredAt]);
+      await recordRentalOperationsEvent(scope, { tenantId: input.tenantId, eventType: "monpiole.rental-operations.occupancy-ended",
+        aggregateId: input.occupancyId, correlationId: input.occupancyId, occurredAt: input.occurredAt,
+        payload: { occupancyId: input.occupancyId, rentableAssetId: occupancy.rentable_asset_id, mode: occupancy.mode } });
       const ended = { ...occupancy, ended_at: new Date(input.occurredAt) };
       if (occupancy.mode === "LONG_TERM_RENTAL") {
         await scope.query(`UPDATE rental_operations.leases SET operational_status='ENDED',updated_at=$3
@@ -151,6 +164,9 @@ export class PostgresOperationalLifecycleRepository implements OperationalLifecy
         for (const allocation of allocations) {
           await scope.query(`UPDATE rental_operations.rental_allocation_claims SET status='RELEASED'
             WHERE tenant_id=$1::uuid AND allocation_id=$2::uuid`, [input.tenantId, allocation.allocation_id]);
+          await recordRentalOperationsEvent(scope, { tenantId: input.tenantId, eventType: "monpiole.rental-operations.allocation-released",
+            aggregateId: allocation.allocation_id, correlationId: input.occupancyId, occurredAt: input.occurredAt,
+            payload: { allocationId: allocation.allocation_id, leaseId: occupancy.source_lease_id, rentableAssetId: occupancy.rentable_asset_id } });
         }
       } else {
         await scope.query(`UPDATE rental_operations.stays SET lifecycle_status='COMPLETED',actual_check_out_at=$3,updated_at=$3
@@ -158,6 +174,9 @@ export class PostgresOperationalLifecycleRepository implements OperationalLifecy
         await scope.query(`UPDATE rental_operations.bookings b SET lifecycle_status='COMPLETED',updated_at=$3
           FROM rental_operations.stays s WHERE b.tenant_id=$1::uuid AND s.tenant_id=b.tenant_id
           AND s.stay_id=$2::uuid AND b.booking_id=s.booking_id`, [input.tenantId, occupancy.source_stay_id, input.occurredAt]);
+        await recordRentalOperationsEvent(scope, { tenantId: input.tenantId, eventType: "monpiole.rental-operations.stay-completed",
+          aggregateId: occupancy.source_stay_id!, correlationId: input.occupancyId, occurredAt: input.occurredAt,
+          payload: { stayId: occupancy.source_stay_id, occupancyId: input.occupancyId, rentableAssetId: occupancy.rentable_asset_id } });
       }
       return this.snapshotForEnded(scope, input.tenantId, ended);
     });

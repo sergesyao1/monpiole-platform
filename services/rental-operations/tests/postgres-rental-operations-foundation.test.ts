@@ -49,7 +49,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
-  await ownerPool.query(`TRUNCATE rental_operations.rental_allocations,
+  await ownerPool.query(`TRUNCATE rental_operations.outbox, rental_operations.rental_allocations,
     rental_operations.property_inspections, rental_operations.occupancies,
     rental_operations.operational_blocks, rental_operations.stays,
     rental_operations.bookings, rental_operations.leases CASCADE`);
@@ -324,6 +324,26 @@ describe("Rental Operations PostgreSQL foundation", () => {
 });
 
 describe("Rental Operations core operational lifecycle", () => {
+  it("records lifecycle events transactionally without duplicates or rollback ghosts", async () => {
+    const leaseId = await tenantTransaction(tenantA, (client) => insertLease(client, tenantA));
+    await commitLeaseAllocation(leaseId);
+    await completeInspection({ mode: "LONG_TERM_RENTAL", type: "ENTRY", source: { type: "LEASE", id: leaseId }, occurredAt: "2026-10-02T07:00:00.000Z" });
+    const repository = new PostgresOperationalLifecycleRepository(runtimePool);
+    const command = { tenantId: tenantA, leaseId, occupancyId: randomUUID(), occurredAt: "2026-10-02T08:00:00.000Z" };
+    await repository.startLeaseOccupancy(command);
+    await repository.startLeaseOccupancy(command);
+    const events = await ownerPool.query<{ event_type: string; envelope: Record<string, unknown> }>(`SELECT event_type,envelope FROM rental_operations.outbox ORDER BY occurred_at,event_type`);
+    expect(events.rows.map((row) => row.event_type)).toEqual([
+      "monpiole.rental-operations.entry-inspection-completed",
+      "monpiole.rental-operations.occupancy-started",
+    ]);
+    expect(events.rows[1]?.envelope).toMatchObject({ tenantId: tenantA, eventVersion: 1, producer: "rental-operations",
+      payload: { occupancyId: command.occupancyId, leaseId } });
+    await expect(repository.endOccupancy({ tenantId: tenantA, occupancyId: command.occupancyId, occurredAt: "2026-10-01T08:00:00.000Z" }))
+      .rejects.toBeInstanceOf(OperationalLifecycleConflictError);
+    expect((await ownerPool.query("SELECT count(*)::int AS count FROM rental_operations.outbox")).rows[0]).toEqual({ count: 2 });
+  });
+
   it("coordinates checkout, cleaning availability and auditable turnover completion", async () => {
     const bookingId = await tenantTransaction(tenantA, (client) => insertBooking(client, tenantA));
     const availability = new PostgresTemporalAvailabilityRepository(runtimePool);

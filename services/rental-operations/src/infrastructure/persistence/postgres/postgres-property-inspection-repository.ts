@@ -10,6 +10,7 @@ import type {
 } from "../../../application/property-inspections.js";
 import { OperationalLifecycleConflictError, OperationalSourceNotFoundError } from "../../../application/operational-lifecycle.js";
 import type { PropertyInspectionType, RentalOperationMode } from "../../../domain/rental-operations.js";
+import { recordRentalOperationsEvent } from "./rental-operations-outbox.js";
 
 interface InspectionRow extends Record<string, unknown> {
   readonly inspection_id: string;
@@ -60,6 +61,12 @@ export class PostgresPropertyInspectionRepository implements PropertyInspectionR
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'COMPLETED',$10,$11,$12::jsonb,$13::jsonb,$9,$9) RETURNING *`,
       [input.inspectionId, input.tenantId, source.rentable_asset_id, occupancyId, leaseId, bookingId, input.mode, input.type,
         input.occurredAt, input.actorId, input.idempotencyKey, JSON.stringify(input.conditionRecords), JSON.stringify(input.evidenceReferences)]);
+      await recordRentalOperationsEvent(scope, { tenantId: input.tenantId,
+        eventType: input.type === "ENTRY" ? "monpiole.rental-operations.entry-inspection-completed" : "monpiole.rental-operations.exit-inspection-completed",
+        aggregateId: input.inspectionId, correlationId: input.idempotencyKey, occurredAt: input.occurredAt,
+        payload: { inspectionId: input.inspectionId, inspectionType: input.type, mode: input.mode,
+          rentableAssetId: source.rentable_asset_id, sourceType: input.source.type, sourceId: input.source.id,
+          damageObserved: input.conditionRecords.some((record) => record.damageObserved) } });
       return toInspection(rows[0]!);
     });
   }

@@ -36,6 +36,13 @@
       "when": 1790524678784,
       "tag": "0004_checkout_turnover_lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790526752798,
+      "tag": "0005_transactional_domain_events",
+      "breakpoints": true
     }
   ]
 }

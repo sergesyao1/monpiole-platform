@@ -3,6 +3,7 @@ import type { Pool } from "pg";
 
 import { OperationalLifecycleConflictError, OperationalSourceNotFoundError } from "../../../application/operational-lifecycle.js";
 import type { TurnoverRepository, TurnoverSnapshot } from "../../../application/turnover-lifecycle.js";
+import { recordRentalOperationsEvent } from "./rental-operations-outbox.js";
 
 interface CheckoutSource extends Record<string, unknown> {
   readonly occupancy_id: string;
@@ -53,7 +54,12 @@ export class PostgresTurnoverRepository implements TurnoverRepository {
       await scope.query(`UPDATE rental_operations.bookings SET lifecycle_status='COMPLETED',updated_at=$3 WHERE tenant_id=$1::uuid AND booking_id=$2::uuid`, [input.tenantId, source.booking_id, input.checkedOutAt]);
       const bookingAllocations = await scope.query<{ readonly allocation_id: string }>(`UPDATE rental_operations.rental_allocations SET status='RELEASED',updated_at=$3
         WHERE tenant_id=$1::uuid AND source_booking_id=$2::uuid AND status='ACTIVE' RETURNING allocation_id`, [input.tenantId, source.booking_id, input.checkedOutAt]);
-      for (const allocation of bookingAllocations) await scope.query(`UPDATE rental_operations.rental_allocation_claims SET status='RELEASED' WHERE tenant_id=$1::uuid AND allocation_id=$2::uuid`, [input.tenantId, allocation.allocation_id]);
+      for (const allocation of bookingAllocations) {
+        await scope.query(`UPDATE rental_operations.rental_allocation_claims SET status='RELEASED' WHERE tenant_id=$1::uuid AND allocation_id=$2::uuid`, [input.tenantId, allocation.allocation_id]);
+        await recordRentalOperationsEvent(scope, { tenantId: input.tenantId, eventType: "monpiole.rental-operations.allocation-released",
+          aggregateId: allocation.allocation_id, correlationId: input.operationalBlockId, occurredAt: input.checkedOutAt,
+          payload: { allocationId: allocation.allocation_id, bookingId: source.booking_id, rentableAssetId: source.rentable_asset_id } });
+      }
       await scope.query(`INSERT INTO rental_operations.operational_blocks
         (operational_block_id,tenant_id,rentable_asset_id,reason,note,source_type,source_id,status,start_at,end_at,created_at,updated_at)
         VALUES ($1,$2,$3,'CLEANING','Turnover après départ','STAY',$4,'ACTIVE',$5,$6,$5,$5)`,
@@ -66,6 +72,19 @@ export class PostgresTurnoverRepository implements TurnoverRepository {
         await scope.query(`INSERT INTO rental_operations.rental_allocation_claims (tenant_id,allocation_id,conflict_scope_id,start_at,end_at,status)
           VALUES ($1,$2,$3,$4,$5,'ACTIVE')`, [input.tenantId, input.allocationId, conflictScopeId, input.checkedOutAt, input.expectedCleaningCompletionAt]);
       }
+      await recordRentalOperationsEvent(scope, { tenantId: input.tenantId, eventType: "monpiole.rental-operations.occupancy-ended",
+        aggregateId: input.occupancyId, correlationId: input.operationalBlockId, occurredAt: input.checkedOutAt,
+        payload: { occupancyId: input.occupancyId, stayId: source.stay_id, rentableAssetId: source.rentable_asset_id, mode: "SHORT_TERM_RENTAL" } });
+      await recordRentalOperationsEvent(scope, { tenantId: input.tenantId, eventType: "monpiole.rental-operations.stay-completed",
+        aggregateId: source.stay_id, correlationId: input.operationalBlockId, occurredAt: input.checkedOutAt,
+        payload: { stayId: source.stay_id, bookingId: source.booking_id, occupancyId: input.occupancyId, rentableAssetId: source.rentable_asset_id } });
+      await recordRentalOperationsEvent(scope, { tenantId: input.tenantId, eventType: "monpiole.rental-operations.operational-block-created",
+        aggregateId: input.operationalBlockId, correlationId: input.operationalBlockId, occurredAt: input.checkedOutAt,
+        payload: { operationalBlockId: input.operationalBlockId, reason: "CLEANING", stayId: source.stay_id,
+          rentableAssetId: source.rentable_asset_id, startsAt: input.checkedOutAt, endsAt: input.expectedCleaningCompletionAt } });
+      await recordRentalOperationsEvent(scope, { tenantId: input.tenantId, eventType: "monpiole.rental-operations.allocation-created",
+        aggregateId: input.allocationId, correlationId: input.operationalBlockId, occurredAt: input.checkedOutAt,
+        payload: { allocationId: input.allocationId, operationalBlockId: input.operationalBlockId, rentableAssetId: source.rentable_asset_id } });
       return toSnapshot((await findTurnover(scope, input.tenantId, source.stay_id))!);
     });
   }
@@ -82,7 +101,16 @@ export class PostgresTurnoverRepository implements TurnoverRepository {
         WHERE tenant_id=$1::uuid AND operational_block_id=$2::uuid`, [input.tenantId, input.operationalBlockId, input.completedAt, input.actorId]);
       const allocations = await scope.query<{ readonly allocation_id: string }>(`UPDATE rental_operations.rental_allocations SET status='RELEASED',updated_at=$3
         WHERE tenant_id=$1::uuid AND source_operational_block_id=$2::uuid AND status='ACTIVE' RETURNING allocation_id`, [input.tenantId, input.operationalBlockId, input.completedAt]);
-      for (const allocation of allocations) await scope.query(`UPDATE rental_operations.rental_allocation_claims SET status='RELEASED' WHERE tenant_id=$1::uuid AND allocation_id=$2::uuid`, [input.tenantId, allocation.allocation_id]);
+      for (const allocation of allocations) {
+        await scope.query(`UPDATE rental_operations.rental_allocation_claims SET status='RELEASED' WHERE tenant_id=$1::uuid AND allocation_id=$2::uuid`, [input.tenantId, allocation.allocation_id]);
+        await recordRentalOperationsEvent(scope, { tenantId: input.tenantId, eventType: "monpiole.rental-operations.allocation-released",
+          aggregateId: allocation.allocation_id, correlationId: input.operationalBlockId, occurredAt: input.completedAt,
+          payload: { allocationId: allocation.allocation_id, operationalBlockId: input.operationalBlockId, rentableAssetId: row.rentable_asset_id } });
+      }
+      await recordRentalOperationsEvent(scope, { tenantId: input.tenantId, eventType: "monpiole.rental-operations.operational-block-released",
+        aggregateId: input.operationalBlockId, correlationId: input.operationalBlockId, occurredAt: input.completedAt,
+        payload: { operationalBlockId: input.operationalBlockId, reason: "CLEANING", rentableAssetId: row.rentable_asset_id,
+          completedByActorId: input.actorId } });
       return toSnapshot((await scope.query<TurnoverRow>(`${turnoverSelect()} AND b.operational_block_id=$2::uuid`, [input.tenantId, input.operationalBlockId]))[0]!);
     });
   }

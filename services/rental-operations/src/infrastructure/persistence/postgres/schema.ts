@@ -235,3 +235,26 @@ export const rentalAllocationClaims = rentalOperations.table("rental_allocation_
   check("rental_allocation_claims_status_check", sql`${table.status} IN ('ACTIVE', 'RELEASED')`),
   pgPolicy("rental_allocation_claims_tenant_isolation", tenantPolicy(table.tenantId)),
 ]).enableRLS();
+
+export const rentalOperationsOutbox = rentalOperations.table("outbox", {
+  eventId: uuid("event_id").notNull(),
+  tenantId: uuid("tenant_id").notNull(),
+  eventType: text("event_type").notNull(),
+  eventVersion: text("event_version").notNull(),
+  occurredAt: timestamp("occurred_at", { withTimezone: true, mode: "string" }).notNull(),
+  correlationId: uuid("correlation_id").notNull(),
+  deduplicationKey: text("deduplication_key").notNull(),
+  envelope: jsonb("envelope").notNull(),
+}, (table) => [
+  primaryKey({ name: "rental_operations_outbox_event_pk", columns: [table.eventId] }),
+  unique("rental_operations_outbox_tenant_dedup_unique").on(table.tenantId, table.deduplicationKey),
+  index("rental_operations_outbox_tenant_occurred_idx").on(table.tenantId, table.occurredAt),
+  check("rental_operations_outbox_event_check", sql`${table.eventType} IN (
+    'monpiole.rental-operations.stay-started', 'monpiole.rental-operations.stay-completed',
+    'monpiole.rental-operations.occupancy-started', 'monpiole.rental-operations.occupancy-ended',
+    'monpiole.rental-operations.entry-inspection-completed', 'monpiole.rental-operations.exit-inspection-completed',
+    'monpiole.rental-operations.allocation-created', 'monpiole.rental-operations.allocation-released',
+    'monpiole.rental-operations.operational-block-created', 'monpiole.rental-operations.operational-block-released'
+  ) AND ${table.eventVersion} = '1'`),
+  pgPolicy("rental_operations_outbox_tenant_isolation", tenantPolicy(table.tenantId)),
+]).enableRLS();

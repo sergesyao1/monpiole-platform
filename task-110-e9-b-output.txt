@@ -1,0 +1,20 @@
+TASK-110-E9-B - TRANSACTIONAL DOMAIN EVENTS
+
+STATUS: DONE
+
+- Added a Rental Operations-owned PostgreSQL outbox with tenant RLS and FORCE RLS.
+- Event envelopes are versioned, tenant-scoped and carry correlation identifiers.
+- Tenant/business deduplication keys prevent duplicate events on replay.
+- Occupancy start/end and Stay start/completion emit transactional facts.
+- ENTRY/EXIT inspection completion emits a transactional fact.
+- Checkout emits Occupancy, Stay, allocation and cleaning-block facts.
+- Cleaning completion emits block/allocation release facts.
+- Events are inserted inside the same transaction as state changes.
+- Invalid transitions and transaction rollback leave no outbox event.
+
+Validation
+- Rental Operations typecheck: PASS.
+- Test typecheck: PASS.
+- Drizzle migration check: PASS.
+- Rental Operations PostgreSQL: PASS - 1 file, 18 tests.
+- git diff --check: PASS.
