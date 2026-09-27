@@ -168,16 +168,20 @@ export const operationalBlocks = rentalOperations.table("operational_blocks", {
   endAt: timestamp("end_at", { withTimezone: true, mode: "string" }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true, mode: "string" }),
+  completedByActorId: text("completed_by_actor_id"),
 }, (table) => [
   primaryKey({ name: "operational_blocks_tenant_block_pk", columns: [table.tenantId, table.operationalBlockId] }),
   unique("operational_blocks_tenant_block_asset_unique").on(table.tenantId, table.operationalBlockId, table.rentableAssetId),
   index("operational_blocks_tenant_asset_start_idx").on(table.tenantId, table.rentableAssetId, table.startAt),
+  uniqueIndex("operational_blocks_tenant_source_reason_unique").on(table.tenantId, table.sourceType, table.sourceId, table.reason).where(sql`${table.sourceId} IS NOT NULL`),
   check("operational_blocks_reason_check", sql`${table.reason} IN ('MAINTENANCE', 'OWNER_USE', 'CLEANING', 'PREPARATION', 'INSPECTION', 'RENOVATION', 'ADMINISTRATIVE_BLOCK', 'OTHER')`),
   check("operational_blocks_interval_check", sql`${table.endAt} > ${table.startAt}`),
   check("operational_blocks_status_check", sql`${table.status} IN ('ACTIVE', 'RELEASED')`),
   check("operational_blocks_source_check", sql`(${table.sourceType} IS NULL) = (${table.sourceId} IS NULL)`),
   check("operational_blocks_note_check", sql`${table.note} IS NULL OR char_length(btrim(${table.note})) BETWEEN 1 AND 2000`),
   check("operational_blocks_timestamps_check", sql`${table.updatedAt} >= ${table.createdAt}`),
+  check("operational_blocks_completion_check", sql`(${table.status} = 'ACTIVE' AND ${table.completedAt} IS NULL AND ${table.completedByActorId} IS NULL) OR (${table.status} = 'RELEASED' AND ${table.completedAt} IS NOT NULL AND ${table.completedByActorId} IS NOT NULL)`),
   pgPolicy("operational_blocks_tenant_isolation", tenantPolicy(table.tenantId)),
 ]).enableRLS();
 

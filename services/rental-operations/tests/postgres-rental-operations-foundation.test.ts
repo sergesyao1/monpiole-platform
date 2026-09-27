@@ -11,6 +11,7 @@ import { RentalAllocation } from "../src/domain/rental-operations.js";
 import { PostgresTemporalAvailabilityRepository } from "../src/infrastructure/persistence/postgres/postgres-temporal-availability-repository.js";
 import { PostgresOperationalLifecycleRepository } from "../src/infrastructure/persistence/postgres/postgres-operational-lifecycle-repository.js";
 import { PostgresPropertyInspectionRepository } from "../src/infrastructure/persistence/postgres/postgres-property-inspection-repository.js";
+import { PostgresTurnoverRepository } from "../src/infrastructure/persistence/postgres/postgres-turnover-repository.js";
 import { OperationalLifecycleConflictError, OperationalSourceNotFoundError } from "../src/application/operational-lifecycle.js";
 
 const POSTGRES_IMAGE =
@@ -312,6 +313,29 @@ describe("Rental Operations PostgreSQL foundation", () => {
 });
 
 describe("Rental Operations core operational lifecycle", () => {
+  it("coordinates checkout, cleaning availability and auditable turnover completion", async () => {
+    const bookingId = await tenantTransaction(tenantA, (client) => insertBooking(client, tenantA));
+    const availability = new PostgresTemporalAvailabilityRepository(runtimePool);
+    await availability.commitIfAvailable(bookingAllocation(bookingId, assetId, "2026-10-01T14:00:00.000Z", "2026-10-05T10:00:00.000Z"), [assetId]);
+    await completeInspection({ mode: "SHORT_TERM_RENTAL", type: "ENTRY", source: { type: "BOOKING", id: bookingId }, occurredAt: "2026-10-01T13:00:00.000Z" });
+    const occupancyId = randomUUID();
+    await new PostgresOperationalLifecycleRepository(runtimePool).startBookingStay({
+      tenantId: tenantA, bookingId, stayId: randomUUID(), occupancyId, occurredAt: "2026-10-01T14:00:00.000Z",
+    });
+    await completeInspection({ mode: "SHORT_TERM_RENTAL", type: "EXIT", source: { type: "OCCUPANCY", id: occupancyId }, occurredAt: "2026-10-05T09:30:00.000Z" });
+    const repository = new PostgresTurnoverRepository(runtimePool);
+    const command = { tenantId: tenantA, actorId: "operations-manager", occupancyId, operationalBlockId: randomUUID(), allocationId: randomUUID(),
+      checkedOutAt: "2026-10-05T10:00:00.000Z", expectedCleaningCompletionAt: "2026-10-05T14:00:00.000Z", conflictScopeIds: [assetId] };
+    await expect(repository.checkout(command)).resolves.toMatchObject({ cleaningStatus: "ACTIVE", cleaningBlockId: command.operationalBlockId });
+    await expect(availability.listActiveConflicts({ tenantId: tenantA, conflictScopeIds: [assetId], startsAt: "2026-10-05T11:00:00.000Z", endsAt: "2026-10-05T12:00:00.000Z" }))
+      .resolves.toHaveLength(1);
+    await expect(repository.checkout(command)).resolves.toMatchObject({ cleaningBlockId: command.operationalBlockId });
+    await expect(repository.completeCleaning({ tenantId: tenantA, actorId: "operations-manager", operationalBlockId: command.operationalBlockId, completedAt: "2026-10-05T13:00:00.000Z" }))
+      .resolves.toMatchObject({ cleaningStatus: "RELEASED", cleaningCompletedByActorId: "operations-manager" });
+    await expect(availability.listActiveConflicts({ tenantId: tenantA, conflictScopeIds: [assetId], startsAt: "2026-10-05T13:00:00.000Z", endsAt: "2026-10-05T14:00:00.000Z" }))
+      .resolves.toEqual([]);
+  });
+
   it("persists detailed shared inspections and makes exact completion replay idempotent", async () => {
     const bookingId = await tenantTransaction(tenantA, (client) => insertBooking(client, tenantA));
     const repository = new PostgresPropertyInspectionRepository(runtimePool);

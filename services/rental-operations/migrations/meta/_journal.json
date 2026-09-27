@@ -29,6 +29,13 @@
       "when": 1790524382368,
       "tag": "0003_shared_property_inspections",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790524678784,
+      "tag": "0004_checkout_turnover_lifecycle",
+      "breakpoints": true
     }
   ]
 }
