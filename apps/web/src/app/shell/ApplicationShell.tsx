@@ -10,6 +10,7 @@ const primaryNavigation = [
   { to: "/", label: "Tableau de bord", end: true },
   { to: "/properties", label: "Biens immobiliers", end: false },
   { to: "/demandes", label: "Demandes", end: false },
+  { to: "/operations-locatives", label: "Opérations locatives", end: false },
   { to: "/proprietaires", label: "Propriétaires", end: false },
 ] as const;
 
@@ -26,6 +27,7 @@ function routeContext(pathname: string) {
   if (/^\/properties\/[^/]+$/.test(pathname)) return "Fiche du bien";
   if (pathname.startsWith("/properties")) return "Portefeuille immobilier";
   if (pathname.startsWith("/demandes")) return "Demandes";
+  if (pathname.startsWith("/operations-locatives")) return "Opérations locatives";
   if (pathname === "/proprietaires/new") return "Nouveau propriétaire";
   if (/^\/proprietaires\/[^/]+$/.test(pathname)) return "Fiche propriétaire";
   if (pathname.startsWith("/proprietaires")) return "Annuaire des propriétaires";

@@ -23,6 +23,7 @@ const applicationChildren: RouteObject[] = [{
     { path: "biens", element: <Navigate to="/properties" replace /> },
     { path: "properties", lazy: lazyComponent(() => import("../features/properties/PropertyWorkspacePage.js"), "PropertyWorkspacePage") },
     { path: "demandes", lazy: lazyComponent(() => import("../features/properties/PropertyCommercialJourneysPage.js"), "PropertyCommercialJourneysPage") },
+    { path: "operations-locatives", lazy: lazyComponent(() => import("../features/rental-operations/RentalOperationsPage.js"), "RentalOperationsPage") },
     {
       lazy: lazyComponent(
         () =>
