@@ -9,6 +9,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { RentalAllocation } from "../src/domain/rental-operations.js";
 import { PostgresTemporalAvailabilityRepository } from "../src/infrastructure/persistence/postgres/postgres-temporal-availability-repository.js";
+import { PostgresOperationalLifecycleRepository } from "../src/infrastructure/persistence/postgres/postgres-operational-lifecycle-repository.js";
+import { OperationalLifecycleConflictError, OperationalSourceNotFoundError } from "../src/application/operational-lifecycle.js";
 
 const POSTGRES_IMAGE =
   "postgres@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687";
@@ -75,16 +77,16 @@ async function tenantTransaction<T>(tenantId: string, work: (client: PoolClient)
 
 async function insertLease(client: PoolClient, tenantId: string, leaseId = randomUUID()): Promise<string> {
   await client.query(`INSERT INTO rental_operations.leases
-    (lease_id, tenant_id, rentable_asset_id, source_property_contract_id, mode, created_at)
-    VALUES ($1, $2, $3, $4, 'LONG_TERM_RENTAL', $5)`,
+    (lease_id, tenant_id, rentable_asset_id, source_property_contract_id, mode, operational_status, operationalized_at, created_at, updated_at)
+    VALUES ($1, $2, $3, $4, 'LONG_TERM_RENTAL', 'PREPARING', $5, $5, $5)`,
   [leaseId, tenantId, assetId, randomUUID(), createdAt]);
   return leaseId;
 }
 
 async function insertBooking(client: PoolClient, tenantId: string, bookingId = randomUUID(), rentableAssetId = assetId): Promise<string> {
   await client.query(`INSERT INTO rental_operations.bookings
-    (booking_id, tenant_id, rentable_asset_id, mode, arrival_at, departure_at, created_at)
-    VALUES ($1, $2, $3, 'SHORT_TERM_RENTAL', '2026-10-01T14:00:00Z', '2026-10-05T10:00:00Z', $4)`,
+    (booking_id, tenant_id, rentable_asset_id, mode, lifecycle_status, arrival_at, departure_at, created_at, updated_at)
+    VALUES ($1, $2, $3, 'SHORT_TERM_RENTAL', 'CONFIRMED', '2026-10-01T14:00:00Z', '2026-10-05T10:00:00Z', $4, $4)`,
   [bookingId, tenantId, rentableAssetId, createdAt]);
   return bookingId;
 }
@@ -122,15 +124,15 @@ describe("Rental Operations PostgreSQL foundation", () => {
       const longOccupancyId = randomUUID();
       const shortOccupancyId = randomUUID();
       await client.query(`INSERT INTO rental_operations.stays
-        (stay_id, tenant_id, rentable_asset_id, booking_id, mode, created_at)
-        VALUES ($1, $2, $3, $4, 'SHORT_TERM_RENTAL', $5)`, [stayId, tenantA, assetId, bookingId, createdAt]);
+        (stay_id, tenant_id, rentable_asset_id, booking_id, mode, lifecycle_status, actual_check_in_at, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, 'SHORT_TERM_RENTAL', 'ACTIVE', '2026-10-01T14:00:00Z', $5, $5)`, [stayId, tenantA, assetId, bookingId, createdAt]);
       await client.query(`INSERT INTO rental_operations.occupancies
-        (occupancy_id, tenant_id, rentable_asset_id, mode, source_lease_id, started_at, created_at)
-        VALUES ($1, $2, $3, 'LONG_TERM_RENTAL', $4, '2026-10-01T08:00:00Z', $5)`,
+        (occupancy_id, tenant_id, rentable_asset_id, mode, source_lease_id, started_at, lifecycle_status, created_at, updated_at)
+        VALUES ($1, $2, $3, 'LONG_TERM_RENTAL', $4, '2026-10-01T08:00:00Z', 'ACTIVE', $5, $5)`,
       [longOccupancyId, tenantA, assetId, leaseId, createdAt]);
       await client.query(`INSERT INTO rental_operations.occupancies
-        (occupancy_id, tenant_id, rentable_asset_id, mode, source_stay_id, started_at, ended_at, created_at)
-        VALUES ($1, $2, $3, 'SHORT_TERM_RENTAL', $4, '2026-10-01T14:00:00Z', '2026-10-05T10:00:00Z', $5)`,
+        (occupancy_id, tenant_id, rentable_asset_id, mode, source_stay_id, started_at, ended_at, lifecycle_status, created_at, updated_at)
+        VALUES ($1, $2, $3, 'SHORT_TERM_RENTAL', $4, '2026-10-01T14:00:00Z', '2026-10-05T10:00:00Z', 'ENDED', $5, $5)`,
       [shortOccupancyId, tenantA, assetId, stayId, createdAt]);
       for (const [occupancyId, mode] of [
         [longOccupancyId, "LONG_TERM_RENTAL"],
@@ -182,8 +184,8 @@ describe("Rental Operations PostgreSQL foundation", () => {
   it("rejects invalid intervals and ambiguous provenance", async () => {
     await expect(tenantTransaction(tenantA, async (client) => {
       await client.query(`INSERT INTO rental_operations.bookings
-        (booking_id, tenant_id, rentable_asset_id, mode, arrival_at, departure_at, created_at)
-        VALUES ($1, $2, $3, 'SHORT_TERM_RENTAL', '2026-10-05T10:00:00Z', '2026-10-01T14:00:00Z', $4)`,
+        (booking_id, tenant_id, rentable_asset_id, mode, lifecycle_status, arrival_at, departure_at, created_at, updated_at)
+        VALUES ($1, $2, $3, 'SHORT_TERM_RENTAL', 'CONFIRMED', '2026-10-05T10:00:00Z', '2026-10-01T14:00:00Z', $4, $4)`,
       [randomUUID(), tenantA, assetId, createdAt]);
     })).rejects.toMatchObject({ code: "23514" });
 
@@ -202,8 +204,8 @@ describe("Rental Operations PostgreSQL foundation", () => {
     await tenantTransaction(tenantB, async (client) => {
       expect((await client.query("SELECT * FROM rental_operations.leases")).rows).toEqual([]);
       await expect(client.query(`INSERT INTO rental_operations.occupancies
-        (occupancy_id, tenant_id, rentable_asset_id, mode, source_lease_id, started_at, created_at)
-        VALUES ($1, $2, $3, 'LONG_TERM_RENTAL', $4, '2026-10-01T08:00:00Z', $5)`,
+        (occupancy_id, tenant_id, rentable_asset_id, mode, source_lease_id, started_at, lifecycle_status, created_at, updated_at)
+        VALUES ($1, $2, $3, 'LONG_TERM_RENTAL', $4, '2026-10-01T08:00:00Z', 'ACTIVE', $5, $5)`,
       [randomUUID(), tenantB, assetId, leaseId, createdAt])).rejects.toMatchObject({ code: "23503" });
     });
   });
@@ -289,4 +291,65 @@ describe("Rental Operations PostgreSQL foundation", () => {
     })).resolves.toEqual(new Set());
   });
 
+});
+
+describe("Rental Operations core operational lifecycle", () => {
+  it("starts and ends a long-term Occupancy while preserving Lease provenance", async () => {
+    const leaseId = await tenantTransaction(tenantA, (client) => insertLease(client, tenantA));
+    const occupancyId = randomUUID();
+    const repository = new PostgresOperationalLifecycleRepository(runtimePool);
+    const started = await repository.startLeaseOccupancy({
+      tenantId: tenantA, leaseId, occupancyId, occurredAt: "2026-10-02T08:00:00.000Z",
+    });
+    expect(started).toMatchObject({ leaseId, leaseStatus: "OCCUPIED", occupancyId, actualOccupancyStartedAt: "2026-10-02T08:00:00.000Z" });
+    const ended = await repository.endOccupancy({
+      tenantId: tenantA, occupancyId, occurredAt: "2026-11-02T08:00:00.000Z",
+    });
+    expect(ended).toMatchObject({ leaseStatus: "ENDED", actualOccupancyEndedAt: "2026-11-02T08:00:00.000Z" });
+  });
+
+  it("starts Booking -> Stay -> Occupancy with planned and actual dates kept separate", async () => {
+    const bookingId = await tenantTransaction(tenantA, (client) => insertBooking(client, tenantA));
+    const repository = new PostgresOperationalLifecycleRepository(runtimePool);
+    const stayId = randomUUID();
+    const occupancyId = randomUUID();
+    const started = await repository.startBookingStay({
+      tenantId: tenantA, bookingId, stayId, occupancyId, occurredAt: "2026-10-01T16:00:00.000Z",
+    });
+    expect(started).toMatchObject({
+      bookingStatus: "IN_STAY", stayId, occupancyId,
+      plannedArrivalAt: "2026-10-01T14:00:00.000Z", plannedDepartureAt: "2026-10-05T10:00:00.000Z",
+      actualCheckInAt: "2026-10-01T16:00:00.000Z",
+    });
+    const ended = await repository.endOccupancy({ tenantId: tenantA, occupancyId, occurredAt: "2026-10-05T09:00:00.000Z" });
+    expect(ended).toMatchObject({ bookingStatus: "COMPLETED", actualCheckOutAt: "2026-10-05T09:00:00.000Z" });
+  });
+
+  it("makes exact starts convergent and conflicting replay deterministic", async () => {
+    const leaseId = await tenantTransaction(tenantA, (client) => insertLease(client, tenantA));
+    const repository = new PostgresOperationalLifecycleRepository(runtimePool);
+    const command = { tenantId: tenantA, leaseId, occupancyId: randomUUID(), occurredAt: "2026-10-02T08:00:00.000Z" };
+    await expect(repository.startLeaseOccupancy(command)).resolves.toMatchObject({ occupancyId: command.occupancyId });
+    await expect(repository.startLeaseOccupancy(command)).resolves.toMatchObject({ occupancyId: command.occupancyId });
+    await expect(repository.startLeaseOccupancy({ ...command, occupancyId: randomUUID() }))
+      .rejects.toBeInstanceOf(OperationalLifecycleConflictError);
+  });
+
+  it("isolates sources by tenant", async () => {
+    const leaseId = await tenantTransaction(tenantA, (client) => insertLease(client, tenantA));
+    await expect(new PostgresOperationalLifecycleRepository(runtimePool).startLeaseOccupancy({
+      tenantId: tenantB, leaseId, occupancyId: randomUUID(), occurredAt: "2026-10-02T08:00:00.000Z",
+    })).rejects.toBeInstanceOf(OperationalSourceNotFoundError);
+  });
+
+  it("serializes concurrent starts so exactly one intent wins", async () => {
+    const leaseId = await tenantTransaction(tenantA, (client) => insertLease(client, tenantA));
+    const repository = new PostgresOperationalLifecycleRepository(runtimePool);
+    const attempts = [randomUUID(), randomUUID()].map((occupancyId) => repository.startLeaseOccupancy({
+      tenantId: tenantA, leaseId, occupancyId, occurredAt: "2026-10-02T08:00:00.000Z",
+    }));
+    const settled = await Promise.allSettled(attempts);
+    expect(settled.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(settled.filter((result) => result.status === "rejected")).toHaveLength(1);
+  });
 });

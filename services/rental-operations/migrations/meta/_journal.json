@@ -15,6 +15,13 @@
       "when": 1790518701288,
       "tag": "0001_unified_temporal_availability",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790524290385,
+      "tag": "0002_core_operational_lifecycle",
+      "breakpoints": true
     }
   ]
 }
