@@ -1,0 +1,38 @@
+TASK-110-E3 - CORE OPERATIONAL LIFECYCLE
+
+STATUS: DONE
+
+Implemented
+- Added explicit Lease, Booking, Stay and Occupancy lifecycle states.
+- Added actual Stay check-in/check-out timestamps while preserving planned Booking dates.
+- Added transactional long-term Lease -> Occupancy start/end.
+- Added transactional short-term Booking -> Stay -> Occupancy start and completion.
+- Added tenant-derived application authority and management grant.
+- Added deterministic exact replay and conflict detection.
+- Added source row locking plus database uniqueness for concurrent starts.
+- Preserved RentalAllocation as the availability source; no duplicate availability engine.
+
+Persistence
+- Migration 0002_core_operational_lifecycle.sql is additive and forward-only.
+- Existing tenant tables retain RLS/FORCE RLS and runtime grants.
+- Composite provenance remains tenant-scoped.
+- Unique indexes enforce one Occupancy per Lease and one per Stay.
+
+Boundary decision
+- ENTRY/EXIT enforcement is connected in E4 because the foundation inspection currently requires an
+  Occupancy foreign key. E4 broadens inspection provenance before making ENTRY a start precondition.
+
+Tests
+- Long-term start/end and provenance.
+- Short-term Booking/Stay/Occupancy execution.
+- Planned versus actual timestamps.
+- Idempotent replay and conflicting replay.
+- Cross-tenant source isolation.
+- Concurrent start serialization.
+
+Validation
+- Rental Operations typecheck: PASS.
+- Test typecheck: PASS.
+- Drizzle migration check: PASS.
+- Rental Operations PostgreSQL: PASS - 1 file, 15 tests.
+- git diff --check: PASS.

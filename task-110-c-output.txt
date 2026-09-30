@@ -1,0 +1,69 @@
+=== TASK-110-C COMPLETE ===
+
+Temporal allocation model:
+RentalAllocation is the canonical tenant-scoped temporal projection of a Lease, Booking or OperationalBlock. ACTIVE claims block time; RELEASED claims remain historical and stop blocking.
+
+Operational block model:
+OperationalBlock is first-class persisted data with CLEANING, MAINTENANCE, OWNER_USE, ADMINISTRATIVE_BLOCK, PREPARATION, INSPECTION, RENOVATION and OTHER reasons, optional provenance/note, lifecycle status and timestamps. Inspections block time only through an explicit OperationalBlock.
+
+Interval convention:
+UTC half-open intervals [startsAt, endsAt). Boundary-touching intervals do not overlap. Lease allocations may be open-ended; bookings and blocks are bounded.
+
+Short-term availability:
+Confirmed short-term allocations block only overlapping requested intervals. Free time before, between and after bookings remains allocatable.
+
+Long-term availability:
+Future long-term allocations block overlaps. Effective ACTIVE long-term occupancy blocks incompatible allocation, supports an open end and returns REMOVE_FROM_RENTAL_CATALOG until ended or released.
+
+Catalog semantics:
+Property Management owns publication. Rental Operations returns AVAILABLE_FOR_INTERVAL, UNAVAILABLE_FOR_INTERVAL or REMOVE_FROM_RENTAL_CATALOG without duplicating or mutating publication state.
+
+Next availability:
+The duration-aware engine orders active conflicts and returns the first sufficient gap, rather than MAX(endAt).
+
+Whole-building/unit protection:
+A Property Management resolver supplies tenant-validated eligibility and conflict scopes. Whole-building allocation claims the building and its units; unit allocation claims only that unit, so sibling units remain independent.
+
+Concurrency protection:
+One rental_allocation_claim row is written per conflict scope in the allocation transaction. A PostgreSQL GiST exclusion constraint over tenant, scope and tstzrange(..., '[)') guarantees that exactly one incompatible concurrent allocation succeeds.
+
+RLS:
+Allocations, operational blocks and claims are tenant-scoped with forced RLS. Repositories use trusted tenant-scoped PostgreSQL transactions.
+
+Migration:
+0001_unified_temporal_availability.sql adds lifecycle/provenance fields, safe backfills, composite source FKs, claims, indexes, forced RLS/grants, btree_gist and the active-overlap exclusion constraint.
+
+Tests:
+A-M are covered by domain/application tests and PostgreSQL tests: before/after/gap/adjacency, overlap, operational blocks, multiple future bookings, effective/open-ended long-term occupancy, tenant isolation, concurrent double booking, whole-building/unit exclusion and sibling-unit independence.
+
+Validation:
+- Targeted unit: 2 files, 26 tests passed.
+- Targeted PostgreSQL: 1 file, 9 tests passed.
+- Rental Operations typecheck: passed.
+- Test typecheck: passed.
+- Recursive workspace typecheck: 12 projects passed.
+- Recursive workspace build: 12 projects passed; Vite emitted only the existing chunk-size advisory.
+- Rental Operations migration check: passed (Everything's fine).
+- Architecture check: passed.
+- Integration: 32 files, 285 tests passed.
+- Contract: 27 files, 118 tests passed.
+- PostgreSQL/RLS: 24 files, 290 tests passed; pg emitted its existing concurrent query deprecation warning.
+- Global: 181 files, 1,358 tests passed.
+
+Key decisions:
+- Keep availability temporal and resource-scoped; never introduce property.available as canonical truth.
+- Use allocation claims to encode hierarchy conflicts without coupling Rental Operations persistence to Property Management tables.
+- Enforce double-booking prevention in PostgreSQL, not with a check-then-insert race.
+- Keep publication ownership in Property Management and expose a catalog disposition at the bounded-context boundary.
+- Keep Maintenance and inspection integration explicit through operational blocks; Billing never decides availability.
+
+Deferred:
+- Property Management adapter implementing rentable-target eligibility and hierarchy scope resolution.
+- HTTP/UI date search, calendars, booking checkout and channel integrations.
+- Maintenance, inspection and Billing adapters/workflows.
+
+Recommended next task:
+TASK-110-D — Rental Availability API & Property Catalog Integration Vertical Slice
+
+Output:
+task-110-c-output.txt

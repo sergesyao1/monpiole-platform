@@ -19,6 +19,9 @@ export const agencyRegistrations = agencyOnboarding.table(
   {
     registrationId: uuid("registration_id").primaryKey(),
     status: text("status").notNull(),
+    organizationType: text("organization_type")
+      .notNull()
+      .default("REAL_ESTATE_AGENCY"),
 
     agencyLegalName: text("agency_legal_name").notNull(),
     agencyTradeName: text("agency_trade_name"),
@@ -94,6 +97,11 @@ export const agencyRegistrations = agencyOnboarding.table(
     check(
       "agency_registrations_status_check",
       sql`${table.status} IN ('SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED')`,
+    ),
+
+    check(
+      "agency_registrations_organization_type_check",
+      sql`${table.organizationType} IN ('REAL_ESTATE_AGENCY', 'PROPERTY_MANAGEMENT_COMPANY', 'SCI', 'DEVELOPER', 'SYNDIC', 'PROFESSIONAL_LANDLORD', 'OTHER')`,
     ),
 
     check(

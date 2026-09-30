@@ -17,6 +17,8 @@
     "services/identity/tests/**/*.ts",
     "services/property-management/src/**/*.ts",
     "services/property-management/tests/**/*.ts",
+    "services/platform-reference/src/**/*.ts",
+    "services/platform-reference/tests/**/*.ts",
     "vitest.config.ts",
     "tests/**/*.ts"
   ]

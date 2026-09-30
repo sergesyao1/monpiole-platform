@@ -4,6 +4,14 @@
 
 Own the Property real-estate bounded context.
 
+## Rental availability integration
+
+Property Management remains the owner of structure, hierarchy, `transactionType`, commercial terms and publication. `transactionType` is the canonical rental-mode source; rental mode is never inferred from Property type.
+
+The tenant-scoped `PropertyRentalTargetQuery` resolves rentable targets and their conflict scopes in batch. Standalone properties and Units claim their own identity. A whole-building commercial target additionally exposes all child Unit identities so Rental Operations can enforce building/Unit exclusivity without owning Property hierarchy.
+
+Publication and operational availability are deliberately separate. An effective long-term allocation can exclude a published Property from rentable catalog results without changing its `PUBLISHED` state. Short-term allocations never withdraw publication and affect only conflicting UTC half-open periods.
+
 ## TASK-034 baseline
 
 The service owns the tenant-bound `Property` aggregate and the
@@ -234,20 +242,25 @@ visibilité publique `EXACT | APPROXIMATE | HIDDEN`. La représentation canoniqu
 accepte au plus six décimales ; PostgreSQL utilise `numeric(8,6)` et
 `numeric(9,6)`. La projection approximative du domaine arrondit de façon stable
 à `0.01°` (ordre de grandeur d'un kilomètre), sans aléa ni fournisseur externe.
-Cette projection n'est pas encore branchée au catalogue public.
+Le catalogue public consomme cette projection après résolution de la position
+effective : position propre, puis Building, puis Complex/Résidence. `EXACT`
+conserve la coordonnée effective, `APPROXIMATE` applique l'arrondi canonique et
+`HIDDEN` produit `publicLocation: null`. La politique appartient à la position
+sélectionnée et suit donc la même chaîne d'héritage.
 
 Une `STANDALONE` ou `COMPOSITE` possède au plus une géolocalisation propre. Une
 `UNIT` n'en stocke jamais : sa lecture effective hérite de la Property
 `COMPOSITE` parente et ses tentatives de mise à jour ou suppression échouent par
-`PROPERTY_UNIT_GEOLOCATION_INHERITED`. `Building` reste une entité structurelle
-sans coordonnées propres. La géolocalisation est facultative et ne modifie ni
+`PROPERTY_UNIT_GEOLOCATION_INHERITED`. Un Building représenté par une Property
+peut porter la position héritée par ses Units. La géolocalisation est facultative et ne modifie ni
 les prérequis ni la transition de publication.
 
 La table dédiée `property_geolocations` sépare les données privées du catalogue,
 porte une clé primaire/FK `(tenant_id, property_id)`, des contraintes de bornes,
 une RLS activée et forcée, et les traces de dernière mutation. Le runtime reçoit
 les seuls droits CRUD ; `monpiole_public_catalog_reader` n'a aucun privilège sur
-cette table. Géocodage, reverse geocoding, carte, PostGIS et recherches spatiales
+cette table et ne lit que la vue de sécurité contenant les positions déjà
+transformées des cibles publiées. Géocodage, reverse geocoding, carte, PostGIS et recherches spatiales
 restent des capacités séparées.
 
 ## Disponibilité et occupation — TASK-064
@@ -331,3 +344,21 @@ Une `Property` peut être indépendante, un `BUILDING`, un `COMPLEX`, une unité
 Le mode d'un nouvel immeuble est fixé à la création : `WHOLE_BUILDING` rend l'immeuble publiable, tarifable, disponible directement et éligible au bail longue durée lorsque les autres prérequis sont satisfaits. Ses unités ne peuvent être ni tarifées/publiées individuellement ni recevoir de bail individuel. `INDIVIDUAL_UNITS` rend l'immeuble non publiable et non tarifable, avec disponibilité dérivée ; ses unités éligibles sont les cibles commerciales. Une résidence `COMPLEX` reste un conteneur non publiable et non tarifable en V1. Les contrôles de publication, prix et bail sont côté serveur.
 
 Les migrations additives `0025` et `0026` préservent les identifiants et données antérieurs. La nouvelle relation utilise des FK tenant-scoped, une unicité du code par résidence, des transactions verrouillant le parent, la RLS forcée et des grants explicites. Le rattachement ultérieur d'un bien indépendant existant et le changement de mode d'un immeuble ne sont pas proposés en V1.
+## PublicCatalogSearchQuery
+
+The public catalog accepts one normalized, framework-independent search request. Property Management
+owns publication, property taxonomy, commercial terms and effective inherited geography. Rental
+Operations remains the sole owner of long-term occupancy truth and short-term `[from, to)` conflict
+evaluation. Money filters use integer `amountMinor` values in one explicit `currencyCode`; no FX
+conversion is implied. Sorting is allowlisted and every order uses the stable public property ID as
+its eventual tie-breaker. Cursor values remain opaque to clients. TASK-111-C implements the database
+execution and effective-geography projection for this contract.
+
+TASK-111-C executes Property-owned criteria in one bounded PostgreSQL query. Geography is resolved
+field by field: a direct value wins, otherwise a Unit reads its canonical Building and then the
+Building's Complex; a direct Complex child reads that Complex. `countryCode` is compared in its
+canonical form, while `city`, `commune` and `quartier` use trim-aware, case-insensitive exact
+matching with AND semantics. The resolved geography affects projection and search only: it never
+changes `PUBLISHED` status or commercial eligibility. The public reader receives only the hierarchy
+identifiers and the security-barrier geography projection required for this calculation; owner,
+address and audit data remain inaccessible and all joins stay tenant-scoped.

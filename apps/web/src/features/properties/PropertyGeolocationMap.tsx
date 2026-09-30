@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
 import type { LatLngExpression, LeafletEventHandlerFnMap } from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { leafletTileLayer } from "../maps/leaflet-map-config.js";
 
 interface PropertyGeolocationMapProps {
   readonly latitude: string;
@@ -24,7 +25,7 @@ export function PropertyGeolocationMap({ latitude, longitude, onPositionChange }
   return (
     <div className="property-geolocation-map" aria-label="Carte de prévisualisation de la position du bien">
       <MapContainer center={position} zoom={16} scrollWheelZoom className="property-geolocation-map__canvas">
-        <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <TileLayer attribution={leafletTileLayer.attribution} url={leafletTileLayer.url} />
         <Marker draggable eventHandlers={handlers} position={position} />
         <SynchronizeMap position={position} />
       </MapContainer>

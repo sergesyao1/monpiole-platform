@@ -3,6 +3,7 @@ import type { AgencyRegistration } from "../../../domain/agency-registration.js"
 export interface AgencyRegistrationRow extends Record<string, unknown> {
   readonly registration_id: string;
   readonly status: AgencyRegistration["status"];
+  readonly organization_type: NonNullable<AgencyRegistration["organizationType"]>;
 
   readonly agency_legal_name: string;
   readonly agency_trade_name: string | null;
@@ -44,6 +45,7 @@ export function toAgencyRegistration(
   return Object.freeze({
     id: row.registration_id,
     status: row.status,
+    organizationType: row.organization_type,
 
     agencyLegalName: row.agency_legal_name,
     ...(row.agency_trade_name === null

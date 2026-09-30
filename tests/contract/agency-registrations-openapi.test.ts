@@ -77,6 +77,29 @@ describe("Agency registrations OpenAPI", () => {
     );
   });
 
+  it("exposes the canonical organization registration contract", () => {
+    const operation = document.paths["/v1/organization-registrations"]?.post;
+    expect(operation?.operationId).toBe("submitOrganizationRegistration");
+    expect(operation?.security).toEqual([]);
+
+    const reference = operation?.requestBody?.content?.["application/json"]?.schema?.$ref;
+    const schemaName = reference?.split("/").at(-1);
+    const schema = schemaName === undefined
+      ? undefined
+      : document.components.schemas[schemaName];
+
+    expect(schema?.required).toEqual(expect.arrayContaining([
+      "organizationType",
+      "legalName",
+      "registrationNumber",
+      "countryCode",
+    ]));
+    expect(schema?.properties).not.toHaveProperty("agencyLegalName");
+    expect(document.paths).toHaveProperty(
+      "/v1/platform/organization-registrations/{registrationId}/approve",
+    );
+  });
+
   it("publishes the authenticated bodyless first administrator reinvitation contract", () => {
     const operation = document.paths[
       "/v1/platform/agency-registrations/{registrationId}/first-administrator/reinvitation"

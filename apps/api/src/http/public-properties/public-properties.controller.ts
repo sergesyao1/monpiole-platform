@@ -17,7 +17,8 @@ import {
 } from "../../configuration/public-catalog.js";
 import { problemContent, responseHeaders } from "../properties/create-property.controller.js";
 import { TenantContext } from "../request-context/request-context.decorator.js";
-import { decodePublicPropertyCatalogCursor, encodePublicPropertyCatalogCursor } from "./public-property-cursor.js";
+import { encodePublicPropertyCatalogCursor } from "./public-property-cursor.js";
+import { normalizePublicCatalogSearchQuery } from "./public-catalog-search-query.js";
 import {
   ListPublicPropertiesQueryDto,
   PublicPropertyCatalogResponseDto,
@@ -57,8 +58,22 @@ export class PublicPropertiesController {
   @ApiOperation({ operationId: "listPublicProperties", summary: "List one activated tenant's published Properties", security: [] })
   @ApiQuery({ name: "limit", required: false, schema: { type: "integer", minimum: 1, maximum: 50, default: 20 } })
   @ApiQuery({ name: "cursor", required: false, schema: { type: "string", maxLength: 512 } })
-  @ApiQuery({ name: "type", required: false, schema: { type: "string", enum: ["APARTMENT", "HOUSE", "LAND", "COMMERCIAL", "OFFICE", "SHOP", "BUILDING", "COMPLEX", "OTHER"] } })
-  @ApiQuery({ name: "transactionType", required: false, schema: { type: "string", enum: ["LONG_TERM_RENTAL", "SHORT_TERM_RENTAL", "SALE"] } })
+  @ApiQuery({ name: "type", required: false, description: "One or more comma-separated public property types", schema: { type: "string", example: "APARTMENT,HOUSE" } })
+  @ApiQuery({ name: "transactionType", required: false, description: "One or more commercial intents; availability intervals accept SHORT_TERM_RENTAL only", schema: { type: "string", example: "SHORT_TERM_RENTAL" } })
+  @ApiQuery({ name: "structuralRole", required: false, description: "One or more comma-separated structural roles", schema: { type: "string", example: "STANDALONE,UNIT" } })
+  @ApiQuery({ name: "countryCode", required: false, schema: { type: "string", pattern: "^[A-Z]{2}$", example: "CI" } })
+  @ApiQuery({ name: "city", required: false, schema: { type: "string", maxLength: 200, example: "Abidjan" } })
+  @ApiQuery({ name: "commune", required: false, schema: { type: "string", maxLength: 200, example: "Cocody" } })
+  @ApiQuery({ name: "quartier", required: false, schema: { type: "string", maxLength: 200, example: "Riviera" } })
+  @ApiQuery({ name: "minPriceAmountMinor", required: false, schema: { type: "integer", minimum: 0, example: 100000 } })
+  @ApiQuery({ name: "maxPriceAmountMinor", required: false, schema: { type: "integer", minimum: 0, example: 500000 } })
+  @ApiQuery({ name: "currencyCode", required: false, description: "Required with price bounds; no currency conversion", schema: { type: "string", pattern: "^[A-Z]{3}$", example: "XOF" } })
+  @ApiQuery({ name: "minBedrooms", required: false, schema: { type: "integer", minimum: 0 } })
+  @ApiQuery({ name: "maxBedrooms", required: false, schema: { type: "integer", minimum: 0 } })
+  @ApiQuery({ name: "availableFrom", required: false, description: "Required with availableTo: inclusive UTC boundary of a SHORT_TERM_RENTAL interval [from,to)", schema: { type: "string", format: "date-time" } })
+  @ApiQuery({ name: "availableTo", required: false, description: "Required with availableFrom: exclusive UTC boundary of a SHORT_TERM_RENTAL interval [from,to)", schema: { type: "string", format: "date-time" } })
+  @ApiQuery({ name: "q", required: false, description: "Bounded exact text search over public title, description and effective geographic labels", schema: { type: "string", maxLength: 200 } })
+  @ApiQuery({ name: "sort", required: false, schema: { type: "string", enum: ["NEWEST", "PRICE_ASC", "PRICE_DESC", "NEXT_AVAILABLE"], default: "NEWEST" } })
   @ApiOkResponse({ description: "Published Properties of the tenant resolved from the exact request host", type: PublicPropertyCatalogResponseDto, headers: responseHeaders() })
   @ApiResponse({ status: 400, description: "Invalid catalog query or cursor", content: problemContent() })
   @ApiResponse({ status: 404, description: "Public catalog host not found", content: problemContent() })
@@ -70,13 +85,7 @@ export class PublicPropertiesController {
     @Res({ passthrough: true }) response: BinaryResponse,
   ): Promise<PublicPropertyCatalogResponse> {
     const tenantId = requirePublicCatalogTenant(this.tenantResolver, host);
-    const page = await this.listProperties.execute({
-      tenantId,
-      limit: query.limit,
-      ...(query.cursor === undefined ? {} : { cursor: decodePublicPropertyCatalogCursor(query.cursor) }),
-      ...(query.type === undefined ? {} : { propertyType: query.type }),
-      ...(query.transactionType === undefined ? {} : { transactionType: query.transactionType }),
-    });
+    const page = await this.listProperties.execute(normalizePublicCatalogSearchQuery(tenantId, query));
     setPublicJsonCache(response);
     return {
       items: page.items.map(toPublicPropertySummary),

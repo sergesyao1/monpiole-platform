@@ -15,7 +15,7 @@ const unauthenticatedSession: Session = {
 describe("public agency registration route", () => {
   it("reste publique et expose la navigation MonPiole", () => {
     const router = createMemoryRouter(applicationRoutes, {
-      initialEntries: ["/inscription-agence"],
+      initialEntries: ["/inscription-organisation"],
     });
 
     render(
@@ -26,7 +26,7 @@ describe("public agency registration route", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Inscrire votre agence sur MonPiole",
+        name: "Inscrire votre organisation sur MonPiole",
       }),
     ).toBeInTheDocument();
 
@@ -41,8 +41,8 @@ describe("public agency registration route", () => {
     ).toHaveAttribute("href", "/catalogue");
 
     expect(
-      screen.getByRole("link", { name: "Inscrire mon agence" }),
-    ).toHaveAttribute("href", "/inscription-agence");
+      screen.getByRole("link", { name: "Inscrire mon organisation" }),
+    ).toHaveAttribute("href", "/inscription-organisation");
 
     expect(
       screen.getByRole("link", { name: "Espace de gestion" }),

@@ -23,6 +23,7 @@ const applicationChildren: RouteObject[] = [{
     { path: "biens", element: <Navigate to="/properties" replace /> },
     { path: "properties", lazy: lazyComponent(() => import("../features/properties/PropertyWorkspacePage.js"), "PropertyWorkspacePage") },
     { path: "demandes", lazy: lazyComponent(() => import("../features/properties/PropertyCommercialJourneysPage.js"), "PropertyCommercialJourneysPage") },
+    { path: "operations-locatives", lazy: lazyComponent(() => import("../features/rental-operations/RentalOperationsPage.js"), "RentalOperationsPage") },
     {
       lazy: lazyComponent(
         () =>
@@ -73,6 +74,12 @@ export const managedApplicationRoutes: RouteObject[] = [
   },
   {
     path: "/inscription-agence",
+    lazy: lazyComponent(() => import("../features/agency-registration/PublicAgencyRegistrationPage.js"), "PublicAgencyRegistrationPage"),
+    errorElement: <RouteErrorPage />,
+    hydrateFallbackElement: <LoadingPage />,
+  },
+  {
+    path: "/inscription-organisation",
     lazy: lazyComponent(() => import("../features/agency-registration/PublicAgencyRegistrationPage.js"), "PublicAgencyRegistrationPage"),
     errorElement: <RouteErrorPage />,
     hydrateFallbackElement: <LoadingPage />,

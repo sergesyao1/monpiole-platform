@@ -1,0 +1,25 @@
+TASK-110-E6 - OPERATIONAL API
+
+STATUS: DONE
+
+Implemented
+- Authenticated GET /v1/rental-operations collection with domain capabilities.
+- Lease Occupancy start and Booking Stay/check-in commands.
+- Shared ENTRY/EXIT inspection completion command with structured condition/evidence DTOs.
+- Occupancy end, short-term checkout and turnover completion commands.
+- Tenant is derived exclusively from authenticated authority.
+- Zod validation and OpenAPI DTOs cover every private route.
+- Domain errors map to safe 400/403/404/409 Problem Details.
+- Public availability endpoints are unchanged and expose no inspection/private operations data.
+
+Authorization
+- RETRIEVE_RENTAL_OPERATIONS controls reads.
+- MANAGE_RENTAL_OPERATIONS controls mutations.
+- Tenant administrator authority receives both grants through the existing identity adapter.
+
+Validation
+- API HTTP: PASS - 1 file, 3 tests.
+- Test typecheck: PASS.
+- API typecheck/build and OpenAPI generation: PASS.
+- Contract suite: PASS - 28 files, 119 tests.
+- git diff --check: PASS.

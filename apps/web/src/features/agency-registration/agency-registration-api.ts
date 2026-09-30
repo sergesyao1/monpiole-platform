@@ -23,7 +23,7 @@ export function createAgencyRegistrationApi(): AgencyRegistrationApi {
       form.append("file", file);
 
       return requestJson<AgencyRegistrationDocumentUpload>(
-        "/v1/agency-registration-documents",
+        "/v1/organization-registration-documents",
         {
           method: "POST",
           body: form,
@@ -33,7 +33,7 @@ export function createAgencyRegistrationApi(): AgencyRegistrationApi {
 
     submitRegistration: (input) =>
       requestJson<AgencyRegistrationSubmission>(
-        "/v1/agency-registrations",
+        "/v1/organization-registrations",
         {
           method: "POST",
           body: input,

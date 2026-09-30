@@ -1,4 +1,5 @@
-export type PropertyType = "APARTMENT" | "HOUSE" | "LAND" | "COMMERCIAL" | "OTHER";
+export const publicPropertyTypes = ["APARTMENT", "HOUSE", "LAND", "COMMERCIAL", "OFFICE", "SHOP", "BUILDING", "COMPLEX", "OTHER"] as const;
+export type PropertyType = typeof publicPropertyTypes[number];
 export type TransactionType = "LONG_TERM_RENTAL" | "SHORT_TERM_RENTAL" | "SALE";
 export type ApartmentSubtype = "STUDIO" | "MULTI_ROOM";
 export type PropertyStructuralRole = "STANDALONE" | "COMPOSITE" | "UNIT";
@@ -9,6 +10,10 @@ export const propertyTypeLabels: Readonly<Record<PropertyType, string>> = {
   HOUSE: "Maison",
   LAND: "Terrain",
   COMMERCIAL: "Local commercial",
+  OFFICE: "Bureau",
+  SHOP: "Boutique",
+  BUILDING: "Immeuble",
+  COMPLEX: "Résidence",
   OTHER: "Autre",
 };
 export const transactionTypeLabels: Readonly<Record<TransactionType, string>> = {
@@ -27,6 +32,12 @@ export interface PublicPropertyLocation {
   readonly country: string;
   readonly city: string;
   readonly district: string;
+}
+
+export interface PublicPropertyMapLocation {
+  readonly latitude: number;
+  readonly longitude: number;
+  readonly precision: "EXACT" | "APPROXIMATE";
 }
 
 export interface PublicPropertyDetails {
@@ -73,6 +84,7 @@ export interface PublicPropertySummary {
   readonly apartmentSubtype?: ApartmentSubtype;
   readonly structuralRole: PropertyStructuralRole;
   readonly location: PublicPropertyLocation;
+  readonly publicLocation: PublicPropertyMapLocation | null;
   readonly commercialTerms: PublicPropertyCommercialTerms;
   readonly primaryPhoto: PublicPropertyPrimaryPhoto | null;
   readonly publishedAt: string;
@@ -90,9 +102,46 @@ export interface PublicPropertyCatalogPage {
   readonly pageInfo: Readonly<{ readonly nextCursor: string | null; readonly hasNextPage: boolean }>;
 }
 
-export interface PublicPropertyCatalogCriteria {
+export interface PublicCountryReference {
+  readonly code: string;
+  readonly nameKey: string;
+  readonly active: boolean;
+}
+
+export interface PublicCurrencyReference {
+  readonly code: string;
+  readonly nameKey: string;
+  readonly minorUnit: number;
+  readonly active: boolean;
+}
+
+export type PublicCatalogSort = "NEWEST" | "PRICE_ASC" | "PRICE_DESC";
+
+export interface PublicCatalogSearchQuery {
+  readonly propertyTypes?: readonly PropertyType[];
+  readonly transactionTypes?: readonly TransactionType[];
+  readonly structuralRoles?: readonly PropertyStructuralRole[];
+  readonly countryCode?: string;
+  readonly city?: string;
+  readonly commune?: string;
+  readonly quartier?: string;
+  readonly minPriceAmountMinor?: number;
+  readonly maxPriceAmountMinor?: number;
+  readonly currencyCode?: string;
+  readonly minBedrooms?: number;
+  readonly maxBedrooms?: number;
+  readonly availableFrom?: string;
+  readonly availableTo?: string;
+  readonly q?: string;
+  readonly sort?: PublicCatalogSort;
+  readonly limit?: number;
+}
+
+export interface PublicPropertyCatalogCriteria extends PublicCatalogSearchQuery {
   readonly cursor?: string;
+  /** @deprecated Use propertyTypes. Retained until the visual filters migrate. */
   readonly type?: PropertyType;
+  /** @deprecated Use transactionTypes. Retained until the visual filters migrate. */
   readonly transactionType?: TransactionType;
 }
 

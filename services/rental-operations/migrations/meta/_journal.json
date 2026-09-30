@@ -1,0 +1,55 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790517423301,
+      "tag": "0000_rental_operations_foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790518701288,
+      "tag": "0001_unified_temporal_availability",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790524290385,
+      "tag": "0002_core_operational_lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790524382368,
+      "tag": "0003_shared_property_inspections",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790524678784,
+      "tag": "0004_checkout_turnover_lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790526752798,
+      "tag": "0005_transactional_domain_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790527242264,
+      "tag": "0006_exceptional_lifecycle_scenarios",
+      "breakpoints": true
+    }
+  ]
+}

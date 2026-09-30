@@ -4,6 +4,14 @@
 
 Public API edge application.
 
+## Rental availability
+
+- `GET /v1/properties/{propertyId}/rental-availability` is authenticated and tenant-scoped through Property authority.
+- `GET /v1/public/properties/{propertyId}/rental-availability` first resolves a published Property from the host-bound public catalog, then returns sanitized availability without allocation IDs, customer data, notes or provenance.
+- Both endpoints require canonical UTC `startsAt` and `endsAt` instants and use half-open `[startsAt, endsAt)` semantics.
+- Public catalog lists compose publication with Rental Operations in batch. Effective long-term occupancy removes a rental from results without unpublishing it; short-term listings remain visible.
+- Next availability is duration-aware and comes from Rental Operations rather than controller overlap logic.
+
 ## Ownership
 
 API Platform owns this area and approves changes affecting its responsibilities.
@@ -322,8 +330,11 @@ position héritée ; l'API répond 409 avec le code stable
 `PROPERTY_UNIT_GEOLOCATION_INHERITED`. Les erreurs cross-tenant restent 404 et
 non révélatrices.
 
-Cette tranche n'ajoute aucune coordonnée aux trois routes du catalogue public.
-Elle ne charge aucun SDK cartographique, géocodeur, credential ou provider. Le
+Les réponses de liste et de détail du catalogue exposent désormais un même
+`publicLocation` nullable déjà résolu par Property Management. Sa précision est
+`EXACT` ou `APPROXIMATE`; une politique `HIDDEN` ou l'absence de position produit
+`null`. Aucune coordonnée brute, politique interne ou provenance hiérarchique ne
+traverse la frontière HTTP. Aucun SDK cartographique, géocodeur, credential ou provider n'est chargé. Le
 contrat OpenAPI généré décrit les trois opérations privées, leurs validations,
 réponses Problem Details et en-têtes de traçage.
 
@@ -361,3 +372,25 @@ Les routes privées `/v1/properties/{propertyId}/viewings/{viewingId}/outcome` e
 `POST /v1/properties` accepte `BUILDING` avec `commercializationMode` explicite (`WHOLE_BUILDING` ou `INDIVIDUAL_UNITS`) et `COMPLEX` comme résidence structurelle. `POST`/`GET /v1/properties/{propertyId}/children` créent et listent les biens individuels directement rattachés à une résidence, avec code unique et curseur opaque. Les routes `/buildings` et `/units` restent en place pour la hiérarchie immeuble/unité. Toutes ces routes déduisent le tenant de l'autorité authentifiée, valident strictement le body et appliquent RLS.
 
 La publication, la tarification, la disponibilité et l'éligibilité des baux suivent le mode persistant : immeuble entier comme cible directe, ou unités comme cibles individuelles. Une résidence n'est pas une annonce V1. Les refus métier sont retournés en Problem Details ; masquer un bouton Web n'est jamais le seul contrôle.
+## Public catalog search contract
+
+`GET /v1/public/properties` is the canonical public search endpoint. Its strict query contract supports
+effective geography (`countryCode`, `city`, `commune`, `quartier`), comma-separated `type`,
+`structuralRole` and `transactionType` values, currency-scoped minor-unit price bounds, bedroom
+bounds, a UTC short-term availability interval, bounded `q`, allowlisted `sort`, and opaque cursor
+pagination (`limit` defaults to 20 and is capped at 50). Availability intervals use `[from, to)` and
+implicitly select `SHORT_TERM_RENTAL`; mixing them with another commercial intent is rejected.
+TASK-111-B defines and normalizes this contract. Effective geography and database execution are the
+scope of TASK-111-C; temporal availability remains delegated to Rental Operations.
+
+TASK-111-C applies the normalized Property criteria before keyset pagination. Effective geography
+uses exact AND matching and the precedence `Property -> Building -> Complex`, independently for
+each field. It is a read concern only and cannot make a draft, withdrawn or structurally ineligible
+Property public. Rental interval evaluation remains composed through Rental Operations rather than
+being duplicated in the Property query.
+
+TASK-111-D composes an optional `availableFrom`/`availableTo` pair after Property filtering. The API
+passes each bounded candidate batch to Rental Operations, removes interval conflicts, and follows the
+internal keyset continuation until the requested public page is full or exhausted. Only the cursor of
+the last returned item is exposed, preserving ordering and preventing gaps or duplicates. Sale-only
+pages do not invoke temporal availability evaluation.

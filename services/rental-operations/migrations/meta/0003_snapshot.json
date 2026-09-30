@@ -1,0 +1,1589 @@
+{
+  "id": "1999687a-6e21-4a56-b1b1-06dd35beacf7",
+  "prevId": "25ed39d0-5042-412e-90a1-798705710816",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "rental_operations.bookings": {
+      "name": "bookings",
+      "schema": "rental_operations",
+      "columns": {
+        "booking_id": {
+          "name": "booking_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rentable_asset_id": {
+          "name": "rentable_asset_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mode": {
+          "name": "mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lifecycle_status": {
+          "name": "lifecycle_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "arrival_at": {
+          "name": "arrival_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "departure_at": {
+          "name": "departure_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "bookings_tenant_asset_arrival_idx": {
+          "name": "bookings_tenant_asset_arrival_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "rentable_asset_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "arrival_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "bookings_tenant_booking_pk": {
+          "name": "bookings_tenant_booking_pk",
+          "columns": [
+            "tenant_id",
+            "booking_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "bookings_tenant_booking_asset_unique": {
+          "name": "bookings_tenant_booking_asset_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "booking_id",
+            "rentable_asset_id"
+          ]
+        }
+      },
+      "policies": {
+        "bookings_tenant_isolation": {
+          "name": "bookings_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"rental_operations\".\"bookings\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"rental_operations\".\"bookings\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "bookings_mode_check": {
+          "name": "bookings_mode_check",
+          "value": "\"rental_operations\".\"bookings\".\"mode\" = 'SHORT_TERM_RENTAL'"
+        },
+        "bookings_lifecycle_status_check": {
+          "name": "bookings_lifecycle_status_check",
+          "value": "\"rental_operations\".\"bookings\".\"lifecycle_status\" IN ('CONFIRMED', 'IN_STAY', 'COMPLETED', 'CANCELLED', 'NO_SHOW')"
+        },
+        "bookings_interval_check": {
+          "name": "bookings_interval_check",
+          "value": "\"rental_operations\".\"bookings\".\"departure_at\" > \"rental_operations\".\"bookings\".\"arrival_at\""
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "rental_operations.leases": {
+      "name": "leases",
+      "schema": "rental_operations",
+      "columns": {
+        "lease_id": {
+          "name": "lease_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rentable_asset_id": {
+          "name": "rentable_asset_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_property_contract_id": {
+          "name": "source_property_contract_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mode": {
+          "name": "mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "operational_status": {
+          "name": "operational_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "operationalized_at": {
+          "name": "operationalized_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "leases_tenant_contract_unique": {
+          "name": "leases_tenant_contract_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source_property_contract_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "leases_tenant_asset_idx": {
+          "name": "leases_tenant_asset_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "rentable_asset_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "leases_tenant_lease_pk": {
+          "name": "leases_tenant_lease_pk",
+          "columns": [
+            "tenant_id",
+            "lease_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "leases_tenant_lease_asset_unique": {
+          "name": "leases_tenant_lease_asset_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "lease_id",
+            "rentable_asset_id"
+          ]
+        }
+      },
+      "policies": {
+        "leases_tenant_isolation": {
+          "name": "leases_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"rental_operations\".\"leases\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"rental_operations\".\"leases\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "leases_mode_check": {
+          "name": "leases_mode_check",
+          "value": "\"rental_operations\".\"leases\".\"mode\" = 'LONG_TERM_RENTAL'"
+        },
+        "leases_operational_status_check": {
+          "name": "leases_operational_status_check",
+          "value": "\"rental_operations\".\"leases\".\"operational_status\" IN ('PREPARING', 'OCCUPIED', 'ENDED', 'CANCELLED')"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "rental_operations.occupancies": {
+      "name": "occupancies",
+      "schema": "rental_operations",
+      "columns": {
+        "occupancy_id": {
+          "name": "occupancy_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rentable_asset_id": {
+          "name": "rentable_asset_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mode": {
+          "name": "mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_lease_id": {
+          "name": "source_lease_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_stay_id": {
+          "name": "source_stay_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ended_at": {
+          "name": "ended_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lifecycle_status": {
+          "name": "lifecycle_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "occupancies_tenant_asset_started_idx": {
+          "name": "occupancies_tenant_asset_started_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "rentable_asset_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "started_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "occupancies_tenant_lease_unique": {
+          "name": "occupancies_tenant_lease_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source_lease_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"rental_operations\".\"occupancies\".\"source_lease_id\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "occupancies_tenant_stay_unique": {
+          "name": "occupancies_tenant_stay_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source_stay_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"rental_operations\".\"occupancies\".\"source_stay_id\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "occupancies_lease_tenant_fk": {
+          "name": "occupancies_lease_tenant_fk",
+          "tableFrom": "occupancies",
+          "tableTo": "leases",
+          "schemaTo": "rental_operations",
+          "columnsFrom": [
+            "tenant_id",
+            "source_lease_id",
+            "rentable_asset_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "lease_id",
+            "rentable_asset_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "occupancies_stay_tenant_fk": {
+          "name": "occupancies_stay_tenant_fk",
+          "tableFrom": "occupancies",
+          "tableTo": "stays",
+          "schemaTo": "rental_operations",
+          "columnsFrom": [
+            "tenant_id",
+            "source_stay_id",
+            "rentable_asset_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "stay_id",
+            "rentable_asset_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "occupancies_tenant_occupancy_pk": {
+          "name": "occupancies_tenant_occupancy_pk",
+          "columns": [
+            "tenant_id",
+            "occupancy_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "occupancies_tenant_occupancy_mode_unique": {
+          "name": "occupancies_tenant_occupancy_mode_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "occupancy_id",
+            "mode"
+          ]
+        }
+      },
+      "policies": {
+        "occupancies_tenant_isolation": {
+          "name": "occupancies_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"rental_operations\".\"occupancies\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"rental_operations\".\"occupancies\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "occupancies_provenance_check": {
+          "name": "occupancies_provenance_check",
+          "value": "\n    (\"rental_operations\".\"occupancies\".\"mode\" = 'LONG_TERM_RENTAL' AND \"rental_operations\".\"occupancies\".\"source_lease_id\" IS NOT NULL AND \"rental_operations\".\"occupancies\".\"source_stay_id\" IS NULL)\n    OR (\"rental_operations\".\"occupancies\".\"mode\" = 'SHORT_TERM_RENTAL' AND \"rental_operations\".\"occupancies\".\"source_lease_id\" IS NULL AND \"rental_operations\".\"occupancies\".\"source_stay_id\" IS NOT NULL)\n  "
+        },
+        "occupancies_interval_check": {
+          "name": "occupancies_interval_check",
+          "value": "\"rental_operations\".\"occupancies\".\"ended_at\" IS NULL OR \"rental_operations\".\"occupancies\".\"ended_at\" > \"rental_operations\".\"occupancies\".\"started_at\""
+        },
+        "occupancies_lifecycle_status_check": {
+          "name": "occupancies_lifecycle_status_check",
+          "value": "(\"rental_operations\".\"occupancies\".\"lifecycle_status\" = 'ACTIVE' AND \"rental_operations\".\"occupancies\".\"ended_at\" IS NULL) OR (\"rental_operations\".\"occupancies\".\"lifecycle_status\" = 'ENDED' AND \"rental_operations\".\"occupancies\".\"ended_at\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "rental_operations.operational_blocks": {
+      "name": "operational_blocks",
+      "schema": "rental_operations",
+      "columns": {
+        "operational_block_id": {
+          "name": "operational_block_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rentable_asset_id": {
+          "name": "rentable_asset_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_type": {
+          "name": "source_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_at": {
+          "name": "start_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_at": {
+          "name": "end_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "operational_blocks_tenant_asset_start_idx": {
+          "name": "operational_blocks_tenant_asset_start_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "rentable_asset_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "start_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "operational_blocks_tenant_block_pk": {
+          "name": "operational_blocks_tenant_block_pk",
+          "columns": [
+            "tenant_id",
+            "operational_block_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "operational_blocks_tenant_block_asset_unique": {
+          "name": "operational_blocks_tenant_block_asset_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "operational_block_id",
+            "rentable_asset_id"
+          ]
+        }
+      },
+      "policies": {
+        "operational_blocks_tenant_isolation": {
+          "name": "operational_blocks_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"rental_operations\".\"operational_blocks\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"rental_operations\".\"operational_blocks\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "operational_blocks_reason_check": {
+          "name": "operational_blocks_reason_check",
+          "value": "\"rental_operations\".\"operational_blocks\".\"reason\" IN ('MAINTENANCE', 'OWNER_USE', 'CLEANING', 'PREPARATION', 'INSPECTION', 'RENOVATION', 'ADMINISTRATIVE_BLOCK', 'OTHER')"
+        },
+        "operational_blocks_interval_check": {
+          "name": "operational_blocks_interval_check",
+          "value": "\"rental_operations\".\"operational_blocks\".\"end_at\" > \"rental_operations\".\"operational_blocks\".\"start_at\""
+        },
+        "operational_blocks_status_check": {
+          "name": "operational_blocks_status_check",
+          "value": "\"rental_operations\".\"operational_blocks\".\"status\" IN ('ACTIVE', 'RELEASED')"
+        },
+        "operational_blocks_source_check": {
+          "name": "operational_blocks_source_check",
+          "value": "(\"rental_operations\".\"operational_blocks\".\"source_type\" IS NULL) = (\"rental_operations\".\"operational_blocks\".\"source_id\" IS NULL)"
+        },
+        "operational_blocks_note_check": {
+          "name": "operational_blocks_note_check",
+          "value": "\"rental_operations\".\"operational_blocks\".\"note\" IS NULL OR char_length(btrim(\"rental_operations\".\"operational_blocks\".\"note\")) BETWEEN 1 AND 2000"
+        },
+        "operational_blocks_timestamps_check": {
+          "name": "operational_blocks_timestamps_check",
+          "value": "\"rental_operations\".\"operational_blocks\".\"updated_at\" >= \"rental_operations\".\"operational_blocks\".\"created_at\""
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "rental_operations.property_inspections": {
+      "name": "property_inspections",
+      "schema": "rental_operations",
+      "columns": {
+        "inspection_id": {
+          "name": "inspection_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rentable_asset_id": {
+          "name": "rentable_asset_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occupancy_id": {
+          "name": "occupancy_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_lease_id": {
+          "name": "source_lease_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_booking_id": {
+          "name": "source_booking_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mode": {
+          "name": "mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "inspection_type": {
+          "name": "inspection_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lifecycle_status": {
+          "name": "lifecycle_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "responsible_actor_id": {
+          "name": "responsible_actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "condition_records": {
+          "name": "condition_records",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "evidence_references": {
+          "name": "evidence_references",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "property_inspections_tenant_occupancy_idx": {
+          "name": "property_inspections_tenant_occupancy_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "occupancy_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_inspections_tenant_idempotency_unique": {
+          "name": "property_inspections_tenant_idempotency_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_inspections_tenant_lease_type_unique": {
+          "name": "property_inspections_tenant_lease_type_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source_lease_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "inspection_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"rental_operations\".\"property_inspections\".\"source_lease_id\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_inspections_tenant_booking_type_unique": {
+          "name": "property_inspections_tenant_booking_type_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source_booking_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "inspection_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"rental_operations\".\"property_inspections\".\"source_booking_id\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "property_inspections_tenant_occupancy_type_unique": {
+          "name": "property_inspections_tenant_occupancy_type_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "occupancy_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "inspection_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"rental_operations\".\"property_inspections\".\"occupancy_id\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "property_inspections_occupancy_tenant_fk": {
+          "name": "property_inspections_occupancy_tenant_fk",
+          "tableFrom": "property_inspections",
+          "tableTo": "occupancies",
+          "schemaTo": "rental_operations",
+          "columnsFrom": [
+            "tenant_id",
+            "occupancy_id",
+            "mode"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "occupancy_id",
+            "mode"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "property_inspections_lease_tenant_fk": {
+          "name": "property_inspections_lease_tenant_fk",
+          "tableFrom": "property_inspections",
+          "tableTo": "leases",
+          "schemaTo": "rental_operations",
+          "columnsFrom": [
+            "tenant_id",
+            "source_lease_id",
+            "rentable_asset_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "lease_id",
+            "rentable_asset_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "property_inspections_booking_tenant_fk": {
+          "name": "property_inspections_booking_tenant_fk",
+          "tableFrom": "property_inspections",
+          "tableTo": "bookings",
+          "schemaTo": "rental_operations",
+          "columnsFrom": [
+            "tenant_id",
+            "source_booking_id",
+            "rentable_asset_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "booking_id",
+            "rentable_asset_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "property_inspections_tenant_inspection_pk": {
+          "name": "property_inspections_tenant_inspection_pk",
+          "columns": [
+            "tenant_id",
+            "inspection_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "property_inspections_tenant_isolation": {
+          "name": "property_inspections_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"rental_operations\".\"property_inspections\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"rental_operations\".\"property_inspections\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "property_inspections_mode_check": {
+          "name": "property_inspections_mode_check",
+          "value": "\"rental_operations\".\"property_inspections\".\"mode\" IN ('LONG_TERM_RENTAL', 'SHORT_TERM_RENTAL')"
+        },
+        "property_inspections_type_check": {
+          "name": "property_inspections_type_check",
+          "value": "\"rental_operations\".\"property_inspections\".\"inspection_type\" IN ('ENTRY', 'EXIT')"
+        },
+        "property_inspections_status_check": {
+          "name": "property_inspections_status_check",
+          "value": "\"rental_operations\".\"property_inspections\".\"lifecycle_status\" = 'COMPLETED'"
+        },
+        "property_inspections_provenance_check": {
+          "name": "property_inspections_provenance_check",
+          "value": "\n    (\"rental_operations\".\"property_inspections\".\"inspection_type\" = 'ENTRY' AND \"rental_operations\".\"property_inspections\".\"occupancy_id\" IS NULL AND (\n      (\"rental_operations\".\"property_inspections\".\"mode\" = 'LONG_TERM_RENTAL' AND \"rental_operations\".\"property_inspections\".\"source_lease_id\" IS NOT NULL AND \"rental_operations\".\"property_inspections\".\"source_booking_id\" IS NULL)\n      OR (\"rental_operations\".\"property_inspections\".\"mode\" = 'SHORT_TERM_RENTAL' AND \"rental_operations\".\"property_inspections\".\"source_lease_id\" IS NULL AND \"rental_operations\".\"property_inspections\".\"source_booking_id\" IS NOT NULL)))\n    OR (\"rental_operations\".\"property_inspections\".\"inspection_type\" = 'EXIT' AND \"rental_operations\".\"property_inspections\".\"occupancy_id\" IS NOT NULL AND \"rental_operations\".\"property_inspections\".\"source_lease_id\" IS NULL AND \"rental_operations\".\"property_inspections\".\"source_booking_id\" IS NULL)\n  "
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "rental_operations.rental_allocation_claims": {
+      "name": "rental_allocation_claims",
+      "schema": "rental_operations",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "allocation_id": {
+          "name": "allocation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "conflict_scope_id": {
+          "name": "conflict_scope_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_at": {
+          "name": "start_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_at": {
+          "name": "end_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "rental_allocation_claims_tenant_scope_start_idx": {
+          "name": "rental_allocation_claims_tenant_scope_start_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "conflict_scope_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "start_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "rental_allocation_claims_allocation_tenant_fk": {
+          "name": "rental_allocation_claims_allocation_tenant_fk",
+          "tableFrom": "rental_allocation_claims",
+          "tableTo": "rental_allocations",
+          "schemaTo": "rental_operations",
+          "columnsFrom": [
+            "tenant_id",
+            "allocation_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "allocation_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "rental_allocation_claims_pk": {
+          "name": "rental_allocation_claims_pk",
+          "columns": [
+            "tenant_id",
+            "allocation_id",
+            "conflict_scope_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "rental_allocation_claims_tenant_isolation": {
+          "name": "rental_allocation_claims_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"rental_operations\".\"rental_allocation_claims\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"rental_operations\".\"rental_allocation_claims\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "rental_allocation_claims_interval_check": {
+          "name": "rental_allocation_claims_interval_check",
+          "value": "\"rental_operations\".\"rental_allocation_claims\".\"end_at\" IS NULL OR \"rental_operations\".\"rental_allocation_claims\".\"end_at\" > \"rental_operations\".\"rental_allocation_claims\".\"start_at\""
+        },
+        "rental_allocation_claims_status_check": {
+          "name": "rental_allocation_claims_status_check",
+          "value": "\"rental_operations\".\"rental_allocation_claims\".\"status\" IN ('ACTIVE', 'RELEASED')"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "rental_operations.rental_allocations": {
+      "name": "rental_allocations",
+      "schema": "rental_operations",
+      "columns": {
+        "allocation_id": {
+          "name": "allocation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rentable_asset_id": {
+          "name": "rentable_asset_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "allocation_type": {
+          "name": "allocation_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rental_mode": {
+          "name": "rental_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_lease_id": {
+          "name": "source_lease_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_booking_id": {
+          "name": "source_booking_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_operational_block_id": {
+          "name": "source_operational_block_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "start_at": {
+          "name": "start_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_at": {
+          "name": "end_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "rental_allocations_tenant_lease_unique": {
+          "name": "rental_allocations_tenant_lease_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source_lease_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"rental_operations\".\"rental_allocations\".\"source_lease_id\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "rental_allocations_tenant_booking_unique": {
+          "name": "rental_allocations_tenant_booking_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source_booking_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"rental_operations\".\"rental_allocations\".\"source_booking_id\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "rental_allocations_tenant_block_unique": {
+          "name": "rental_allocations_tenant_block_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source_operational_block_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"rental_operations\".\"rental_allocations\".\"source_operational_block_id\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "rental_allocations_tenant_asset_start_idx": {
+          "name": "rental_allocations_tenant_asset_start_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "rentable_asset_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "start_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "rental_allocations_lease_tenant_fk": {
+          "name": "rental_allocations_lease_tenant_fk",
+          "tableFrom": "rental_allocations",
+          "tableTo": "leases",
+          "schemaTo": "rental_operations",
+          "columnsFrom": [
+            "tenant_id",
+            "source_lease_id",
+            "rentable_asset_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "lease_id",
+            "rentable_asset_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "rental_allocations_booking_tenant_fk": {
+          "name": "rental_allocations_booking_tenant_fk",
+          "tableFrom": "rental_allocations",
+          "tableTo": "bookings",
+          "schemaTo": "rental_operations",
+          "columnsFrom": [
+            "tenant_id",
+            "source_booking_id",
+            "rentable_asset_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "booking_id",
+            "rentable_asset_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "rental_allocations_block_tenant_fk": {
+          "name": "rental_allocations_block_tenant_fk",
+          "tableFrom": "rental_allocations",
+          "tableTo": "operational_blocks",
+          "schemaTo": "rental_operations",
+          "columnsFrom": [
+            "tenant_id",
+            "source_operational_block_id",
+            "rentable_asset_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "operational_block_id",
+            "rentable_asset_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "rental_allocations_tenant_allocation_pk": {
+          "name": "rental_allocations_tenant_allocation_pk",
+          "columns": [
+            "tenant_id",
+            "allocation_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "rental_allocations_tenant_isolation": {
+          "name": "rental_allocations_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"rental_operations\".\"rental_allocations\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"rental_operations\".\"rental_allocations\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "rental_allocations_provenance_check": {
+          "name": "rental_allocations_provenance_check",
+          "value": "\n    (\"rental_operations\".\"rental_allocations\".\"allocation_type\" = 'LEASE' AND \"rental_operations\".\"rental_allocations\".\"rental_mode\" = 'LONG_TERM_RENTAL' AND \"rental_operations\".\"rental_allocations\".\"source_lease_id\" IS NOT NULL AND \"rental_operations\".\"rental_allocations\".\"source_booking_id\" IS NULL AND \"rental_operations\".\"rental_allocations\".\"source_operational_block_id\" IS NULL)\n    OR (\"rental_operations\".\"rental_allocations\".\"allocation_type\" = 'BOOKING' AND \"rental_operations\".\"rental_allocations\".\"rental_mode\" = 'SHORT_TERM_RENTAL' AND \"rental_operations\".\"rental_allocations\".\"source_lease_id\" IS NULL AND \"rental_operations\".\"rental_allocations\".\"source_booking_id\" IS NOT NULL AND \"rental_operations\".\"rental_allocations\".\"source_operational_block_id\" IS NULL AND \"rental_operations\".\"rental_allocations\".\"end_at\" IS NOT NULL)\n    OR (\"rental_operations\".\"rental_allocations\".\"allocation_type\" = 'OPERATIONAL_BLOCK' AND \"rental_operations\".\"rental_allocations\".\"source_lease_id\" IS NULL AND \"rental_operations\".\"rental_allocations\".\"source_booking_id\" IS NULL AND \"rental_operations\".\"rental_allocations\".\"source_operational_block_id\" IS NOT NULL AND \"rental_operations\".\"rental_allocations\".\"end_at\" IS NOT NULL)\n  "
+        },
+        "rental_allocations_interval_check": {
+          "name": "rental_allocations_interval_check",
+          "value": "\"rental_operations\".\"rental_allocations\".\"end_at\" IS NULL OR \"rental_operations\".\"rental_allocations\".\"end_at\" > \"rental_operations\".\"rental_allocations\".\"start_at\""
+        },
+        "rental_allocations_mode_check": {
+          "name": "rental_allocations_mode_check",
+          "value": "\"rental_operations\".\"rental_allocations\".\"rental_mode\" IS NULL OR \"rental_operations\".\"rental_allocations\".\"rental_mode\" IN ('LONG_TERM_RENTAL', 'SHORT_TERM_RENTAL')"
+        },
+        "rental_allocations_status_check": {
+          "name": "rental_allocations_status_check",
+          "value": "\"rental_operations\".\"rental_allocations\".\"status\" IN ('ACTIVE', 'RELEASED')"
+        },
+        "rental_allocations_timestamps_check": {
+          "name": "rental_allocations_timestamps_check",
+          "value": "\"rental_operations\".\"rental_allocations\".\"updated_at\" >= \"rental_operations\".\"rental_allocations\".\"created_at\""
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "rental_operations.stays": {
+      "name": "stays",
+      "schema": "rental_operations",
+      "columns": {
+        "stay_id": {
+          "name": "stay_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rentable_asset_id": {
+          "name": "rentable_asset_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "booking_id": {
+          "name": "booking_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mode": {
+          "name": "mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lifecycle_status": {
+          "name": "lifecycle_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actual_check_in_at": {
+          "name": "actual_check_in_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actual_check_out_at": {
+          "name": "actual_check_out_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "stays_tenant_booking_unique": {
+          "name": "stays_tenant_booking_unique",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "booking_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "stays_booking_tenant_fk": {
+          "name": "stays_booking_tenant_fk",
+          "tableFrom": "stays",
+          "tableTo": "bookings",
+          "schemaTo": "rental_operations",
+          "columnsFrom": [
+            "tenant_id",
+            "booking_id",
+            "rentable_asset_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "booking_id",
+            "rentable_asset_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "stays_tenant_stay_pk": {
+          "name": "stays_tenant_stay_pk",
+          "columns": [
+            "tenant_id",
+            "stay_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "stays_tenant_stay_asset_unique": {
+          "name": "stays_tenant_stay_asset_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "stay_id",
+            "rentable_asset_id"
+          ]
+        }
+      },
+      "policies": {
+        "stays_tenant_isolation": {
+          "name": "stays_tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "\"rental_operations\".\"stays\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "\"rental_operations\".\"stays\".\"tenant_id\" = NULLIF(current_setting('app.tenant_id', true), '')::uuid"
+        }
+      },
+      "checkConstraints": {
+        "stays_mode_check": {
+          "name": "stays_mode_check",
+          "value": "\"rental_operations\".\"stays\".\"mode\" = 'SHORT_TERM_RENTAL'"
+        },
+        "stays_lifecycle_status_check": {
+          "name": "stays_lifecycle_status_check",
+          "value": "\"rental_operations\".\"stays\".\"lifecycle_status\" IN ('PREPARING', 'ACTIVE', 'COMPLETED')"
+        },
+        "stays_actual_interval_check": {
+          "name": "stays_actual_interval_check",
+          "value": "\"rental_operations\".\"stays\".\"actual_check_out_at\" IS NULL OR (\"rental_operations\".\"stays\".\"actual_check_in_at\" IS NOT NULL AND \"rental_operations\".\"stays\".\"actual_check_out_at\" > \"rental_operations\".\"stays\".\"actual_check_in_at\")"
+        }
+      },
+      "isRLSEnabled": true
+    }
+  },
+  "enums": {},
+  "schemas": {
+    "rental_operations": "rental_operations"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

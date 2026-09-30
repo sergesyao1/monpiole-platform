@@ -7,6 +7,8 @@ export {
   startAgencyRegistrationReview,
   type AgencyRegistration,
   type AgencyRegistrationStatus,
+  registrationOrganizationTypes,
+  type RegistrationOrganizationType,
 } from "./domain/agency-registration.js";
 
 export {
@@ -65,8 +67,11 @@ export {
 } from "./infrastructure/persistence/postgres/agency-registration-review-store.js";
 export {
   agencyRegistrationTenantIdempotencyKey,
+  organizationRegistrationTenantIdempotencyKey,
   type AgencyTenantProvisioningPort,
   type AgencyTenantProvisioningResult,
+  type OrganizationTenantProvisioningPort,
+  type OrganizationTenantProvisioningResult,
 } from "./application/agency-tenant-provisioning.js";
 
 export {
@@ -117,12 +122,15 @@ export {
 
 export {
   CreateFirstAgencyAdministrator,
+  CreateFirstAgencyAdministrator as CreateFirstOrganizationAdministrator,
   FirstAdministratorAlreadyExistsError,
   FirstAdministratorRegistrationNotFoundError,
   FirstAdministratorRegistrationNotReadyError,
   InvalidFirstAdministratorBootstrapConfigurationError,
   type CreateFirstAgencyAdministratorCommand,
+  type CreateFirstAgencyAdministratorCommand as CreateFirstOrganizationAdministratorCommand,
   type CreateFirstAgencyAdministratorResult,
+  type CreateFirstAgencyAdministratorResult as CreateFirstOrganizationAdministratorResult,
   type FirstAdministratorBootstrapClock,
   type FirstAdministratorBootstrapConfiguration,
   type FirstAdministratorBootstrapTokenGenerator,
@@ -138,6 +146,7 @@ export {
 export { SystemFirstAdministratorBootstrapClock } from "./infrastructure/time/system-first-administrator-bootstrap-clock.js";
 export {
   CompleteFirstAdministratorIdentity,
+  CompleteFirstAdministratorIdentity as CompleteFirstOrganizationAdministratorIdentity,
   FirstAdministratorBootstrapNotCompletableError,
   FirstAdministratorBootstrapTokenExpiredError,
   FirstAdministratorBootstrapTokenNotFoundError,
@@ -151,6 +160,7 @@ export {
 } from "./application/complete-first-administrator-identity.js";
 export {
   FinalizeFirstAdministratorActivation,
+  FinalizeFirstAdministratorActivation as FinalizeFirstOrganizationAdministratorActivation,
   FirstAdministratorActivationConflictError,
   FirstAdministratorActivationNotFoundError,
   FirstAdministratorActivationNotReadyError,
@@ -163,6 +173,7 @@ export {
   FirstAdministratorReissueRegistrationNotFoundError,
   FirstAdministratorReissueRegistrationNotReadyError,
   ReissueFirstAdministratorBootstrap,
+  ReissueFirstAdministratorBootstrap as ReissueFirstOrganizationAdministratorBootstrap,
   type ReissueFirstAdministratorBootstrapCommand,
   type ReissueFirstAdministratorBootstrapResult,
 } from "./application/reissue-first-administrator-bootstrap.js";

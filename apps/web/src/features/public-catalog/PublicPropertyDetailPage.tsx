@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
 
 import { ApiProblem } from "../../infrastructure/http/problem-details.js";
@@ -20,6 +20,7 @@ import { Button, LoadingState, StatusBadge, buttonClassName } from "../../ui/ind
 import { PublicPropertyInquiryForm } from "./PublicPropertyInquiryForm.js";
 
 const api = createPublicPropertyApi();
+const LazyPublicLocationMap = lazy(async () => ({ default: (await import("../maps/PublicLocationMap.js")).PublicLocationMap }));
 
 export function PublicPropertyDetailPage() {
   const { publicPropertyId = "" } = useParams();
@@ -133,6 +134,16 @@ function PublicPropertyDetailView({ property, backPath }: Readonly<{ property: P
         </dl></section>
         <section><h2>Conditions financières</h2><PublicPricingDetails terms={property.commercialTerms} /></section>
         {property.amenities.length>0?<section><h2>Commodités et équipements</h2><ul className="public-amenities">{property.amenities.map((amenity)=><li key={amenity.code}>{amenity.labelFr}</li>)}</ul></section>:null}
+        <section className="public-location-section" aria-labelledby="public-location-title">
+          <div className="public-location-copy"><h2 id="public-location-title">Localisation</h2>
+            <p className="public-location-label">{property.location.district} · {property.location.city} · {property.location.country}</p>
+            {property.publicLocation?.precision === "APPROXIMATE" ? <p className="public-location-precision"><strong>Localisation approximative</strong><br />Le repère indique le secteur du bien, pas nécessairement son entrée exacte.</p> : null}
+            {property.publicLocation === null ? <p className="public-location-unavailable">La position de ce bien n’est pas affichée publiquement.</p> : null}
+          </div>
+          {property.publicLocation === null ? null : <Suspense fallback={<div className="public-location-map-loading" role="status">Chargement de la carte…</div>}>
+            <LazyPublicLocationMap position={property.publicLocation} label={property.title} />
+          </Suspense>}
+        </section>
         {inquiryIntent !== undefined ? (
           <div id="public-property-inquiry">
             <PublicPropertyInquiryForm

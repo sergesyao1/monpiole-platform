@@ -1,0 +1,34 @@
+TASK-110-E4 - ENTRY / EXIT INSPECTION
+
+STATUS: DONE
+
+Implemented
+- One shared PropertyInspection model for LONG_TERM_RENTAL and SHORT_TERM_RENTAL.
+- ENTRY provenance is Lease (long term) or Booking (short term), before Occupancy.
+- EXIT provenance is Occupancy for both modes.
+- Completed inspections record responsible actor, occurrence time and idempotency key.
+- Structured condition records cover area, item, assessment, observation and damage fact.
+- Evidence is represented only by PHOTO, SIGNATURE or DOCUMENT references.
+- ENTRY/EXIT comparison reports condition changes, new damage and missing/new items.
+- No financial charge or binary media storage was introduced.
+- Occupancy start requires completed ENTRY; Occupancy end requires completed EXIT.
+
+Persistence
+- Additive migration 0003_shared_property_inspections.sql upgrades legacy inspections.
+- Composite tenant-scoped foreign keys preserve Lease/Booking/Occupancy provenance.
+- Unique source/type indexes prevent duplicate inspection completion.
+- Tenant idempotency uniqueness makes exact replay convergent.
+- Existing RLS/FORCE RLS and runtime grants remain applicable.
+
+Tests
+- Both modes execute with ENTRY and EXIT inspections in PostgreSQL lifecycle tests.
+- Shared comparison detects changed condition, damage and missing items.
+- Existing tenant isolation and concurrency tests remain active.
+
+Validation
+- Rental Operations typecheck: PASS.
+- Test typecheck: PASS.
+- Drizzle migration check: PASS.
+- Inspection unit tests: PASS - 2 files, 5 tests including lifecycle specification.
+- Rental Operations PostgreSQL: PASS - 1 file, 16 tests.
+- git diff --check: PASS.

@@ -239,6 +239,34 @@
         ],
         "type": "object"
       },
+      "BookingClosureDto": {
+        "additionalProperties": false,
+        "properties": {
+          "occurredAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "CANCELLED",
+              "NO_SHOW"
+            ],
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "occurredAt",
+          "outcome",
+          "reason"
+        ],
+        "type": "object"
+      },
       "BootstrapAdministratorRequest": {
         "additionalProperties": false,
         "properties": {
@@ -450,6 +478,44 @@
         ],
         "type": "object"
       },
+      "CheckoutDto": {
+        "additionalProperties": false,
+        "properties": {
+          "allocationId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "checkedOutAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "expectedCleaningCompletionAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "operationalBlockId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "rentableAssetId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "allocationId",
+          "checkedOutAt",
+          "expectedCleaningCompletionAt",
+          "operationalBlockId",
+          "rentableAssetId"
+        ],
+        "type": "object"
+      },
       "CommunicationDto": {
         "additionalProperties": false,
         "properties": {
@@ -625,6 +691,20 @@
         "required": [
           "items",
           "pageInfo"
+        ],
+        "type": "object"
+      },
+      "CompleteCleaningDto": {
+        "additionalProperties": false,
+        "properties": {
+          "completedAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "completedAt"
         ],
         "type": "object"
       },
@@ -963,6 +1043,100 @@
         "format": "uuid",
         "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
         "type": "string"
+      },
+      "CountriesDto": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "callingCode": {
+                  "type": "string"
+                },
+                "code": {
+                  "pattern": "^[A-Z]{2}$",
+                  "type": "string"
+                },
+                "defaultCurrencyCode": {
+                  "type": "string"
+                },
+                "defaultLanguageCode": {
+                  "type": "string"
+                },
+                "defaultLocale": {
+                  "type": "string"
+                },
+                "defaultTimezone": {
+                  "type": "string"
+                },
+                "nameKey": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "active",
+                "callingCode",
+                "code",
+                "defaultCurrencyCode",
+                "defaultLanguageCode",
+                "defaultLocale",
+                "defaultTimezone",
+                "nameKey"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "CountryDto": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "callingCode": {
+            "type": "string"
+          },
+          "code": {
+            "pattern": "^[A-Z]{2}$",
+            "type": "string"
+          },
+          "defaultCurrencyCode": {
+            "type": "string"
+          },
+          "defaultLanguageCode": {
+            "type": "string"
+          },
+          "defaultLocale": {
+            "type": "string"
+          },
+          "defaultTimezone": {
+            "type": "string"
+          },
+          "nameKey": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "active",
+          "callingCode",
+          "code",
+          "defaultCurrencyCode",
+          "defaultLanguageCode",
+          "defaultLocale",
+          "defaultTimezone",
+          "nameKey"
+        ],
+        "type": "object"
       },
       "CreateBuildingDto": {
         "additionalProperties": false,
@@ -1466,6 +1640,67 @@
         ],
         "type": "object"
       },
+      "CurrenciesDto": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "code": {
+                  "type": "string"
+                },
+                "minorUnit": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                "nameKey": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "active",
+                "code",
+                "minorUnit",
+                "nameKey"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "EndDto": {
+        "additionalProperties": false,
+        "properties": {
+          "occurredAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "EARLY_DEPARTURE",
+              "EARLY_TERMINATION",
+              "OVERSTAY",
+              "SCHEDULED"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "occurredAt"
+        ],
+        "type": "object"
+      },
       "EndPropertyContractRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1561,6 +1796,26 @@
         },
         "required": [
           "application"
+        ],
+        "type": "object"
+      },
+      "ExceptionalClosureDto": {
+        "additionalProperties": false,
+        "properties": {
+          "occurredAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "occurredAt",
+          "reason"
         ],
         "type": "object"
       },
@@ -1834,6 +2089,411 @@
         },
         "required": [
           "viewing"
+        ],
+        "type": "object"
+      },
+      "InspectionDto": {
+        "additionalProperties": false,
+        "properties": {
+          "conditionRecords": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "area": {
+                  "maxLength": 120,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "assessment": {
+                  "enum": [
+                    "DAMAGED",
+                    "FAIR",
+                    "GOOD",
+                    "MISSING",
+                    "POOR"
+                  ],
+                  "type": "string"
+                },
+                "damageObserved": {
+                  "type": "boolean"
+                },
+                "item": {
+                  "maxLength": 160,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "observation": {
+                  "maxLength": 2000,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "area",
+                "assessment",
+                "damageObserved",
+                "item"
+              ],
+              "type": "object"
+            },
+            "maxItems": 500,
+            "type": "array"
+          },
+          "evidenceReferences": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "referenceId": {
+                  "maxLength": 250,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "DOCUMENT",
+                    "PHOTO",
+                    "SIGNATURE"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "referenceId",
+                "type"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
+          "idempotencyKey": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "inspectionId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "LONG_TERM_RENTAL",
+              "SHORT_TERM_RENTAL"
+            ],
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "source": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "LEASE",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "BOOKING",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "OCCUPANCY",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "type"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "type": {
+            "enum": [
+              "ENTRY",
+              "EXIT"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "conditionRecords",
+          "evidenceReferences",
+          "idempotencyKey",
+          "inspectionId",
+          "mode",
+          "occurredAt",
+          "source",
+          "type"
+        ],
+        "type": "object"
+      },
+      "InspectionResultDto": {
+        "additionalProperties": false,
+        "properties": {
+          "conditionRecords": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "area": {
+                  "maxLength": 120,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "assessment": {
+                  "enum": [
+                    "DAMAGED",
+                    "FAIR",
+                    "GOOD",
+                    "MISSING",
+                    "POOR"
+                  ],
+                  "type": "string"
+                },
+                "damageObserved": {
+                  "type": "boolean"
+                },
+                "item": {
+                  "maxLength": 160,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "observation": {
+                  "maxLength": 2000,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "area",
+                "assessment",
+                "damageObserved",
+                "item"
+              ],
+              "type": "object"
+            },
+            "maxItems": 500,
+            "type": "array"
+          },
+          "evidenceReferences": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "referenceId": {
+                  "maxLength": 250,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "DOCUMENT",
+                    "PHOTO",
+                    "SIGNATURE"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "referenceId",
+                "type"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
+          "inspectionId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "LONG_TERM_RENTAL",
+              "SHORT_TERM_RENTAL"
+            ],
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "rentableAssetId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "responsibleActorId": {
+            "type": "string"
+          },
+          "source": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "LEASE",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "BOOKING",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "OCCUPANCY",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "type"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "status": {
+            "const": "COMPLETED",
+            "type": "string"
+          },
+          "tenantId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "ENTRY",
+              "EXIT"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "conditionRecords",
+          "evidenceReferences",
+          "inspectionId",
+          "mode",
+          "occurredAt",
+          "rentableAssetId",
+          "responsibleActorId",
+          "source",
+          "status",
+          "tenantId",
+          "type"
+        ],
+        "type": "object"
+      },
+      "LanguagesDto": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "code": {
+                  "type": "string"
+                },
+                "isDefault": {
+                  "type": "boolean"
+                },
+                "nameKey": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "active",
+                "code",
+                "isDefault",
+                "nameKey"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
         ],
         "type": "object"
       },
@@ -6025,6 +6685,16 @@
             ],
             "type": "string"
           },
+          "publicLocation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicPropertyMapLocation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "publicPropertyId": {
             "$ref": "#/components/schemas/PublicPropertyId"
           },
@@ -6064,6 +6734,7 @@
           "location",
           "primaryPhoto",
           "propertyType",
+          "publicLocation",
           "publicPropertyId",
           "publishedAt",
           "structuralRole",
@@ -6127,6 +6798,35 @@
           "city",
           "country",
           "district"
+        ],
+        "type": "object"
+      },
+      "PublicPropertyMapLocation": {
+        "additionalProperties": false,
+        "description": "Privacy-safe effective map position. Null when hidden or unavailable.",
+        "properties": {
+          "latitude": {
+            "maximum": 90,
+            "minimum": -90,
+            "type": "number"
+          },
+          "longitude": {
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          },
+          "precision": {
+            "enum": [
+              "APPROXIMATE",
+              "EXACT"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude",
+          "precision"
         ],
         "type": "object"
       },
@@ -6246,6 +6946,16 @@
             ],
             "type": "string"
           },
+          "publicLocation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicPropertyMapLocation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "publicPropertyId": {
             "$ref": "#/components/schemas/PublicPropertyId"
           },
@@ -6281,11 +6991,91 @@
           "location",
           "primaryPhoto",
           "propertyType",
+          "publicLocation",
           "publicPropertyId",
           "publishedAt",
           "structuralRole",
           "title",
           "transactionType"
+        ],
+        "type": "object"
+      },
+      "PublicRentalAvailabilityResponseDto": {
+        "additionalProperties": false,
+        "properties": {
+          "availabilityStatus": {
+            "enum": [
+              "AVAILABLE",
+              "UNAVAILABLE"
+            ],
+            "type": "string"
+          },
+          "catalogDisposition": {
+            "enum": [
+              "AVAILABLE_FOR_INTERVAL",
+              "REMOVE_FROM_RENTAL_CATALOG",
+              "UNAVAILABLE_FOR_INTERVAL"
+            ],
+            "type": "string"
+          },
+          "evaluatedAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "nextAvailability": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "propertyId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "rentableNow": {
+            "type": "boolean"
+          },
+          "rentalMode": {
+            "enum": [
+              "LONG_TERM_RENTAL",
+              "SHORT_TERM_RENTAL"
+            ],
+            "type": "string"
+          },
+          "requestedPeriod": {
+            "additionalProperties": false,
+            "properties": {
+              "endsAt": {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              "startsAt": {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "endsAt",
+              "startsAt"
+            ],
+            "type": "object"
+          },
+          "requestedPeriodAvailable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "availabilityStatus",
+          "catalogDisposition",
+          "evaluatedAt",
+          "propertyId",
+          "rentableNow",
+          "rentalMode",
+          "requestedPeriod",
+          "requestedPeriodAvailable"
         ],
         "type": "object"
       },
@@ -6498,6 +7288,21 @@
             ],
             "type": "object"
           },
+          "legalName": {
+            "type": "string"
+          },
+          "organizationType": {
+            "enum": [
+              "DEVELOPER",
+              "OTHER",
+              "PROFESSIONAL_LANDLORD",
+              "PROPERTY_MANAGEMENT_COMPANY",
+              "REAL_ESTATE_AGENCY",
+              "SCI",
+              "SYNDIC"
+            ],
+            "type": "string"
+          },
           "phone": {
             "type": "string"
           },
@@ -6541,6 +7346,9 @@
           "taxIdentifier": {
             "type": "string"
           },
+          "tradeName": {
+            "type": "string"
+          },
           "updatedAt": {
             "type": "string"
           },
@@ -6561,6 +7369,8 @@
           "createdAt",
           "documents",
           "email",
+          "legalName",
+          "organizationType",
           "phone",
           "registrationId",
           "registrationNumber",
@@ -6668,6 +7478,21 @@
           "email": {
             "type": "string"
           },
+          "legalName": {
+            "type": "string"
+          },
+          "organizationType": {
+            "enum": [
+              "DEVELOPER",
+              "OTHER",
+              "PROFESSIONAL_LANDLORD",
+              "PROPERTY_MANAGEMENT_COMPANY",
+              "REAL_ESTATE_AGENCY",
+              "SCI",
+              "SYNDIC"
+            ],
+            "type": "string"
+          },
           "phone": {
             "type": "string"
           },
@@ -6711,6 +7536,9 @@
           "taxIdentifier": {
             "type": "string"
           },
+          "tradeName": {
+            "type": "string"
+          },
           "updatedAt": {
             "type": "string"
           },
@@ -6730,6 +7558,8 @@
           "countryCode",
           "createdAt",
           "email",
+          "legalName",
+          "organizationType",
           "phone",
           "registrationId",
           "registrationNumber",
@@ -6788,6 +7618,21 @@
                 "email": {
                   "type": "string"
                 },
+                "legalName": {
+                  "type": "string"
+                },
+                "organizationType": {
+                  "enum": [
+                    "DEVELOPER",
+                    "OTHER",
+                    "PROFESSIONAL_LANDLORD",
+                    "PROPERTY_MANAGEMENT_COMPANY",
+                    "REAL_ESTATE_AGENCY",
+                    "SCI",
+                    "SYNDIC"
+                  ],
+                  "type": "string"
+                },
                 "phone": {
                   "type": "string"
                 },
@@ -6831,6 +7676,9 @@
                 "taxIdentifier": {
                   "type": "string"
                 },
+                "tradeName": {
+                  "type": "string"
+                },
                 "updatedAt": {
                   "type": "string"
                 },
@@ -6850,6 +7698,8 @@
                 "countryCode",
                 "createdAt",
                 "email",
+                "legalName",
+                "organizationType",
                 "phone",
                 "registrationId",
                 "registrationNumber",
@@ -6920,6 +7770,95 @@
         },
         "required": [
           "rejectionReason"
+        ],
+        "type": "object"
+      },
+      "RentalAvailabilityResponseDto": {
+        "additionalProperties": false,
+        "properties": {
+          "availabilityStatus": {
+            "enum": [
+              "AVAILABLE",
+              "UNAVAILABLE"
+            ],
+            "type": "string"
+          },
+          "catalogDisposition": {
+            "enum": [
+              "AVAILABLE_FOR_INTERVAL",
+              "REMOVE_FROM_RENTAL_CATALOG",
+              "UNAVAILABLE_FOR_INTERVAL"
+            ],
+            "type": "string"
+          },
+          "conflictTypes": {
+            "items": {
+              "enum": [
+                "ALLOCATION",
+                "OPERATIONAL_BLOCK"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "evaluatedAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "nextAvailability": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "propertyId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "rentableNow": {
+            "type": "boolean"
+          },
+          "rentalMode": {
+            "enum": [
+              "LONG_TERM_RENTAL",
+              "SHORT_TERM_RENTAL"
+            ],
+            "type": "string"
+          },
+          "requestedPeriod": {
+            "additionalProperties": false,
+            "properties": {
+              "endsAt": {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              "startsAt": {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "endsAt",
+              "startsAt"
+            ],
+            "type": "object"
+          },
+          "requestedPeriodAvailable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "availabilityStatus",
+          "catalogDisposition",
+          "evaluatedAt",
+          "propertyId",
+          "rentableNow",
+          "rentalMode",
+          "requestedPeriod",
+          "requestedPeriodAvailable"
         ],
         "type": "object"
       },
@@ -7005,6 +7944,291 @@
       },
       "SetPropertyPricingRequest": {
         "$ref": "#/components/schemas/PropertyPricing"
+      },
+      "SnapshotDto": {
+        "additionalProperties": false,
+        "properties": {
+          "activeBlocks": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "endAt": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                  "type": "string"
+                },
+                "operationalBlockId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "startAt": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                  "type": "string"
+                },
+                "status": {
+                  "enum": [
+                    "ACTIVE",
+                    "RELEASED"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "endAt",
+                "operationalBlockId",
+                "reason",
+                "startAt",
+                "status"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "actualCheckInAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "actualCheckOutAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "actualOccupancyEndedAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "actualOccupancyStartedAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "bookingId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "bookingStatus": {
+            "enum": [
+              "CANCELLED",
+              "COMPLETED",
+              "CONFIRMED",
+              "IN_STAY",
+              "NO_SHOW"
+            ],
+            "type": "string"
+          },
+          "capabilities": {
+            "additionalProperties": false,
+            "properties": {
+              "canCancel": {
+                "type": "boolean"
+              },
+              "canCompleteEntryInspection": {
+                "type": "boolean"
+              },
+              "canCompleteExitInspection": {
+                "type": "boolean"
+              },
+              "canEndOccupancy": {
+                "type": "boolean"
+              },
+              "canExtend": {
+                "type": "boolean"
+              },
+              "canRecordNoShow": {
+                "type": "boolean"
+              },
+              "canRenew": {
+                "type": "boolean"
+              },
+              "canStartOccupancy": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "canCancel",
+              "canCompleteEntryInspection",
+              "canCompleteExitInspection",
+              "canEndOccupancy",
+              "canExtend",
+              "canRecordNoShow",
+              "canRenew",
+              "canStartOccupancy"
+            ],
+            "type": "object"
+          },
+          "inspections": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "damageObserved": {
+                  "type": "boolean"
+                },
+                "inspectionId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "occurredAt": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "ENTRY",
+                    "EXIT"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "damageObserved",
+                "inspectionId",
+                "occurredAt",
+                "type"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "leaseId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "leaseStatus": {
+            "enum": [
+              "CANCELLED",
+              "ENDED",
+              "OCCUPIED",
+              "PREPARING"
+            ],
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "LONG_TERM_RENTAL",
+              "SHORT_TERM_RENTAL"
+            ],
+            "type": "string"
+          },
+          "nextAvailableAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "occupancyId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "plannedArrivalAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "plannedDepartureAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "recentOperations": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "eventType": {
+                  "type": "string"
+                },
+                "occurredAt": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "eventType",
+                "occurredAt"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "rentableAssetId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "stayId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "tenantId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "rentableAssetId",
+          "tenantId"
+        ],
+        "type": "object"
+      },
+      "StartBookingDto": {
+        "additionalProperties": false,
+        "properties": {
+          "occupancyId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "stayId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "occupancyId",
+          "occurredAt",
+          "stayId"
+        ],
+        "type": "object"
+      },
+      "StartLeaseDto": {
+        "additionalProperties": false,
+        "properties": {
+          "occupancyId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "occupancyId",
+          "occurredAt"
+        ],
+        "type": "object"
       },
       "SubmitAgencyRegistrationRequestDto": {
         "additionalProperties": false,
@@ -7185,6 +8409,135 @@
         ],
         "type": "object"
       },
+      "SubmitOrganizationRegistrationRequestDto": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "city": {
+            "maxLength": 150,
+            "minLength": 1,
+            "type": "string"
+          },
+          "contactEmail": {
+            "format": "email",
+            "maxLength": 320,
+            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "type": "string"
+          },
+          "contactFirstName": {
+            "maxLength": 150,
+            "minLength": 1,
+            "type": "string"
+          },
+          "contactLastName": {
+            "maxLength": 150,
+            "minLength": 1,
+            "type": "string"
+          },
+          "contactPhone": {
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
+          },
+          "countryCode": {
+            "pattern": "^[A-Z]{2}$",
+            "type": "string"
+          },
+          "documents": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "documentType": {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "uploadId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "documentType",
+                "uploadId"
+              ],
+              "type": "object"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "type": "array"
+          },
+          "email": {
+            "format": "email",
+            "maxLength": 320,
+            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "type": "string"
+          },
+          "legalName": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "organizationType": {
+            "enum": [
+              "DEVELOPER",
+              "OTHER",
+              "PROFESSIONAL_LANDLORD",
+              "PROPERTY_MANAGEMENT_COMPANY",
+              "REAL_ESTATE_AGENCY",
+              "SCI",
+              "SYNDIC"
+            ],
+            "type": "string"
+          },
+          "phone": {
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
+          },
+          "registrationNumber": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "taxIdentifier": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "tradeName": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "website": {
+            "format": "uri",
+            "maxLength": 2048,
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "city",
+          "contactEmail",
+          "contactFirstName",
+          "contactLastName",
+          "contactPhone",
+          "countryCode",
+          "documents",
+          "email",
+          "legalName",
+          "organizationType",
+          "phone",
+          "registrationNumber"
+        ],
+        "type": "object"
+      },
       "SubmitResponseDto": {
         "additionalProperties": false,
         "properties": {
@@ -7208,9 +8561,101 @@
         ],
         "type": "object"
       },
+      "TemporalExtensionDto": {
+        "additionalProperties": false,
+        "properties": {
+          "newEndAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "newEndAt",
+          "occurredAt"
+        ],
+        "type": "object"
+      },
       "TenantId": {
         "pattern": "^[a-z0-9][a-z0-9_-]{2,63}$",
         "type": "string"
+      },
+      "TurnoverDto": {
+        "additionalProperties": false,
+        "properties": {
+          "bookingId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "checkedOutAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "cleaningBlockId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "cleaningCompletedAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "cleaningCompletedByActorId": {
+            "type": "string"
+          },
+          "cleaningEndsAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "cleaningStartsAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "cleaningStatus": {
+            "enum": [
+              "ACTIVE",
+              "RELEASED"
+            ],
+            "type": "string"
+          },
+          "occupancyId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "rentableAssetId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "stayId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bookingId",
+          "checkedOutAt",
+          "cleaningBlockId",
+          "cleaningEndsAt",
+          "cleaningStartsAt",
+          "cleaningStatus",
+          "occupancyId",
+          "rentableAssetId",
+          "stayId"
+        ],
+        "type": "object"
       },
       "UnconfiguredDirectPropertyAvailability": {
         "additionalProperties": false,
@@ -8240,6 +9685,136 @@
         ]
       }
     },
+    "/v1/organization-administrator-bootstrap/completions": {
+      "post": {
+        "operationId": "completeFirstAdministratorIdentity",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteFirstAdministratorIdentityRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompleteFirstAdministratorIdentityResponseDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Invalid bootstrap completion request"
+          },
+          "401": {
+            "description": "Missing or invalid bearer authentication"
+          },
+          "403": {
+            "description": "Authenticated email does not match the invited administrator"
+          },
+          "404": {
+            "description": "Bootstrap token not found"
+          },
+          "409": {
+            "description": "Bootstrap is not completable or external identity provenance conflicts"
+          },
+          "410": {
+            "description": "Bootstrap token expired"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency administrator bootstrap"
+        ]
+      }
+    },
+    "/v1/organization-registration-documents": {
+      "post": {
+        "operationId": "uploadAgencyRegistrationDocument",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadDocumentResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/organization-registrations": {
+      "post": {
+        "operationId": "submitOrganizationRegistration",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitOrganizationRegistrationRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [],
+        "summary": "",
+        "tags": [
+          "Organization registrations"
+        ]
+      }
+    },
     "/v1/platform/agency-registrations": {
       "get": {
         "operationId": "listAgencyRegistrations",
@@ -8588,6 +10163,391 @@
       }
     },
     "/v1/platform/agency-registrations/{registrationId}/review": {
+      "post": {
+        "operationId": "startAgencyRegistrationReview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/platform/organization-registrations": {
+      "get": {
+        "operationId": "listAgencyRegistrations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationListDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/platform/organization-registrations/{registrationId}": {
+      "get": {
+        "operationId": "retrieveAgencyRegistration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationDetailsDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/platform/organization-registrations/{registrationId}/approve": {
+      "post": {
+        "operationId": "approveAgencyRegistration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/platform/organization-registrations/{registrationId}/documents": {
+      "get": {
+        "operationId": "listAgencyRegistrationDocuments",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationDocumentListDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/platform/organization-registrations/{registrationId}/documents/{documentId}/content": {
+      "get": {
+        "operationId": "retrieveAgencyRegistrationDocumentContent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "documentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/platform/organization-registrations/{registrationId}/first-administrator": {
+      "post": {
+        "operationId": "createFirstAgencyAdministrator",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFirstAdministratorRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateFirstAdministratorResponseDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Invalid registration identifier or request"
+          },
+          "401": {
+            "description": "Missing or invalid bearer authentication"
+          },
+          "403": {
+            "description": "Platform authorization required"
+          },
+          "404": {
+            "description": "Agency registration not found"
+          },
+          "409": {
+            "description": "Registration is not ready or first administrator already exists"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/platform/organization-registrations/{registrationId}/first-administrator/reinvitation": {
+      "post": {
+        "description": "Rotates a pending first-administrator invitation. The previous link becomes invalid and the returned token is sensitive one-time material.",
+        "operationId": "reissueFirstAdministratorBootstrap",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReissueFirstAdministratorBootstrapResponseDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Invalid registration identifier"
+          },
+          "401": {
+            "description": "Missing or invalid bearer authentication"
+          },
+          "403": {
+            "description": "Platform authorization required"
+          },
+          "404": {
+            "description": "Agency registration or first administrator not found"
+          },
+          "409": {
+            "description": "Registration or first administrator is not eligible for reinvitation"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/platform/organization-registrations/{registrationId}/reject": {
+      "post": {
+        "operationId": "rejectAgencyRegistration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agency registrations"
+        ]
+      }
+    },
+    "/v1/platform/organization-registrations/{registrationId}/review": {
       "post": {
         "operationId": "startAgencyRegistrationReview",
         "parameters": [
@@ -15386,6 +17346,115 @@
         ]
       }
     },
+    "/v1/properties/{propertyId}/rental-availability": {
+      "get": {
+        "operationId": "retrievePrivateRentalAvailability",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "propertyId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "startsAt",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "endsAt",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RentalAvailabilityResponseDto"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid UTC half-open interval"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden Property authority"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Property not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Evaluate tenant-scoped temporal rental availability",
+        "tags": [
+          "Rental availability"
+        ]
+      }
+    },
     "/v1/properties/{propertyId}/viewings/{viewingId}": {
       "get": {
         "operationId": "retrievePropertyViewing",
@@ -17299,33 +19368,165 @@
             }
           },
           {
+            "description": "One or more comma-separated public property types",
             "in": "query",
             "name": "type",
             "required": false,
             "schema": {
-              "enum": [
-                "APARTMENT",
-                "BUILDING",
-                "COMMERCIAL",
-                "COMPLEX",
-                "HOUSE",
-                "LAND",
-                "OFFICE",
-                "OTHER",
-                "SHOP"
-              ],
+              "example": "APARTMENT,HOUSE",
+              "type": "string"
+            }
+          },
+          {
+            "description": "One or more commercial intents; availability intervals accept SHORT_TERM_RENTAL only",
+            "in": "query",
+            "name": "transactionType",
+            "required": false,
+            "schema": {
+              "example": "SHORT_TERM_RENTAL",
+              "type": "string"
+            }
+          },
+          {
+            "description": "One or more comma-separated structural roles",
+            "in": "query",
+            "name": "structuralRole",
+            "required": false,
+            "schema": {
+              "example": "STANDALONE,UNIT",
               "type": "string"
             }
           },
           {
             "in": "query",
-            "name": "transactionType",
+            "name": "countryCode",
             "required": false,
             "schema": {
+              "example": "CI",
+              "pattern": "^[A-Z]{2}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "city",
+            "required": false,
+            "schema": {
+              "example": "Abidjan",
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "commune",
+            "required": false,
+            "schema": {
+              "example": "Cocody",
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "quartier",
+            "required": false,
+            "schema": {
+              "example": "Riviera",
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "minPriceAmountMinor",
+            "required": false,
+            "schema": {
+              "example": 100000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "maxPriceAmountMinor",
+            "required": false,
+            "schema": {
+              "example": 500000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Required with price bounds; no currency conversion",
+            "in": "query",
+            "name": "currencyCode",
+            "required": false,
+            "schema": {
+              "example": "XOF",
+              "pattern": "^[A-Z]{3}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "minBedrooms",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "maxBedrooms",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Required with availableTo: inclusive UTC boundary of a SHORT_TERM_RENTAL interval [from,to)",
+            "in": "query",
+            "name": "availableFrom",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required with availableFrom: exclusive UTC boundary of a SHORT_TERM_RENTAL interval [from,to)",
+            "in": "query",
+            "name": "availableTo",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Bounded exact text search over public title, description and effective geographic labels",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "NEWEST",
               "enum": [
-                "LONG_TERM_RENTAL",
-                "SALE",
-                "SHORT_TERM_RENTAL"
+                "NEWEST",
+                "NEXT_AVAILABLE",
+                "PRICE_ASC",
+                "PRICE_DESC"
               ],
               "type": "string"
             }
@@ -17389,6 +19590,91 @@
         },
         "security": [],
         "summary": "List one activated tenant's published Properties",
+        "tags": [
+          "Public Property catalog"
+        ]
+      }
+    },
+    "/v1/public/properties/{propertyId}/rental-availability": {
+      "get": {
+        "operationId": "retrievePublicRentalAvailability",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "propertyId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "startsAt",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "endsAt",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicRentalAvailabilityResponseDto"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "X-Correlation-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid UTC half-open interval"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Published rental not found"
+          }
+        },
+        "security": [],
+        "summary": "Evaluate sanitized availability for one published rental",
         "tags": [
           "Public Property catalog"
         ]
@@ -17735,6 +20021,672 @@
         "summary": "Retrieve the public primary photo of one published Property",
         "tags": [
           "Public Property catalog"
+        ]
+      }
+    },
+    "/v1/reference/countries": {
+      "get": {
+        "operationId": "listReferenceCountries",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountriesDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [],
+        "summary": "",
+        "tags": [
+          "Platform reference"
+        ]
+      }
+    },
+    "/v1/reference/countries/{countryCode}": {
+      "get": {
+        "operationId": "getReferenceCountry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "countryCode",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Z]{2}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountryDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [],
+        "summary": "",
+        "tags": [
+          "Platform reference"
+        ]
+      }
+    },
+    "/v1/reference/countries/{countryCode}/languages": {
+      "get": {
+        "operationId": "listReferenceCountryLanguages",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "countryCode",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Z]{2}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LanguagesDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [],
+        "summary": "",
+        "tags": [
+          "Platform reference"
+        ]
+      }
+    },
+    "/v1/reference/currencies": {
+      "get": {
+        "operationId": "listReferenceCurrencies",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrenciesDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [],
+        "summary": "",
+        "tags": [
+          "Platform reference"
+        ]
+      }
+    },
+    "/v1/rental-operations": {
+      "get": {
+        "operationId": "listRentalOperations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Rental operations"
+        ]
+      }
+    },
+    "/v1/rental-operations/bookings/{id}/close": {
+      "post": {
+        "operationId": "closeRentalBooking",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingClosureDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Rental operations"
+        ]
+      }
+    },
+    "/v1/rental-operations/bookings/{id}/extend": {
+      "post": {
+        "operationId": "extendRentalBooking",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemporalExtensionDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Rental operations"
+        ]
+      }
+    },
+    "/v1/rental-operations/bookings/{id}/stays": {
+      "post": {
+        "operationId": "startBookingStay",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartBookingDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Rental operations"
+        ]
+      }
+    },
+    "/v1/rental-operations/inspections": {
+      "post": {
+        "operationId": "completeRentalInspection",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InspectionDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectionResultDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Rental operations"
+        ]
+      }
+    },
+    "/v1/rental-operations/leases/{id}/cancel": {
+      "post": {
+        "operationId": "cancelRentalLease",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExceptionalClosureDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Rental operations"
+        ]
+      }
+    },
+    "/v1/rental-operations/leases/{id}/occupancies": {
+      "post": {
+        "operationId": "startLeaseOccupancy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartLeaseDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Rental operations"
+        ]
+      }
+    },
+    "/v1/rental-operations/leases/{id}/renew": {
+      "post": {
+        "operationId": "renewRentalLease",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemporalExtensionDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Rental operations"
+        ]
+      }
+    },
+    "/v1/rental-operations/occupancies/{id}/checkout": {
+      "post": {
+        "operationId": "checkoutShortTermStay",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnoverDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Rental operations"
+        ]
+      }
+    },
+    "/v1/rental-operations/occupancies/{id}/end": {
+      "post": {
+        "operationId": "endRentalOccupancy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Rental operations"
+        ]
+      }
+    },
+    "/v1/rental-operations/turnovers/{id}/complete": {
+      "post": {
+        "operationId": "completeCleaningTurnover",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteCleaningDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnoverDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Rental operations"
+        ]
+      }
+    },
+    "/v1/rental-operations/turnovers/{id}/extend": {
+      "post": {
+        "operationId": "extendCleaningTurnover",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemporalExtensionDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnoverDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Rental operations"
         ]
       }
     },

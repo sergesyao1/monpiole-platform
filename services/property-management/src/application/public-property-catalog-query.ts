@@ -10,12 +10,20 @@ import type { Amenity } from "../domain/property-amenity.js";
 export interface PublicPropertyCatalogCursor {
   readonly publishedAt: string;
   readonly publicPropertyId: string;
+  readonly sort?: Exclude<PublicCatalogSort, "NEXT_AVAILABLE">;
+  readonly priceAmountMinor?: number;
 }
 
 export interface PublicPropertyLocation {
   readonly country: string;
   readonly city: string;
   readonly district: string;
+}
+
+export interface PublicPropertyMapLocation {
+  readonly latitude: number;
+  readonly longitude: number;
+  readonly precision: "EXACT" | "APPROXIMATE";
 }
 
 export interface PublicPropertyDetails {
@@ -73,6 +81,7 @@ export interface PublicPropertyCatalogItem {
   readonly apartmentSubtype?: ApartmentSubtype;
   readonly structuralRole: PropertyStructuralRole;
   readonly location: PublicPropertyLocation;
+  readonly publicLocation: PublicPropertyMapLocation | null;
   readonly commercialTerms: PublicPropertyCommercialTerms;
   readonly primaryPhoto: PublicPropertyPrimaryPhotoReference | null;
   readonly publishedAt: string;
@@ -91,7 +100,17 @@ export interface PublicPropertyCatalogCriteria {
   readonly cursor?: PublicPropertyCatalogCursor;
   readonly propertyType?: PropertyType;
   readonly transactionType?: TransactionType;
+  readonly propertyTypes?: readonly PropertyType[];
+  readonly transactionTypes?: readonly TransactionType[];
+  readonly structuralRoles?: readonly import("../domain/property.js").PropertyStructuralRole[];
+  readonly countryCode?: string; readonly city?: string; readonly commune?: string; readonly quartier?: string;
+  readonly minPriceAmountMinor?: number; readonly maxPriceAmountMinor?: number; readonly currencyCode?: string;
+  readonly minBedrooms?: number; readonly maxBedrooms?: number;
+  readonly availableFrom?: string; readonly availableTo?: string; readonly q?: string;
+  readonly sort?: PublicCatalogSort;
 }
+
+export type PublicCatalogSort = "NEWEST" | "PRICE_ASC" | "PRICE_DESC" | "NEXT_AVAILABLE";
 
 export interface PublicPropertyCatalogPage {
   readonly items: readonly PublicPropertyCatalogItem[];

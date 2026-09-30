@@ -1,4 +1,9 @@
 export {
+  ResolveOrganizationInternationalDefaults,
+  InvalidOrganizationInternationalConfigurationError,
+  type OrganizationInternationalReferenceReader,
+} from "./application/resolve-organization-international-defaults.js";
+export {
   CheckTenantExists,
   type TenantExistenceRepository,
 } from "./application/tenant-existence.js";
@@ -35,6 +40,22 @@ export {
   type TenantOnboardingGrant,
   type TenantCreatedRecord,
 } from "./application/create-tenant.js";
+export {
+  ProvisionOrganizationTenant,
+  DuplicateProvisioningTenantEmailError,
+  OrganizationTenantProvisioningForbiddenError,
+  OrganizationTenantProvisioningIdempotencyConflictError,
+  OrganizationTenantProvisioningIdempotencyWriteConflictError,
+  deterministicOrganizationTenantProvisioningIntent,
+  normalizeOrganizationProvisioningIntent,
+  type OrganizationProvisioningIntent,
+  type OrganizationTenantProvisioningIdempotencyRecord,
+  type OrganizationTenantProvisioningTrace,
+  type ProvisionOrganizationTenantCommand,
+  type ProvisionOrganizationTenantResult,
+  type ProvisionOrganizationTenantTransaction,
+  type ProvisionOrganizationTenantUnitOfWork,
+} from "./application/provision-organization-tenant.js";
 export { Tenant, type NormalizedTenantIntent, type TenantLifecycleState } from "./domain/tenant.js";
 export {
   tenantActivatedEventSchemas,
@@ -51,6 +72,7 @@ export {
   toTenantCreatedEnvelope,
 } from "./infrastructure/events/tenant-created.js";
 export { PostgresCreateTenantUnitOfWork } from "./infrastructure/persistence/postgres/create-tenant-store.js";
+export { PostgresProvisionOrganizationTenantUnitOfWork } from "./infrastructure/persistence/postgres/provision-organization-tenant-store.js";
 export { PostgresActivateTenantUnitOfWork } from "./infrastructure/persistence/postgres/activate-tenant-store.js";
 export { PostgresTenantExistenceRepository } from "./infrastructure/persistence/postgres/tenant-existence-repository.js";
 export type { PlatformTenantInitializationState } from "./application/platform-initialization-state.js";

@@ -692,6 +692,44 @@ describe("Agency registrations HTTP", () => {
     });
   });
 
+  it("accepts a canonical SCI organization registration without authentication", async () => {
+    const execute = vi.fn(async () => ({
+      registration: registration({
+        organizationType: "SCI",
+        agencyLegalName: "SCI Patrimoine Horizon",
+      }),
+    }));
+    await start("none", { submitAgencyRegistration: { execute } });
+
+    const { agencyLegalName: _legacyLegalName, agencyTradeName: _legacyTradeName, ...shared } = submitBody;
+    const response = await post("/v1/organization-registrations", {
+      ...shared,
+      organizationType: "SCI",
+      legalName: "SCI Patrimoine Horizon",
+      tradeName: "Patrimoine Horizon",
+    });
+
+    expect(response.status).toBe(201);
+    expect(execute).toHaveBeenCalledWith(expect.objectContaining({
+      organizationType: "SCI",
+      agencyLegalName: "SCI Patrimoine Horizon",
+      agencyTradeName: "Patrimoine Horizon",
+    }));
+  });
+
+  it("rejects an unsupported organization type", async () => {
+    await start("none");
+    const { agencyLegalName: _legacyLegalName, agencyTradeName: _legacyTradeName, ...shared } = submitBody;
+
+    const response = await post("/v1/organization-registrations", {
+      ...shared,
+      organizationType: "UNSUPPORTED",
+      legalName: "Unsupported organization",
+    });
+
+    expect(response.status).toBe(400);
+  });
+
   it("lists registrations for platform authority", async () => {
     await start("platform");
 

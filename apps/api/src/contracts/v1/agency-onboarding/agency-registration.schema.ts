@@ -1,5 +1,15 @@
 import { z } from "zod";
 
+export const OrganizationTypeSchema = z.enum([
+  "REAL_ESTATE_AGENCY",
+  "PROPERTY_MANAGEMENT_COMPANY",
+  "SCI",
+  "DEVELOPER",
+  "SYNDIC",
+  "PROFESSIONAL_LANDLORD",
+  "OTHER",
+]);
+
 export const AgencyRegistrationStatusSchema = z.enum([
   "SUBMITTED",
   "UNDER_REVIEW",
@@ -46,6 +56,25 @@ export const SubmitAgencyRegistrationRequestSchema = z.object({
     .max(20),
 }).strict();
 
+export const SubmitOrganizationRegistrationRequestSchema = z.object({
+  organizationType: OrganizationTypeSchema,
+  legalName: z.string().trim().min(1).max(255),
+  tradeName: z.string().trim().min(1).max(255).optional(),
+  registrationNumber: z.string().trim().min(1).max(100),
+  taxIdentifier: z.string().trim().min(1).max(100).optional(),
+  phone: z.string().trim().min(1).max(50),
+  email: z.string().trim().email().max(320),
+  website: z.string().trim().url().max(2048).optional(),
+  address: z.string().trim().min(1).max(500),
+  city: z.string().trim().min(1).max(150),
+  countryCode: z.string().regex(/^[A-Z]{2}$/u),
+  contactFirstName: z.string().trim().min(1).max(150),
+  contactLastName: z.string().trim().min(1).max(150),
+  contactEmail: z.string().trim().email().max(320),
+  contactPhone: z.string().trim().min(1).max(50),
+  documents: z.array(AgencyRegistrationDocumentInputSchema).min(1).max(20),
+}).strict();
+
 export const RejectAgencyRegistrationRequestSchema = z.object({
   rejectionReason: z.string().trim().min(1).max(2000),
 }).strict();
@@ -53,6 +82,9 @@ export const RejectAgencyRegistrationRequestSchema = z.object({
 export const AgencyRegistrationSchema = z.object({
   registrationId: z.string().uuid(),
   status: AgencyRegistrationStatusSchema,
+  organizationType: OrganizationTypeSchema,
+  legalName: z.string(),
+  tradeName: z.string().optional(),
 
   agencyLegalName: z.string(),
   agencyTradeName: z.string().optional(),
@@ -129,6 +161,9 @@ export const SubmitAgencyRegistrationResponseSchema = z.object({
 
 export type SubmitAgencyRegistrationRequest =
   z.infer<typeof SubmitAgencyRegistrationRequestSchema>;
+
+export type SubmitOrganizationRegistrationRequest =
+  z.infer<typeof SubmitOrganizationRegistrationRequestSchema>;
 
 export type RejectAgencyRegistrationRequest =
   z.infer<typeof RejectAgencyRegistrationRequestSchema>;

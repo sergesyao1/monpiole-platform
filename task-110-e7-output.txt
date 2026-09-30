@@ -1,0 +1,20 @@
+TASK-110-E7 - RENTAL OPERATIONS WEB WORKSPACE
+
+STATUS: DONE
+
+Implemented
+- Authenticated /operations-locatives workspace and primary navigation entry.
+- French overview for today's arrivals, departures and current Occupancies.
+- Long-term and short-term cards preserve planned versus actual dates.
+- API capability flags control ENTRY, start, EXIT, end and checkout actions.
+- Shared French inspection form captures area, item, assessment and damage observation.
+- Short-term checkout requires an expected cleaning completion.
+- Property deep links preserve the distinction between global operations and Property workspace.
+- Loading, empty, success, validation and API error states are exposed in French.
+
+Validation
+- Web typecheck: PASS.
+- Test typecheck: PASS.
+- Web tests: PASS - 1 targeted file, 3 tests.
+- Web production build: PASS - 191 modules transformed (existing chunk-size advisory only).
+- git diff --check: PASS.

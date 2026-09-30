@@ -1,5 +1,6 @@
 import type {
   AgencyRegistration,
+  RegistrationOrganizationType,
 } from "../domain/agency-registration.js";
 import type {
   SubmitAgencyRegistrationStore,
@@ -10,6 +11,7 @@ export interface AgencyOnboardingIdGenerator {
 }
 
 export interface SubmitAgencyRegistrationCommand {
+  readonly organizationType?: RegistrationOrganizationType;
   readonly agencyLegalName: string;
   readonly agencyTradeName?: string;
   readonly registrationNumber: string;
@@ -60,6 +62,8 @@ export class SubmitAgencyRegistration {
     const registration: AgencyRegistration = Object.freeze({
       id: registrationId,
       status: "SUBMITTED",
+      organizationType:
+        command.organizationType ?? "REAL_ESTATE_AGENCY",
 
       agencyLegalName: command.agencyLegalName,
       ...(command.agencyTradeName === undefined

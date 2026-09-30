@@ -1,0 +1,50 @@
+TASK-110-E2 - OPERATIONAL LIFECYCLE SPECIFICATION
+
+STATUS: DONE
+
+Canonical state machines
+- Long-term Lease execution: PREPARING -> OCCUPIED -> ENDED; PREPARING -> CANCELLED.
+- Booking: CONFIRMED -> IN_STAY -> COMPLETED; pre-execution CANCELLED or NO_SHOW.
+- Stay: PREPARING -> ACTIVE -> COMPLETED.
+- Occupancy: ACTIVE -> ENDED.
+- ENTRY and EXIT PropertyInspection: DRAFT -> COMPLETED.
+
+Core invariants
+- Long-term execution originates from Lease; short-term execution is Booking -> Stay -> Occupancy.
+- ENTRY precedes Occupancy; EXIT precedes Occupancy end and Stay completion.
+- Planned Booking/Lease time is never overwritten by actual Stay/Occupancy time.
+- One Stay per Booking; one active Occupancy per source/conflicting asset scope.
+- Exact command replay converges; changed intent under the same idempotency key conflicts.
+- Multi-record transitions are transactional, source-row locked, tenant-predicated and RLS protected.
+
+Availability and catalog
+- RentalAllocation and OperationalBlock remain the sole availability claims.
+- Existing UTC half-open overlap, hierarchy and next-availability logic is reused.
+- Short-term claims affect only their intervals; free intervals remain bookable.
+- Effective long-term Occupancy exposes REMOVE_FROM_RENTAL_CATALOG without mutating publication.
+- Cleaning, preparation and maintenance integration use OperationalBlock.
+
+Events
+- Existing lifecycle/allocation/block event constants cover E3-E5; no speculative event was added.
+
+Exceptional behavior
+- Cancellation/no-show only before execution; allocation released.
+- Delayed/early actual execution preserves planned dates.
+- Extension/renewal requires availability validation; overstay cannot silently consume conflicts.
+- Damage is an operational fact, not a financial charge.
+- Cleaning delay extends its block, not the completed Booking/Stay.
+
+Implementation decisions
+- E3: persistence-backed transactional lifecycle and concurrency protection.
+- E4: shared detailed inspection model and evidence-reference boundary.
+- E5: checkout and turnover composed with existing OperationalBlock.
+- E6: private authenticated capability-driven API.
+- E7: French dual-mode operational workspace driven by API capabilities.
+
+Normative report:
+.codex/tasks/TASK-110-E2-rental-operational-lifecycle-specification.md
+
+Validation
+- Rental Operations typecheck: PASS.
+- Unit suite: PASS - 63 files, 434 tests.
+- git diff --check: PASS.

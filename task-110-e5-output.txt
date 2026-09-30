@@ -1,0 +1,29 @@
+TASK-110-E5 - CHECKOUT, CLEANING & TURNOVER
+
+STATUS: DONE
+
+Implemented
+- Short-term checkout ends Occupancy, Stay and Booking atomically after completed EXIT inspection.
+- Checkout releases the Booking allocation and its hierarchy claims.
+- A first-class CLEANING OperationalBlock and OPERATIONAL_BLOCK allocation are created atomically.
+- Conflict-scope claims reuse TASK-110-C GiST exclusion and hierarchy protection.
+- Cleaning completion records timestamp and actor then releases block, allocation and claims atomically.
+- Exact checkout and completion replay converge; changed intent conflicts.
+- Maintenance and other OperationalBlock reasons remain independent.
+- No Maintenance context, workforce scheduler or financial consequence was introduced.
+
+Availability
+- Cleaning uses the existing half-open interval and temporal availability engine.
+- Periods before a Booking and after the cleaning block remain independently bookable.
+- Delayed cleaning is represented by the block boundary, never by a fake Booking or extended Stay.
+
+Persistence
+- Migration 0004_checkout_turnover_lifecycle.sql adds auditable completion facts.
+- Tenant RLS/FORCE RLS remains in force.
+
+Validation
+- Rental Operations typecheck: PASS.
+- Test typecheck: PASS.
+- Drizzle migration check: PASS.
+- Rental Operations PostgreSQL: PASS - 1 file, 17 tests.
+- git diff --check: PASS.

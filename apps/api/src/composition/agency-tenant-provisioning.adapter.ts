@@ -3,8 +3,9 @@ import type {
   AgencyTenantProvisioningResult,
 } from "@monpiole/agency-onboarding";
 import type {
-  CreateTenant,
   PlatformAuthority,
+  ProvisionOrganizationTenant,
+  ResolveOrganizationInternationalDefaults,
 } from "@monpiole/tenant-management";
 
 const E164_PHONE = /^\+[1-9][0-9]{1,14}$/;
@@ -36,6 +37,7 @@ export function canonicalizeAgencyContactPhone(
     "Agency contact phone cannot be canonicalized to E.164",
   );
 }
+
 const AGENCY_TENANT_PROVISIONING_AUTHORITY: PlatformAuthority =
   Object.freeze({
     actorId: "system:agency-tenant-provisioning",
@@ -48,13 +50,21 @@ export class AgencyTenantProvisioningAdapter
   implements AgencyTenantProvisioningPort
 {
   public constructor(
-    private readonly createTenant: Pick<CreateTenant, "execute">,
+    private readonly provisionOrganizationTenant:
+      Pick<ProvisionOrganizationTenant, "execute">,
+    private readonly internationalDefaults: Pick<
+      ResolveOrganizationInternationalDefaults,
+      "execute"
+    >,
   ) {}
 
   public async provision(
     input: Parameters<AgencyTenantProvisioningPort["provision"]>[0],
   ): Promise<AgencyTenantProvisioningResult> {
     const registration = input.registration;
+    const international = await this.internationalDefaults.execute({
+      countryCode: registration.countryCode,
+    });
 
     const responsiblePersonName = [
       registration.contactFirstName,
@@ -64,19 +74,48 @@ export class AgencyTenantProvisioningAdapter
       .filter((value) => value.length > 0)
       .join(" ");
 
-    const result = await this.createTenant.execute({
-      authority: AGENCY_TENANT_PROVISIONING_AUTHORITY,
-      organizationName: registration.agencyLegalName,
-      responsiblePersonName,
-      responsibleEmail: registration.contactEmail,
-      responsibleTelephone: canonicalizeAgencyContactPhone(
-        registration.contactPhone,
-        registration.countryCode,
-      ),
-      country: registration.countryCode,
-      correlationId: registration.correlationId,
-      idempotencyKey: input.idempotencyKey,
-    });
+    const result =
+      await this.provisionOrganizationTenant.execute({
+        authority: AGENCY_TENANT_PROVISIONING_AUTHORITY,
+        correlationId: registration.correlationId,
+        idempotencyKey: input.idempotencyKey,
+
+        tenant: {
+          organizationName: registration.agencyLegalName,
+          responsiblePersonName,
+          responsibleEmail: registration.contactEmail,
+          responsibleTelephone:
+            canonicalizeAgencyContactPhone(
+              registration.contactPhone,
+              registration.countryCode,
+            ),
+          country: registration.countryCode,
+        },
+
+        organization: {
+          type:
+            registration.organizationType ??
+            "REAL_ESTATE_AGENCY",
+          legalName: registration.agencyLegalName,
+          ...(registration.agencyTradeName === undefined
+            ? {}
+            : { tradeName: registration.agencyTradeName }),
+          registrationNumber:
+            registration.registrationNumber,
+          ...(registration.taxIdentifier === undefined
+            ? {}
+            : { taxIdentifier: registration.taxIdentifier }),
+          phone: registration.phone,
+          email: registration.email,
+          ...(registration.website === undefined
+            ? {}
+            : { website: registration.website }),
+          address: registration.address,
+          city: registration.city,
+          countryCode: registration.countryCode,
+          ...international,
+        },
+      });
 
     return {
       tenantId: result.tenantId,

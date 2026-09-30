@@ -21,6 +21,7 @@ import {
   AgencyRegistrationsController,
   SUBMIT_AGENCY_REGISTRATION,
 } from "./http/agency-onboarding/agency-registrations.controller.js";
+import { OrganizationRegistrationsController } from "./http/agency-onboarding/organization-registrations.controller.js";
 import {
   AgencyRegistrationDocumentsController,
   UPLOAD_AGENCY_REGISTRATION_DOCUMENT,
@@ -53,6 +54,7 @@ import type {
 } from "./operations/finalize-first-administrator-bootstrap.js";
 import type { ActivateTenant, CreateTenant, PlatformAuthorityAuthorizer } from "@monpiole/tenant-management";
 import type { ActivateTenantAdministrator, BootstrapTenantAdministrator } from "@monpiole/identity";
+import type { PlatformReferenceQuery } from "@monpiole/platform-reference";
 import type {
   CreateProperty, CreatePropertyOwner, ListProperties, ListPropertyOwners, RetrieveProperty, RetrievePropertyOwner,
   SetPropertyPricing, UpdatePropertyCoreInformation, UpdatePropertyDetails, UpdatePropertyOwner, AssignPropertyOwner,
@@ -168,6 +170,18 @@ import { PropertyApplicationsController, CREATE_PROPERTY_APPLICATION, RETRIEVE_V
 import { PropertyApplicationClientConversionsController, CONVERT_PROPERTY_APPLICATION_TO_CLIENT, RETRIEVE_PROPERTY_APPLICATION_CLIENT } from "./http/properties/property-application-client-conversions.controller.js";
 import { PropertyApplicationContractsController, CREATE_PROPERTY_CONTRACT_FROM_APPLICATION } from "./http/properties/property-application-contracts.controller.js";
 import { PropertyCommercialJourneysController, LIST_PROPERTY_COMMERCIAL_JOURNEYS } from "./http/properties/property-commercial-journeys.controller.js";
+import { PLATFORM_REFERENCE_QUERY, ReferenceController } from "./http/reference/reference.controller.js";
+import type {
+  RetrievePrivateRentalAvailability,
+  RetrievePublicRentalAvailability,
+} from "./operations/rental-availability.js";
+import {
+  PrivateRentalAvailabilityController,
+  PublicRentalAvailabilityController,
+  RETRIEVE_PRIVATE_RENTAL_AVAILABILITY,
+  RETRIEVE_PUBLIC_RENTAL_AVAILABILITY,
+} from "./http/rental-availability/rental-availability.controller.js";
+import { RentalOperationsController, RENTAL_OPERATIONAL_LIFECYCLE, type RentalOperationalLifecycleApi } from "./http/rental-operations/rental-operations.controller.js";
 
 const BaseStrictZodValidationPipe = createZodValidationPipe({
   strictSchemaDeclaration: true,
@@ -198,6 +212,7 @@ const unavailableAgencyOperation = {
 };
 
 export interface ApiComposition {
+  readonly platformReferenceQuery?: PlatformReferenceQuery;
   readonly uploadAgencyRegistrationDocument?: Pick<
     UploadAgencyRegistrationDocument,
     "execute"
@@ -320,6 +335,9 @@ export interface ApiComposition {
   readonly publicCatalogTenantResolver?: PublicCatalogTenantResolver;
   readonly listPublicProperties?: Pick<ListPublicProperties, "execute">;
   readonly retrievePublicProperty?: Pick<RetrievePublicProperty, "execute">;
+  readonly retrievePrivateRentalAvailability?: Pick<RetrievePrivateRentalAvailability, "execute">;
+  readonly retrievePublicRentalAvailability?: Pick<RetrievePublicRentalAvailability, "execute">;
+  readonly rentalOperationalLifecycle?: RentalOperationalLifecycleApi;
   readonly retrievePublicPrimaryPhoto?: Pick<RetrievePublicPrimaryPhoto, "execute">;
   readonly retrievePublicPropertyMedia?: Pick<RetrievePublicPropertyMedia, "execute">;
   readonly createPropertyOwner?: Pick<CreatePropertyOwner, "execute">;
@@ -392,6 +410,8 @@ const unavailableRetrievePropertyAvailability: Pick<RetrievePropertyAvailability
 const unavailableUpdatePropertyAvailability: Pick<UpdatePropertyAvailability, "execute"> = { async execute() { throw new Error("Update Property availability composition is unavailable"); } };
 const unavailableListPublicProperties: Pick<ListPublicProperties, "execute"> = { async execute() { throw new Error("Public Property catalog composition is unavailable"); } };
 const unavailableRetrievePublicProperty: Pick<RetrievePublicProperty, "execute"> = { async execute() { throw new Error("Public Property detail composition is unavailable"); } };
+const unavailableRentalAvailability = { async execute(): Promise<never> { throw new Error("Rental availability composition is unavailable"); } };
+const unavailableRentalOperationalLifecycle = new Proxy({}, { get: () => unavailableRentalAvailability }) as RentalOperationalLifecycleApi;
 const unavailableRetrievePublicPrimaryPhoto: Pick<RetrievePublicPrimaryPhoto, "execute"> = { async execute() { throw new Error("Public Property photo composition is unavailable"); } };
 const unavailableRetrievePublicPropertyMedia: Pick<RetrievePublicPropertyMedia, "execute"> = { async execute() { throw new Error("Public Property media composition is unavailable"); } };
 const unavailablePublicCatalogTenantResolver = new AllowlistedPublicCatalogTenantResolver(new Map());
@@ -411,7 +431,9 @@ export class AppModule {
     return {
       module: AppModule,
       controllers: [
+      ReferenceController,
       AgencyRegistrationsController,
+      OrganizationRegistrationsController,
       PlatformAgencyRegistrationsController,
       PlatformFirstAdministratorController,
       FirstAdministratorBootstrapCompletionController,
@@ -425,12 +447,13 @@ export class AppModule {
         UpdatePropertyCoreInformationController, UpdatePropertyDetailsController, SetPropertyPricingController,
         PublishPropertyController,
         PropertyPhotosController, PropertyPhotoStandardController, PropertyGeolocationController, PropertyAvailabilityController, PropertyAmenitiesController,
-        PublicPropertiesController, PublicPropertyInquiriesController, PropertyInquiriesController, PropertyInquiryCommunicationsController, PropertyCommercialJourneysController, PropertyViewingsController, PropertyViewingOutcomesController, PropertyApplicationsController, PropertyApplicationClientConversionsController, PropertyApplicationContractsController,
+        PublicPropertiesController, PrivateRentalAvailabilityController, PublicRentalAvailabilityController, RentalOperationsController, PublicPropertyInquiriesController, PropertyInquiriesController, PropertyInquiryCommunicationsController, PropertyCommercialJourneysController, PropertyViewingsController, PropertyViewingOutcomesController, PropertyApplicationsController, PropertyApplicationClientConversionsController, PropertyApplicationContractsController,
         CreatePropertyOwnerController, ListPropertyOwnersController, RetrievePropertyOwnerController, UpdatePropertyOwnerController,
         AssignPropertyOwnerController, RetrievePropertyOwnershipsController, RemovePropertyOwnerController, PropertyCompositionController, PropertyComplexChildrenController,
         PropertyClientsController, PropertyContractsController, PropertyWorkspaceController,
       ],
       providers: [
+      { provide: PLATFORM_REFERENCE_QUERY, useValue: composition.platformReferenceQuery ?? { async getCountry(){return undefined},async listActiveCountries(){return[]},async getLanguage(){return undefined},async listLanguagesForCountry(){return[]},async getCurrency(){return undefined},async listActiveCurrencies(){return[]} } },
       {
         provide: UPLOAD_AGENCY_REGISTRATION_DOCUMENT,
         useValue:
@@ -581,6 +604,9 @@ export class AppModule {
         { provide: PUBLIC_CATALOG_TENANT_RESOLVER, useValue: composition.publicCatalogTenantResolver ?? unavailablePublicCatalogTenantResolver },
         { provide: LIST_PUBLIC_PROPERTIES_USE_CASE, useValue: composition.listPublicProperties ?? unavailableListPublicProperties },
         { provide: RETRIEVE_PUBLIC_PROPERTY_USE_CASE, useValue: composition.retrievePublicProperty ?? unavailableRetrievePublicProperty },
+        { provide: RETRIEVE_PRIVATE_RENTAL_AVAILABILITY, useValue: composition.retrievePrivateRentalAvailability ?? unavailableRentalAvailability },
+        { provide: RETRIEVE_PUBLIC_RENTAL_AVAILABILITY, useValue: composition.retrievePublicRentalAvailability ?? unavailableRentalAvailability },
+        { provide: RENTAL_OPERATIONAL_LIFECYCLE, useValue: composition.rentalOperationalLifecycle ?? unavailableRentalOperationalLifecycle },
         { provide: RETRIEVE_PUBLIC_PRIMARY_PHOTO_USE_CASE, useValue: composition.retrievePublicPrimaryPhoto ?? unavailableRetrievePublicPrimaryPhoto },
         { provide: RETRIEVE_PUBLIC_PROPERTY_MEDIA_USE_CASE, useValue: composition.retrievePublicPropertyMedia ?? unavailableRetrievePublicPropertyMedia },
         { provide: CREATE_PROPERTY_OWNER_USE_CASE, useValue: composition.createPropertyOwner ?? unavailableCreatePropertyOwner },

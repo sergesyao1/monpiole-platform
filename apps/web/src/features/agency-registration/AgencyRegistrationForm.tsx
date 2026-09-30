@@ -4,7 +4,10 @@ import { ApiProblem } from "../../infrastructure/http/problem-details.js";
 import { Alert, Button, Field } from "../../ui/index.js";
 
 import type { AgencyRegistrationApi } from "./agency-registration-api.js";
-import type { AgencyRegistrationSubmission } from "./agency-registration-model.js";
+import type {
+  AgencyRegistrationInput,
+  AgencyRegistrationSubmission,
+} from "./agency-registration-model.js";
 
 type SubmissionState =
   | { readonly kind: "idle" }
@@ -38,7 +41,7 @@ export function AgencyRegistrationForm({
     if (document === null || document.size === 0) {
       setState({
         kind: "error",
-        message: "Ajoutez un justificatif d'immatriculation de votre agence.",
+        message: "Ajoutez un justificatif d'immatriculation de votre organisation.",
       });
       return;
     }
@@ -65,8 +68,9 @@ export function AgencyRegistrationForm({
       const upload = await api.uploadDocument(document);
 
       const submission = await api.submitRegistration({
-        agencyLegalName: requiredValue(data, "agencyLegalName"),
-        ...optionalValue(data, "agencyTradeName"),
+        organizationType: requiredValue(data, "organizationType") as AgencyRegistrationSubmissionType,
+        legalName: requiredValue(data, "legalName"),
+        ...optionalValue(data, "tradeName"),
         registrationNumber: requiredValue(data, "registrationNumber"),
         ...optionalValue(data, "taxIdentifier"),
         phone: requiredValue(data, "phone"),
@@ -110,7 +114,7 @@ export function AgencyRegistrationForm({
         >
           <p id="agency-registration-success-title">
             L'équipe MonPiole va examiner les informations et justificatifs
-            fournis avant l'activation de votre agence.
+            fournis avant l'activation de votre organisation.
           </p>
           <p>
             Référence de la demande :{" "}
@@ -129,7 +133,7 @@ export function AgencyRegistrationForm({
       <div className="public-section-heading">
         <div>
           <p className="eyebrow">Demande d'inscription</p>
-          <h2 id="agency-registration-form-title">Informations de l'agence</h2>
+          <h2 id="agency-registration-form-title">Informations de l'organisation</h2>
         </div>
       </div>
 
@@ -144,10 +148,23 @@ export function AgencyRegistrationForm({
         className="form-stack"
         onSubmit={(event) => void submit(event)}
       >
+        <Field label="Type d'organisation">
+          <select name="organizationType" required defaultValue="">
+            <option value="" disabled>Sélectionnez un type</option>
+            <option value="REAL_ESTATE_AGENCY">Agence immobilière</option>
+            <option value="PROPERTY_MANAGEMENT_COMPANY">Société de gestion immobilière</option>
+            <option value="SCI">SCI</option>
+            <option value="DEVELOPER">Promoteur immobilier</option>
+            <option value="SYNDIC">Syndic</option>
+            <option value="PROFESSIONAL_LANDLORD">Bailleur professionnel</option>
+            <option value="OTHER">Autre organisation</option>
+          </select>
+        </Field>
+
         <div className="form-grid agency-registration-grid">
           <Field label="Raison sociale">
             <input
-              name="agencyLegalName"
+              name="legalName"
               required
               maxLength={255}
               autoComplete="organization"
@@ -156,7 +173,7 @@ export function AgencyRegistrationForm({
 
           <Field label="Nom commercial" optional>
             <input
-              name="agencyTradeName"
+              name="tradeName"
               maxLength={255}
             />
           </Field>
@@ -180,7 +197,7 @@ export function AgencyRegistrationForm({
         </div>
 
         <div className="form-grid agency-registration-grid">
-          <Field label="Téléphone de l'agence">
+          <Field label="Téléphone de l'organisation">
             <input
               name="phone"
               type="tel"
@@ -190,7 +207,7 @@ export function AgencyRegistrationForm({
             />
           </Field>
 
-          <Field label="E-mail de l'agence">
+          <Field label="E-mail de l'organisation">
             <input
               name="email"
               type="email"
@@ -297,7 +314,7 @@ export function AgencyRegistrationForm({
           <h3>Justificatif</h3>
           <p>
             Ajoutez un document permettant de vérifier l'immatriculation
-            de l'agence.
+            de l'organisation.
           </p>
         </div>
 
@@ -323,7 +340,7 @@ export function AgencyRegistrationForm({
             required
           />
           Je confirme que les informations transmises sont exactes et que
-          je suis autorisé à effectuer cette demande pour cette agence.
+          je suis autorisé à effectuer cette demande pour cette organisation.
         </label>
 
         <div className="form-actions">
@@ -339,6 +356,8 @@ export function AgencyRegistrationForm({
     </section>
   );
 }
+
+type AgencyRegistrationSubmissionType = AgencyRegistrationInput["organizationType"];
 
 function requiredValue(data: FormData, key: string): string {
   return String(data.get(key) ?? "").trim();

@@ -211,6 +211,22 @@ function businessProblem(exception: unknown) {
     status: 403, type: "https://api.monpiole.example/problems/forbidden",
     title: "Forbidden", code: "FORBIDDEN",
   };
+  if (code === "RENTABLE_TARGET_NOT_FOUND" || code === "RENTAL_AVAILABILITY_NOT_APPLICABLE") return {
+    status: 404, type: "https://api.monpiole.example/problems/rental-availability-not-found",
+    title: "Rental availability not found", code: "RENTAL_AVAILABILITY_NOT_FOUND",
+  };
+  if (code === "RENTAL_OPERATIONS_FORBIDDEN") return {
+    status: 403, type: "https://api.monpiole.example/problems/forbidden", title: "Forbidden", code: "FORBIDDEN",
+  };
+  if (code === "OPERATIONAL_SOURCE_NOT_FOUND") return {
+    status: 404, type: "https://api.monpiole.example/problems/rental-operation-not-found", title: "Rental operation not found", code,
+  };
+  if (code === "OPERATIONAL_LIFECYCLE_CONFLICT") return {
+    status: 409, type: "https://api.monpiole.example/problems/rental-operation-conflict", title: "Rental operation conflict", code,
+  };
+  if (code === "INVALID_INSPECTION_INPUT") return {
+    status: 400, type: "https://api.monpiole.example/problems/invalid-request", title: "Invalid request", code: "INVALID_REQUEST",
+  };
   if (code === "INVALID_PROPERTY_AMENITIES") return {
     status: 400, type: "https://api.monpiole.example/problems/invalid-request",
     title: "Invalid request", code: "INVALID_REQUEST",
