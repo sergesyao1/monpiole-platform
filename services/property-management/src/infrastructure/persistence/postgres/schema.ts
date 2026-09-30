@@ -163,6 +163,29 @@ export const propertyAmenities = propertyManagement.table("property_amenities", 
   pgPolicy("property_amenities_tenant_isolation", { using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`, withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid` }),
 ]).enableRLS();
 
+export const propertyEffectiveGeographies = propertyManagement.table("property_effective_geographies", {
+  tenantId: uuid("tenant_id").notNull(), propertyId: uuid("property_id").notNull(),
+  countryCode: text("country_code"), city: text("city"), commune: text("commune"), quartier: text("quartier"),
+  inheritMissing: boolean("inherit_missing").notNull().default(false),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
+  correlationId: uuid("correlation_id").notNull(), actorId: text("actor_id").notNull(),
+}, (table) => [
+  primaryKey({ name: "property_effective_geographies_pkey", columns: [table.tenantId, table.propertyId] }),
+  foreignKey({ name: "property_effective_geographies_property_tenant_fk", columns: [table.tenantId, table.propertyId], foreignColumns: [properties.tenantId, properties.propertyId] }),
+  index("property_effective_geographies_tenant_search_idx").on(table.tenantId, table.countryCode, table.city, table.commune, table.quartier),
+  check("property_effective_geographies_country_check", sql`${table.countryCode} IS NULL OR ${table.countryCode} ~ '^[A-Z]{2}$'`),
+  check("property_effective_geographies_text_check", sql`
+    (${table.city} IS NULL OR char_length(btrim(${table.city})) BETWEEN 1 AND 200)
+    AND (${table.commune} IS NULL OR char_length(btrim(${table.commune})) BETWEEN 1 AND 200)
+    AND (${table.quartier} IS NULL OR char_length(btrim(${table.quartier})) BETWEEN 1 AND 200)
+  `),
+  check("property_effective_geographies_inheritance_check", sql`${table.inheritMissing} OR (${table.countryCode} IS NOT NULL AND ${table.city} IS NOT NULL AND (${table.commune} IS NOT NULL OR ${table.quartier} IS NOT NULL))`),
+  pgPolicy("property_effective_geographies_tenant_isolation", {
+    using: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+    withCheck: sql`${table.tenantId} = NULLIF(current_setting('app.tenant_id', true), '')::uuid`,
+  }),
+]).enableRLS();
+
 export const propertyGeolocations = propertyManagement.table("property_geolocations", {
   tenantId: uuid("tenant_id").notNull(),
   propertyId: uuid("property_id").notNull(),

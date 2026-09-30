@@ -1,4 +1,4 @@
-import { PROPERTY_TYPES, TRANSACTION_TYPES, type PropertyType, type TransactionType } from "../domain/property.js";
+import { PROPERTY_STRUCTURAL_ROLES, PROPERTY_TYPES, TRANSACTION_TYPES, type PropertyStructuralRole, type PropertyType, type TransactionType } from "../domain/property.js";
 import type {
   PublicPropertyCatalogCursor,
   PublicPropertyCatalogDetail,
@@ -19,6 +19,11 @@ export interface ListPublicPropertiesQuery {
   readonly cursor?: PublicPropertyCatalogCursor;
   readonly propertyType?: PropertyType;
   readonly transactionType?: TransactionType;
+  readonly propertyTypes?: readonly PropertyType[]; readonly transactionTypes?: readonly TransactionType[]; readonly structuralRoles?: readonly PropertyStructuralRole[];
+  readonly countryCode?: string; readonly city?: string; readonly commune?: string; readonly quartier?: string;
+  readonly minPriceAmountMinor?: number; readonly maxPriceAmountMinor?: number; readonly currencyCode?: string;
+  readonly minBedrooms?: number; readonly maxBedrooms?: number; readonly availableFrom?: string; readonly availableTo?: string;
+  readonly q?: string; readonly sort?: import("./public-property-catalog-query.js").PublicCatalogSort;
 }
 
 export interface RetrievePublicPropertyQuery {
@@ -60,6 +65,7 @@ export class ListPublicProperties {
     if (query.transactionType !== undefined && !TRANSACTION_TYPES.includes(query.transactionType)) {
       throw new InvalidPublicPropertyCatalogQueryError("transactionType");
     }
+    if (query.propertyTypes?.some((value) => !PROPERTY_TYPES.includes(value)) || query.transactionTypes?.some((value) => !TRANSACTION_TYPES.includes(value)) || query.structuralRoles?.some((value) => !PROPERTY_STRUCTURAL_ROLES.includes(value))) throw new InvalidPublicPropertyCatalogQueryError("type");
     if (query.cursor !== undefined) assertCursor(query.cursor);
 
     return this.catalog.list({
@@ -68,6 +74,15 @@ export class ListPublicProperties {
       ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
       ...(query.propertyType === undefined ? {} : { propertyType: query.propertyType }),
       ...(query.transactionType === undefined ? {} : { transactionType: query.transactionType }),
+      ...(query.propertyTypes === undefined ? {} : { propertyTypes: query.propertyTypes }),
+      ...(query.transactionTypes === undefined ? {} : { transactionTypes: query.transactionTypes }),
+      ...(query.structuralRoles === undefined ? {} : { structuralRoles: query.structuralRoles }),
+      ...(query.countryCode === undefined ? {} : { countryCode: query.countryCode }), ...(query.city === undefined ? {} : { city: query.city }),
+      ...(query.commune === undefined ? {} : { commune: query.commune }), ...(query.quartier === undefined ? {} : { quartier: query.quartier }),
+      ...(query.minPriceAmountMinor === undefined ? {} : { minPriceAmountMinor: query.minPriceAmountMinor }), ...(query.maxPriceAmountMinor === undefined ? {} : { maxPriceAmountMinor: query.maxPriceAmountMinor }),
+      ...(query.currencyCode === undefined ? {} : { currencyCode: query.currencyCode }), ...(query.minBedrooms === undefined ? {} : { minBedrooms: query.minBedrooms }), ...(query.maxBedrooms === undefined ? {} : { maxBedrooms: query.maxBedrooms }),
+      ...(query.availableFrom === undefined ? {} : { availableFrom: query.availableFrom }), ...(query.availableTo === undefined ? {} : { availableTo: query.availableTo }),
+      ...(query.q === undefined ? {} : { q: query.q }), ...(query.sort === undefined ? {} : { sort: query.sort }),
     });
   }
 }
@@ -118,7 +133,8 @@ function assertTenant(tenantId: string): void {
 }
 
 function assertCursor(cursor: PublicPropertyCatalogCursor): void {
-  if (!UUID.test(cursor.publicPropertyId) || !isCanonicalIsoDate(cursor.publishedAt)) {
+  if (!UUID.test(cursor.publicPropertyId) || !isCanonicalIsoDate(cursor.publishedAt)
+    || ((cursor.sort === "PRICE_ASC" || cursor.sort === "PRICE_DESC") && cursor.priceAmountMinor === undefined)) {
     throw new InvalidPublicPropertyCatalogQueryError("cursor");
   }
 }

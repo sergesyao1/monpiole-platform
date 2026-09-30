@@ -126,6 +126,7 @@ describe("batch catalog rental availability", () => {
         queryCount += 1;
         return new Set([assetId]);
       },
+      listUnavailableScopeIds: async () => new Set(),
     }, {
       resolveMany: async (_tenantId, ids) => {
         resolutionCount += 1;
@@ -145,5 +146,30 @@ describe("batch catalog rental availability", () => {
       { rentableAssetId: other, catalogDisposition: "AVAILABLE_FOR_INTERVAL" },
     ]);
     expect({ queryCount, resolutionCount }).toEqual({ queryCount: 1, resolutionCount: 1 });
+  });
+
+  it("evaluates one half-open interval for every resolved target in one batch", async () => {
+    let intervalQueryCount = 0;
+    const other = "33333333-3333-4333-8333-333333333333";
+    const useCase = new GetCatalogRentalAvailability({
+      listEffectiveLongTermOccupiedScopeIds: async () => new Set(),
+      listUnavailableScopeIds: async (input) => {
+        intervalQueryCount += 1;
+        expect(input).toMatchObject({ startsAt: at(10), endsAt: at(12) });
+        return new Set([assetId]);
+      },
+    }, {
+      resolveMany: async (_tenantId, ids) => ids.map((id) => ({ rentableAssetId: id, conflictScopeIds: [id] })),
+    });
+    await expect(useCase.execute({
+      tenantId,
+      properties: [assetId, other].map((rentableAssetId) => ({ rentableAssetId, rentalMode: "SHORT_TERM_RENTAL" as const })),
+      evaluatedAt: at(1),
+      requestedInterval: { startsAt: at(10), endsAt: at(12) },
+    })).resolves.toEqual([
+      { rentableAssetId: assetId, catalogDisposition: "UNAVAILABLE_FOR_INTERVAL" },
+      { rentableAssetId: other, catalogDisposition: "AVAILABLE_FOR_INTERVAL" },
+    ]);
+    expect(intervalQueryCount).toBe(1);
   });
 });

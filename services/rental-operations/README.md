@@ -34,6 +34,11 @@ The application surface exposes check, assert, conflict-listing, next-availabili
 
 Catalog composition uses `GetCatalogRentalAvailability`: Property targets are resolved once per page and effective long-term occupied scopes are fetched in one tenant-scoped query. This prevents N+1 access while keeping Property publication and Rental Operations availability under their respective owners. Public transport exposes only disposition, requested-period availability and duration-aware next availability.
 
+For a public short-term search interval, the same application boundary resolves all canonical
+hierarchical conflict scopes once and reads overlapping active allocation claims in one tenant-scoped
+batch query. Half-open `[from, to)` boundaries keep adjacent bookings compatible. Property Management
+never reads Rental Operations tables and never reproduces overlap, block or hierarchy rules.
+
 Maintenance may create or release explicit blocks through a future integration adapter. Billing consumes rental facts but does not decide availability. Future entry/exit inspection workflows create a block only when operational time is actually reserved.
 
 Property identity and hierarchy remain owned by Property Management. Rentable-target and PropertyContract identifiers are validated through future explicit ports; cross-service database foreign keys are intentionally absent.

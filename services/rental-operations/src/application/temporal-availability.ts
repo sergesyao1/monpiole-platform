@@ -35,6 +35,12 @@ export interface CatalogAvailabilityQueryPort {
     conflictScopeIds: readonly string[];
     at: string;
   }>): Promise<ReadonlySet<string>>;
+  listUnavailableScopeIds(input: Readonly<{
+    tenantId: string;
+    conflictScopeIds: readonly string[];
+    startsAt: string;
+    endsAt: string;
+  }>): Promise<ReadonlySet<string>>;
 }
 
 export interface RentalAllocationCommitPort {
@@ -75,7 +81,7 @@ export interface AvailabilityDecision {
 
 export interface CatalogRentalAvailabilityDisposition {
   readonly rentableAssetId: string;
-  readonly catalogDisposition: "AVAILABLE_FOR_INTERVAL" | "REMOVE_FROM_RENTAL_CATALOG";
+  readonly catalogDisposition: "AVAILABLE_FOR_INTERVAL" | "UNAVAILABLE_FOR_INTERVAL" | "REMOVE_FROM_RENTAL_CATALOG";
 }
 
 export class GetCatalogRentalAvailability {
@@ -88,7 +94,9 @@ export class GetCatalogRentalAvailability {
     tenantId: string;
     properties: readonly Readonly<{ rentableAssetId: string; rentalMode: RentalOperationMode }>[];
     evaluatedAt: string;
+    requestedInterval?: RequestedInterval;
   }>): Promise<readonly CatalogRentalAvailabilityDisposition[]> {
+    if (input.requestedInterval !== undefined) assertBoundedInterval(input.requestedInterval);
     const targets = await this.targets.resolveMany(
       input.tenantId,
       input.properties.map((property) => property.rentableAssetId),
@@ -102,14 +110,26 @@ export class GetCatalogRentalAvailability {
         conflictScopeIds: allScopes,
         at: input.evaluatedAt,
       });
+    const unavailable = allScopes.length === 0 || input.requestedInterval === undefined
+      ? new Set<string>()
+      : await this.queries.listUnavailableScopeIds({
+        tenantId: input.tenantId,
+        conflictScopeIds: allScopes,
+        startsAt: input.requestedInterval.startsAt,
+        endsAt: input.requestedInterval.endsAt,
+      });
     return input.properties.flatMap((property) => {
       const target = byAsset.get(property.rentableAssetId);
       if (target === undefined) return [];
       const remove = property.rentalMode === "LONG_TERM_RENTAL"
         && target.conflictScopeIds.some((scopeId) => occupied.has(scopeId));
+      const intervalUnavailable = input.requestedInterval !== undefined
+        && target.conflictScopeIds.some((scopeId) => unavailable.has(scopeId));
       return [{
         rentableAssetId: property.rentableAssetId,
-        catalogDisposition: remove ? "REMOVE_FROM_RENTAL_CATALOG" : "AVAILABLE_FOR_INTERVAL",
+        catalogDisposition: remove
+          ? "REMOVE_FROM_RENTAL_CATALOG"
+          : intervalUnavailable ? "UNAVAILABLE_FOR_INTERVAL" : "AVAILABLE_FOR_INTERVAL",
       } satisfies CatalogRentalAvailabilityDisposition];
     });
   }

@@ -224,7 +224,32 @@ et pour isoler les caches. Le reverse proxy de l’environnement contrôlé doit
 router ces chemins sans réécrire `Host`. `VITE_API_BASE_URL` continue de servir
 les parcours privés mais ne sélectionne aucun tenant public.
 
-Le catalogue français couvre les deux filtres approuvés, la pagination keyset,
+Le catalogue français possède désormais un modèle de requête Web canonique pour
+la géographie effective, la recherche texte, les types et projets multiples, le
+rôle structurel, les bornes de chambres et de prix avec devise, l'intervalle de
+disponibilité UTC, le tri et la limite. Un module pur centralise la restauration
+défensive depuis l'URL et la sérialisation HTTP ; le curseur reste un état de
+pagination opaque séparé de l'URL partageable. La recherche publique expose le
+texte libre et la géographie pays, ville, commune et quartier dans cette URL. Le
+référentiel public fournit les suggestions de pays à la demande ; en l'absence
+de facettes publiques pour les niveaux inférieurs, ceux-ci restent des saisies
+textuelles exactes transmises telles quelles au backend. Soumettre ou effacer la
+recherche réinitialise la pagination sans reproduire les règles métier du
+catalogue dans le navigateur. Un panneau secondaire propose les projets, types
+de biens et configurations en multi-sélection, ainsi qu'une plage de 0 à 100
+chambres. Les filtres appliqués sont visibles et supprimables individuellement ;
+leur modification conserve la géographie et le texte mais invalide toujours le
+curseur. Le même panneau accepte des prix en unité majeure associés à une devise
+active chargée depuis `/v1/reference/currencies`. La conversion vers les entiers
+mineurs du contrat utilise le `minorUnit` canonique, sans hypothèse à deux
+décimales ni conversion FX. Les dates d'arrivée et de départ d'un séjour court
+sont converties en bornes minuit UTC `[from,to)` et imposent une intention
+`SHORT_TERM_RENTAL` exclusive ; Rental Operations reste seule autorité de
+disponibilité. Le tri public propose les plus récents et les prix croissants ou
+décroissants, sans tri local ni `NEXT_AVAILABLE`, et tout changement invalide le
+curseur opaque précédent.
+
+Le catalogue français couvre les deux filtres visuels historiques, la pagination keyset,
 le chargement, l’état vide, l’erreur avec nouvelle tentative, la fiche 404 et
 le placeholder des publications historiques sans contenu photo. Aucun lien de
 création, donnée owner, adresse exacte ou valeur enum technique n’y est rendu.
@@ -232,6 +257,42 @@ création, donnée owner, adresse exacte ou valeur enum technique n’y est rend
 TASK-058 n’autorise aucune exposition Internet de production. L’activation d’un
 tenant réel, la revue de ses données publiées et un rate limiting approuvé
 restent des portes opérationnelles obligatoires.
+
+Les modèles de catalogue et de fiche acceptent un `publicLocation` nullable déjà
+calculé par l'API. Le Web ne résout jamais l'héritage Property/Building/Complex
+et n'arrondit ni ne masque les coordonnées. Une valeur `null` conserve le bien
+dans les parcours publics sans futur marqueur cartographique.
+
+Sur grand écran, les résultats déjà chargés sont composés en liste et carte
+Leaflet. Les pages suivantes enrichissent les deux surfaces à partir du même
+tableau dédupliqué ; tout changement de critères URL réinitialise simultanément
+cartes et marqueurs. Les biens sans `publicLocation` restent dans la liste. La
+carte est chargée paresseusement seulement lorsqu'au moins une position publique
+existe et disparaît sous `64rem`, en attendant le mode mobile dédié.
+
+La carte utilise la configuration de tuiles OpenStreetMap déjà employée par le
+workspace privé, avec attribution visible. Cette URL publique convient au
+développement mais ne constitue pas encore une sélection de fournisseur de
+tuiles avec SLA/quota validés pour la production.
+
+À `64rem` et moins, le catalogue passe à une expérience mobile à surface unique.
+Le mode initial « Liste » ne monte pas le composant Leaflet ; « Carte » charge le
+même composant et les mêmes marqueurs que le desktop sans nouvel appel catalogue.
+Ce mode reste un état éphémère : il ne modifie ni l'URL partageable, ni les
+filtres, ni le tri, ni le curseur. Les pages chargées et la sélection sont
+conservées lors des bascules. La pagination reste proposée dans la liste en V1,
+tandis que recherche, filtres et tri demeurent accessibles au-dessus des deux
+modes.
+
+La fiche publique conserve sa route canonique `/catalogue/:publicPropertyId` et
+ajoute une section « Localisation » après les informations du bien. Elle affiche
+toujours la géographie textuelle publique. Une position `EXACT` utilise les
+coordonnées fournies par l'API sans transformation et un niveau de zoom rapproché ;
+une position `APPROXIMATE` conserve également les coordonnées fournies mais les
+présente comme un secteur avec un libellé explicite. En l'absence de position,
+aucune carte ni coordonnée de repli n'est créée. Leaflet n'est chargé qu'en
+présence d'une position publique. Les itinéraires sont différés : aucun lien vers
+un fournisseur externe ne reçoit de coordonnées dans cette version.
 
 ## Hiérarchie des biens
 

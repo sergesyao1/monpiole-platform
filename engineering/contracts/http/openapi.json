@@ -6685,6 +6685,16 @@
             ],
             "type": "string"
           },
+          "publicLocation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicPropertyMapLocation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "publicPropertyId": {
             "$ref": "#/components/schemas/PublicPropertyId"
           },
@@ -6724,6 +6734,7 @@
           "location",
           "primaryPhoto",
           "propertyType",
+          "publicLocation",
           "publicPropertyId",
           "publishedAt",
           "structuralRole",
@@ -6787,6 +6798,35 @@
           "city",
           "country",
           "district"
+        ],
+        "type": "object"
+      },
+      "PublicPropertyMapLocation": {
+        "additionalProperties": false,
+        "description": "Privacy-safe effective map position. Null when hidden or unavailable.",
+        "properties": {
+          "latitude": {
+            "maximum": 90,
+            "minimum": -90,
+            "type": "number"
+          },
+          "longitude": {
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          },
+          "precision": {
+            "enum": [
+              "APPROXIMATE",
+              "EXACT"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude",
+          "precision"
         ],
         "type": "object"
       },
@@ -6906,6 +6946,16 @@
             ],
             "type": "string"
           },
+          "publicLocation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicPropertyMapLocation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "publicPropertyId": {
             "$ref": "#/components/schemas/PublicPropertyId"
           },
@@ -6941,6 +6991,7 @@
           "location",
           "primaryPhoto",
           "propertyType",
+          "publicLocation",
           "publicPropertyId",
           "publishedAt",
           "structuralRole",
@@ -19317,33 +19368,165 @@
             }
           },
           {
+            "description": "One or more comma-separated public property types",
             "in": "query",
             "name": "type",
             "required": false,
             "schema": {
-              "enum": [
-                "APARTMENT",
-                "BUILDING",
-                "COMMERCIAL",
-                "COMPLEX",
-                "HOUSE",
-                "LAND",
-                "OFFICE",
-                "OTHER",
-                "SHOP"
-              ],
+              "example": "APARTMENT,HOUSE",
+              "type": "string"
+            }
+          },
+          {
+            "description": "One or more commercial intents; availability intervals accept SHORT_TERM_RENTAL only",
+            "in": "query",
+            "name": "transactionType",
+            "required": false,
+            "schema": {
+              "example": "SHORT_TERM_RENTAL",
+              "type": "string"
+            }
+          },
+          {
+            "description": "One or more comma-separated structural roles",
+            "in": "query",
+            "name": "structuralRole",
+            "required": false,
+            "schema": {
+              "example": "STANDALONE,UNIT",
               "type": "string"
             }
           },
           {
             "in": "query",
-            "name": "transactionType",
+            "name": "countryCode",
             "required": false,
             "schema": {
+              "example": "CI",
+              "pattern": "^[A-Z]{2}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "city",
+            "required": false,
+            "schema": {
+              "example": "Abidjan",
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "commune",
+            "required": false,
+            "schema": {
+              "example": "Cocody",
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "quartier",
+            "required": false,
+            "schema": {
+              "example": "Riviera",
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "minPriceAmountMinor",
+            "required": false,
+            "schema": {
+              "example": 100000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "maxPriceAmountMinor",
+            "required": false,
+            "schema": {
+              "example": 500000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Required with price bounds; no currency conversion",
+            "in": "query",
+            "name": "currencyCode",
+            "required": false,
+            "schema": {
+              "example": "XOF",
+              "pattern": "^[A-Z]{3}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "minBedrooms",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "maxBedrooms",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Required with availableTo: inclusive UTC boundary of a SHORT_TERM_RENTAL interval [from,to)",
+            "in": "query",
+            "name": "availableFrom",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required with availableFrom: exclusive UTC boundary of a SHORT_TERM_RENTAL interval [from,to)",
+            "in": "query",
+            "name": "availableTo",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Bounded exact text search over public title, description and effective geographic labels",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "NEWEST",
               "enum": [
-                "LONG_TERM_RENTAL",
-                "SALE",
-                "SHORT_TERM_RENTAL"
+                "NEWEST",
+                "NEXT_AVAILABLE",
+                "PRICE_ASC",
+                "PRICE_DESC"
               ],
               "type": "string"
             }

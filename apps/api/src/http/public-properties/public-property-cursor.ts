@@ -8,6 +8,8 @@ import { TransportValidationException } from "../errors/transport-validation.exc
 const CursorPayloadSchema = z.object({
   publishedAt: z.iso.datetime({ offset: false }).refine((value) => value.endsWith("Z")),
   publicPropertyId: z.uuid(),
+  sort: z.enum(["NEWEST", "PRICE_ASC", "PRICE_DESC"]).optional(),
+  priceAmountMinor: z.number().int().nonnegative().optional(),
 }).strict();
 const BASE64URL = /^[A-Za-z0-9_-]+$/u;
 

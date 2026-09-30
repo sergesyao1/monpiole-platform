@@ -14,6 +14,7 @@ export function toPublicPropertySummary(item: PublicPropertyCatalogItem): Public
     ...(item.apartmentSubtype === undefined ? {} : { apartmentSubtype: item.apartmentSubtype }),
     structuralRole: item.structuralRole,
     location: { country: item.location.country, city: item.location.city, district: item.location.district },
+    publicLocation: item.publicLocation === null ? null : { ...item.publicLocation },
     commercialTerms: item.commercialTerms,
     primaryPhoto: item.primaryPhoto === null
       ? null

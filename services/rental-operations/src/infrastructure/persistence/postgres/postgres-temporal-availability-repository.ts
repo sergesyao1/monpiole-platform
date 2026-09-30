@@ -95,6 +95,26 @@ implements AvailabilityQueryPort, CatalogAvailabilityQueryPort, RentalAllocation
     });
   }
 
+  listUnavailableScopeIds(input: Readonly<{
+    tenantId: string;
+    conflictScopeIds: readonly string[];
+    startsAt: string;
+    endsAt: string;
+  }>): Promise<ReadonlySet<string>> {
+    return withTenantPostgresTransaction(this.pool, input.tenantId, async (scope) => {
+      const rows = await scope.query<{ readonly conflict_scope_id: string }>(`
+        SELECT DISTINCT claim.conflict_scope_id
+        FROM rental_operations.rental_allocation_claims AS claim
+        WHERE claim.tenant_id = $1::uuid
+          AND claim.conflict_scope_id = ANY($2::uuid[])
+          AND claim.status = 'ACTIVE'
+          AND (claim.end_at IS NULL OR claim.end_at > $3::timestamptz)
+          AND claim.start_at < $4::timestamptz
+      `, [input.tenantId, input.conflictScopeIds, input.startsAt, input.endsAt]);
+      return new Set(rows.map((row) => row.conflict_scope_id));
+    });
+  }
+
   commitIfAvailable(allocation: RentalAllocation, conflictScopeIds: readonly string[]): Promise<void> {
     const value = allocation.values;
     const scopes = [...new Set(conflictScopeIds)].sort();

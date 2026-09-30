@@ -97,6 +97,7 @@ function toPublicItem(property: Property): PublicPropertyCatalogItem | undefined
     ...(value.apartmentSubtype === undefined ? {} : { apartmentSubtype: value.apartmentSubtype }),
     structuralRole: value.structuralRole,
     location: { country: value.location.country, city: value.location.city, district: value.location.district },
+    publicLocation: null,
     commercialTerms: value.commercialTerms,
     primaryPhoto: primaryPhoto === undefined ? null : { contentType: primaryPhoto.contentType },
     publishedAt: value.publishedAt,

@@ -19,6 +19,7 @@ function item(publicPropertyId: string, transactionType: "LONG_TERM_RENTAL" | "S
     transactionType,
     structuralRole: "STANDALONE",
     location: { country: "CI", city: "Abidjan", district: "Cocody" },
+    publicLocation: null,
     commercialTerms: transactionType === "LONG_TERM_RENTAL"
       ? { kind: transactionType, currency: "XOF", rentAmountMinor: 500_000, rentPeriod: "MONTH" }
       : { kind: transactionType, currency: "XOF", rateAmountMinor: 50_000, pricingUnit: "NIGHT" },
@@ -39,6 +40,35 @@ describe("Rental availability API composition", () => {
     const page = await useCase.execute({ tenantId: TENANT });
     expect(page.items.map((property) => property.publicPropertyId)).toEqual([SHORT_TERM]);
     expect(batch).toHaveBeenCalledTimes(1);
+  });
+
+  it("continues keyset pages until unavailable candidates no longer under-fill the public page", async () => {
+    const third = "44444444-4444-4444-8444-444444444444";
+    const execute = vi.fn(async (input: { cursor?: { publicPropertyId: string } }) => input.cursor === undefined
+      ? { items: [item(LONG_TERM, "SHORT_TERM_RENTAL"), item(SHORT_TERM, "SHORT_TERM_RENTAL")], nextCursor: { publishedAt: NOW, publicPropertyId: SHORT_TERM } }
+      : { items: [item(third, "SHORT_TERM_RENTAL")] });
+    const batch = vi.fn(async ({ properties }: { properties: readonly { rentableAssetId: string }[] }) => properties.map((property) => ({
+      rentableAssetId: property.rentableAssetId,
+      catalogDisposition: property.rentableAssetId === LONG_TERM ? "UNAVAILABLE_FOR_INTERVAL" as const : "AVAILABLE_FOR_INTERVAL" as const,
+    })));
+    const page = await new ListRentablePublicProperties({ execute }, { execute: batch }, { now: () => NOW }).execute({
+      tenantId: TENANT, limit: 2, transactionTypes: ["SHORT_TERM_RENTAL"],
+      availableFrom: "2026-10-10T00:00:00.000Z", availableTo: "2026-10-12T00:00:00.000Z",
+    });
+    expect(page.items.map((property) => property.publicPropertyId)).toEqual([SHORT_TERM, third]);
+    expect(execute).toHaveBeenCalledTimes(2);
+    expect(batch).toHaveBeenCalledTimes(2);
+    expect(page.nextCursor).toBeUndefined();
+  });
+
+  it("does not invoke Rental Operations for a sale-only catalog page", async () => {
+    const sale = { ...item(SHORT_TERM, "SHORT_TERM_RENTAL"), transactionType: "SALE" as const,
+      commercialTerms: { kind: "SALE" as const, currency: "XOF", salePriceAmountMinor: 1_000_000 } };
+    const batch = vi.fn();
+    const page = await new ListRentablePublicProperties({ execute: async () => ({ items: [sale] }) }, { execute: batch }, { now: () => NOW })
+      .execute({ tenantId: TENANT, transactionTypes: ["SALE"] });
+    expect(page.items).toEqual([sale]);
+    expect(batch).not.toHaveBeenCalled();
   });
 
   it("does not probe Rental Operations when the public Property is unpublished", async () => {

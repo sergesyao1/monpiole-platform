@@ -5,6 +5,8 @@ import { PublicPropertyInquiryForm } from "./PublicPropertyInquiryForm.js";
 const api = {
   list: vi.fn(),
   retrieve: vi.fn(),
+  listCountries: vi.fn(async () => []),
+  listCurrencies: vi.fn(async () => []),
   photoUrl: vi.fn(),
   submitInquiry: vi.fn(async () => ({
     inquiryId: "id",

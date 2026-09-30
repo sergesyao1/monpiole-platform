@@ -104,7 +104,7 @@ export {
   type ListPublicPropertiesQuery, type RetrievePublicPropertyQuery, type RetrievePublicPropertyMediaQuery,
 } from "./application/public-property-catalog.js";
 export type {
-  PublicPropertyCatalogQuery, PublicPropertyCatalogCriteria, PublicPropertyCatalogCursor,
+  PublicPropertyCatalogQuery, PublicPropertyCatalogCriteria, PublicPropertyCatalogCursor, PublicCatalogSort,
   PublicPropertyCatalogItem, PublicPropertyCatalogDetail, PublicPropertyCatalogPage,
   PublicPropertyLocation, PublicPropertyDetails, PublicPropertyCommercialTerms,
   PublicPropertyPrimaryPhotoReference, PublicPropertyMediaReference, PublicPrimaryPhotoContent, PublicPropertyMediaContent,

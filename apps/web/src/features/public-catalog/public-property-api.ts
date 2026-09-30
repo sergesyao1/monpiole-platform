@@ -3,11 +3,16 @@ import type {
   PublicPropertyCatalogCriteria,
   PublicPropertyCatalogPage,
   PublicPropertyDetail,
+  PublicCountryReference,
+  PublicCurrencyReference,
 } from "./public-property-model.js";
+import { serializePublicCatalogQuery } from "./public-catalog-search.js";
 
 export interface PublicPropertyApi {
   list(criteria?: PublicPropertyCatalogCriteria): Promise<PublicPropertyCatalogPage>;
   retrieve(publicPropertyId: string): Promise<PublicPropertyDetail>;
+  listCountries(): Promise<readonly PublicCountryReference[]>;
+  listCurrencies(): Promise<readonly PublicCurrencyReference[]>;
   submitInquiry(publicPropertyId:string,input:PublicInquiryInput):Promise<{readonly inquiryId:string;readonly receivedAt:string}>;
   photoUrl(path: `/v1/public/properties/${string}/primary-photo` | `/v1/public/properties/${string}/media/${string}/content`): string;
 }
@@ -18,6 +23,13 @@ export function createPublicPropertyApi(): PublicPropertyApi {
     retrieve: (publicPropertyId) => requestPublicJson<PublicPropertyDetail>(
       `/v1/public/properties/${encodeURIComponent(publicPropertyId)}`,
     ),
+    listCountries: async () => (await requestPublicJson<{ readonly items: readonly PublicCountryReference[] }>(
+      "/v1/reference/countries",
+    )).items.filter((country) => country.active && /^[A-Z]{2}$/u.test(country.code)),
+    listCurrencies: async () => (await requestPublicJson<{ readonly items: readonly PublicCurrencyReference[] }>(
+      "/v1/reference/currencies",
+    )).items.filter((currency) => currency.active && /^[A-Z]{3}$/u.test(currency.code)
+      && Number.isInteger(currency.minorUnit) && currency.minorUnit >= 0 && currency.minorUnit <= 9),
     submitInquiry:(publicPropertyId,input)=>requestPublicJson(`/v1/public/properties/${encodeURIComponent(publicPropertyId)}/inquiries`,{method:"POST",body:input}),
     photoUrl: (path) => path,
   };
@@ -50,9 +62,6 @@ async function requestPublicJson<ResponseBody>(path: `/v1/${string}`,options?:Re
 }
 
 function catalogPath(criteria: PublicPropertyCatalogCriteria): `/v1/${string}` {
-  const query = new URLSearchParams({ limit: "20" });
-  if (criteria.cursor !== undefined) query.set("cursor", criteria.cursor);
-  if (criteria.type !== undefined) query.set("type", criteria.type);
-  if (criteria.transactionType !== undefined) query.set("transactionType", criteria.transactionType);
+  const query = serializePublicCatalogQuery(criteria);
   return `/v1/public/properties?${query.toString()}`;
 }

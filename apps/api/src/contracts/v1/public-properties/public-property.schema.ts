@@ -12,6 +12,11 @@ export const PublicPropertyLocationSchema = z.object({
   city: z.string().trim().min(1).max(200),
   district: z.string().trim().min(1).max(200),
 }).strict().meta({ id: "PublicPropertyLocation" });
+export const PublicPropertyMapLocationSchema = z.object({
+  latitude: z.number().finite().min(-90).max(90),
+  longitude: z.number().finite().min(-180).max(180),
+  precision: z.enum(["EXACT", "APPROXIMATE"]),
+}).strict().meta({ id: "PublicPropertyMapLocation", description: "Privacy-safe effective map position. Null when hidden or unavailable." });
 export const PublicPropertyDetailsSchema = z.object({
   usableSurfaceSquareMeters: z.number().positive().finite().optional(),
   rooms: z.number().int().nonnegative().optional(),
@@ -21,6 +26,7 @@ export const PublicPropertyDetailsSchema = z.object({
 }).strict().meta({ id: "PublicPropertyDetails" });
 const CurrencySchema = z.string().regex(/^[A-Z]{3}$/u);
 const AmountMinorSchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+const QueryAmountMinorSchema = z.coerce.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 export const PublicPropertyCommercialTermsSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("LONG_TERM_RENTAL"), currency: CurrencySchema,
@@ -64,6 +70,7 @@ const PublicPropertySummaryShape = {
   apartmentSubtype: PublicApartmentSubtypeSchema.optional(),
   structuralRole: PublicPropertyStructuralRoleSchema,
   location: PublicPropertyLocationSchema,
+  publicLocation: PublicPropertyMapLocationSchema.nullable(),
   commercialTerms: PublicPropertyCommercialTermsSchema,
   primaryPhoto: PublicPropertyPrimaryPhotoSchema.nullable(),
   publishedAt: InstantSchema,
@@ -80,12 +87,34 @@ export const PublicPropertyCatalogResponseSchema = z.object({
   items: z.array(PublicPropertySummarySchema),
   pageInfo: z.object({ nextCursor: z.string().max(512).nullable(), hasNextPage: z.boolean() }).strict(),
 }).strict().meta({ id: "PublicPropertyCatalogResponse" });
+const listValue = <T extends z.ZodTypeAny>(item: T) => z.preprocess((value) => {
+  const values = Array.isArray(value) ? value : [value];
+  return values.flatMap((entry) => typeof entry === "string" ? entry.split(",") : [entry]).filter((entry) => entry !== undefined && entry !== "");
+}, z.array(item).min(1).max(20).transform((values) => [...new Set(values)]));
+const optionalTrimmed = (max: number) => z.preprocess((value) => typeof value === "string" && value.trim() === "" ? undefined : value,
+  z.string().trim().min(1).max(max).optional());
+export const PublicCatalogSortSchema = z.enum(["NEWEST", "PRICE_ASC", "PRICE_DESC", "NEXT_AVAILABLE"]);
 export const ListPublicPropertiesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
   cursor: z.string().min(1).max(512).optional(),
-  type: PublicPropertyTypeSchema.optional(),
-  transactionType: PublicTransactionTypeSchema.optional(),
-}).strict().meta({ id: "ListPublicPropertiesQuery" });
+  type: listValue(PublicPropertyTypeSchema).optional(),
+  transactionType: listValue(PublicTransactionTypeSchema).optional(),
+  structuralRole: listValue(PublicPropertyStructuralRoleSchema).optional(),
+  countryCode: z.preprocess((value) => typeof value === "string" ? value.trim().toUpperCase() : value, z.string().regex(/^[A-Z]{2}$/u).optional()),
+  city: optionalTrimmed(200), commune: optionalTrimmed(200), quartier: optionalTrimmed(200),
+  minPriceAmountMinor: QueryAmountMinorSchema.optional(), maxPriceAmountMinor: QueryAmountMinorSchema.optional(),
+  currencyCode: z.preprocess((value) => typeof value === "string" ? value.trim().toUpperCase() : value, z.string().regex(/^[A-Z]{3}$/u).optional()),
+  minBedrooms: z.coerce.number().int().nonnegative().max(100).optional(), maxBedrooms: z.coerce.number().int().nonnegative().max(100).optional(),
+  availableFrom: InstantSchema.optional(), availableTo: InstantSchema.optional(), q: optionalTrimmed(200),
+  sort: PublicCatalogSortSchema.default("NEWEST"),
+}).strict().superRefine((query, context) => {
+  if (query.minPriceAmountMinor !== undefined && query.maxPriceAmountMinor !== undefined && query.minPriceAmountMinor > query.maxPriceAmountMinor) context.addIssue({ code: "custom", path: ["minPriceAmountMinor"], message: "Le prix minimum doit être inférieur ou égal au prix maximum." });
+  if ((query.minPriceAmountMinor !== undefined || query.maxPriceAmountMinor !== undefined) && query.currencyCode === undefined) context.addIssue({ code: "custom", path: ["currencyCode"], message: "La devise est obligatoire pour filtrer les prix." });
+  if (query.minBedrooms !== undefined && query.maxBedrooms !== undefined && query.minBedrooms > query.maxBedrooms) context.addIssue({ code: "custom", path: ["minBedrooms"], message: "Le minimum de chambres doit être inférieur ou égal au maximum." });
+  if ((query.availableFrom === undefined) !== (query.availableTo === undefined)) context.addIssue({ code: "custom", path: [query.availableFrom === undefined ? "availableFrom" : "availableTo"], message: "Les deux limites de disponibilité sont obligatoires." });
+  if (query.availableFrom !== undefined && query.availableTo !== undefined && Date.parse(query.availableFrom) >= Date.parse(query.availableTo)) context.addIssue({ code: "custom", path: ["availableFrom"], message: "La date de début doit précéder la date de fin." });
+  if (query.availableFrom !== undefined && query.transactionType !== undefined && (query.transactionType.length !== 1 || query.transactionType[0] !== "SHORT_TERM_RENTAL")) context.addIssue({ code: "custom", path: ["transactionType"], message: "Une période de disponibilité s’applique uniquement à la location courte durée." });
+}).meta({ id: "PublicCatalogSearchQuery" });
 export const PublicPropertyPathSchema = z.object({ publicPropertyId: PublicPropertyIdSchema })
   .strict().meta({ id: "PublicPropertyPath" });
 export const PublicPropertyMediaPathSchema = z.object({

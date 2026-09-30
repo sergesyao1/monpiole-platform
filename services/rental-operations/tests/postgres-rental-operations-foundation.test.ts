@@ -263,6 +263,29 @@ describe("Rental Operations PostgreSQL foundation", () => {
     })).resolves.toEqual([]);
   });
 
+  it("returns interval-conflicting scopes in one tenant-safe half-open batch query", async () => {
+    const repository = new PostgresTemporalAvailabilityRepository(runtimePool);
+    const otherAsset = "88888888-8888-4888-8888-888888888888";
+    const [first, second] = await tenantTransaction(tenantA, async (client) => Promise.all([
+      insertBooking(client, tenantA),
+      insertBooking(client, tenantA, undefined, otherAsset),
+    ]));
+    await repository.commitIfAvailable(bookingAllocation(first, assetId, "2026-10-10T14:00:00Z", "2026-10-15T11:00:00Z"), [assetId]);
+    await repository.commitIfAvailable(bookingAllocation(second, otherAsset, "2026-10-20T14:00:00Z", "2026-10-24T11:00:00Z"), [otherAsset]);
+    await expect(repository.listUnavailableScopeIds({
+      tenantId: tenantA, conflictScopeIds: [assetId, otherAsset],
+      startsAt: "2026-10-12T00:00:00Z", endsAt: "2026-10-16T00:00:00Z",
+    })).resolves.toEqual(new Set([assetId]));
+    await expect(repository.listUnavailableScopeIds({
+      tenantId: tenantA, conflictScopeIds: [assetId, otherAsset],
+      startsAt: "2026-10-15T11:00:00Z", endsAt: "2026-10-20T14:00:00Z",
+    })).resolves.toEqual(new Set());
+    await expect(repository.listUnavailableScopeIds({
+      tenantId: tenantB, conflictScopeIds: [assetId, otherAsset],
+      startsAt: "2026-10-12T00:00:00Z", endsAt: "2026-10-16T00:00:00Z",
+    })).resolves.toEqual(new Set());
+  });
+
   it("commits exactly one of two concurrent overlapping allocations", async () => {
     const repository = new PostgresTemporalAvailabilityRepository(runtimePool);
     const [firstBooking, secondBooking] = await tenantTransaction(tenantA, async (client) => Promise.all([

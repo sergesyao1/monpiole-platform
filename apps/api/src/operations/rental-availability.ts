@@ -106,23 +106,51 @@ export class ListRentablePublicProperties {
   ) {}
 
   async execute(input: Parameters<ListPublicProperties["execute"]>[0]): Promise<PublicPropertyCatalogPage> {
-    const page = await this.properties.execute(input);
-    const rentals = page.items.filter((item) => item.transactionType !== "SALE");
-    const dispositions = await this.availability.execute({
-      tenantId: input.tenantId,
-      properties: rentals.map((item) => ({
-        rentableAssetId: item.publicPropertyId,
-        rentalMode: requireRentalMode(item.transactionType),
-      })),
-      evaluatedAt: this.clock.now(),
-    });
-    const byProperty = new Map(dispositions.map((item) => [item.rentableAssetId, item]));
+    const limit = input.limit ?? 20;
+    const items: PublicPropertyCatalogPage["items"][number][] = [];
+    let cursor = input.cursor;
+    let hasMore = false;
+    do {
+      const page = await this.properties.execute({ ...input, limit, ...(cursor === undefined ? {} : { cursor }) });
+      const rentals = page.items.filter((item) => item.transactionType !== "SALE");
+      const dispositions = rentals.length === 0 ? [] : await this.availability.execute({
+        tenantId: input.tenantId,
+        properties: rentals.map((item) => ({
+          rentableAssetId: item.publicPropertyId,
+          rentalMode: requireRentalMode(item.transactionType),
+        })),
+        evaluatedAt: this.clock.now(),
+        ...(input.availableFrom === undefined || input.availableTo === undefined ? {} : {
+          requestedInterval: { startsAt: input.availableFrom, endsAt: input.availableTo },
+        }),
+      });
+      const byProperty = new Map(dispositions.map((item) => [item.rentableAssetId, item]));
+      const available = page.items.filter((item) => item.transactionType === "SALE"
+        || byProperty.get(item.publicPropertyId)?.catalogDisposition === "AVAILABLE_FOR_INTERVAL");
+      const capacity = limit - items.length;
+      items.push(...available.slice(0, capacity));
+      hasMore = available.length > capacity || page.nextCursor !== undefined;
+      if (items.length >= limit || page.nextCursor === undefined) break;
+      cursor = page.nextCursor;
+    } while (true);
+    const last = items.at(-1);
     return {
-      items: page.items.filter((item) => item.transactionType === "SALE"
-        || byProperty.get(item.publicPropertyId)?.catalogDisposition === "AVAILABLE_FOR_INTERVAL"),
-      ...(page.nextCursor === undefined ? {} : { nextCursor: page.nextCursor }),
+      items,
+      ...(hasMore && last !== undefined ? { nextCursor: cursorFor(last, input.sort) } : {}),
     };
   }
+}
+
+function cursorFor(
+  item: PublicPropertyCatalogPage["items"][number],
+  sort: Parameters<ListPublicProperties["execute"]>[0]["sort"],
+) {
+  const base = { publishedAt: item.publishedAt, publicPropertyId: item.publicPropertyId };
+  if (sort !== "PRICE_ASC" && sort !== "PRICE_DESC") return base;
+  const priceAmountMinor = item.commercialTerms.kind === "SALE" ? item.commercialTerms.salePriceAmountMinor
+    : item.commercialTerms.kind === "LONG_TERM_RENTAL" ? item.commercialTerms.rentAmountMinor
+      : item.commercialTerms.rateAmountMinor;
+  return { ...base, sort, priceAmountMinor };
 }
 
 function requireRentalMode(value: string): RentalOperationMode {

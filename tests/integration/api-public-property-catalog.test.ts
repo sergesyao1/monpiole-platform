@@ -34,6 +34,7 @@ function summary(): PublicPropertyCatalogItem {
     transactionType: "SALE",
     structuralRole: "STANDALONE",
     location: { country: "CI", city: "Abidjan", district: "Cocody" },
+    publicLocation: null,
     commercialTerms: { kind: "SALE", currency: "XOF", salePriceAmountMinor: 125_000_000, agencyFeeAmountMinor: 5_000_000 },
     primaryPhoto: { contentType: "image/png" },
     publishedAt: PUBLISHED_AT,
@@ -135,10 +136,26 @@ describe("public Property catalog HTTP vertical slice", () => {
       primaryPhoto: { url: `/v1/public/properties/${PROPERTY_ID}/primary-photo`, contentType: "image/png" },
     });
     expect(calls.listPublicProperties.execute).toHaveBeenCalledWith({
-      tenantId: TENANT_A, limit: 50, propertyType: "HOUSE", transactionType: "SALE",
+      tenantId: TENANT_A, limit: 50, propertyTypes: ["HOUSE"], transactionTypes: ["SALE"], sort: "NEWEST",
       cursor: { publishedAt: PUBLISHED_AT, publicPropertyId: PROPERTY_ID },
     });
-    expect(JSON.stringify(body)).not.toMatch(/tenantId|addressLine|owner|actor|correlation|status|createdAt|updatedAt|photoId|contentSha256|latitude|longitude|publicVisibility/iu);
+    expect(JSON.stringify(body)).not.toMatch(/tenantId|addressLine|owner|actor|correlation|status|createdAt|updatedAt|photoId|contentSha256|publicVisibility/iu);
+  });
+
+  it("serializes the same privacy-safe public location for catalog and detail", async () => {
+    const projected = { latitude: 5.35, longitude: -4.01, precision: "APPROXIMATE" as const };
+    const item = { ...summary(), publicLocation: projected };
+    await start({
+      listPublicProperties: { execute: vi.fn(async () => ({ items: [item] })) },
+      retrievePublicProperty: { execute: vi.fn(async () => ({ ...detail(), publicLocation: projected })) },
+    });
+    const listResponse = await requestApi("/v1/public/properties", { host: "catalogue.test" });
+    const listBody = PublicPropertyCatalogResponseSchema.parse(await listResponse.json());
+    expect(listBody.items[0]?.publicLocation).toEqual(projected);
+    const detailResponse = await requestApi(`/v1/public/properties/${PROPERTY_ID}`, { host: "catalogue.test" });
+    const detailBody = PublicPropertyDetailSchema.parse(await detailResponse.json());
+    expect(detailBody.publicLocation).toEqual(projected);
+    expect(JSON.stringify({ listBody, detailBody })).not.toMatch(/5\.345678|-4\.012345|publicVisibility/iu);
   });
 
   it("returns 404 before any query for an unknown Host and ignores forwarded Host", async () => {
@@ -150,9 +167,16 @@ describe("public Property catalog HTTP vertical slice", () => {
     expect(calls.listPublicProperties.execute).not.toHaveBeenCalled();
   });
 
+  it("normalizes a combined public search query before the application boundary", async () => {
+    const calls = await start();
+    const response = await requestApi("/v1/public/properties?countryCode=ci&city=%20Abidjan%20&commune=Cocody&quartier=Riviera&type=APARTMENT,HOUSE&structuralRole=UNIT&transactionType=SHORT_TERM_RENTAL&minPriceAmountMinor=10000&maxPriceAmountMinor=50000&currencyCode=xof&minBedrooms=1&availableFrom=2026-11-01T14%3A00%3A00.000Z&availableTo=2026-11-05T10%3A00%3A00.000Z&q=%20piscine%20&sort=PRICE_ASC&limit=10", { host: "catalogue.test" });
+    expect(response.status).toBe(200);
+    expect(calls.listPublicProperties.execute).toHaveBeenCalledWith(expect.objectContaining({ tenantId: TENANT_A, countryCode: "CI", city: "Abidjan", commune: "Cocody", quartier: "Riviera", propertyTypes: ["APARTMENT", "HOUSE"], structuralRoles: ["UNIT"], transactionTypes: ["SHORT_TERM_RENTAL"], minPriceAmountMinor: 10000, maxPriceAmountMinor: 50000, currencyCode: "XOF", minBedrooms: 1, availableFrom: "2026-11-01T14:00:00.000Z", availableTo: "2026-11-05T10:00:00.000Z", q: "piscine", sort: "PRICE_ASC", limit: 10 }));
+  });
+
   it("does not accept tenant, status, search or malformed cursor inputs", async () => {
     await start();
-    for (const query of ["tenantId=x", "status=PUBLISHED", "search=Lagune", "cursor=not+canonical", "limit=51"]) {
+    for (const query of ["tenantId=x", "status=PUBLISHED", "search=Lagune", "cursor=not+canonical", "limit=51", "minPriceAmountMinor=1", "availableFrom=2026-11-01T14%3A00%3A00.000Z", "availableTo=2026-11-02T10%3A00%3A00.000Z", "availableFrom=invalid&availableTo=2026-11-02T10%3A00%3A00.000Z", "availableFrom=2026-11-01T10%3A00%3A00.000Z&availableTo=2026-11-01T10%3A00%3A00.000Z", "availableFrom=2026-11-05T10%3A00%3A00.000Z&availableTo=2026-11-01T10%3A00%3A00.000Z", "availableFrom=2026-11-01T10%3A00%3A00.000Z&availableTo=2026-11-02T10%3A00%3A00.000Z&transactionType=SALE", "availableFrom=2026-11-01T10%3A00%3A00.000Z&availableTo=2026-11-02T10%3A00%3A00.000Z&transactionType=SHORT_TERM_RENTAL,SALE", "availableFrom=2026-11-01T10%3A00%3A00.000Z&availableTo=2026-11-02T10%3A00%3A00.000Z&transactionType=LONG_TERM_RENTAL"]) {
       const response = await requestApi(`/v1/public/properties?${query}`, { host: "catalogue.test" });
       expect(response.status).toBe(400);
       expect(response.headers.get("cache-control")).toBe("no-store");
